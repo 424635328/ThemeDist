@@ -88,12 +88,28 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
         <button id="search-clear" class="search-clear" aria-label="清除搜索" hidden>✕</button>
       </div>
 
-      <!-- Sort -->
-      <select id="sort-select" class="sort-select" aria-label="排序方式">
-        <option value="default">默认排序</option>
-        <option value="name-asc">名称 A → Z</option>
-        <option value="name-desc">名称 Z → A</option>
-      </select>
+      <!-- Sort dropdown -->
+      <div class="sort-dropdown" id="sort-dropdown">
+        <button class="sort-trigger" id="sort-trigger" aria-haspopup="listbox" aria-expanded="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="sort-icon"><path d="M3 7h18M6 12h12M9 17h6"/></svg>
+          <span id="sort-label">默认排序</span>
+          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" class="sort-chevron"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <ul class="sort-menu" id="sort-menu" role="listbox" aria-label="排序方式" hidden>
+          <li class="sort-option sort-option-active" role="option" aria-selected="true" data-value="default">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg>
+            默认排序
+          </li>
+          <li class="sort-option" role="option" aria-selected="false" data-value="name-asc">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l4-4 4 4M7 4v16M14 8h7M14 16h5"/></svg>
+            名称 A → Z
+          </li>
+          <li class="sort-option" role="option" aria-selected="false" data-value="name-desc">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l4-4 4 4M7 4v16M21 8h-5M17 16h-3"/></svg>
+            名称 Z → A
+          </li>
+        </ul>
+      </div>
     </div>
 
     <!-- Category filter chips -->
@@ -126,7 +142,6 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
             data-cat={t.isHoliday ? 'holiday' : 'daily'}
             data-family={t.colorFamily}
             data-index={String(t.index)}
-            data-batch={String(Math.floor(t.index / BATCH_SIZE))}
             style={(t.isToday ? '--card-ring:var(--color-primary);' : '--card-ring:transparent;') + (t.index >= BATCH_SIZE ? 'display:none' : '')}
             data-pending={t.index >= BATCH_SIZE ? '1' : undefined}
           >
@@ -264,25 +279,97 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     color: var(--color-text);
   }
 
-  .sort-select {
+  /* ── Sort dropdown ── */
+  .sort-dropdown {
+    position: relative;
+  }
+  .sort-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     height: 42px;
-    padding: 0 32px 0 14px;
+    padding: 0 14px;
     border-radius: 12px;
     border: 1.5px solid var(--color-border);
     background: color-mix(in srgb, var(--color-surface) 40%, transparent);
     color: var(--color-text);
     font-size: 13px;
     font-family: inherit;
+    font-weight: 500;
     cursor: pointer;
     outline: none;
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237a7a90' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    transition: border-color 0.25s;
+    transition: border-color 0.25s, box-shadow 0.25s;
+    white-space: nowrap;
   }
-  .sort-select:focus {
+  .sort-trigger:hover {
     border-color: var(--color-primary);
+  }
+  .sort-trigger:focus-visible,
+  .sort-dropdown.open .sort-trigger {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+  }
+  .sort-icon {
+    flex-shrink: 0;
+    color: var(--color-text-muted);
+  }
+  .sort-chevron {
+    flex-shrink: 0;
+    color: var(--color-text-muted);
+    transition: transform 0.2s;
+  }
+  .sort-dropdown.open .sort-chevron {
+    transform: rotate(180deg);
+  }
+
+  .sort-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 180px;
+    padding: 6px;
+    border-radius: 12px;
+    border: 1.5px solid var(--color-border);
+    background: var(--color-bg);
+    box-shadow: 0 12px 40px -8px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04) inset;
+    backdrop-filter: blur(20px);
+    list-style: none;
+    z-index: 100;
+    animation: menuIn 0.18s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  .sort-menu[hidden] {
+    display: none;
+  }
+  @keyframes menuIn {
+    from { opacity: 0; transform: translateY(-6px) scale(0.96); }
+  }
+
+  .sort-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .sort-option:hover {
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  }
+  .sort-option svg {
+    flex-shrink: 0;
+    color: var(--color-text-muted);
+  }
+  .sort-option-active {
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    color: var(--color-primary);
+    font-weight: 600;
+  }
+  .sort-option-active svg {
+    color: var(--color-primary);
   }
 
   /* ── Filter chips ── */
@@ -539,8 +626,12 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     .search-wrapper {
       max-width: none;
     }
-    .sort-select {
+    .sort-dropdown {
       width: 100%;
+    }
+    .sort-trigger {
+      width: 100%;
+      justify-content: space-between;
     }
     .filter-chips {
       gap: 6px;
@@ -564,12 +655,16 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
   const BATCH_SIZE = 40;
   let activeFilter = 'all';
   let activeSort = 'default';
-  let currentBatch = 0;
   let visibleCount = 0;
+  let loadedCount = 0;
 
   const search = document.getElementById('search') as HTMLInputElement;
   const clearBtn = document.getElementById('search-clear')!;
-  const sortSelect = document.getElementById('sort-select') as HTMLSelectElement;
+  const sortDropdown = document.getElementById('sort-dropdown')!;
+  const sortTrigger = document.getElementById('sort-trigger') as HTMLButtonElement;
+  const sortLabel = document.getElementById('sort-label')!;
+  const sortMenu = document.getElementById('sort-menu')!;
+  const sortOptions = sortMenu.querySelectorAll<HTMLElement>('.sort-option');
   const grid = document.getElementById('theme-grid')!;
   const noResults = document.getElementById('no-results')!;
   const resultCount = document.getElementById('result-count')!;
@@ -577,26 +672,31 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
   const chips = document.querySelectorAll<HTMLButtonElement>('.chip');
   const totalCount = grid.children.length;
 
-  // ── Get all card elements, including those hidden by batch ──
+  // ── Helpers ──
   function getAllCards(): HTMLElement[] {
     return Array.from(grid.children) as HTMLElement[];
   }
 
+  function isPending(card: HTMLElement): boolean {
+    return card.dataset.pending === '1';
+  }
+
+  function getLoadedCards(): HTMLElement[] {
+    return getAllCards().filter(c => !isPending(c));
+  }
+
   // ── Match a card against current filters ──
   function cardMatches(card: HTMLElement, q: string, filter: string): boolean {
-    if (card.hidden) return false; // not yet loaded
     const name = card.dataset.name || '';
     const preset = card.dataset.preset || '';
     const color = card.dataset.color || '';
     const cat = card.dataset.cat || '';
     const family = card.dataset.family || '';
 
-    // Text search
     if (q && !name.includes(q) && !preset.includes(q) && !color.includes(q)) {
       return false;
     }
 
-    // Category filter
     if (filter === 'holiday') return cat === 'holiday';
     if (filter === 'daily') return cat === 'daily';
     if (filter === 'warm') return family === 'warm';
@@ -612,49 +712,43 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
       sorted.sort((a, b) => (a.dataset.name || '').localeCompare(b.dataset.name || ''));
     } else if (sort === 'name-desc') {
       sorted.sort((a, b) => (b.dataset.name || '').localeCompare(a.dataset.name || ''));
-    }
-    // 'default' — keep original index order
-    else {
+    } else {
       sorted.sort((a, b) => {
-        const ai = parseInt(a.dataset.index || '0');
-        const bi = parseInt(b.dataset.index || '0');
-        return ai - bi;
+        return parseInt(a.dataset.index || '0') - parseInt(b.dataset.index || '0');
       });
     }
     return sorted;
   }
 
-  // ── Apply filters + sort and show/hide cards ──
+  // ── Apply filters + sort to loaded cards ──
   function refresh() {
     const q = search.value.toLowerCase().trim();
     const filter = activeFilter;
     const sort = activeSort;
 
-    let cards = getAllCards();
-    cards = sortCards(cards, sort);
+    const allCards = getAllCards();
+    const sorted = sortCards(allCards, sort);
+    sorted.forEach(c => grid.appendChild(c));
 
-    // Reorder in DOM
-    cards.forEach(c => grid.appendChild(c));
-
-    // Show/hide based on filter match (all cards are loaded=visible at this point)
     visibleCount = 0;
-    cards.forEach(card => {
+    allCards.forEach(card => {
+      if (isPending(card)) {
+        card.style.display = 'none';
+        return;
+      }
       const match = cardMatches(card, q, filter);
       card.style.display = match ? '' : 'none';
       if (match) visibleCount++;
     });
 
-    // Show/hide sentinel based on whether there are hidden (not-yet-loaded) cards
     updateSentinel();
 
-    // Update UI
     clearBtn.hidden = !q;
     noResults.hidden = visibleCount > 0;
     resultCount.textContent = q || filter !== 'all'
-      ? `显示 ${visibleCount} / ${totalCount} 个主题`
+      ? `显示 ${visibleCount} / ${loadedCount} 个主题`
       : '';
 
-    // Update URL
     const url = new URL(location.href);
     if (q) url.searchParams.set('q', q); else url.searchParams.delete('q');
     if (filter !== 'all') url.searchParams.set('cat', filter); else url.searchParams.delete('cat');
@@ -662,107 +756,133 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     history.replaceState(null, '', url.toString());
   }
 
-  // ── Progressive loading: reveal next batch ──
+  // ── Progressive loading ──
   function loadBatch() {
-    const cards = getAllCards();
-    const hiddenByBatch = cards.filter(c => c.hasAttribute('hidden'));
-    if (hiddenByBatch.length === 0) {
+    const pending = getAllCards().filter(c => isPending(c));
+    if (pending.length === 0) {
       sentinel.style.display = 'none';
       return;
     }
 
-    const nextBatch = hiddenByBatch.slice(0, BATCH_SIZE);
-    nextBatch.forEach(card => {
-      card.removeAttribute('hidden');
+    const batch = pending.slice(0, BATCH_SIZE);
+    batch.forEach(card => {
+      delete card.dataset.pending;
     });
-    currentBatch++;
-
+    loadedCount = getLoadedCards().length;
     refresh();
-
-    if (hiddenByBatch.length <= BATCH_SIZE) {
-      sentinel.style.display = 'none';
-    }
   }
 
   function updateSentinel() {
-    const cards = getAllCards();
-    const hasMore = cards.some(c => c.hasAttribute('hidden'));
+    const hasMore = getAllCards().some(c => isPending(c));
     sentinel.style.display = hasMore ? '' : 'none';
   }
 
-  // ── IntersectionObserver for progressive loading ──
+  // ── IntersectionObserver ──
   const io = new IntersectionObserver((entries) => {
-    if (entries[0].isIntersecting) {
-      loadBatch();
-    }
-  }, { rootMargin: '300px' });
+    if (entries[0].isIntersecting) loadBatch();
+  }, { rootMargin: '400px' });
   io.observe(sentinel);
 
-  // ── Event: search input ──
+  // ── Events ──
   let debounceTimer: number;
   search.addEventListener('input', () => {
     clearTimeout(debounceTimer);
     debounceTimer = window.setTimeout(refresh, 150);
   });
 
-  // ── Event: clear search ──
   clearBtn.addEventListener('click', () => {
     search.value = '';
     refresh();
     search.focus();
   });
 
-  // ── Event: sort change ──
-  sortSelect.addEventListener('change', () => {
-    activeSort = sortSelect.value;
-    refresh();
+  // ── Sort dropdown ──
+  function openSortMenu() {
+    sortDropdown.classList.add('open');
+    sortMenu.hidden = false;
+    sortTrigger.setAttribute('aria-expanded', 'true');
+    document.addEventListener('click', onClickOutsideSort, { once: true });
+  }
+
+  function closeSortMenu() {
+    sortDropdown.classList.remove('open');
+    sortMenu.hidden = true;
+    sortTrigger.setAttribute('aria-expanded', 'false');
+  }
+
+  function onClickOutsideSort(e: MouseEvent) {
+    if (!sortDropdown.contains(e.target as Node)) {
+      closeSortMenu();
+    } else {
+      document.addEventListener('click', onClickOutsideSort, { once: true });
+    }
+  }
+
+  sortTrigger.addEventListener('click', () => {
+    if (sortMenu.hidden) openSortMenu(); else closeSortMenu();
   });
 
-  // ── Event: filter chips ──
-  chips.forEach(chip => {
-    chip.addEventListener('click', () => {
-      const filter = chip.dataset.filter!;
-      activeFilter = filter;
+  sortOptions.forEach(opt => {
+    opt.addEventListener('click', () => {
+      const value = opt.dataset.value!;
+      activeSort = value;
 
-      chips.forEach(c => {
-        c.classList.toggle('chip-active', c.dataset.filter === filter);
-        c.setAttribute('aria-pressed', String(c.dataset.filter === filter));
+      sortOptions.forEach(o => {
+        o.classList.toggle('sort-option-active', o.dataset.value === value);
+        o.setAttribute('aria-selected', String(o.dataset.value === value));
       });
+      sortLabel.textContent = opt.textContent || '';
 
+      closeSortMenu();
       refresh();
     });
   });
 
-  // ── Event: keyboard shortcuts ──
+  // Keyboard: close menu on Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !sortMenu.hidden) {
+      closeSortMenu();
+      sortTrigger.focus();
+    }
+  });
+
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      const filter = chip.dataset.filter!;
+      activeFilter = filter;
+      chips.forEach(c => {
+        c.classList.toggle('chip-active', c.dataset.filter === filter);
+        c.setAttribute('aria-pressed', String(c.dataset.filter === filter));
+      });
+      refresh();
+    });
+  });
+
   document.addEventListener('keydown', (e) => {
     const isInput = !!(document.activeElement as HTMLElement)?.closest('input, textarea, select, [contenteditable]');
-
-    // / to focus search
     if (e.key === '/' && !isInput) {
       e.preventDefault();
       search.focus();
       search.select();
     }
-    // Escape to clear
     if (e.key === 'Escape' && document.activeElement === search && search.value) {
       search.value = '';
       refresh();
     }
   });
 
-  // ── Event: copy color on swatch click ──
+  // Copy color from swatch
   grid.addEventListener('click', (e) => {
     const dot = (e.target as HTMLElement).closest('.color-dot') as HTMLElement | null;
     if (!dot) return;
     e.preventDefault();
     e.stopPropagation();
-    const color = dot.dataset.color || '';
-    navigator.clipboard.writeText(color).then(() => {
-      (window as any).__toast?.(`${color} 已复制`);
+    navigator.clipboard.writeText(dot.dataset.color || '').then(() => {
+      (window as any).__toast?.(`${dot.dataset.color} 已复制`);
     }).catch(() => {});
   });
 
-  // ── Event: apply saves to localStorage ──
+  // Apply saves to localStorage
   grid.addEventListener('click', (e) => {
     const btn = (e.target as HTMLElement).closest('.js-apply-btn') as HTMLElement | null;
     if (!btn) return;
@@ -774,20 +894,14 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
   });
 
   // ── Init ──
-  // Hide cards beyond first batch
-  const allCards = getAllCards();
-  allCards.forEach((card, i) => {
-    if (i >= BATCH_SIZE) {
-      card.setAttribute('hidden', '');
-    }
-  });
+  let cards = getAllCards();
+  loadedCount = cards.filter(c => !isPending(c)).length;
 
   // Read URL params
   const params = new URLSearchParams(location.search);
   const qParam = params.get('q');
-  if (qParam) {
-    search.value = qParam;
-  }
+  if (qParam) search.value = qParam;
+
   const catParam = params.get('cat');
   if (catParam) {
     activeFilter = catParam;
@@ -796,19 +910,24 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
       c.setAttribute('aria-pressed', String(c.dataset.filter === catParam));
     });
   }
+
   const sortParam = params.get('sort');
   if (sortParam) {
     activeSort = sortParam;
-    sortSelect.value = sortParam;
+    sortOptions.forEach(o => {
+      const isActive = o.dataset.value === sortParam;
+      o.classList.toggle('sort-option-active', isActive);
+      o.setAttribute('aria-selected', String(isActive));
+      if (isActive) sortLabel.textContent = o.textContent || '';
+    });
   }
 
-  // Initial render (first batch is already visible)
   refresh();
 
   // Hide today badges when previewing another theme
   const previewTheme = params.get('theme');
   if (previewTheme && previewTheme !== '{todayPreset}') {
-    document.querySelectorAll('[data-today]').forEach(b => {
+    document.querySelectorAll('.badge-today').forEach(b => {
       (b as HTMLElement).style.display = 'none';
     });
   }

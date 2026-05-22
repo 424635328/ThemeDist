@@ -288,16 +288,16 @@ const initialThemeData = {
   const __INITIAL = initialThemeData;
 
   // ── State ──
-  let currentVars: Record<string, string> = {};
-  let originalVars: Record<string, string> = {};
+  let currentVars = {};
+  let originalVars = {};
   let originalCustomCSS = '';
-  let originalExtensions: Array<{type: string; content: string}> = [];
+  let originalExtensions = [];
   let hasEdits = false;
-  let diyStyleEl: HTMLStyleElement | null = null;
-  let extensionsContainer: HTMLDivElement | null = null;
+  let diyStyleEl = null;
+  let extensionsContainer = null;
   let currentPreset = selectedPreset;
 
-  function getDIYStyle(): HTMLStyleElement {
+  function getDIYStyle( {
     if (!diyStyleEl) {
       diyStyleEl = document.createElement('style');
       diyStyleEl.id = 'td-diy-css';
@@ -306,7 +306,7 @@ const initialThemeData = {
     return diyStyleEl;
   }
 
-  function getExtensionsContainer(): HTMLDivElement {
+  function getExtensionsContainer() {
     if (!extensionsContainer) {
       extensionsContainer = document.createElement('div');
       extensionsContainer.id = 'td-extensions';
@@ -324,7 +324,7 @@ const initialThemeData = {
     document.querySelectorAll('.omni-petal, .omni-stardust, .cinematic-vignette, .yozakura-glow, .summer-bubble, .ice-particle').forEach(el => el.remove());
   }
 
-  function injectExtensions(exts: Array<{type: string; content: string}>) {
+  function injectExtensions(exts) {
     removeExtensions();
     if (!exts || exts.length === 0) return;
     const container = getExtensionsContainer();
@@ -340,12 +340,12 @@ const initialThemeData = {
       const target = tab.dataset.tab!;
       tabs.forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
-      panels.forEach(p => (p as HTMLElement).style.display = 'none');
+      panels.forEach(p => (p ).style.display = 'none');
       document.getElementById('panel-' + target)!.style.display = '';
 
       if (target === 'vars') {
         // Sync editor content with current vars
-        const editor = document.getElementById('vars-editor') as HTMLTextAreaElement;
+        const editor = document.getElementById('vars-editor') ;
         editor.value = JSON.stringify(currentVars, null, 2);
       }
     });
@@ -353,15 +353,15 @@ const initialThemeData = {
 
   // ── Theme selection (client-side, no page reload) ──
   const themeItems = document.querySelectorAll('.theme-item');
-  const varsEditor = document.getElementById('vars-editor') as HTMLTextAreaElement;
-  const cssEditor = document.getElementById('css-editor') as HTMLTextAreaElement;
+  const varsEditor = document.getElementById('vars-editor') ;
+  const cssEditor = document.getElementById('css-editor') ;
   const varsError = document.getElementById('vars-error')!;
   const varsOk = document.getElementById('vars-ok')!;
   const editStatus = document.getElementById('edit-status')!;
   const btnReset = document.getElementById('btn-reset')!;
   const diyHint = document.getElementById('diy-hint')!;
 
-  function loadTheme(vars: Record<string, string>, customCSS: string, exts: Array<{type: string; content: string}>, _presetName: string) {
+  function loadTheme(vars, customCSS, exts, _presetName) {
     originalVars = { ...vars };
     currentVars = { ...vars };
     originalCustomCSS = customCSS;
@@ -417,7 +417,7 @@ const initialThemeData = {
   });
 
   // ── CSS Vars editor: live preview ──
-  let varsDebounce: number;
+  let varsDebounce;
   varsEditor.addEventListener('input', () => {
     clearTimeout(varsDebounce);
     varsDebounce = setTimeout(() => {
@@ -428,13 +428,13 @@ const initialThemeData = {
         for (const [k, v] of Object.entries(parsed)) {
           if (typeof v !== 'string') throw new Error(`Value for "${k}" must be a string`);
         }
-        currentVars = parsed as Record<string, string>;
+        currentVars = parsed;
         applyVars(currentVars);
         varsError.style.display = 'none';
         varsOk.style.display = 'inline';
         markEdited();
         setTimeout(() => { varsOk.style.display = 'none'; }, 2000);
-      } catch (e: any) {
+      } catch (e) {
         varsError.textContent = 'JSON 错误: ' + (e.message || '格式无效');
         varsError.style.display = 'inline';
         varsOk.style.display = 'none';
@@ -444,7 +444,7 @@ const initialThemeData = {
   });
 
   // ── Custom CSS editor: live preview ──
-  let cssDebounce: number;
+  let cssDebounce;
   cssEditor.addEventListener('input', () => {
     clearTimeout(cssDebounce);
     cssDebounce = setTimeout(() => {
@@ -454,14 +454,14 @@ const initialThemeData = {
   });
 
   // ── Apply helpers ──
-  function applyVars(vars: Record<string, string>) {
+  function applyVars(vars) {
     const root = document.documentElement;
     for (const [k, v] of Object.entries(vars)) {
       root.style.setProperty(k, v);
     }
   }
 
-  function applyCustomCSS(css: string) {
+  function applyCustomCSS(css) {
     getDIYStyle().textContent = css;
   }
 
@@ -536,13 +536,13 @@ const initialThemeData = {
   });
 
   // ── Filter theme list ──
-  const builderSearch = document.getElementById('builder-search') as HTMLInputElement;
+  const builderSearch = document.getElementById('builder-search') ;
   builderSearch.addEventListener('input', () => {
     const q = builderSearch.value.toLowerCase().trim();
     themeItems.forEach(item => {
       const name = item.dataset.name || '';
       const preset = item.dataset.preset || '';
-      (item as HTMLElement).style.display = (!q || name.includes(q) || preset.includes(q)) ? '' : 'none';
+      (item ).style.display = (!q || name.includes(q) || preset.includes(q)) ? '' : 'none';
     });
   });
 
@@ -567,18 +567,18 @@ const initialThemeData = {
   // Image-to-Theme: Color Extraction & AI Prompt
   // ═══════════════════════════════════════════
 
-  const imageInput = document.getElementById('image-input') as HTMLInputElement;
+  const imageInput = document.getElementById('image-input') ;
   const dropZone = document.getElementById('image-drop-zone')!;
   const imageResult = document.getElementById('image-result')!;
-  const imagePreview = document.getElementById('image-preview') as HTMLImageElement;
+  const imagePreview = document.getElementById('image-preview') ;
   const paletteSwatches = document.getElementById('palette-swatches')!;
-  const colorCanvas = document.getElementById('color-canvas') as HTMLCanvasElement;
-  let extractedColors: string[] = [];
+  const colorCanvas = document.getElementById('color-canvas') ;
+  let extractedColors = [];
 
   // Open file picker on click
   dropZone.addEventListener('click', () => imageInput.click());
   imageInput.addEventListener('change', (e) => {
-    const file = (e.target as HTMLInputElement).files?.[0];
+    const file = (e.target ).files?.[0];
     if (file) processImage(file);
   });
 
@@ -595,7 +595,7 @@ const initialThemeData = {
     if (file && file.type.startsWith('image/')) processImage(file);
   });
 
-  function processImage(file: File) {
+  function processImage(file) {
     if (file.size > 10 * 1024 * 1024) {
       (window as any).__toast?.('图片不能超过 10MB');
       return;
@@ -617,17 +617,17 @@ const initialThemeData = {
         displayPalette(extractedColors);
 
         // Show preview
-        imagePreview.src = reader.result as string;
+        imagePreview.src = reader.result ;
         imageResult.style.display = 'block';
       };
-      img.src = reader.result as string;
+      img.src = reader.result ;
     };
     reader.readAsDataURL(file);
   }
 
-  function extractColors(ctx: CanvasRenderingContext2D, w: number, h: number): string[] {
+  function extractColors(ctx, w, h) {
     const data = ctx.getImageData(0, 0, w, h).data;
-    const pixels: Array<[number, number, number]> = [];
+    const pixels = [];
 
     // Sample pixels (skip alpha < 128)
     for (let i = 0; i < data.length; i += 4) {
@@ -676,8 +676,8 @@ const initialThemeData = {
   }
 
   // K-means++ initialization
-  function kMeansInit(pixels: Array<[number, number, number]>, k: number, iters: number): Array<[number, number, number]> {
-    const centroids: Array<[number, number, number]> = [pixels[Math.floor(Math.random() * pixels.length)]];
+  function kMeansInit(pixels, k, iters) {
+    const centroids = [pixels[Math.floor(Math.random() * pixels.length)]];
     for (let c = 1; c < k; c++) {
       const dists = pixels.map(p => {
         let minD = Infinity;
@@ -699,14 +699,14 @@ const initialThemeData = {
     return centroids;
   }
 
-  function kMeansCluster(pixels: Array<[number, number, number]>, centroids: Array<[number, number, number]>, maxIters: number) {
+  function kMeansCluster(pixels, centroids, maxIters) {
     const k = centroids.length;
-    const clusters: Array<{ centroid: [number, number, number]; pixels: Array<[number, number, number]> }> = [];
+    const clusters = [];
 
     for (let iter = 0; iter < maxIters; iter++) {
       // Reset clusters
       clusters.length = 0;
-      for (let c = 0; c < k; c++) clusters.push({ centroid: [...centroids[c]] as [number, number, number], pixels: [] });
+      for (let c = 0; c < k; c++) clusters.push({ centroid: [...centroids[c]], pixels: [] });
 
       // Assign pixels to nearest centroid
       for (const p of pixels) {
@@ -739,7 +739,7 @@ const initialThemeData = {
     return clusters;
   }
 
-  function displayPalette(colors: string[]) {
+  function displayPalette(colors) {
     // Map to semantic roles
     const semanticMap = [
       { label: 'primary', desc: '主色' },
@@ -758,7 +758,7 @@ const initialThemeData = {
     }).join('');
   }
 
-  function generateThemeFromColors(colors: string[]): Record<string, string> {
+  function generateThemeFromColors(colors) {
     // Sort colors by perceived brightness
     const withLum = colors.map(c => ({ color: c, lum: relativeLuminance(c) }));
     const sorted = [...withLum].sort((a, b) => a.lum - b.lum); // dark → light
@@ -871,11 +871,11 @@ The design should feel cohesive with the color palette extracted from the image.
   });
 
   // ── Color utility helpers ──
-  function rgbToHex(r: number, g: number, b: number): string {
+  function rgbToHex(r, g, b) {
     return '#' + [r, g, b].map(n => Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0')).join('');
   }
 
-  function hexToRgb(hex: string): [number, number, number] {
+  function hexToRgb(hex) {
     const c = hex.replace('#', '');
     return [
       parseInt(c.slice(0, 2), 16),
@@ -884,12 +884,12 @@ The design should feel cohesive with the color palette extracted from the image.
     ];
   }
 
-  function hexToRgba(hex: string, alpha: number): string {
+  function hexToRgba(hex, alpha) {
     const [r, g, b] = hexToRgb(hex);
     return `rgba(${r},${g},${b},${alpha})`;
   }
 
-  function relativeLuminance(hex: string): number {
+  function relativeLuminance(hex) {
     const [r, g, b] = hexToRgb(hex).map(c => {
       const s = c / 255;
       return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
@@ -897,20 +897,20 @@ The design should feel cohesive with the color palette extracted from the image.
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   }
 
-  function saturation(hex: string): number {
+  function saturation(hex) {
     const [r, g, b] = hexToRgb(hex).map(c => c / 255);
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
     return max === 0 ? 0 : (max - min) / max;
   }
 
-  function isDark(hex: string): boolean {
+  function isDark(hex) {
     return relativeLuminance(hex) < 0.3;
   }
 
-  function lightenColor(hex: string, amount: number): string {
+  function lightenColor(hex, amount) {
     const [r, g, b] = hexToRgb(hex);
-    const f = (c: number) => Math.min(255, Math.max(0, Math.round(c + amount * 255)));
+    const f = (c) => Math.min(255, Math.max(0, Math.round(c + amount * 255)));
     return rgbToHex(f(r), f(g), f(b));
   }
 
@@ -939,6 +939,8 @@ The design should feel cohesive with the color palette extracted from the image.
     originalVars = { ...__INITIAL.cssVars };
     originalCustomCSS = __INITIAL.customCss || '';
     originalExtensions = __INITIAL.extensions || [];
+    applyVars(currentVars);
+    applyCustomCSS(originalCustomCSS);
     if (originalExtensions.length > 0) {
       injectExtensions(originalExtensions);
     }
@@ -982,18 +984,18 @@ Theme color summary: primary=${currentVars['--color-primary']}, bg=${currentVars
   });
 
   // ── Format JSON in editor ──
-  function formatVarsJSON(): boolean {
+  function formatVarsJSON() {
     try {
       const parsed = JSON.parse(varsEditor.value);
       varsEditor.value = JSON.stringify(parsed, null, 2);
       // Also apply the formatted vars
-      currentVars = parsed as Record<string, string>;
+      currentVars = parsed;
       applyVars(currentVars);
       varsError.style.display = 'none';
       varsOk.style.display = 'inline';
       setTimeout(() => { varsOk.style.display = 'none'; }, 1500);
       return true;
-    } catch (e: any) {
+    } catch (e) {
       varsError.textContent = '无法格式化: ' + (e.message || 'JSON 无效');
       varsError.style.display = 'inline';
       return false;
@@ -1023,7 +1025,7 @@ Theme color summary: primary=${currentVars['--color-primary']}, bg=${currentVars
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const data = JSON.parse(reader.result as string);
+        const data = JSON.parse(reader.result );
         // Accept both raw cssVars and { cssVars: {...} } wrapper
         const vars = data.cssVars || data;
         if (typeof vars === 'object' && vars['--color-primary']) {

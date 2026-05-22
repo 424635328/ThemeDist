@@ -21,7 +21,8 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('preset:', d['preset']\\); print\\('presetName:', d['presetName']\\); print\\('cssVars count:', len\\(d['cssVars']\\)\\); print\\('customCss len:', len\\(d.get\\('customCss'\\) or ''\\)\\); print\\('extensions count:', len\\(d.get\\('extensions'\\) or []\\)\\); print\\('extensions total size:', sum\\(len\\(e.get\\('content',''\\)\\) for e in \\(d.get\\('extensions'\\) or []\\)\\)\\)\")",
       "Bash(curl -s http://localhost:4321/theme-builder)",
       "Bash(npx tsc *)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(npm ls *)"
     ]
   }
 }
