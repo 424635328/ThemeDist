@@ -345,7 +345,7 @@ const initialThemeData = {
 
       if (target === 'vars') {
         // Sync editor content with current vars
-        const editor = document.getElementById('vars-editor') ;
+        const editor = document.getElementById('vars-editor');
         editor.value = JSON.stringify(currentVars, null, 2);
       }
     });
@@ -353,8 +353,8 @@ const initialThemeData = {
 
   // ── Theme selection (client-side, no page reload) ──
   const themeItems = document.querySelectorAll('.theme-item');
-  const varsEditor = document.getElementById('vars-editor') ;
-  const cssEditor = document.getElementById('css-editor') ;
+  const varsEditor = document.getElementById('vars-editor');
+  const cssEditor = document.getElementById('css-editor');
   const varsError = document.getElementById('vars-error');
   const varsOk = document.getElementById('vars-ok');
   const editStatus = document.getElementById('edit-status');
@@ -536,13 +536,13 @@ const initialThemeData = {
   });
 
   // ── Filter theme list ──
-  const builderSearch = document.getElementById('builder-search') ;
+  const builderSearch = document.getElementById('builder-search');
   builderSearch.addEventListener('input', () => {
     const q = builderSearch.value.toLowerCase().trim();
     themeItems.forEach(item => {
       const name = item.dataset.name || '';
       const preset = item.dataset.preset || '';
-      (item ).style.display = (!q || name.includes(q) || preset.includes(q)) ? '' : 'none';
+      item.style.display = (!q || name.includes(q) || preset.includes(q)) ? '' : 'none';
     });
   });
 
@@ -567,18 +567,18 @@ const initialThemeData = {
   // Image-to-Theme: Color Extraction & AI Prompt
   // ═══════════════════════════════════════════
 
-  const imageInput = document.getElementById('image-input') ;
+  const imageInput = document.getElementById('image-input');
   const dropZone = document.getElementById('image-drop-zone');
   const imageResult = document.getElementById('image-result');
-  const imagePreview = document.getElementById('image-preview') ;
+  const imagePreview = document.getElementById('image-preview');
   const paletteSwatches = document.getElementById('palette-swatches');
-  const colorCanvas = document.getElementById('color-canvas') ;
+  const colorCanvas = document.getElementById('color-canvas');
   let extractedColors = [];
 
   // Open file picker on click
   dropZone.addEventListener('click', () => imageInput.click());
   imageInput.addEventListener('change', (e) => {
-    const file = (e.target ).files?.[0];
+    const file = e.target.files?.[0];
     if (file) processImage(file);
   });
 
@@ -617,10 +617,10 @@ const initialThemeData = {
         displayPalette(extractedColors);
 
         // Show preview
-        imagePreview.src = reader.result ;
+        imagePreview.src = reader.result;
         imageResult.style.display = 'block';
       };
-      img.src = reader.result ;
+      img.src = reader.result;
     };
     reader.readAsDataURL(file);
   }
@@ -1025,7 +1025,7 @@ Theme color summary: primary=${currentVars['--color-primary']}, bg=${currentVars
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const data = JSON.parse(reader.result );
+        const data = JSON.parse(reader.result);
         // Accept both raw cssVars and { cssVars: {...} } wrapper
         const vars = data.cssVars || data;
         if (typeof vars === 'object' && vars['--color-primary']) {
