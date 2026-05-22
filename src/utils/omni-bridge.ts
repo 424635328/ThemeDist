@@ -111,43 +111,46 @@ export function getOmniDailyTheme(): ComposedTheme {
   return omniToComposed(poolTheme);
 }
 
-/** List all available themes for the store */
+/** List all available themes for the store — dailyPool + all holidays + crazyThursday */
 export function getAllOmniThemes(): ComposedTheme[] {
-  const dailyPool = OmniConfig.dailyPool as OmniThemeEntry[];
-  const composed = dailyPool.map((t) => omniToComposed(t));
-
-  // Add holiday themes for next 30 days
-  const holidayThemes = getUpcomingHolidayThemes(30);
-  composed.unshift(...holidayThemes);
-
-  return composed;
-}
-
-function getUpcomingHolidayThemes(days: number): ComposedTheme[] {
   const results: ComposedTheme[] = [];
-  const today = new Date();
 
-  for (let i = 0; i < days; i++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() + i);
-    try {
-      const config = OmniConfig.getThemeConfig('auto', d.toISOString().slice(5, 10));
-      const isHoliday = config.logo && config.logo.text !== OmniConfig.default.logo.text;
-      if (isHoliday) {
-        const mmdd = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        const composed = omniToComposed({
-          id: `holiday-${mmdd}`,
-          name: config.logo.text,
-          theme: config.theme,
-          logo: config.logo,
-          extensions: config.extensions,
-          type: 'holiday',
-        });
-        composed.presetName = `${config.logo.text} (${mmdd})`;
-        results.push(composed);
-      }
-    } catch { /* skip */ }
+  // 1. All dailyPool themes
+  const dailyPool = OmniConfig.dailyPool as OmniThemeEntry[];
+  for (const t of dailyPool) {
+    results.push(omniToComposed(t));
   }
+
+  // 2. All holiday themes (gregorian MM-DD + lunar LMM-DD)
+  if (OmniConfig.holidays) {
+    const holidays = OmniConfig.holidays as Record<string, OmniThemeEntry>;
+    for (const [key, entry] of Object.entries(holidays)) {
+      const composed = omniToComposed({
+        id: `holiday-${key.toLowerCase()}`,
+        name: entry.logo?.text || `Holiday ${key}`,
+        logo: entry.logo,
+        theme: entry.theme,
+        extensions: entry.extensions,
+        type: 'holiday',
+      });
+      composed.presetName = `${entry.logo?.text || 'Special Day'} (${key})`;
+      results.push(composed);
+    }
+  }
+
+  // 3. crazyThursday
+  if (OmniConfig.crazyThursday) {
+    const crazy = OmniConfig.crazyThursday as OmniThemeEntry;
+    results.push(omniToComposed({
+      id: 'crazy-thursday',
+      name: crazy.logo?.text || 'Crazy Thursday',
+      logo: crazy.logo,
+      theme: crazy.theme,
+      extensions: crazy.extensions,
+      type: 'special',
+    }));
+  }
+
   return results;
 }
 

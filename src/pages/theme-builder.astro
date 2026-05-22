@@ -361,7 +361,7 @@ const initialThemeData = {
   const btnReset = document.getElementById('btn-reset')!;
   const diyHint = document.getElementById('diy-hint')!;
 
-  function loadTheme(vars: Record<string, string>, customCSS: string, exts: Array<{type: string; content: string}>, presetName: string) {
+  function loadTheme(vars: Record<string, string>, customCSS: string, exts: Array<{type: string; content: string}>, _presetName: string) {
     originalVars = { ...vars };
     currentVars = { ...vars };
     originalCustomCSS = customCSS;
@@ -373,17 +373,6 @@ const initialThemeData = {
     injectExtensions(exts);
     updateEditUI();
 
-    // Update URL without reload
-    const activeBtn = document.querySelector('.theme-item[style*="box-shadow"]');
-    if (activeBtn) {
-      const preset = activeBtn.getAttribute('data-preset');
-      if (preset) {
-        const url = new URL(location.href);
-        url.searchParams.set('theme', preset);
-        history.replaceState(null, '', url.toString());
-      }
-    }
-
     // Update editors if visible
     varsEditor.value = JSON.stringify(vars, null, 2);
     cssEditor.value = customCSS;
@@ -392,7 +381,7 @@ const initialThemeData = {
   }
 
   themeItems.forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       // Update active style
       themeItems.forEach(b => {
         b.style.borderColor = '';
@@ -403,11 +392,22 @@ const initialThemeData = {
       btn.style.background = 'color-mix(in srgb, var(--color-primary) 10%, transparent)';
       btn.style.boxShadow = '0 0 0 1px color-mix(in srgb, var(--color-primary) 30%, transparent)';
 
-      const vars = JSON.parse(btn.getAttribute('data-vars') || '{}');
-      const css = btn.getAttribute('data-customcss') || '';
-      const exts = JSON.parse(btn.getAttribute('data-extensions') || '[]');
-      const name = btn.getAttribute('data-presetname') || '';
-      loadTheme(vars, css, exts, name);
+      const preset = btn.getAttribute('data-preset') || '';
+      currentPreset = preset;
+
+      // Update URL
+      const url = new URL(location.href);
+      url.searchParams.set('theme', preset);
+      history.replaceState(null, '', url.toString());
+
+      try {
+        const res = await fetch(`/api/theme/${preset}.json`);
+        if (!res.ok) throw new Error('Failed to load theme');
+        const data = await res.json();
+        loadTheme(data.cssVars, data.customCss || '', data.extensions || [], data.presetName || '');
+      } catch {
+        (window as any).__toast?.('主题加载失败');
+      }
 
       // Scroll the preview into view on mobile
       if (window.innerWidth < 769) {
@@ -500,17 +500,14 @@ const initialThemeData = {
 
   // ── Apply to site ──
   document.getElementById('btn-apply-site')!.addEventListener('click', () => {
-    const params = new URLSearchParams(location.search);
-    const preset = params.get('theme') || '{selectedPreset}';
+    const preset = currentPreset;
 
     if (hasEdits) {
-      // Store DIY theme in sessionStorage so the preview system picks it up
       sessionStorage.setItem('td-diy-vars', JSON.stringify(currentVars));
       sessionStorage.setItem('td-diy-css', cssEditor.value);
       sessionStorage.setItem('td-diy-exts', JSON.stringify(originalExtensions));
-      sessionStorage.setItem('td-diy-name', 'DIY: ' + (document.querySelector('.theme-item[style*="box-shadow"]')?.getAttribute('data-presetname') || 'Custom'));
+      sessionStorage.setItem('td-diy-name', 'DIY Theme');
 
-      // Navigate to home with DIY flag
       const url = new URL(location.origin + '/');
       url.searchParams.set('theme', preset);
       url.searchParams.set('diy', '1');
@@ -936,19 +933,14 @@ The design should feel cohesive with the color palette extracted from the image.
     }
   }
 
-  // ── Init state from selected theme ──
+  // ── Init state from server-injected theme data ──
   (function initState() {
-    const activeBtn = document.querySelector('.theme-item[style*="box-shadow"]');
-    if (activeBtn) {
-      try {
-        const vars = JSON.parse(activeBtn.getAttribute('data-vars') || '{}');
-        currentVars = vars;
-        originalVars = { ...vars };
-        originalCustomCSS = activeBtn.getAttribute('data-customcss') || '';
-        originalExtensions = JSON.parse(activeBtn.getAttribute('data-extensions') || '[]');
-        // Inject extensions on load so effects are visible immediately
-        injectExtensions(originalExtensions);
-      } catch { /* fallback */ }
+    currentVars = __INITIAL.cssVars;
+    originalVars = { ...__INITIAL.cssVars };
+    originalCustomCSS = __INITIAL.customCss || '';
+    originalExtensions = __INITIAL.extensions || [];
+    if (originalExtensions.length > 0) {
+      injectExtensions(originalExtensions);
     }
   })();
 

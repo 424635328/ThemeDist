@@ -2,110 +2,187 @@
 import Layout from '../layouts/Layout.astro';
 import { getAllThemes, getDailyTheme } from '../utils/daily-theme';
 
-const themes = getAllThemes();
+const allThemes = getAllThemes();
 const today = getDailyTheme();
 const todayPreset = today.preset;
-const initialSearch = Astro.url.searchParams.get('q') || '';
+
+interface ThemeWithMeta {
+  preset: string;
+  presetName: string;
+  cssVars: Record<string, string>;
+  isToday: boolean;
+  isHoliday: boolean;
+  primaryHex: string;
+  colorFamily: 'warm' | 'cool';
+  index: number;
+}
+
+function hexToHue(hex: string): number {
+  const c = hex.replace('#', '');
+  const r = parseInt(c.slice(0, 2), 16) / 255;
+  const g = parseInt(c.slice(2, 4), 16) / 255;
+  const b = parseInt(c.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  if (d === 0) return 0;
+  let h = 0;
+  if (max === r) h = ((g - b) / d) % 6;
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  return Math.round(h * 60);
+}
+
+function classifyColor(hex: string): 'warm' | 'cool' {
+  const hue = hexToHue(hex);
+  // Warm: red through yellow (0-60), also includes warm greens 60-100
+  // Cool: cyan through purple (180-330), also includes cool blues 180-330
+  // Everything else (neutral greens, etc) falls to nearest
+  if (hue <= 100 || hue >= 330) return 'warm';
+  return 'cool';
+}
+
+const themes: ThemeWithMeta[] = allThemes.map((t, i) => {
+  const primaryHex = t.cssVars['--color-primary'];
+  return {
+    preset: t.preset,
+    presetName: t.presetName,
+    cssVars: t.cssVars,
+    isToday: t.preset === todayPreset,
+    isHoliday: t.preset.startsWith('holiday-'),
+    primaryHex,
+    colorFamily: classifyColor(primaryHex),
+    index: i,
+  };
+});
+
+const BATCH_SIZE = 40;
+const totalCount = themes.length;
+const holidayCount = themes.filter(t => t.isHoliday).length;
+const dailyCount = totalCount - holidayCount;
+const warmCount = themes.filter(t => t.colorFamily === 'warm').length;
+const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
 ---
 
 <Layout>
   <section class="section text-center">
     <p class="t-label">Theme Store</p>
     <h1 class="t-heading mt-2">主题商店</h1>
-    <p class="t-subhead mt-2" style="max-width:520px;margin-inline:auto">
-      {themes.length}+ 套预设主题。节日自动优先，其余按日轮换。
+    <p class="t-subhead mt-2" style="max-width:560px;margin-inline:auto">
+      {totalCount}+ 套预设主题，包含 {holidayCount} 个节日主题和 {dailyCount} 个日常主题。节日自动优先，其余按日轮换。
     </p>
   </section>
 
   <section class="section-sm" style="padding-top:0">
-    <!-- Search bar -->
-    <div style="max-width:1120px;margin:0 auto 32px;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
-      <div style="flex:1;min-width:240px;max-width:420px;position:relative">
+    <div class="store-controls">
+      <!-- Search -->
+      <div class="search-wrapper">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <input
           type="text"
           id="search"
-          placeholder="搜索主题名称或色值… 按 / 聚焦"
-          value={initialSearch}
-          style="width:100%;height:44px;padding:0 44px 0 18px;border-radius:13px;border:1.5px solid var(--color-border);background:color-mix(in srgb, var(--color-surface) 40%, transparent);color:var(--color-text);font-size:14px;font-family:inherit;outline:none;transition:border-color 0.25s"
+          placeholder="搜索主题名称或色值…"
+          autocomplete="off"
+          class="search-input"
         />
-        <button id="search-clear" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--color-text-muted);cursor:pointer;font-size:16px;padding:4px 8px;border-radius:6px;line-height:1" aria-label="清除搜索">✕</button>
+        <button id="search-clear" class="search-clear" aria-label="清除搜索" hidden>✕</button>
       </div>
-      <span id="result-count" style="font-size:13px;color:var(--color-text-muted);white-space:nowrap"></span>
+
+      <!-- Sort -->
+      <select id="sort-select" class="sort-select" aria-label="排序方式">
+        <option value="default">默认排序</option>
+        <option value="name-asc">名称 A → Z</option>
+        <option value="name-desc">名称 Z → A</option>
+      </select>
     </div>
 
+    <!-- Category filter chips -->
+    <div class="filter-chips" role="group" aria-label="主题分类筛选">
+      <button class="chip chip-active" data-filter="all" aria-pressed="true">全部 <span class="chip-count">{totalCount}</span></button>
+      <button class="chip" data-filter="holiday" aria-pressed="false">节日 <span class="chip-count">{holidayCount}</span></button>
+      <button class="chip" data-filter="daily" aria-pressed="false">日常 <span class="chip-count">{dailyCount}</span></button>
+      <span class="chip-divider"></span>
+      <button class="chip" data-filter="warm" aria-pressed="false">暖色 <span class="chip-count">{warmCount}</span></button>
+      <button class="chip" data-filter="cool" aria-pressed="false">冷色 <span class="chip-count">{coolCount}</span></button>
+    </div>
+
+    <!-- Result count -->
+    <div class="result-bar">
+      <span id="result-count" class="result-count"></span>
+    </div>
+
+    <!-- Theme grid -->
     <div class="grid-auto" id="theme-grid" style="max-width:1120px;margin:0 auto">
-      {themes.map((t, i) => {
-        const isToday = t.preset === todayPreset;
-        const isHoliday = t.preset.startsWith('holiday-');
-        const primaryHex = t.cssVars['--color-primary'];
-        const bgHex = t.cssVars['--color-bg'];
-        const textHex = t.cssVars['--color-text'];
+      {themes.map((t) => {
+        const { cssVars: v, primaryHex: p, preset } = t;
+        const bgHex = v['--color-bg'];
+        const textHex = v['--color-text'];
         return (
           <div
             class="card card-interact theme-card"
             data-name={t.presetName.toLowerCase()}
-            data-preset={t.preset.toLowerCase()}
-            data-color={primaryHex.toLowerCase()}
-            style={`padding:0;overflow:hidden;content-visibility:auto;contain-intrinsic-size:auto 220px;${isToday ? '--card-ring:var(--color-primary);box-shadow:0 0 0 2px var(--card-ring);' : '--card-ring:transparent;'}`}
+            data-preset={preset}
+            data-color={p.toLowerCase()}
+            data-cat={t.isHoliday ? 'holiday' : 'daily'}
+            data-family={t.colorFamily}
+            data-index={String(t.index)}
+            data-batch={String(Math.floor(t.index / BATCH_SIZE))}
+            style={(t.isToday ? '--card-ring:var(--color-primary);' : '--card-ring:transparent;') + (t.index >= BATCH_SIZE ? 'display:none' : '')}
+            data-pending={t.index >= BATCH_SIZE ? '1' : undefined}
           >
-            {/* Top color bar — full theme palette */}
-            <div class="card-color-bar" style="display:flex;height:4px">
-              <div style="flex:3;background:{primaryHex}"></div>
-              <div style="flex:1.5;background:{t.cssVars['--color-secondary']}"></div>
-              <div style="flex:0.8;background:{t.cssVars['--color-accent']}"></div>
-              <div style="flex:2;background:{bgHex}"></div>
-              <div style="flex:1.2;background:{t.cssVars['--color-text']}"></div>
+            {/* Full-bleed color bar — wider, more vivid */}
+            <div class="card-color-bar" aria-hidden="true">
+              <div class="color-bar-seg" style={`flex:3;background:${p}`}></div>
+              <div class="color-bar-seg" style={`flex:1.5;background:${v['--color-secondary']}`}></div>
+              <div class="color-bar-seg" style={`flex:0.8;background:${v['--color-accent']}`}></div>
+              <div class="color-bar-seg" style={`flex:2;background:${bgHex}`}></div>
+              <div class="color-bar-seg" style={`flex:1.2;background:${textHex}`}></div>
             </div>
 
-            <div style="padding:22px 24px 20px">
+            <div class="card-body">
               {/* Header row */}
-              <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:14px">
-                <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.02em;line-height:1.25;flex:1;min-width:0">
-                  {t.presetName}
-                </h3>
-                <div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
-                  {isToday && (
-                    <span data-today style="font-size:9px;font-weight:700;letter-spacing:0.04em;background:var(--color-primary);color:#fff;padding:2px 8px;border-radius:4px;text-transform:uppercase;line-height:1.6">Today</span>
-                  )}
-                  {isHoliday && (
-                    <span style="font-size:9px;font-weight:600;letter-spacing:0.03em;background:color-mix(in srgb, var(--color-accent) 20%, transparent);color:var(--color-accent);padding:2px 8px;border-radius:4px;line-height:1.6">节日</span>
-                  )}
+              <div class="card-header">
+                <h3 class="card-title">{t.presetName}</h3>
+                <div class="card-badges">
+                  {t.isToday && <span class="badge badge-today">Today</span>}
+                  {t.isHoliday && <span class="badge badge-holiday">节日</span>}
                 </div>
               </div>
 
-              {/* Color swatches — larger, interactive */}
-              <div style="display:flex;gap:6px;margin-bottom:14px;align-items:center">
+              {/* Color swatches */}
+              <div class="swatch-row">
                 {[
                   { v: '--color-primary', l: 'P' },
                   { v: '--color-secondary', l: 'S' },
                   { v: '--color-accent', l: 'A' },
                   { v: '--color-bg', l: 'Bg' },
                   { v: '--color-text', l: 'Tx' },
-                ].map(({ v, l }) => (
-                  <span
+                ].map(({ v: varKey, l }) => (
+                  <button
                     class="color-dot"
-                    data-color={t.cssVars[v]}
-                    title={`${v}: ${t.cssVars[v]} — 点击复制`}
-                    style=`width:26px;height:26px;border-radius:8px;background:${t.cssVars[v]};border:2px solid ${v === '--color-bg' ? 'var(--color-border)' : 'transparent'};flex-shrink:0;cursor:pointer;transition:transform 0.18s ease,box-shadow 0.18s ease;position:relative`
+                    data-color={v[varKey]}
+                    title={`${varKey}: ${v[varKey]} — 点击复制`}
+                    aria-label={`复制 ${varKey}: ${v[varKey]}`}
+                    style={`background:${v[varKey]};--dot-border:${varKey === '--color-bg' ? 'var(--color-border)' : 'transparent'}`}
                   >
-                    <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:${v === '--color-text' ? bgHex : textHex};opacity:0.85;text-shadow:0 0 2px ${bgHex}">{l}</span>
-                  </span>
+                    <span class="dot-label" style={`color:${varKey === '--color-text' ? bgHex : textHex};text-shadow:0 0 2px ${bgHex}`}>{l}</span>
+                  </button>
                 ))}
-                <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--color-text-muted);font-weight:500;margin-left:2px">{primaryHex}</span>
+                <span class="card-hex">{p}</span>
               </div>
 
               {/* Actions */}
-              <div style="display:flex;gap:4px;align-items:center">
-                <a href={`/?theme=${t.preset}`} class="store-action store-action-apply js-apply-btn" style="flex:1.2;text-align:center" title="全站应用此主题" data-preset={t.preset} data-name={t.presetName}>
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <div class="card-actions">
+                <a href={`/?theme=${preset}`} class="btn-card btn-card-primary js-apply-btn" data-preset={preset} data-name={t.presetName}>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   应用
                 </a>
-                <a href={`?theme=${t.preset}`} class="store-action" style="flex:0.9;text-align:center" title="在本页预览">
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/></svg>
+                <a href={`?theme=${preset}`} class="btn-card" title="在本页预览">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/></svg>
                   预览
                 </a>
-                <a href={`/theme-builder?theme=${t.preset}`} class="store-action" style="flex:0.9;text-align:center" title="在构建器中编辑">
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+                <a href={`/theme-builder?theme=${preset}`} class="btn-card" title="在构建器中编辑">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
                   构建器
                 </a>
               </div>
@@ -115,138 +192,624 @@ const initialSearch = Astro.url.searchParams.get('q') || '';
       })}
     </div>
 
-    <p id="no-results" style="display:none;text-align:center;padding:60px 20px;color:var(--color-text-muted);font-size:15px">
-      未找到匹配的主题 — <a href="?" style="color:var(--color-primary)">清除搜索</a>
-    </p>
+    <!-- Empty state -->
+    <p id="no-results" class="empty-state" hidden>未找到匹配的主题 — <a href="?" class="empty-link">清除所有筛选</a></p>
+
+    <!-- Load more sentinel -->
+    <div id="load-sentinel" class="load-sentinel" aria-hidden="true"></div>
   </section>
 </Layout>
 
 <style>
+  /* ── Controls bar ── */
+  .store-controls {
+    max-width: 1120px;
+    margin: 0 auto 20px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .search-wrapper {
+    flex: 1;
+    min-width: 200px;
+    max-width: 400px;
+    position: relative;
+  }
+  .search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-muted);
+    pointer-events: none;
+  }
+  .search-input {
+    width: 100%;
+    height: 42px;
+    padding: 0 42px 0 40px;
+    border-radius: 12px;
+    border: 1.5px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
+    color: var(--color-text);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.25s, box-shadow 0.25s;
+  }
+  .search-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+  }
+  .search-input::placeholder {
+    color: var(--color-text-muted);
+    opacity: 0.6;
+  }
+  .search-clear {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    line-height: 1;
+  }
+  .search-clear:hover {
+    color: var(--color-text);
+  }
+
+  .sort-select {
+    height: 42px;
+    padding: 0 32px 0 14px;
+    border-radius: 12px;
+    border: 1.5px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
+    color: var(--color-text);
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237a7a90' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    transition: border-color 0.25s;
+  }
+  .sort-select:focus {
+    border-color: var(--color-primary);
+  }
+
+  /* ── Filter chips ── */
+  .filter-chips {
+    max-width: 1120px;
+    margin: 0 auto 16px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .chip:hover {
+    border-color: var(--color-primary);
+    color: var(--color-text);
+  }
+  .chip-active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+  }
+  .chip-active:hover {
+    color: #fff;
+  }
+  .chip-count {
+    font-size: 10px;
+    font-weight: 600;
+    opacity: 0.75;
+  }
+  .chip-active .chip-count {
+    opacity: 0.9;
+  }
+  .chip-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--color-border);
+    margin: 0 4px;
+  }
+
+  /* ── Result count ── */
+  .result-bar {
+    max-width: 1120px;
+    margin: 0 auto 8px;
+    min-height: 20px;
+  }
+  .result-count {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    font-weight: 500;
+  }
+
+  /* ── Cards ── */
   .theme-card {
+    padding: 0;
+    overflow: hidden;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 200px;
     transition: border-color 0.3s, box-shadow 0.3s, transform 0.25s cubic-bezier(0.22,0.61,0.36,1);
     --card-ring: transparent;
   }
   .theme-card:hover {
-    box-shadow: 0 0 0 2px var(--card-ring), 0 18px 48px -12px rgba(0,0,0,0.25) !important;
+    box-shadow:
+      0 0 0 2px var(--card-ring),
+      0 18px 48px -12px rgba(0,0,0,0.25) !important;
+    transform: translateY(-2px);
   }
   .theme-card:hover .card-color-bar {
     height: 5px;
-    transition: height 0.2s;
   }
 
-  .color-dot:hover {
+  .card-color-bar {
+    display: flex;
+    height: 4px;
+    transition: height 0.2s;
+  }
+  .color-bar-seg {
+    min-width: 0;
+  }
+
+  .card-body {
+    padding: 18px 20px 16px;
+  }
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .card-badges {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .badge {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 2px 7px;
+    border-radius: 5px;
+    text-transform: uppercase;
+    line-height: 1.5;
+  }
+  .badge-today {
+    background: var(--color-primary);
+    color: #fff;
+  }
+  .badge-holiday {
+    background: color-mix(in srgb, var(--color-accent) 20%, transparent);
+    color: var(--color-accent);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .swatch-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+    align-items: center;
+  }
+  .color-dot {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    border: 2px solid var(--dot-border, transparent);
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    position: relative;
+    padding: 0;
+    outline: none;
+  }
+  .color-dot:hover,
+  .color-dot:focus-visible {
     transform: scale(1.25);
     box-shadow: 0 4px 14px rgba(0,0,0,0.3);
     z-index: 2;
   }
-
-  .store-action {
-    display:inline-flex;align-items:center;justify-content:center;gap:4px;
-    font-size:11px;font-weight:600;
-    color:var(--color-text-muted);
-    text-decoration:none;
-    padding:7px 0;
-    border-radius:8px;
-    border:1px solid var(--color-border);
-    transition:all 0.2s;
+  .color-dot:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
   }
-  .store-action:hover {
+  .dot-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    font-weight: 700;
+    opacity: 0.85;
+    pointer-events: none;
+  }
+  .card-hex {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--color-text-muted);
+    font-weight: 500;
+    margin-left: 2px;
+  }
+
+  .card-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .btn-card {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    padding: 6px 0;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    transition: all 0.2s;
+    flex: 1;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .btn-card:hover {
     border-color: var(--color-primary);
     color: var(--color-primary);
     background: color-mix(in srgb, var(--color-primary) 6%, transparent);
   }
-  .store-action-apply {
+  .btn-card-primary {
     border-color: var(--color-primary);
     color: var(--color-primary);
     background: color-mix(in srgb, var(--color-primary) 8%, transparent);
     font-weight: 700;
+    flex: 1.2;
   }
-  .store-action-apply:hover {
+  .btn-card-primary:hover {
     background: var(--color-primary) !important;
     color: #fff !important;
     border-color: var(--color-primary) !important;
   }
-  #search:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--color-text-muted);
+    font-size: 15px;
+  }
+  .empty-state[hidden] {
+    display: none;
+  }
+  .empty-link {
+    color: var(--color-primary);
+    font-weight: 600;
+  }
+
+  /* ── Load sentinel ── */
+  .load-sentinel {
+    height: 1px;
+    width: 100%;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .store-controls {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .search-wrapper {
+      max-width: none;
+    }
+    .sort-select {
+      width: 100%;
+    }
+    .filter-chips {
+      gap: 6px;
+    }
+    .chip {
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+    .card-body {
+      padding: 14px 16px 12px;
+    }
+    .btn-card {
+      font-size: 10px;
+      padding: 5px 0;
+    }
   }
 </style>
 
 <script>
+  // ── State ──
+  const BATCH_SIZE = 40;
+  let activeFilter = 'all';
+  let activeSort = 'default';
+  let currentBatch = 0;
+  let visibleCount = 0;
+
   const search = document.getElementById('search') as HTMLInputElement;
   const clearBtn = document.getElementById('search-clear')!;
-  const cards = document.querySelectorAll('.theme-card') as NodeListOf<HTMLElement>;
+  const sortSelect = document.getElementById('sort-select') as HTMLSelectElement;
+  const grid = document.getElementById('theme-grid')!;
   const noResults = document.getElementById('no-results')!;
   const resultCount = document.getElementById('result-count')!;
-  const total = cards.length;
-  let debounceTimer: number;
+  const sentinel = document.getElementById('load-sentinel')!;
+  const chips = document.querySelectorAll<HTMLButtonElement>('.chip');
+  const totalCount = grid.children.length;
 
-  function updateSearch(q: string) {
-    let visible = 0;
-    cards.forEach(card => {
-      const name = card.dataset.name || '';
-      const preset = card.dataset.preset || '';
-      const color = card.dataset.color || '';
-      const match = !q || name.includes(q) || preset.includes(q) || color.includes(q);
-      card.style.display = match ? '' : 'none';
-      if (match) visible++;
-    });
-
-    const url = new URL(location.href);
-    if (q) url.searchParams.set('q', q);
-    else url.searchParams.delete('q');
-    history.replaceState(null, '', url.toString());
-
-    clearBtn.style.display = q ? 'block' : 'none';
-    noResults.style.display = q && visible === 0 ? 'block' : 'none';
-    resultCount.textContent = q ? `显示 ${visible} / ${total} 个` : '';
+  // ── Get all card elements, including those hidden by batch ──
+  function getAllCards(): HTMLElement[] {
+    return Array.from(grid.children) as HTMLElement[];
   }
 
+  // ── Match a card against current filters ──
+  function cardMatches(card: HTMLElement, q: string, filter: string): boolean {
+    if (card.hidden) return false; // not yet loaded
+    const name = card.dataset.name || '';
+    const preset = card.dataset.preset || '';
+    const color = card.dataset.color || '';
+    const cat = card.dataset.cat || '';
+    const family = card.dataset.family || '';
+
+    // Text search
+    if (q && !name.includes(q) && !preset.includes(q) && !color.includes(q)) {
+      return false;
+    }
+
+    // Category filter
+    if (filter === 'holiday') return cat === 'holiday';
+    if (filter === 'daily') return cat === 'daily';
+    if (filter === 'warm') return family === 'warm';
+    if (filter === 'cool') return family === 'cool';
+
+    return true;
+  }
+
+  // ── Sort cards in the DOM ──
+  function sortCards(cards: HTMLElement[], sort: string): HTMLElement[] {
+    const sorted = [...cards];
+    if (sort === 'name-asc') {
+      sorted.sort((a, b) => (a.dataset.name || '').localeCompare(b.dataset.name || ''));
+    } else if (sort === 'name-desc') {
+      sorted.sort((a, b) => (b.dataset.name || '').localeCompare(a.dataset.name || ''));
+    }
+    // 'default' — keep original index order
+    else {
+      sorted.sort((a, b) => {
+        const ai = parseInt(a.dataset.index || '0');
+        const bi = parseInt(b.dataset.index || '0');
+        return ai - bi;
+      });
+    }
+    return sorted;
+  }
+
+  // ── Apply filters + sort and show/hide cards ──
+  function refresh() {
+    const q = search.value.toLowerCase().trim();
+    const filter = activeFilter;
+    const sort = activeSort;
+
+    let cards = getAllCards();
+    cards = sortCards(cards, sort);
+
+    // Reorder in DOM
+    cards.forEach(c => grid.appendChild(c));
+
+    // Show/hide based on filter match (all cards are loaded=visible at this point)
+    visibleCount = 0;
+    cards.forEach(card => {
+      const match = cardMatches(card, q, filter);
+      card.style.display = match ? '' : 'none';
+      if (match) visibleCount++;
+    });
+
+    // Show/hide sentinel based on whether there are hidden (not-yet-loaded) cards
+    updateSentinel();
+
+    // Update UI
+    clearBtn.hidden = !q;
+    noResults.hidden = visibleCount > 0;
+    resultCount.textContent = q || filter !== 'all'
+      ? `显示 ${visibleCount} / ${totalCount} 个主题`
+      : '';
+
+    // Update URL
+    const url = new URL(location.href);
+    if (q) url.searchParams.set('q', q); else url.searchParams.delete('q');
+    if (filter !== 'all') url.searchParams.set('cat', filter); else url.searchParams.delete('cat');
+    if (sort !== 'default') url.searchParams.set('sort', sort); else url.searchParams.delete('sort');
+    history.replaceState(null, '', url.toString());
+  }
+
+  // ── Progressive loading: reveal next batch ──
+  function loadBatch() {
+    const cards = getAllCards();
+    const hiddenByBatch = cards.filter(c => c.hasAttribute('hidden'));
+    if (hiddenByBatch.length === 0) {
+      sentinel.style.display = 'none';
+      return;
+    }
+
+    const nextBatch = hiddenByBatch.slice(0, BATCH_SIZE);
+    nextBatch.forEach(card => {
+      card.removeAttribute('hidden');
+    });
+    currentBatch++;
+
+    refresh();
+
+    if (hiddenByBatch.length <= BATCH_SIZE) {
+      sentinel.style.display = 'none';
+    }
+  }
+
+  function updateSentinel() {
+    const cards = getAllCards();
+    const hasMore = cards.some(c => c.hasAttribute('hidden'));
+    sentinel.style.display = hasMore ? '' : 'none';
+  }
+
+  // ── IntersectionObserver for progressive loading ──
+  const io = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting) {
+      loadBatch();
+    }
+  }, { rootMargin: '300px' });
+  io.observe(sentinel);
+
+  // ── Event: search input ──
+  let debounceTimer: number;
   search.addEventListener('input', () => {
     clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => updateSearch(search.value.toLowerCase().trim()), 150);
+    debounceTimer = window.setTimeout(refresh, 150);
   });
 
-  clearBtn.addEventListener('click', () => { search.value = ''; updateSearch(''); search.focus(); });
+  // ── Event: clear search ──
+  clearBtn.addEventListener('click', () => {
+    search.value = '';
+    refresh();
+    search.focus();
+  });
 
-  // Keyboard shortcuts
+  // ── Event: sort change ──
+  sortSelect.addEventListener('change', () => {
+    activeSort = sortSelect.value;
+    refresh();
+  });
+
+  // ── Event: filter chips ──
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      const filter = chip.dataset.filter!;
+      activeFilter = filter;
+
+      chips.forEach(c => {
+        c.classList.toggle('chip-active', c.dataset.filter === filter);
+        c.setAttribute('aria-pressed', String(c.dataset.filter === filter));
+      });
+
+      refresh();
+    });
+  });
+
+  // ── Event: keyboard shortcuts ──
   document.addEventListener('keydown', (e) => {
-    if (e.key === '/' && document.activeElement !== search && !(document.activeElement as HTMLElement)?.closest('input, textarea, [contenteditable]')) {
-      e.preventDefault(); search.focus(); search.select();
+    const isInput = !!(document.activeElement as HTMLElement)?.closest('input, textarea, select, [contenteditable]');
+
+    // / to focus search
+    if (e.key === '/' && !isInput) {
+      e.preventDefault();
+      search.focus();
+      search.select();
     }
+    // Escape to clear
     if (e.key === 'Escape' && document.activeElement === search && search.value) {
-      search.value = ''; updateSearch('');
+      search.value = '';
+      refresh();
     }
   });
 
-  if (search.value) updateSearch(search.value.toLowerCase().trim());
+  // ── Event: copy color on swatch click ──
+  grid.addEventListener('click', (e) => {
+    const dot = (e.target as HTMLElement).closest('.color-dot') as HTMLElement | null;
+    if (!dot) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const color = dot.dataset.color || '';
+    navigator.clipboard.writeText(color).then(() => {
+      (window as any).__toast?.(`${color} 已复制`);
+    }).catch(() => {});
+  });
 
-  // Hide today badges when previewing another theme
-  const previewTheme = new URLSearchParams(location.search).get('theme');
-  if (previewTheme && previewTheme !== '{todayPreset}') {
-    document.querySelectorAll('[data-today]').forEach(b => { (b as HTMLElement).style.display = 'none'; });
+  // ── Event: apply saves to localStorage ──
+  grid.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest('.js-apply-btn') as HTMLElement | null;
+    if (!btn) return;
+    const preset = btn.dataset.preset;
+    const name = btn.dataset.name;
+    if (preset) {
+      localStorage.setItem('themeDistApplied', JSON.stringify({ preset, name }));
+    }
+  });
+
+  // ── Init ──
+  // Hide cards beyond first batch
+  const allCards = getAllCards();
+  allCards.forEach((card, i) => {
+    if (i >= BATCH_SIZE) {
+      card.setAttribute('hidden', '');
+    }
+  });
+
+  // Read URL params
+  const params = new URLSearchParams(location.search);
+  const qParam = params.get('q');
+  if (qParam) {
+    search.value = qParam;
+  }
+  const catParam = params.get('cat');
+  if (catParam) {
+    activeFilter = catParam;
+    chips.forEach(c => {
+      c.classList.toggle('chip-active', c.dataset.filter === catParam);
+      c.setAttribute('aria-pressed', String(c.dataset.filter === catParam));
+    });
+  }
+  const sortParam = params.get('sort');
+  if (sortParam) {
+    activeSort = sortParam;
+    sortSelect.value = sortParam;
   }
 
-  // "Apply to site" saves to localStorage before navigating
-  document.querySelectorAll('.js-apply-btn').forEach(btn => {
-    btn.addEventListener('click', function(e) {
-      var preset = (this as HTMLElement).dataset.preset;
-      var name = (this as HTMLElement).dataset.name;
-      if (preset) {
-        localStorage.setItem('themeDistApplied', JSON.stringify({ preset: preset, name: name }));
-      }
-    });
-  });
+  // Initial render (first batch is already visible)
+  refresh();
 
-  // Click color swatch to copy hex
-  document.querySelectorAll('.color-dot').forEach(dot => {
-    dot.addEventListener('click', (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      const color = (dot as HTMLElement).dataset.color || '';
-      navigator.clipboard.writeText(color).then(() => {
-        (window as any).__toast?.(color + ' 已复制');
-      }).catch(() => {});
+  // Hide today badges when previewing another theme
+  const previewTheme = params.get('theme');
+  if (previewTheme && previewTheme !== '{todayPreset}') {
+    document.querySelectorAll('[data-today]').forEach(b => {
+      (b as HTMLElement).style.display = 'none';
     });
-  });
+  }
 </script>
