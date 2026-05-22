@@ -406,7 +406,7 @@ const initialThemeData = {
         const data = await res.json();
         loadTheme(data.cssVars, data.customCss || '', data.extensions || [], data.presetName || '');
       } catch {
-        (window as any).__toast?.('主题加载失败');
+        window.__toast?.('主题加载失败');
       }
 
       // Scroll the preview into view on mobile
@@ -495,7 +495,7 @@ const initialThemeData = {
     varsOk.style.display = 'none';
     hasEdits = false;
     updateEditUI();
-    (window as any).__toast?.('已重置为原始主题');
+    window.__toast?.('已重置为原始主题');
   });
 
   // ── Apply to site ──
@@ -529,9 +529,9 @@ const initialThemeData = {
     };
     try {
       await navigator.clipboard.writeText(JSON.stringify(diy, null, 2));
-      (window as any).__toast?.('DIY 主题已复制到剪贴板');
+      window.__toast?.('DIY 主题已复制到剪贴板');
     } catch {
-      (window as any).__toast?.('复制失败');
+      window.__toast?.('复制失败');
     }
   });
 
@@ -597,7 +597,7 @@ const initialThemeData = {
 
   function processImage(file) {
     if (file.size > 10 * 1024 * 1024) {
-      (window as any).__toast?.('图片不能超过 10MB');
+      window.__toast?.('图片不能超过 10MB');
       return;
     }
     const reader = new FileReader();
@@ -811,7 +811,7 @@ const initialThemeData = {
   // Apply palette as theme
   document.getElementById('btn-apply-palette').addEventListener('click', () => {
     if (extractedColors.length < 3) {
-      (window as any).__toast?.('需要至少 3 种颜色');
+      window.__toast?.('需要至少 3 种颜色');
       return;
     }
     const vars = generateThemeFromColors(extractedColors);
@@ -824,7 +824,7 @@ const initialThemeData = {
     markEdited();
     hasEdits = true;
     updateEditUI();
-    (window as any).__toast?.('调色板已应用，可在 CSS 变量面板微调');
+    window.__toast?.('调色板已应用，可在 CSS 变量面板微调');
     // Switch to preview tab
     document.getElementById('tab-preview').click();
   });
@@ -832,7 +832,7 @@ const initialThemeData = {
   // Copy AI prompt with palette description
   document.getElementById('btn-copy-palette-ai').addEventListener('click', async () => {
     if (extractedColors.length < 3) {
-      (window as any).__toast?.('请先上传图片');
+      window.__toast?.('请先上传图片');
       return;
     }
     const paletteDesc = extractedColors.slice(0, 6).map((c, i) => {
@@ -864,9 +864,9 @@ The design should feel cohesive with the color palette extracted from the image.
 
     try {
       await navigator.clipboard.writeText(prompt);
-      (window as any).__toast?.('AI 提示词（含调色板描述）已复制');
+      window.__toast?.('AI 提示词（含调色板描述）已复制');
     } catch {
-      (window as any).__toast?.('复制失败');
+      window.__toast?.('复制失败');
     }
   });
 
@@ -977,9 +977,9 @@ Theme color summary: primary=${currentVars['--color-primary']}, bg=${currentVars
 
     try {
       await navigator.clipboard.writeText(prompt);
-      (window as any).__toast?.('AI 提示词已复制，可粘贴给 AI 生成站点');
+      window.__toast?.('AI 提示词已复制，可粘贴给 AI 生成站点');
     } catch {
-      (window as any).__toast?.('复制失败');
+      window.__toast?.('复制失败');
     }
   });
 
@@ -1033,12 +1033,12 @@ Theme color summary: primary=${currentVars['--color-primary']}, bg=${currentVars
           currentVars = vars;
           applyVars(vars);
           markEdited();
-          (window as any).__toast?.('主题已导入');
+          window.__toast?.('主题已导入');
         } else {
-          (window as any).__toast?.('无效的主题文件格式');
+          window.__toast?.('无效的主题文件格式');
         }
       } catch {
-        (window as any).__toast?.('JSON 解析失败');
+        window.__toast?.('JSON 解析失败');
       }
     };
     reader.readAsText(file);
