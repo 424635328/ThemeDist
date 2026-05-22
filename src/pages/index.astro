@@ -1,0 +1,208 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getDailyTheme, getAllThemes } from '../utils/daily-theme';
+
+const today = getDailyTheme();
+const allThemes = getAllThemes();
+
+const primary = today.cssVars['--color-primary'];
+const secondary = today.cssVars['--color-secondary'];
+const accent = today.cssVars['--color-accent'];
+---
+
+<Layout>
+  <!-- ================================================
+       HERO
+       ================================================ -->
+  <section class="section text-center">
+    <div class="reveal" style="margin-bottom:24px;display:inline-flex;align-items:center;gap:10px;padding:7px 22px;border-radius:99px;background:color-mix(in srgb, var(--color-primary) 10%, transparent);border:1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border))">
+      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-primary);animation:pulse-glow 3s ease-in-out infinite"></span>
+      <span style="font-size:13px;font-weight:600;color:var(--color-primary);letter-spacing:0.02em">今日主题已就绪</span>
+    </div>
+
+    <h1 class="t-display reveal reveal-d1" style="max-width:780px;margin:0 auto">
+      每天一个<br/>
+      <span class="gradient-text">独一无二</span>
+      的主题
+    </h1>
+
+    <p class="t-subhead reveal reveal-d2" style="max-width:540px;margin:28px auto 0;font-size:1.15rem">
+      聚合 {allThemes.length}+ 套预设，融合农历节气与公历节日，<br/>
+      每日自动轮换。你的站点，只需一个请求。
+    </p>
+
+    <div class="reveal reveal-d3" style="margin-top:40px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <a href="/api/docs" class="btn btn-primary" style="height:50px;padding:0 32px;font-size:15px">
+        接入 API
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <a href="/theme-store" class="btn btn-outline" style="height:50px;padding:0 32px;font-size:15px">
+        浏览主题商店
+      </a>
+    </div>
+
+    <!-- Visual: floating theme card preview -->
+    <div class="reveal reveal-d3" style="margin-top:72px;max-width:640px;margin-inline:auto">
+      <div class="card card-glass" style="padding:0;overflow:hidden">
+        <!-- Color bar -->
+        <div style="display:flex;height:6px">
+          <div style="flex:3;background:var(--color-primary)"></div>
+          <div style="flex:1.5;background:var(--color-secondary)"></div>
+          <div style="flex:0.8;background:var(--color-accent)"></div>
+          <div style="flex:2;background:var(--color-surface)"></div>
+          <div style="flex:1.2;background:var(--color-text)"></div>
+        </div>
+        <div style="padding:40px;display:flex;align-items:center;gap:36px;flex-wrap:wrap;justify-content:center">
+          <!-- Large swatches -->
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;flex-shrink:0">
+            <div style="width:48px;height:48px;border-radius:16px;background:var(--color-primary);box-shadow:0 8px 24px color-mix(in srgb, var(--color-primary) 40%, transparent)"></div>
+            <div style="width:48px;height:48px;border-radius:16px;background:var(--color-secondary)"></div>
+            <div style="width:48px;height:48px;border-radius:16px;background:var(--color-accent)"></div>
+            <div style="width:48px;height:48px;border-radius:16px;background:var(--color-bg);border:2px solid var(--color-border)"></div>
+          </div>
+          <div style="min-width:0">
+            <div style="font-size:12px;font-weight:600;letter-spacing:0.06em;color:var(--color-text-muted);text-transform:uppercase;margin-bottom:8px">Today's Palette</div>
+            <div style="font-size:24px;font-weight:700;letter-spacing:-0.03em">{today.presetName}</div>
+            <div style="margin-top:10px;font-size:13px;font-family:'JetBrains Mono',monospace;color:var(--color-text-muted)">
+              {primary} <span style="opacity:0.35">/</span> {secondary} <span style="opacity:0.35">/</span> {accent}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================
+       THREE STEPS
+       ================================================ -->
+  <section class="section-sm">
+    <div class="text-center mb-8">
+      <p class="t-label">Quick Start</p>
+      <h2 class="t-heading mt-2">三步接入，即刻蜕变</h2>
+    </div>
+
+    <div class="grid-3" style="max-width:960px;margin:0 auto">
+      <div class="card card-interact reveal reveal-d1">
+        <div style="width:48px;height:48px;border-radius:14px;background:color-mix(in srgb, var(--color-primary) 14%, transparent);display:flex;align-items:center;justify-content:center;margin-bottom:20px;font-size:20px;font-weight:700;color:var(--color-primary)">1</div>
+        <h3 style="font-size:17px;font-weight:700;letter-spacing:-0.02em;margin-bottom:8px">请求 API</h3>
+        <p class="text-muted" style="font-size:14px;line-height:1.7">GET <code>/api/today.json</code><br/>返回今日主题的所有 CSS 变量</p>
+      </div>
+
+      <div class="card card-interact reveal reveal-d2">
+        <div style="width:48px;height:48px;border-radius:14px;background:color-mix(in srgb, var(--color-primary) 14%, transparent);display:flex;align-items:center;justify-content:center;margin-bottom:20px;font-size:20px;font-weight:700;color:var(--color-primary)">2</div>
+        <h3 style="font-size:17px;font-weight:700;letter-spacing:-0.02em;margin-bottom:8px">注入变量</h3>
+        <p class="text-muted" style="font-size:14px;line-height:1.7">逐条设置 CSS 自定义属性<br/>你的站点立即换上新主题</p>
+      </div>
+
+      <div class="card card-interact reveal reveal-d3">
+        <div style="width:48px;height:48px;border-radius:14px;background:color-mix(in srgb, var(--color-primary) 14%, transparent);display:flex;align-items:center;justify-content:center;margin-bottom:20px;font-size:20px;font-weight:700;color:var(--color-primary)">3</div>
+        <h3 style="font-size:17px;font-weight:700;letter-spacing:-0.02em;margin-bottom:8px">自动轮换</h3>
+        <p class="text-muted" style="font-size:14px;line-height:1.7">每天 UTC 零点自动重建<br/>重新 fetch 即可获取新主题</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================
+       FEATURE HIGHLIGHTS
+       ================================================ -->
+  <section class="section-sm">
+    <div class="text-center mb-8">
+      <p class="t-label">Features</p>
+      <h2 class="t-heading mt-2">远不止是配色</h2>
+      <p class="t-subhead mt-2" style="max-width:480px;margin-inline:auto">一套完整的视觉主题系统，开箱即用</p>
+    </div>
+
+    <div class="grid-3" style="max-width:960px;margin:0 auto">
+      <div class="card card-interact reveal reveal-d1" style="display:flex;gap:18px;align-items:flex-start">
+        <div style="width:44px;height:44px;border-radius:13px;background:color-mix(in srgb, var(--color-primary) 12%, transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">🎨</div>
+        <div>
+          <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.01em">7 色语义系统</h3>
+          <p class="text-muted" style="font-size:13px;line-height:1.6;margin-top:5px">Primary · Secondary · Accent<br/>Background · Surface · Text · Border</p>
+        </div>
+      </div>
+
+      <div class="card card-interact reveal reveal-d2" style="display:flex;gap:18px;align-items:flex-start">
+        <div style="width:44px;height:44px;border-radius:13px;background:color-mix(in srgb, var(--color-primary) 12%, transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">🔤</div>
+        <div>
+          <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.01em">排版体系</h3>
+          <p class="text-muted" style="font-size:13px;line-height:1.6;margin-top:5px">字体栈 · 字号阶梯 · 行高<br/>Modular Scale 比例系统</p>
+        </div>
+      </div>
+
+      <div class="card card-interact reveal reveal-d3" style="display:flex;gap:18px;align-items:flex-start">
+        <div style="width:44px;height:44px;border-radius:13px;background:color-mix(in srgb, var(--color-primary) 12%, transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">📐</div>
+        <div>
+          <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.01em">间距与圆角</h3>
+          <p class="text-muted" style="font-size:13px;line-height:1.6;margin-top:5px">8px 基准间距 · 圆角变量<br/>Max-width 内容约束</p>
+        </div>
+      </div>
+
+      <div class="card card-interact reveal reveal-d4" style="display:flex;gap:18px;align-items:flex-start">
+        <div style="width:44px;height:44px;border-radius:13px;background:color-mix(in srgb, var(--color-primary) 12%, transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">✨</div>
+        <div>
+          <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.01em">阴影与毛玻璃</h3>
+          <p class="text-muted" style="font-size:13px;line-height:1.6;margin-top:5px">Shadow 三级 · Glass blur<br/>Noise grain 纹理叠加</p>
+        </div>
+      </div>
+
+      <div class="card card-interact reveal reveal-d4" style="display:flex;gap:18px;align-items:flex-start">
+        <div style="width:44px;height:44px;border-radius:13px;background:color-mix(in srgb, var(--color-primary) 12%, transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">🌿</div>
+        <div>
+          <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.01em">农历节日匹配</h3>
+          <p class="text-muted" style="font-size:13px;line-height:1.6;margin-top:5px">春节·中秋·端午·清明<br/>227 个节日自动识别</p>
+        </div>
+      </div>
+
+      <div class="card card-interact reveal reveal-d5" style="display:flex;gap:18px;align-items:flex-start">
+        <div style="width:44px;height:44px;border-radius:13px;background:color-mix(in srgb, var(--color-primary) 12%, transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">🖼️</div>
+        <div>
+          <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.01em">壁纸注入</h3>
+          <p class="text-muted" style="font-size:13px;line-height:1.6;margin-top:5px">背景图 + Blend Mode<br/>Opacity 精细控制</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================
+       CODE EXAMPLE
+       ================================================ -->
+  <section class="section-sm">
+    <div class="text-center mb-8">
+      <p class="t-label">Integration</p>
+      <h2 class="t-heading mt-2">一行代码接入</h2>
+    </div>
+
+    <div style="max-width:680px;margin:0 auto" class="reveal">
+      <div class="card card-glass">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+          <span style="width:12px;height:12px;border-radius:50%;background:#ff5f57"></span>
+          <span style="width:12px;height:12px;border-radius:50%;background:#ffbd2e"></span>
+          <span style="width:12px;height:12px;border-radius:50%;background:#28ca41"></span>
+          <span style="margin-left:8px;font-size:12px;color:var(--color-text-muted)">index.html</span>
+        </div>
+        <pre style="margin:0;font-size:13px"><code>const apply = (theme) =&gt;
+  Object.entries(theme.cssVars).forEach(
+    ([k, v]) =&gt; document.documentElement.style.setProperty(k, v)
+  );
+
+fetch('/api/today.json')
+  .then(r =&gt; r.json())
+  .then(apply);</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================
+       CTA
+       ================================================ -->
+  <section class="section text-center">
+    <div class="card card-glass reveal" style="max-width:640px;margin:0 auto;padding:56px 48px;background:linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 6%, transparent), color-mix(in srgb, var(--color-secondary) 4%, transparent))">
+      <h2 class="t-heading" style="margin-bottom:12px">准备好让你的站点焕然一新了吗？</h2>
+      <p class="t-subhead" style="margin-bottom:36px">每天一个全新主题，零成本接入</p>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <a href="/api/docs" class="btn btn-primary" style="height:50px;padding:0 32px;font-size:15px">查看 API 文档</a>
+        <a href="/theme-builder" class="btn btn-outline" style="height:50px;padding:0 32px;font-size:15px">打开构建器</a>
+      </div>
+    </div>
+  </section>
+</Layout>

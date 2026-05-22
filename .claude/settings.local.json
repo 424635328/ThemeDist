@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(npx astro *)",
+      "Bash(curl -s http://localhost:4321/)",
+      "Bash(curl -s http://localhost:4321/theme-store)",
+      "Bash(curl -s http://localhost:4321/api/docs)",
+      "Bash(curl -s http://localhost:4321/api/today.json)",
+      "Bash(head -35 \"E:\\\\\\\\GitHub\\\\\\\\themeDist\\\\\\\\src\\\\\\\\layouts\\\\\\\\Layout.astro\")",
+      "Bash(head -1 \"E:\\\\\\\\GitHub\\\\\\\\themeDist\\\\\\\\dist\\\\\\\\index.html\")",
+      "Bash(ls -la \"E:\\\\\\\\GitHub\\\\\\\\themeDist\\\\\\\\dist\\\\\\\\api\\\\\\\\theme\\\\\\\\crimson-abyss.json\")",
+      "Bash(wc -c \"E:\\\\\\\\GitHub\\\\\\\\themeDist\\\\\\\\dist\\\\\\\\api\\\\\\\\theme\\\\\\\\crimson-abyss.json\")",
+      "Bash(grep *)",
+      "Bash(ls \"E:\\\\\\\\GitHub\\\\\\\\themeDist\\\\\\\\dist\\\\\\\\api\\\\\\\\spec\\\\\\\\\")",
+      "Bash(head -c 200 \"E:\\\\\\\\GitHub\\\\\\\\themeDist\\\\\\\\dist\\\\\\\\index.html\")"
+    ]
+  }
+}

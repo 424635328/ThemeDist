@@ -1,0 +1,252 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getAllThemes, getDailyTheme } from '../utils/daily-theme';
+
+const themes = getAllThemes();
+const today = getDailyTheme();
+const todayPreset = today.preset;
+const initialSearch = Astro.url.searchParams.get('q') || '';
+---
+
+<Layout>
+  <section class="section text-center">
+    <p class="t-label">Theme Store</p>
+    <h1 class="t-heading mt-2">主题商店</h1>
+    <p class="t-subhead mt-2" style="max-width:520px;margin-inline:auto">
+      {themes.length}+ 套预设主题。节日自动优先，其余按日轮换。
+    </p>
+  </section>
+
+  <section class="section-sm" style="padding-top:0">
+    <!-- Search bar -->
+    <div style="max-width:1120px;margin:0 auto 32px;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+      <div style="flex:1;min-width:240px;max-width:420px;position:relative">
+        <input
+          type="text"
+          id="search"
+          placeholder="搜索主题名称或色值… 按 / 聚焦"
+          value={initialSearch}
+          style="width:100%;height:44px;padding:0 44px 0 18px;border-radius:13px;border:1.5px solid var(--color-border);background:color-mix(in srgb, var(--color-surface) 40%, transparent);color:var(--color-text);font-size:14px;font-family:inherit;outline:none;transition:border-color 0.25s"
+        />
+        <button id="search-clear" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--color-text-muted);cursor:pointer;font-size:16px;padding:4px 8px;border-radius:6px;line-height:1" aria-label="清除搜索">✕</button>
+      </div>
+      <span id="result-count" style="font-size:13px;color:var(--color-text-muted);white-space:nowrap"></span>
+    </div>
+
+    <div class="grid-auto" id="theme-grid" style="max-width:1120px;margin:0 auto">
+      {themes.map((t, i) => {
+        const isToday = t.preset === todayPreset;
+        const isHoliday = t.preset.startsWith('holiday-');
+        const primaryHex = t.cssVars['--color-primary'];
+        const bgHex = t.cssVars['--color-bg'];
+        const textHex = t.cssVars['--color-text'];
+        return (
+          <div
+            class="card card-interact theme-card"
+            data-name={t.presetName.toLowerCase()}
+            data-preset={t.preset.toLowerCase()}
+            data-color={primaryHex.toLowerCase()}
+            style={`padding:0;overflow:hidden;content-visibility:auto;contain-intrinsic-size:auto 220px;${isToday ? '--card-ring:var(--color-primary);box-shadow:0 0 0 2px var(--card-ring);' : '--card-ring:transparent;'}`}
+          >
+            {/* Top color bar — full theme palette */}
+            <div class="card-color-bar" style="display:flex;height:4px">
+              <div style="flex:3;background:{primaryHex}"></div>
+              <div style="flex:1.5;background:{t.cssVars['--color-secondary']}"></div>
+              <div style="flex:0.8;background:{t.cssVars['--color-accent']}"></div>
+              <div style="flex:2;background:{bgHex}"></div>
+              <div style="flex:1.2;background:{t.cssVars['--color-text']}"></div>
+            </div>
+
+            <div style="padding:22px 24px 20px">
+              {/* Header row */}
+              <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:14px">
+                <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.02em;line-height:1.25;flex:1;min-width:0">
+                  {t.presetName}
+                </h3>
+                <div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
+                  {isToday && (
+                    <span data-today style="font-size:9px;font-weight:700;letter-spacing:0.04em;background:var(--color-primary);color:#fff;padding:2px 8px;border-radius:4px;text-transform:uppercase;line-height:1.6">Today</span>
+                  )}
+                  {isHoliday && (
+                    <span style="font-size:9px;font-weight:600;letter-spacing:0.03em;background:color-mix(in srgb, var(--color-accent) 20%, transparent);color:var(--color-accent);padding:2px 8px;border-radius:4px;line-height:1.6">节日</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Color swatches — larger, interactive */}
+              <div style="display:flex;gap:6px;margin-bottom:14px;align-items:center">
+                {[
+                  { v: '--color-primary', l: 'P' },
+                  { v: '--color-secondary', l: 'S' },
+                  { v: '--color-accent', l: 'A' },
+                  { v: '--color-bg', l: 'Bg' },
+                  { v: '--color-text', l: 'Tx' },
+                ].map(({ v, l }) => (
+                  <span
+                    class="color-dot"
+                    data-color={t.cssVars[v]}
+                    title={`${v}: ${t.cssVars[v]} — 点击复制`}
+                    style=`width:26px;height:26px;border-radius:8px;background:${t.cssVars[v]};border:2px solid ${v === '--color-bg' ? 'var(--color-border)' : 'transparent'};flex-shrink:0;cursor:pointer;transition:transform 0.18s ease,box-shadow 0.18s ease;position:relative`
+                  >
+                    <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:${v === '--color-text' ? bgHex : textHex};opacity:0.85;text-shadow:0 0 2px ${bgHex}">{l}</span>
+                  </span>
+                ))}
+                <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--color-text-muted);font-weight:500;margin-left:2px">{primaryHex}</span>
+              </div>
+
+              {/* Actions */}
+              <div style="display:flex;gap:4px;align-items:center">
+                <a href={`/?theme=${t.preset}`} class="store-action store-action-apply js-apply-btn" style="flex:1.2;text-align:center" title="全站应用此主题" data-preset={t.preset} data-name={t.presetName}>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  应用
+                </a>
+                <a href={`?theme=${t.preset}`} class="store-action" style="flex:0.9;text-align:center" title="在本页预览">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/></svg>
+                  预览
+                </a>
+                <a href={`/theme-builder?theme=${t.preset}`} class="store-action" style="flex:0.9;text-align:center" title="在构建器中编辑">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+                  构建器
+                </a>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+
+    <p id="no-results" style="display:none;text-align:center;padding:60px 20px;color:var(--color-text-muted);font-size:15px">
+      未找到匹配的主题 — <a href="?" style="color:var(--color-primary)">清除搜索</a>
+    </p>
+  </section>
+</Layout>
+
+<style>
+  .theme-card {
+    transition: border-color 0.3s, box-shadow 0.3s, transform 0.25s cubic-bezier(0.22,0.61,0.36,1);
+    --card-ring: transparent;
+  }
+  .theme-card:hover {
+    box-shadow: 0 0 0 2px var(--card-ring), 0 18px 48px -12px rgba(0,0,0,0.25) !important;
+  }
+  .theme-card:hover .card-color-bar {
+    height: 5px;
+    transition: height 0.2s;
+  }
+
+  .color-dot:hover {
+    transform: scale(1.25);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+    z-index: 2;
+  }
+
+  .store-action {
+    display:inline-flex;align-items:center;justify-content:center;gap:4px;
+    font-size:11px;font-weight:600;
+    color:var(--color-text-muted);
+    text-decoration:none;
+    padding:7px 0;
+    border-radius:8px;
+    border:1px solid var(--color-border);
+    transition:all 0.2s;
+  }
+  .store-action:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+  }
+  .store-action-apply {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+    font-weight: 700;
+  }
+  .store-action-apply:hover {
+    background: var(--color-primary) !important;
+    color: #fff !important;
+    border-color: var(--color-primary) !important;
+  }
+  #search:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+  }
+</style>
+
+<script>
+  const search = document.getElementById('search') as HTMLInputElement;
+  const clearBtn = document.getElementById('search-clear')!;
+  const cards = document.querySelectorAll('.theme-card') as NodeListOf<HTMLElement>;
+  const noResults = document.getElementById('no-results')!;
+  const resultCount = document.getElementById('result-count')!;
+  const total = cards.length;
+  let debounceTimer: number;
+
+  function updateSearch(q: string) {
+    let visible = 0;
+    cards.forEach(card => {
+      const name = card.dataset.name || '';
+      const preset = card.dataset.preset || '';
+      const color = card.dataset.color || '';
+      const match = !q || name.includes(q) || preset.includes(q) || color.includes(q);
+      card.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+
+    const url = new URL(location.href);
+    if (q) url.searchParams.set('q', q);
+    else url.searchParams.delete('q');
+    history.replaceState(null, '', url.toString());
+
+    clearBtn.style.display = q ? 'block' : 'none';
+    noResults.style.display = q && visible === 0 ? 'block' : 'none';
+    resultCount.textContent = q ? `显示 ${visible} / ${total} 个` : '';
+  }
+
+  search.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => updateSearch(search.value.toLowerCase().trim()), 150);
+  });
+
+  clearBtn.addEventListener('click', () => { search.value = ''; updateSearch(''); search.focus(); });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (e.key === '/' && document.activeElement !== search && !(document.activeElement as HTMLElement)?.closest('input, textarea, [contenteditable]')) {
+      e.preventDefault(); search.focus(); search.select();
+    }
+    if (e.key === 'Escape' && document.activeElement === search && search.value) {
+      search.value = ''; updateSearch('');
+    }
+  });
+
+  if (search.value) updateSearch(search.value.toLowerCase().trim());
+
+  // Hide today badges when previewing another theme
+  const previewTheme = new URLSearchParams(location.search).get('theme');
+  if (previewTheme && previewTheme !== '{todayPreset}') {
+    document.querySelectorAll('[data-today]').forEach(b => { (b as HTMLElement).style.display = 'none'; });
+  }
+
+  // "Apply to site" saves to localStorage before navigating
+  document.querySelectorAll('.js-apply-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      var preset = (this as HTMLElement).dataset.preset;
+      var name = (this as HTMLElement).dataset.name;
+      if (preset) {
+        localStorage.setItem('themeDistApplied', JSON.stringify({ preset: preset, name: name }));
+      }
+    });
+  });
+
+  // Click color swatch to copy hex
+  document.querySelectorAll('.color-dot').forEach(dot => {
+    dot.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const color = (dot as HTMLElement).dataset.color || '';
+      navigator.clipboard.writeText(color).then(() => {
+        (window as any).__toast?.(color + ' 已复制');
+      }).catch(() => {});
+    });
+  });
+</script>
