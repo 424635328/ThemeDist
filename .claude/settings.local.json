@@ -26,7 +26,13 @@
       "Bash(npx -C E:/GitHub/themeDist astro dev --port 4323)",
       "Bash(curl -s http://localhost:4323/theme-store)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:4321/theme-builder)",
-      "Bash(curl -s http://localhost:4321/theme-builder)"
+      "Bash(curl -s http://localhost:4321/theme-builder)",
+      "Bash(npm -v)",
+      "Bash(npx -C E:/GitHub/themeDist astro dev --port 4326)",
+      "Bash(curl -s http://localhost:4326/theme-store)",
+      "Bash(npm config *)",
+      "Bash(sed -n '/^\\(function\\(\\){const initialThemeData/,/^}\\)\\(\\);<\\\\/script>/p')",
+      "Read(//tmp/**)"
     ]
   }
 }

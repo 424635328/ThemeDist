@@ -832,6 +832,217 @@ const availableCount = 232;
   </div>
 
   <!-- ═══════════ COPY ALL BUTTON ═══════════ -->
+  <script type="text/plain" id="copy-all-content"># ThemeDist API — 每日主题集成指南
+
+## 概述
+ThemeDist 是一个每日自动轮换的主题分发 API。一个 GET 请求即可获取当日主题的 28 个 CSS 变量 + 特效数据，注入到 `:root` 即可完成主题切换。
+- **无认证** · **无速率限制** · **CORS 跨域** · **全球 CDN**
+- **232+ 预设** · 农历 + 公历节日覆盖 · 每日 UTC 0:00 自动轮换
+- **静态 JSON** · 零运行时 · 构建时预生成
+
+**Base URL:** `https://YOUR.netlify.app`（替换为你的部署域名）
+
+---
+
+## 端点
+
+### GET /api/today.json
+返回今日主题的完整数据，含 CSS 变量、特效、主题目录索引。
+
+### GET /api/theme/{preset}.json
+返回指定预设的完整数据（不含 date、directory 等元数据字段）。232 个预设端点，响应头含 `immutable`，可永久缓存。
+
+---
+
+## /api/today.json 响应结构
+
+```json
+{fullResponse}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| date | string | ISO 日期 YYYY-MM-DD（UTC 时区） |
+| generatedAt | string | ISO 8601 生成时间戳 |
+| preset | string | 预设标识符 kebab-case，如 crimson-abyss |
+| presetName | string | 人类可读名称，如 Crimson Abyss |
+| cssVars | object | 28 个 CSS 自定义属性（分 5 组，见下文） |
+| customCss | string\|null | 主题专属 CSS（动画 keyframes、特效样式）→ 注入为 `<style>` |
+| extensions | array\|null | HTML 片段 [{type:"html", content:"..."}] → 注入为 DOM |
+| logoText | string\|null | 推荐 Logo 文字 |
+| logoColors | array\|null | Logo 渐变色 hex 数组，如 ["#ff2a4b","#ff6b7f"] |
+| available | number | 可用主题总数 |
+| directory | array | 轻量索引 [{preset, name, primary, accent, logoText}] |
+
+## /api/theme/{preset}.json 响应结构
+
+与 today.json 结构一致，但**不含** date、generatedAt、available、directory 字段。
+
+```json
+{presetExample}
+```
+
+---
+
+## CSS 变量完整参考（28 个，5 组）
+
+使用 `var(--xxx)` 引用，建议提供 fallback：`var(--color-primary, #3b82f6)`
+
+### COLORS 色板（8 个）
+| 变量 | 用途 |
+|------|------|
+| --color-primary | 主色：按钮、链接、强调元素 |
+| --color-secondary | 辅色：渐变、装饰、次要强调 |
+| --color-accent | 强调色：hover、焦点、高亮 |
+| --color-bg | 页面背景色 |
+| --color-surface | 卡片/面板背景（比 bg 稍亮） |
+| --color-text | 正文颜色 |
+| --color-text-muted | 弱化文字（辅助、描述、placeholder） |
+| --color-border | 边框色（含 alpha 通道） |
+
+### TYPOGRAPHY 排版（7 个）
+| 变量 | 用途 |
+|------|------|
+| --font-heading | 标题字体栈 |
+| --font-body | 正文字体栈 |
+| --font-mono | 等宽字体栈 |
+| --text-base | 基准字号（clamp 流式缩放） |
+| --text-lg / --text-xl / --text-2xl | Modular Scale 放大级 |
+| --text-sm | 小号文字 |
+
+### SPACING 间距（4 个）
+| 变量 | 用途 |
+|------|------|
+| --space-unit | 基准间距 4px (= 0.25rem) |
+| --space-1 ~ --space-12 | 7 级阶梯：4 / 8 / 12 / 16 / 24 / 32 / 48 px |
+| --radii | 统一圆角（默认 0.75rem） |
+| --content-max | 内容最大宽度（默认 72rem） |
+
+### EFFECTS 效果（4 个）
+| 变量 | 用途 |
+|------|------|
+| --shadow-sm / --shadow-md / --shadow-lg | 三级阴影 |
+| --glass-bg | 毛玻璃背景（color-mix 表达式） |
+| --glass-blur | 毛玻璃模糊量（默认 blur(16px)） |
+| --noise-opacity | 噪点纹理透明度 |
+
+### AMBIENT 氛围（2 个）
+| 变量 | 用途 |
+|------|------|
+| --ambient-1 | 氛围光球 1（rgba，页面左上区域） |
+| --ambient-2 | 氛围光球 2（rgba，页面右下区域） |
+
+---
+
+## 缓存策略与响应头
+
+| 端点 | 浏览器缓存 | CDN 缓存 |
+|------|-----------|----------|
+| /api/today.json | 1 小时 max-age=3600 | 24 小时 s-maxage=86400 |
+| /api/theme/*.json | 24 小时 max-age=86400 | 永久 immutable |
+
+**响应头：**
+- Content-Type: application/json
+- Access-Control-Allow-Origin: *
+- Access-Control-Allow-Methods: GET, OPTIONS
+- Access-Control-Allow-Headers: Content-Type
+
+---
+
+## 轮换策略（优先级从高到低）
+
+1. **农历节日** — 20+ 个（春节/元宵/端午/七夕/中秋），每节专属特效
+2. **公历节日** — 元旦/情人节/Pi Day/圣帕特里克/愚人节/圣诞等固定日期
+3. **Crazy Thursday** — 每周四特殊覆盖
+4. **DailyPool 日常池** — 200+ 预设按 dayOfYear % poolLength 轮换
+
+手动获取任意主题（不受轮换限制）：`GET /api/theme/{preset}.json`
+
+---
+
+## 接入步骤（5 步）
+
+1. **请求 API** — 页面加载时尽早 GET /api/today.json，放在 `<head>` 中执行以减少 FOUC
+2. **注入 CSS 变量** — 遍历 cssVars 对象，逐条 `document.documentElement.style.setProperty(k, v)`
+3. **注入特效** — customCss → 创建 `<style>` 标签插入 `<head>`；extensions → 遍历 content 插入 `<body>`
+4. **localStorage 缓存** — 存储 {date, cssVars, customCss}，同日跳过网络请求（每人每天最多 1 次）
+5. **错误降级** — fetch 失败 → localStorage 恢复上次主题 → CSS 引用均带 fallback 兜底
+
+---
+
+## 代码示例
+
+### Vanilla JavaScript（零依赖，直接复制使用）
+
+```javascript
+{vanillaJS}
+```
+
+### React Hook — useDailyTheme.ts
+
+```typescript
+{reactHook}
+```
+
+使用示例：
+```tsx
+import { useDailyTheme } from './useDailyTheme';
+
+function App() {
+  const { theme, loading } = useDailyTheme('https://YOUR.netlify.app');
+  if (loading) return null;
+  return <div>Current theme: {theme?.presetName}</div>;
+}
+```
+
+### Vue 3 Composable — useDailyTheme.ts
+
+```typescript
+{vueComposable}
+```
+
+使用示例：
+```vue
+<script setup>
+import { useDailyTheme } from './useDailyTheme';
+const { theme, loading } = useDailyTheme('https://YOUR.netlify.app');
+</script>
+<template>
+  <div v-if="!loading">Current theme: {{ theme?.presetName }}</div>
+</template>
+```
+
+---
+
+## 错误处理
+
+| 状态 | 场景 | 处理 |
+|------|------|------|
+| 200 | 正常 | 解析 JSON → 注入变量与特效 |
+| 404 | 路径错误/部署未完成 | 返回 {error, code:404}，检查 API 地址 |
+| 网络中断 | DNS/连接失败 | catch → localStorage 读取上次成功响应 |
+
+API 本质是静态 JSON 文件，不存在运行时错误（数据库故障、超时等）。
+
+---
+
+## 常见问题
+
+**Q: 需要 API Key 吗？有速率限制吗？**
+不需要。API 是纯静态 JSON 文件，无认证、无速率限制、无配额。
+
+**Q: 如何避免 FOUC（页面闪烁）？**
+三种方案：(1) SSR 服务端 fetch 并注入 CSS 变量到 `<style>` 标签；(2) 阻塞式 `<script>` 放在 `<head>` 中；(3) 页面加载时先用 localStorage 缓存立即注入，再异步更新。
+
+**Q: 如何让用户手动选择主题？**
+从 /api/today.json 获取 directory 数组 → 展示主题列表 → 用户选择后 GET /api/theme/{preset}.json → 存入 localStorage → 每次加载时优先用用户选择。
+
+**Q: 主题何时更新？**
+UTC 0:00（北京时间 8:00 AM）定时重建。浏览器缓存 1h → 最迟 1h 后客户端感知。可加 ?t=timestamp 绕过缓存。
+
+**Q: 移动端兼容吗？**
+CSS 变量是 Web 标准，所有现代浏览器均支持。响应体积 Gzip 后 2-6KB，移动网络友好。
+</script>
   <button class="copy-all-btn" id="copy-all-btn" aria-label="复制全部代码">
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" class="copy-icon-copy">
       <rect x="5" y="5" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
@@ -1562,5 +1773,37 @@ const availableCount = 232;
       tryBtn.disabled = false;
       tryBtn.style.opacity = '1';
     }
+  });
+
+  // ── Copy All ──
+  const copyAllBtn = document.getElementById('copy-all-btn')!;
+  const copyIconCopy = copyAllBtn.querySelector('.copy-icon-copy')! as HTMLElement;
+  const copyIconCheck = copyAllBtn.querySelector('.copy-icon-check')! as HTMLElement;
+  const copyBtnText = copyAllBtn.querySelector('span')!;
+  const copyAllContent = document.getElementById('copy-all-content')!.textContent || '';
+
+  copyAllBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(copyAllContent);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = copyAllContent;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    copyIconCopy.style.display = 'none';
+    copyIconCheck.style.display = 'block';
+    copyBtnText.textContent = '已复制';
+    copyAllBtn.classList.add('copied');
+    setTimeout(() => {
+      copyIconCopy.style.display = 'block';
+      copyIconCheck.style.display = 'none';
+      copyBtnText.textContent = '全部复制';
+      copyAllBtn.classList.remove('copied');
+    }, 2000);
   });
 </script>
