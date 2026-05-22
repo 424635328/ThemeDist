@@ -38,8 +38,6 @@ export async function GET({ params }: { params: { preset: string } }) {
         logoText: theme.logoText || null,
         logoColors: theme.logoColors || null,
       },
-      null,
-      2,
     ),
     {
       headers: {

@@ -15,7 +15,12 @@
       "Bash(wc -c \"E:\\\\\\\\GitHub\\\\\\\\themeDist\\\\\\\\dist\\\\\\\\api\\\\\\\\theme\\\\\\\\crimson-abyss.json\")",
       "Bash(grep *)",
       "Bash(ls \"E:\\\\\\\\GitHub\\\\\\\\themeDist\\\\\\\\dist\\\\\\\\api\\\\\\\\spec\\\\\\\\\")",
-      "Bash(head -c 200 \"E:\\\\\\\\GitHub\\\\\\\\themeDist\\\\\\\\dist\\\\\\\\index.html\")"
+      "Bash(head -c 200 \"E:\\\\\\\\GitHub\\\\\\\\themeDist\\\\\\\\dist\\\\\\\\index.html\")",
+      "Bash(ls *)",
+      "Bash(test -f \"E:\\\\\\\\GitHub\\\\\\\\themeDist\\\\\\\\README.md\")",
+      "Bash(head -5 \"E:\\\\\\\\GitHub\\\\\\\\themeDist\\\\\\\\dist\\\\\\\\api\\\\\\\\today.json\")",
+      "Bash(wc *)",
+      "Bash(curl -s http://localhost:4322/theme-store)"
     ]
   }
 }

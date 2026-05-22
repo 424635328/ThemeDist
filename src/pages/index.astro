@@ -4,205 +4,943 @@ import { getDailyTheme, getAllThemes } from '../utils/daily-theme';
 
 const today = getDailyTheme();
 const allThemes = getAllThemes();
-
 const primary = today.cssVars['--color-primary'];
 const secondary = today.cssVars['--color-secondary'];
 const accent = today.cssVars['--color-accent'];
+
+const featured = allThemes.slice(0, 8);
+const holidayCount = allThemes.filter(t => t.preset.startsWith('holiday-')).length;
+const dailyCount = allThemes.length - holidayCount;
 ---
 
 <Layout>
-  <!-- ================================================
-       HERO
-       ================================================ -->
-  <section class="section text-center">
-    <div class="reveal" style="margin-bottom:24px;display:inline-flex;align-items:center;gap:10px;padding:7px 22px;border-radius:99px;background:color-mix(in srgb, var(--color-primary) 10%, transparent);border:1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border))">
-      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--color-primary);animation:pulse-glow 3s ease-in-out infinite"></span>
-      <span style="font-size:13px;font-weight:600;color:var(--color-primary);letter-spacing:0.02em">今日主题已就绪</span>
-    </div>
+  <!-- ═══════════════════════════ HERO ═══════════════════════════ -->
+  <section class="hero-wrap">
+    <canvas id="hero-canvas" aria-hidden="true"></canvas>
 
-    <h1 class="t-display reveal reveal-d1" style="max-width:780px;margin:0 auto">
-      每天一个<br/>
-      <span class="gradient-text">独一无二</span>
-      的主题
-    </h1>
+    <div class="hero-inner section text-center">
+      <!-- Badge -->
+      <div class="reveal-scroll" style="margin-bottom:28px;display:inline-flex;align-items:center;gap:10px;padding:8px 24px;border-radius:99px;background:color-mix(in srgb, var(--color-primary) 8%, transparent);border:1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border))">
+        <span class="live-dot"></span>
+        <span style="font-size:13px;font-weight:600;color:var(--color-primary);letter-spacing:0.03em">今日主题已就绪 · {allThemes.length}+ 套可选</span>
+      </div>
 
-    <p class="t-subhead reveal reveal-d2" style="max-width:540px;margin:28px auto 0;font-size:1.15rem">
-      聚合 {allThemes.length}+ 套预设，融合农历节气与公历节日，<br/>
-      每日自动轮换。你的站点，只需一个请求。
-    </p>
+      <!-- Title -->
+      <h1 class="t-display reveal-scroll" style="max-width:860px;margin:0 auto;line-height:1.06">
+        每天一个<br/>
+        <span class="hero-gradient">独一无二</span>
+        的主题
+      </h1>
 
-    <div class="reveal reveal-d3" style="margin-top:40px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-      <a href="/api/docs" class="btn btn-primary" style="height:50px;padding:0 32px;font-size:15px">
-        接入 API
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </a>
-      <a href="/theme-store" class="btn btn-outline" style="height:50px;padding:0 32px;font-size:15px">
-        浏览主题商店
-      </a>
-    </div>
+      <p class="t-subhead reveal-scroll" style="max-width:560px;margin:32px auto 0;font-size:1.15rem;line-height:1.7">
+        融合农历节气与公历节日，每日自动轮换<br/>
+        一个 GET 请求，你的站点即刻蜕变
+      </p>
 
-    <!-- Visual: floating theme card preview -->
-    <div class="reveal reveal-d3" style="margin-top:72px;max-width:640px;margin-inline:auto">
-      <div class="card card-glass" style="padding:0;overflow:hidden">
-        <!-- Color bar -->
-        <div style="display:flex;height:6px">
-          <div style="flex:3;background:var(--color-primary)"></div>
-          <div style="flex:1.5;background:var(--color-secondary)"></div>
-          <div style="flex:0.8;background:var(--color-accent)"></div>
-          <div style="flex:2;background:var(--color-surface)"></div>
-          <div style="flex:1.2;background:var(--color-text)"></div>
-        </div>
-        <div style="padding:40px;display:flex;align-items:center;gap:36px;flex-wrap:wrap;justify-content:center">
-          <!-- Large swatches -->
-          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;flex-shrink:0">
-            <div style="width:48px;height:48px;border-radius:16px;background:var(--color-primary);box-shadow:0 8px 24px color-mix(in srgb, var(--color-primary) 40%, transparent)"></div>
-            <div style="width:48px;height:48px;border-radius:16px;background:var(--color-secondary)"></div>
-            <div style="width:48px;height:48px;border-radius:16px;background:var(--color-accent)"></div>
-            <div style="width:48px;height:48px;border-radius:16px;background:var(--color-bg);border:2px solid var(--color-border)"></div>
-          </div>
-          <div style="min-width:0">
-            <div style="font-size:12px;font-weight:600;letter-spacing:0.06em;color:var(--color-text-muted);text-transform:uppercase;margin-bottom:8px">Today's Palette</div>
-            <div style="font-size:24px;font-weight:700;letter-spacing:-0.03em">{today.presetName}</div>
-            <div style="margin-top:10px;font-size:13px;font-family:'JetBrains Mono',monospace;color:var(--color-text-muted)">
-              {primary} <span style="opacity:0.35">/</span> {secondary} <span style="opacity:0.35">/</span> {accent}
+      <!-- CTA buttons -->
+      <div class="reveal-scroll" style="margin-top:44px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <a href="/api/docs" class="btn btn-primary" style="height:52px;padding:0 34px;font-size:15px;border-radius:14px">
+          接入 API
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a href="/theme-store" class="btn btn-outline" style="height:52px;padding:0 34px;font-size:15px;border-radius:14px">
+          浏览主题商店
+        </a>
+        <a href="/theme-builder" class="btn btn-ghost" style="height:52px;padding:0 24px;font-size:14px">
+          打开构建器
+        </a>
+      </div>
+
+      <!-- 3D Tilt Preview Card -->
+      <div class="reveal-scroll" style="margin-top:72px;max-width:620px;margin-inline:auto;perspective:1000px">
+        <div id="hero-card" class="hero-card-3d" style="position:relative;transform-style:preserve-3d;transition:transform 0.1s ease-out">
+          <div style="position:absolute;inset:-3px;border-radius:22px;background:linear-gradient(135deg, var(--color-primary), transparent 40%, var(--color-secondary), transparent 70%, var(--color-accent));opacity:0.35;filter:blur(24px);z-index:-1"></div>
+          <div class="card card-glass" style="padding:0;overflow:hidden;position:relative">
+            <div style="display:flex;height:5px">
+              <div style="flex:3;background:var(--color-primary)"></div>
+              <div style="flex:1.5;background:var(--color-secondary)"></div>
+              <div style="flex:0.8;background:var(--color-accent)"></div>
+              <div style="flex:2;background:var(--color-surface)"></div>
+              <div style="flex:1.2;background:var(--color-text)"></div>
+            </div>
+            <div style="padding:44px;display:flex;align-items:center;gap:40px;flex-wrap:wrap;justify-content:center">
+              <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;flex-shrink:0">
+                <div class="card-swatch" style="background:var(--color-primary);box-shadow:0 12px 28px color-mix(in srgb, var(--color-primary) 50%, transparent)"></div>
+                <div class="card-swatch" style="background:var(--color-secondary)"></div>
+                <div class="card-swatch" style="background:var(--color-accent)"></div>
+                <div class="card-swatch" style="background:var(--color-bg);border:2px solid var(--color-border)"></div>
+              </div>
+              <div style="min-width:0">
+                <div class="t-label">Today's Palette</div>
+                <div style="font-size:26px;font-weight:700;letter-spacing:-0.03em;margin-top:6px">{today.presetName}</div>
+                <div style="margin-top:12px;font-size:13px;font-family:'JetBrains Mono',monospace;color:var(--color-text-muted)">
+                  {primary} <span style="opacity:0.3">/</span> {secondary} <span style="opacity:0.3">/</span> {accent}
+                </div>
+              </div>
             </div>
           </div>
         </div>
+        <!-- Glossy reflection -->
+        <div class="card-gloss"></div>
+      </div>
+
+      <!-- Scroll indicator -->
+      <div class="scroll-hint reveal-scroll" aria-hidden="true">
+        <span class="scroll-hint-chevron"></span>
       </div>
     </div>
   </section>
 
-  <!-- ================================================
-       THREE STEPS
-       ================================================ -->
+  <!-- ═══════════════════════════ STATS ═══════════════════════════ -->
+  <section class="section-sm">
+    <div class="stats-grid">
+      {[
+        { value: allThemes.length, suffix: '+', label: '精选主题', desc: '涵盖暗黑 · 柔和 · 胶片 · 赛博等风格' },
+        { value: dailyCount, suffix: '', label: '每日轮换池', desc: '基于农历节气 + 公历节日自动匹配' },
+        { value: holidayCount, suffix: '+', label: '节日专属', desc: '春节 · 中秋 · 端午 · 七夕等自动识别' },
+        { value: 30, suffix: '+', label: 'CSS 变量', desc: '颜色 · 排版 · 阴影 · 圆角 · 动效全覆盖' },
+      ].map((s, i) => (
+        <div class="stat-card card card-glass reveal-scroll" style={`animation-delay:${i * 0.1}s`}>
+          <div class="stat-value" data-target={s.value} data-suffix={s.suffix}>0</div>
+          <div class="stat-label">{s.label}</div>
+          <div class="stat-desc">{s.desc}</div>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ THEME SHOWCASE ═══════════════════════════ -->
+  <section class="section-sm">
+    <div class="text-center mb-8">
+      <p class="t-label">Live Preview</p>
+      <h2 class="t-heading mt-2">点击预览主题，即时切换</h2>
+      <p class="t-subhead mt-2" style="max-width:480px;margin-inline:auto">选择你喜欢的配色，一键应用到本站</p>
+    </div>
+
+    <div class="showcase-track-wrap">
+      <div class="showcase-track" id="showcase-track">
+        {featured.map((t, i) => {
+          const p = t.cssVars['--color-primary'];
+          const s = t.cssVars['--color-secondary'];
+          const a = t.cssVars['--color-accent'];
+          const isToday = t.preset === today.preset;
+          return (
+            <button class="showcase-card card card-interact" data-preset={t.preset} data-vars={JSON.stringify(t.cssVars)} data-css={t.customCss || ''} data-exts={JSON.stringify(t.extensions || [])} data-name={t.presetName}
+              style={isToday ? 'box-shadow:0 0 0 2px var(--color-primary),0 8px 32px color-mix(in srgb,var(--color-primary) 20%,transparent);border-color:var(--color-primary)' : ''}>
+              <div class="showcase-strip" style={`background:linear-gradient(90deg,${p},${s},${a})`}></div>
+              <div style="padding:20px 18px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                  <div style="display:flex;gap:3px">
+                    <span style=`width:12px;height:12px;border-radius:4px;background:${p}`></span>
+                    <span style=`width:12px;height:12px;border-radius:4px;background:${s}`></span>
+                    <span style=`width:12px;height:12px;border-radius:4px;background:${a}`></span>
+                  </div>
+                  <span style="font-size:13px;font-weight:700;letter-spacing:-0.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{t.presetName}</span>
+                  {isToday && <span style="font-size:10px;font-weight:600;color:var(--color-primary);flex-shrink:0;padding:2px 8px;border-radius:99px;background:color-mix(in srgb,var(--color-primary) 12%,transparent)">今天</span>}
+                </div>
+                <div style="display:flex;gap:6px">
+                  <span class="showcase-dot" style=`background:${p}`></span>
+                  <span class="showcase-dot" style=`background:${s}`></span>
+                  <span class="showcase-dot" style=`background:${a}`></span>
+                  <span class="showcase-dot" style=`background:${t.cssVars['--color-bg']};border:1.5px solid var(--color-border)`></span>
+                  <span class="showcase-dot" style=`background:${t.cssVars['--color-text']}`></span>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+
+    <div id="preview-indicator" style="display:none;text-align:center;margin-top:16px">
+      <span style="font-size:13px;color:var(--color-text-muted)">正在预览: <strong id="preview-name" style="color:var(--color-primary)"></strong></span>
+      <button id="preview-reset" style="margin-left:12px;font-size:12px;font-weight:600;padding:5px 14px;border-radius:8px;border:1px solid var(--color-primary);background:transparent;color:var(--color-primary);cursor:pointer;font-family:inherit">恢复今日主题</button>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ HOW IT WORKS ═══════════════════════════ -->
   <section class="section-sm">
     <div class="text-center mb-8">
       <p class="t-label">Quick Start</p>
       <h2 class="t-heading mt-2">三步接入，即刻蜕变</h2>
+      <p class="t-subhead mt-2" style="max-width:420px;margin-inline:auto">零依赖，纯 CSS 变量驱动，10 行代码搞定</p>
     </div>
 
-    <div class="grid-3" style="max-width:960px;margin:0 auto">
-      <div class="card card-interact reveal reveal-d1">
-        <div style="width:48px;height:48px;border-radius:14px;background:color-mix(in srgb, var(--color-primary) 14%, transparent);display:flex;align-items:center;justify-content:center;margin-bottom:20px;font-size:20px;font-weight:700;color:var(--color-primary)">1</div>
-        <h3 style="font-size:17px;font-weight:700;letter-spacing:-0.02em;margin-bottom:8px">请求 API</h3>
-        <p class="text-muted" style="font-size:14px;line-height:1.7">GET <code>/api/today.json</code><br/>返回今日主题的所有 CSS 变量</p>
-      </div>
-
-      <div class="card card-interact reveal reveal-d2">
-        <div style="width:48px;height:48px;border-radius:14px;background:color-mix(in srgb, var(--color-primary) 14%, transparent);display:flex;align-items:center;justify-content:center;margin-bottom:20px;font-size:20px;font-weight:700;color:var(--color-primary)">2</div>
-        <h3 style="font-size:17px;font-weight:700;letter-spacing:-0.02em;margin-bottom:8px">注入变量</h3>
-        <p class="text-muted" style="font-size:14px;line-height:1.7">逐条设置 CSS 自定义属性<br/>你的站点立即换上新主题</p>
-      </div>
-
-      <div class="card card-interact reveal reveal-d3">
-        <div style="width:48px;height:48px;border-radius:14px;background:color-mix(in srgb, var(--color-primary) 14%, transparent);display:flex;align-items:center;justify-content:center;margin-bottom:20px;font-size:20px;font-weight:700;color:var(--color-primary)">3</div>
-        <h3 style="font-size:17px;font-weight:700;letter-spacing:-0.02em;margin-bottom:8px">自动轮换</h3>
-        <p class="text-muted" style="font-size:14px;line-height:1.7">每天 UTC 零点自动重建<br/>重新 fetch 即可获取新主题</p>
-      </div>
+    <div style="max-width:960px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;position:relative">
+      <!-- Connector line (desktop) -->
+      <div class="steps-connector" aria-hidden="true"></div>
+      {[
+        { title: '请求 API', desc: 'GET /api/today.json 返回今日主题的 CSS 变量、customCss 与特效扩展数据', icon: '01' },
+        { title: '注入变量', desc: '逐条 setProperty 注入 :root，站点立即换上新主题。支持 customCss 与 extensions', icon: '02' },
+        { title: '自动轮换', desc: '每天 UTC 零点服务端重建，重新 fetch 即可获取新主题，无需手动维护', icon: '03' },
+      ].map((s, i) => (
+        <div class="step-card reveal-scroll" style={`animation-delay:${i * 0.15}s`}>
+          <div class="card card-interact" style="text-align:center;padding:40px 28px;position:relative;z-index:1">
+            <div class="step-number">{s.icon}</div>
+            <h3 style="font-size:18px;font-weight:700;letter-spacing:-0.02em;margin:16px 0 10px">{s.title}</h3>
+            <p class="text-muted" style="font-size:13px;line-height:1.7">{s.desc}</p>
+          </div>
+        </div>
+      ))}
     </div>
   </section>
 
-  <!-- ================================================
-       FEATURE HIGHLIGHTS
-       ================================================ -->
+  <!-- ═══════════════════════════ FEATURES ═══════════════════════════ -->
   <section class="section-sm">
     <div class="text-center mb-8">
       <p class="t-label">Features</p>
       <h2 class="t-heading mt-2">远不止是配色</h2>
-      <p class="t-subhead mt-2" style="max-width:480px;margin-inline:auto">一套完整的视觉主题系统，开箱即用</p>
+      <p class="t-subhead mt-2" style="max-width:460px;margin-inline:auto">一套完整的视觉主题系统，开箱即用</p>
     </div>
 
-    <div class="grid-3" style="max-width:960px;margin:0 auto">
-      <div class="card card-interact reveal reveal-d1" style="display:flex;gap:18px;align-items:flex-start">
-        <div style="width:44px;height:44px;border-radius:13px;background:color-mix(in srgb, var(--color-primary) 12%, transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">🎨</div>
-        <div>
-          <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.01em">7 色语义系统</h3>
-          <p class="text-muted" style="font-size:13px;line-height:1.6;margin-top:5px">Primary · Secondary · Accent<br/>Background · Surface · Text · Border</p>
+    <div class="features-grid" style="max-width:1000px;margin:0 auto">
+      {[
+        { svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" stroke-dasharray="4 3"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg>', title: '7 色语义色板', desc: 'Primary · Secondary · Accent · Background · Surface · Text · Border 七色体系' },
+        { svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h12M4 17h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>', title: '排版体系', desc: '字体栈 + Modular Scale 字号 + clamp() 流式缩放' },
+        { svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>', title: '间距与圆角', desc: '4px 基准 · 7 级间距阶梯 · 统一圆角半径' },
+        { svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="4" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="9" r="1" fill="currentColor"/><rect x="12" y="14" width="4" height="1.5" rx="0.75" fill="currentColor" opacity="0.5"/></svg>', title: '阴影与毛玻璃', desc: '三级阴影 · Glass blur · Noise grain 纹理叠加' },
+        { svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.5 7.5H22l-6 4.5 2.5 7.5L12 17l-6.5 5 2.5-7.5-6-4.5h7.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>', title: '节日智能匹配', desc: '春节·中秋·端午·七夕 等 20+ 传统节日自动识别' },
+        { svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="2" y="4" width="20" height="16" rx="3" stroke="currentColor" stroke-width="1.8"/><circle cx="8" cy="12" r="2" stroke="currentColor" stroke-width="1.5"/><path d="M2 9h20" stroke="currentColor" stroke-width="1.8"/></svg>', title: '壁纸与特效', desc: '背景图 + Blend Mode + 粒子/花瓣/晶体动画' },
+        { svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="8" cy="6" r="1" fill="currentColor"/><circle cx="14" cy="12" r="1" fill="currentColor"/><circle cx="10" cy="18" r="1" fill="currentColor"/></svg>', title: 'CORS 跨域支持', desc: 'Access-Control-Allow-Origin: * ，任何站点均可调用' },
+        { svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2v4m0 12v4M2 12h4m12 0h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="6" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>', title: '边缘缓存', desc: 'CDN 边缘节点缓存，响应时间 &lt; 50ms' },
+        { svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>', title: '构建器 + 预览', desc: '可视化编辑 · 图片取色 · 实时预览 · 一键导出 AI 提示词' },
+      ].map((f, i) => (
+        <div class={`card card-interact reveal-scroll`} style={`display:flex;gap:16px;align-items:flex-start;padding:24px;animation-delay:${0.03 + i * 0.06}s`}>
+          <div class="feature-icon">{@html f.svg}</div>
+          <div style="min-width:0">
+            <h3 style="font-size:14px;font-weight:700;letter-spacing:-0.01em;margin-bottom:4px">{f.title}</h3>
+            <p class="text-muted" style="font-size:12px;line-height:1.6">{f.desc}</p>
+          </div>
         </div>
-      </div>
-
-      <div class="card card-interact reveal reveal-d2" style="display:flex;gap:18px;align-items:flex-start">
-        <div style="width:44px;height:44px;border-radius:13px;background:color-mix(in srgb, var(--color-primary) 12%, transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">🔤</div>
-        <div>
-          <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.01em">排版体系</h3>
-          <p class="text-muted" style="font-size:13px;line-height:1.6;margin-top:5px">字体栈 · 字号阶梯 · 行高<br/>Modular Scale 比例系统</p>
-        </div>
-      </div>
-
-      <div class="card card-interact reveal reveal-d3" style="display:flex;gap:18px;align-items:flex-start">
-        <div style="width:44px;height:44px;border-radius:13px;background:color-mix(in srgb, var(--color-primary) 12%, transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">📐</div>
-        <div>
-          <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.01em">间距与圆角</h3>
-          <p class="text-muted" style="font-size:13px;line-height:1.6;margin-top:5px">8px 基准间距 · 圆角变量<br/>Max-width 内容约束</p>
-        </div>
-      </div>
-
-      <div class="card card-interact reveal reveal-d4" style="display:flex;gap:18px;align-items:flex-start">
-        <div style="width:44px;height:44px;border-radius:13px;background:color-mix(in srgb, var(--color-primary) 12%, transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">✨</div>
-        <div>
-          <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.01em">阴影与毛玻璃</h3>
-          <p class="text-muted" style="font-size:13px;line-height:1.6;margin-top:5px">Shadow 三级 · Glass blur<br/>Noise grain 纹理叠加</p>
-        </div>
-      </div>
-
-      <div class="card card-interact reveal reveal-d4" style="display:flex;gap:18px;align-items:flex-start">
-        <div style="width:44px;height:44px;border-radius:13px;background:color-mix(in srgb, var(--color-primary) 12%, transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">🌿</div>
-        <div>
-          <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.01em">农历节日匹配</h3>
-          <p class="text-muted" style="font-size:13px;line-height:1.6;margin-top:5px">春节·中秋·端午·清明<br/>227 个节日自动识别</p>
-        </div>
-      </div>
-
-      <div class="card card-interact reveal reveal-d5" style="display:flex;gap:18px;align-items:flex-start">
-        <div style="width:44px;height:44px;border-radius:13px;background:color-mix(in srgb, var(--color-primary) 12%, transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">🖼️</div>
-        <div>
-          <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.01em">壁纸注入</h3>
-          <p class="text-muted" style="font-size:13px;line-height:1.6;margin-top:5px">背景图 + Blend Mode<br/>Opacity 精细控制</p>
-        </div>
-      </div>
+      ))}
     </div>
   </section>
 
-  <!-- ================================================
-       CODE EXAMPLE
-       ================================================ -->
+  <!-- ═══════════════════════════ USE CASES ═══════════════════════════ -->
+  <section class="section-sm">
+    <div class="text-center mb-8">
+      <p class="t-label">Use Cases</p>
+      <h2 class="t-heading mt-2">为你的站点注入灵魂</h2>
+    </div>
+
+    <div class="usecase-grid" style="max-width:1000px;margin:0 auto">
+      {[
+        { icon: '📝', title: '个人博客', desc: '每天一个全新主题，让读者每次访问都有新鲜感。支持 RSS / Markdown / 静态站点。' },
+        { icon: '📚', title: '文档站点', desc: '为技术文档注入设计感。暗色主题保护眼睛，高对比度确保代码可读性。' },
+        { icon: '🎨', title: '作品集', desc: '让你的 Portfolio 与众不同。节日自动切换氛围主题，展现技术品味。' },
+        { icon: '🚀', title: 'SaaS 仪表盘', desc: '一键接入 API，为你的 Web App 提供每日焕新的视觉体验。CORS 跨域无阻。' },
+      ].map((u, i) => (
+        <div class="card card-interact reveal-scroll" style={`text-align:center;padding:36px 28px;animation-delay:${i * 0.12}s`}>
+          <div style="font-size:36px;margin-bottom:14px">{u.icon}</div>
+          <h3 style="font-size:16px;font-weight:700;letter-spacing:-0.02em;margin-bottom:8px">{u.title}</h3>
+          <p class="text-muted" style="font-size:13px;line-height:1.7">{u.desc}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ CODE EXAMPLES ═══════════════════════════ -->
   <section class="section-sm">
     <div class="text-center mb-8">
       <p class="t-label">Integration</p>
-      <h2 class="t-heading mt-2">一行代码接入</h2>
+      <h2 class="t-heading mt-2">一行代码，即刻接入</h2>
+      <p class="t-subhead mt-2" style="max-width:440px;margin-inline:auto">选择你的技术栈，复制粘贴即可</p>
     </div>
 
-    <div style="max-width:680px;margin:0 auto" class="reveal">
-      <div class="card card-glass">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
-          <span style="width:12px;height:12px;border-radius:50%;background:#ff5f57"></span>
-          <span style="width:12px;height:12px;border-radius:50%;background:#ffbd2e"></span>
-          <span style="width:12px;height:12px;border-radius:50%;background:#28ca41"></span>
-          <span style="margin-left:8px;font-size:12px;color:var(--color-text-muted)">index.html</span>
-        </div>
-        <pre style="margin:0;font-size:13px"><code>const apply = (theme) =&gt;
+    <div style="max-width:680px;margin:0 auto" class="reveal-scroll">
+      <!-- Tab bar -->
+      <div class="code-tabs" role="tablist">
+        {['Vanilla JS', 'React', 'Vue'].map((label, i) => (
+          <button class="code-tab" role="tab" aria-selected={i === 0 ? 'true' : 'false'} data-tab={i} data-active={i === 0 ? 'true' : 'false'}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <!-- Panels -->
+      <div class="code-panel" data-panel="0">
+        <div class="code-block">
+          <pre><code>const apply = (theme) =&gt;
   Object.entries(theme.cssVars).forEach(
-    ([k, v]) =&gt; document.documentElement.style.setProperty(k, v)
+    ([k, v]) =&gt;
+      document.documentElement.style.setProperty(k, v)
   );
 
-fetch('/api/today.json')
+fetch('https://your-site.com/api/today.json')
   .then(r =&gt; r.json())
   .then(apply);</code></pre>
+        </div>
+      </div>
+
+      <div class="code-panel" data-panel="1" style="display:none">
+        <div class="code-block">
+          <pre><code>import { useEffect } from 'react';
+
+function useDailyTheme() {
+  useEffect(() =&gt; {
+    fetch('/api/today.json')
+      .then(r =&gt; r.json())
+      .then(theme =&gt; {
+        Object.entries(theme.cssVars)
+          .forEach(([k, v]) =&gt;
+            document.documentElement.style
+              .setProperty(k, v)
+          );
+      });
+  }, []);
+}
+
+export default function App() {
+  useDailyTheme();
+  return &lt;div&gt;...&lt;/div&gt;;
+}</code></pre>
+        </div>
+      </div>
+
+      <div class="code-panel" data-panel="2" style="display:none">
+        <div class="code-block">
+          <pre><code>&lt;script setup&gt;
+import { onMounted } from 'vue';
+
+onMounted(async () =&gt; {
+  const res = await fetch('/api/today.json');
+  const theme = await res.json();
+  Object.entries(theme.cssVars)
+    .forEach(([k, v]) =&gt;
+      document.documentElement.style
+        .setProperty(k, v)
+    );
+});
+&lt;/script&gt;
+
+&lt;template&gt;
+  &lt;div&gt;...&lt;/div&gt;
+&lt;/template&gt;</code></pre>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- ================================================
-       CTA
-       ================================================ -->
-  <section class="section text-center">
-    <div class="card card-glass reveal" style="max-width:640px;margin:0 auto;padding:56px 48px;background:linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 6%, transparent), color-mix(in srgb, var(--color-secondary) 4%, transparent))">
-      <h2 class="t-heading" style="margin-bottom:12px">准备好让你的站点焕然一新了吗？</h2>
-      <p class="t-subhead" style="margin-bottom:36px">每天一个全新主题，零成本接入</p>
-      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-        <a href="/api/docs" class="btn btn-primary" style="height:50px;padding:0 32px;font-size:15px">查看 API 文档</a>
-        <a href="/theme-builder" class="btn btn-outline" style="height:50px;padding:0 32px;font-size:15px">打开构建器</a>
+  <!-- ═══════════════════════════ FAQ ═══════════════════════════ -->
+  <section class="section-sm">
+    <div class="text-center mb-8">
+      <p class="t-label">FAQ</p>
+      <h2 class="t-heading mt-2">常见问题</h2>
+    </div>
+
+    <div style="max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:10px">
+      {[
+        { q: '主题每天什么时候切换？', a: '每天 UTC 00:00 自动切换到新主题。静态站点在下次构建时生效，动态站点 fetch 即可获取最新。' },
+        { q: '可以固定某个主题不轮换吗？', a: '可以。调用 /api/theme/&lt;preset-name&gt;.json 获取指定主题，不会随日期变化。' },
+        { q: '如何添加自定义主题？', a: '使用主题构建器编辑 CSS 变量、编写 customCss，然后导出 AI 提示词或 JSON 文件。你也可以提 PR 到主题仓库。' },
+        { q: 'API 有调用限制吗？', a: '目前无调用限制。建议在客户端缓存主题数据（localStorage），减少重复请求。' },
+        { q: '支持浅色 / 暗色双模式吗？', a: '主题以暗色为主，但你可以通过 prefers-color-scheme 媒体查询覆写变量，或自行适配。' },
+      ].map((faq, i) => (
+        <details class="faq-item reveal-scroll" style={`animation-delay:${i * 0.08}s`}>
+          <summary class="faq-question">
+            <span>{faq.q}</span>
+            <svg class="faq-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </summary>
+          <p class="faq-answer text-muted">{faq.a}</p>
+        </details>
+      ))}
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════ CTA ═══════════════════════════ -->
+  <section class="section text-center" style="padding-bottom:120px">
+    <div class="reveal-scroll" style="max-width:640px;margin:0 auto;position:relative">
+      <div class="cta-glow" aria-hidden="true"></div>
+      <div class="card card-glass cta-card">
+        <h2 class="t-heading" style="margin-bottom:14px">准备好让你的站点<br/>焕然一新了吗？</h2>
+        <p class="t-subhead" style="margin-bottom:40px">每天一个全新主题，零成本接入，CORS 跨域支持</p>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+          <a href="/api/docs" class="btn btn-primary" style="height:54px;padding:0 36px;font-size:15px;border-radius:14px">查看 API 文档</a>
+          <a href="/theme-store" class="btn btn-outline" style="height:54px;padding:0 36px;font-size:15px;border-radius:14px">浏览全部主题</a>
+        </div>
       </div>
     </div>
   </section>
 </Layout>
+
+<style>
+  /* ═══════════ HERO ═══════════ */
+  .hero-wrap {
+    position: relative;
+    padding-top: 80px;
+    overflow: hidden;
+  }
+
+  #hero-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  }
+
+  .hero-inner {
+    position: relative;
+    z-index: 1;
+    padding-top: 40px;
+  }
+
+  .hero-gradient {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 40%, var(--color-accent) 70%, var(--color-primary) 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradientShift 4s ease-in-out infinite;
+  }
+
+  @keyframes gradientShift {
+    0%, 100% { background-position: 0% center; }
+    50% { background-position: 100% center; }
+  }
+
+  .live-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    animation: pulse-glow 3s ease-in-out infinite;
+    box-shadow: 0 0 8px color-mix(in srgb, var(--color-primary) 60%, transparent);
+  }
+
+  .card-swatch {
+    width: 52px; height: 52px;
+    border-radius: 18px;
+  }
+
+  .hero-card-3d {
+    transition: transform 0.15s ease-out;
+  }
+
+  .card-gloss {
+    position: absolute;
+    inset: 0;
+    border-radius: 22px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 50%, rgba(255,255,255,0.02) 100%);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .hero-card-3d:hover ~ .card-gloss { opacity: 1; }
+
+  /* Scroll hint */
+  .scroll-hint {
+    margin-top: 56px;
+    display: flex;
+    justify-content: center;
+    opacity: 0.5;
+    animation: scrollHint 2.5s ease-in-out infinite;
+  }
+
+  .scroll-hint-chevron {
+    display: block;
+    width: 28px; height: 28px;
+    border-right: 2px solid var(--color-text-muted);
+    border-bottom: 2px solid var(--color-text-muted);
+    transform: rotate(45deg);
+  }
+
+  @keyframes scrollHint {
+    0%, 100% { transform: translateY(0); opacity: 0.5; }
+    50% { transform: translateY(10px); opacity: 1; }
+  }
+
+  /* ═══════════ STATS ═══════════ */
+  .stats-grid {
+    max-width: 1000px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  .stat-card {
+    text-align: center;
+    padding: 32px 16px;
+  }
+
+  .stat-value {
+    font-size: clamp(2rem, 4vw, 2.8rem);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
+  }
+
+  .stat-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-top: 8px;
+    letter-spacing: -0.02em;
+  }
+
+  .stat-desc {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 768px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 480px) {
+    .stats-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ═══════════ SHOWCASE ═══════════ */
+  .showcase-track-wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 0 20px;
+    scrollbar-width: none;
+  }
+  .showcase-track-wrap::-webkit-scrollbar { display: none; }
+
+  .showcase-track {
+    display: flex;
+    gap: 14px;
+    padding: 0 32px;
+  }
+
+  .showcase-card {
+    flex: 0 0 200px;
+    scroll-snap-align: start;
+    padding: 0;
+    overflow: hidden;
+    cursor: pointer;
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: 18px;
+    font-family: inherit;
+    text-align: left;
+    color: var(--color-text);
+    transition: all 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  .showcase-card:hover {
+    transform: translateY(-4px);
+    border-color: color-mix(in srgb, var(--color-primary) 50%, var(--color-border));
+    box-shadow: 0 16px 40px -10px rgba(0,0,0,0.25);
+  }
+  .showcase-card.active {
+    box-shadow: 0 0 0 2px var(--color-primary), 0 8px 32px color-mix(in srgb, var(--color-primary) 20%, transparent) !important;
+    border-color: var(--color-primary) !important;
+  }
+
+  .showcase-strip {
+    height: 4px;
+    transition: height 0.25s;
+  }
+  .showcase-card:hover .showcase-strip { height: 6px; }
+
+  .showcase-dot {
+    width: 20px; height: 20px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 768px) {
+    .showcase-track { padding: 0 20px; }
+    .showcase-card { flex: 0 0 170px; }
+  }
+
+  /* ═══════════ STEPS ═══════════ */
+  .steps-connector {
+    display: none;
+    position: absolute;
+    top: 50px;
+    left: 20%;
+    right: 20%;
+    height: 2px;
+    background: linear-gradient(90deg, var(--color-primary), var(--color-secondary), var(--color-accent));
+    opacity: 0.25;
+    z-index: 0;
+  }
+
+  .step-number {
+    width: 56px; height: 56px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--color-primary) 30%, transparent);
+  }
+
+  @media (min-width: 769px) {
+    .steps-connector { display: block; }
+  }
+
+  @media (max-width: 768px) {
+    [style*="grid-template-columns:repeat(3,1fr)"] {
+      grid-template-columns: 1fr !important;
+      max-width: 400px !important;
+      margin-inline: auto !important;
+    }
+  }
+
+  /* ═══════════ FEATURES ═══════════ */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+
+  .feature-icon {
+    width: 42px; height: 42px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 18%, transparent), color-mix(in srgb, var(--color-secondary) 8%, transparent));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--color-primary);
+  }
+
+  @media (max-width: 768px) {
+    .features-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ═══════════ USE CASES ═══════════ */
+  .usecase-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  @media (max-width: 768px) {
+    .usecase-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 480px) {
+    .usecase-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ═══════════ CODE TABS ═══════════ */
+  .code-tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: -1px;
+    padding: 0 4px;
+  }
+
+  .code-tab {
+    padding: 10px 20px;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    border-radius: 10px 10px 0 0;
+  }
+  .code-tab:hover { color: var(--color-text); background: color-mix(in srgb, var(--color-primary) 4%, transparent); }
+  .code-tab[aria-selected="true"] {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+  }
+
+  /* ═══════════ FAQ ═══════════ */
+  .faq-item {
+    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: all 0.3s;
+    cursor: pointer;
+  }
+  .faq-item[open] {
+    border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
+    background: color-mix(in srgb, var(--color-surface) 60%, transparent);
+  }
+
+  .faq-question {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 22px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--color-text);
+    list-style: none;
+    user-select: none;
+    transition: color 0.2s;
+  }
+  .faq-question::-webkit-details-marker { display: none; }
+  .faq-question::marker { display: none; content: none; }
+  .faq-item:hover .faq-question { color: var(--color-primary); }
+
+  .faq-chevron {
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+    color: var(--color-text-muted);
+  }
+  .faq-item[open] .faq-chevron { transform: rotate(180deg); color: var(--color-primary); }
+
+  .faq-answer {
+    padding: 0 22px 20px;
+    font-size: 13px;
+    line-height: 1.75;
+  }
+
+  /* ═══════════ CTA ═══════════ */
+  .cta-glow {
+    position: absolute;
+    inset: -3px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary), var(--color-accent));
+    opacity: 0.2;
+    filter: blur(36px);
+    animation: ctaPulse 4s ease-in-out infinite;
+  }
+
+  @keyframes ctaPulse {
+    0%, 100% { opacity: 0.15; filter: blur(36px); }
+    50% { opacity: 0.28; filter: blur(44px); }
+  }
+
+  .cta-card {
+    position: relative;
+    padding: 56px 48px;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 8%, transparent), color-mix(in srgb, var(--color-secondary) 5%, transparent));
+  }
+
+  /* ═══════════ SCROLL REVEAL OVERRIDE ═══════════ */
+  .reveal-scroll {
+    opacity: 0;
+    transform: translateY(36px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .reveal-scroll.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+
+<script>
+  // ══════════════════════════════════════════════════
+  // 1. Hero Canvas — Floating particles
+  // ══════════════════════════════════════════════════
+  (function() {
+    const canvas = document.getElementById('hero-canvas') as HTMLCanvasElement | null;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const primary = '{primary}';
+    const secondary = '{secondary}';
+    const accent = '{accent}';
+
+    function hexToRgb(h: string): [number, number, number] {
+      const c = h.replace('#', '');
+      return [parseInt(c.slice(0,2),16), parseInt(c.slice(2,4),16), parseInt(c.slice(4,6),16)];
+    }
+
+    const colors = [primary, secondary, accent].map(hexToRgb);
+    const particles: Array<{x:number;y:number;vx:number;vy:number;r:number;o:number;c:[number,number,number];life:number;maxLife:number}> = [];
+
+    function resize() {
+      const wrap = canvas!.parentElement;
+      if (!wrap) return;
+      canvas!.width = wrap.offsetWidth;
+      canvas!.height = wrap.offsetHeight;
+    }
+
+    function spawn() {
+      if (particles.length > 50) return;
+      const c = colors[Math.floor(Math.random() * colors.length)];
+      particles.push({
+        x: Math.random() * canvas!.width,
+        y: canvas!.height + 20,
+        vx: (Math.random() - 0.5) * 0.6,
+        vy: -(0.4 + Math.random() * 1.2),
+        r: 2 + Math.random() * 4,
+        o: 0,
+        c,
+        life: 0,
+        maxLife: 120 + Math.random() * 200,
+      });
+    }
+
+    function draw() {
+      ctx!.clearRect(0, 0, canvas!.width, canvas!.height);
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life++;
+
+        const progress = p.life / p.maxLife;
+        p.o = progress < 0.1 ? progress / 0.1 : progress > 0.7 ? (1 - progress) / 0.3 : 1;
+
+        if (p.life > p.maxLife || p.y < -40) {
+          particles.splice(i, 1);
+          continue;
+        }
+
+        ctx!.beginPath();
+        ctx!.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx!.fillStyle = `rgba(${p.c[0]},${p.c[1]},${p.c[2]},${(p.o * 0.5).toFixed(2)})`;
+        ctx!.fill();
+      }
+
+      if (Math.random() < 0.3) spawn();
+      requestAnimationFrame(draw);
+    }
+
+    resize();
+    window.addEventListener('resize', resize);
+    for (let i = 0; i < 15; i++) spawn();
+    draw();
+  })();
+
+  // ══════════════════════════════════════════════════
+  // 2. 3D Card Tilt
+  // ══════════════════════════════════════════════════
+  (function() {
+    const card = document.getElementById('hero-card');
+    const wrap = card?.closest('.hero-wrap');
+    if (!card || !wrap) return;
+
+    wrap.addEventListener('mousemove', (e) => {
+      const rect = wrap.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width - 0.5;
+      const y = (e.clientY - rect.top) / rect.height - 0.5;
+      card.style.transform = `rotateY(${x * 12}deg) rotateX(${-y * 8}deg) translateZ(0)`;
+    });
+
+    wrap.addEventListener('mouseleave', () => {
+      card.style.transform = 'rotateY(0deg) rotateX(0deg) translateZ(0)';
+    });
+  })();
+
+  // ══════════════════════════════════════════════════
+  // 3. Stats Counter Animation
+  // ══════════════════════════════════════════════════
+  (function() {
+    const statCards = document.querySelectorAll('.stat-value');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const el = entry.target as HTMLElement;
+        const target = parseInt(el.dataset.target || '0');
+        const suffix = el.dataset.suffix || '';
+        const duration = 1600;
+        const start = performance.now();
+
+        function tick(now: number) {
+          const elapsed = now - start;
+          const progress = Math.min(elapsed / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          const current = Math.round(target * eased);
+          el.textContent = current + suffix;
+          if (progress < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+        observer.unobserve(el);
+      });
+    }, { threshold: 0.5 });
+
+    statCards.forEach(el => observer.observe(el));
+  })();
+
+  // ══════════════════════════════════════════════════
+  // 4. Theme Showcase Preview
+  // ══════════════════════════════════════════════════
+  (function() {
+    const cards = document.querySelectorAll('.showcase-card');
+    const indicator = document.getElementById('preview-indicator')!;
+    const previewName = document.getElementById('preview-name')!;
+    const resetBtn = document.getElementById('preview-reset')!;
+    let originalVars: Record<string, string> = {};
+    const root = document.documentElement;
+
+    // Snapshot original vars
+    const varNames = ['--color-primary','--color-secondary','--color-accent','--color-bg','--color-surface','--color-text','--color-text-muted','--color-border'];
+    varNames.forEach(v => { originalVars[v] = getComputedStyle(root).getPropertyValue(v).trim(); });
+
+    function applyVars(vars: Record<string, string>) {
+      Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v));
+    }
+
+    function resetVars() {
+      applyVars(originalVars);
+      indicator.style.display = 'none';
+      cards.forEach(c => c.classList.remove('active'));
+    }
+
+    cards.forEach(card => {
+      card.addEventListener('click', () => {
+        const vars = JSON.parse(card.getAttribute('data-vars') || '{}');
+        const name = card.getAttribute('data-name') || '';
+        applyVars(vars);
+        previewName.textContent = name;
+        indicator.style.display = 'block';
+        cards.forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+      });
+    });
+
+    resetBtn.addEventListener('click', resetVars);
+  })();
+
+  // ══════════════════════════════════════════════════
+  // 5. Code Tab Switcher
+  // ══════════════════════════════════════════════════
+  (function() {
+    const tabs = document.querySelectorAll('.code-tab');
+    const panels = document.querySelectorAll('.code-panel');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const idx = tab.getAttribute('data-tab')!;
+        tabs.forEach(t => t.setAttribute('aria-selected', 'false'));
+        tab.setAttribute('aria-selected', 'true');
+        panels.forEach(p => {
+          (p as HTMLElement).style.display = p.getAttribute('data-panel') === idx ? '' : 'none';
+        });
+      });
+    });
+  })();
+
+  // ══════════════════════════════════════════════════
+  // 6. Scroll Reveal
+  // ══════════════════════════════════════════════════
+  (function() {
+    const reveals = document.querySelectorAll('.reveal-scroll');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+    reveals.forEach(el => observer.observe(el));
+  })();
+</script>
