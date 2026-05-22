@@ -831,6 +831,18 @@ const availableCount = 232;
     </main>
   </div>
 
+  <!-- ═══════════ COPY ALL BUTTON ═══════════ -->
+  <button class="copy-all-btn" id="copy-all-btn" aria-label="复制全部代码">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" class="copy-icon-copy">
+      <rect x="5" y="5" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M3 13V3h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" class="copy-icon-check" style="display:none">
+      <path d="M4 9l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>全部复制</span>
+  </button>
+
   <!-- ═══════════ MOBILE SIDEBAR TOGGLE ═══════════ -->
   <button class="sidebar-toggle" id="sidebar-toggle" aria-label="目录">
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" class="sb-icon-list"><circle cx="9" cy="3" r="1.5" fill="currentColor"/><line x1="12" y1="3" x2="16" y2="3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="9" cy="9" r="1.5" fill="currentColor"/><line x1="12" y1="9" x2="16" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="9" cy="15" r="1.5" fill="currentColor"/><line x1="12" y1="15" x2="16" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -1378,6 +1390,42 @@ const availableCount = 232;
     }
   }
 
+  /* ═══════════ COPY ALL BUTTON ═══════════ */
+  .copy-all-btn {
+    position: fixed;
+    bottom: 32px;
+    right: 96px;
+    z-index: 260;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 20px;
+    height: 48px;
+    border-radius: 14px;
+    border: 1.5px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    color: var(--color-text);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    transition: all 0.2s;
+  }
+
+  .copy-all-btn:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  }
+
+  .copy-all-btn.copied {
+    border-color: #22c55e;
+    color: #22c55e;
+  }
+
   @media (max-width: 640px) {
     .docs-main {
       padding: 32px 16px 80px;
@@ -1385,6 +1433,11 @@ const availableCount = 232;
 
     .sidebar-toggle {
       bottom: 24px;
+      right: 16px;
+    }
+
+    .copy-all-btn {
+      bottom: 84px;
       right: 16px;
     }
 
