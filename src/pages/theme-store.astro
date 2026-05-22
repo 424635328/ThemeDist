@@ -5,125 +5,108 @@ import { getAllThemes, getDailyTheme } from '../utils/daily-theme';
 const themes = getAllThemes();
 const today = getDailyTheme();
 const todayPreset = today.preset;
-
-const dailyThemes = themes.filter(t => !t.preset.startsWith('holiday-'));
-const holidayThemes = themes.filter(t => t.preset.startsWith('holiday-'));
 const initialSearch = Astro.url.searchParams.get('q') || '';
 ---
 
 <Layout>
-  <!-- Header -->
-  <section class="section text-center" style="padding-bottom:32px">
+  <section class="section text-center">
     <p class="t-label">Theme Store</p>
     <h1 class="t-heading mt-2">主题商店</h1>
-    <p class="t-subhead mt-2" style="max-width:560px;margin-inline:auto">
-      {dailyThemes.length} 套日常轮换主题 + {holidayThemes.length} 个节日专属，共 {themes.length} 套预设
+    <p class="t-subhead mt-2" style="max-width:520px;margin-inline:auto">
+      {themes.length}+ 套预设主题。节日自动优先，其余按日轮换。
     </p>
   </section>
 
-  <!-- Filter bar -->
-  <div class="store-toolbar" id="toolbar">
-    <div class="filter-chips" id="filter-chips">
-      <button class="chip chip-active" data-filter="all">全部<span class="chip-count">{themes.length}</span></button>
-      <button class="chip" data-filter="daily">日常轮换<span class="chip-count">{dailyThemes.length}</span></button>
-      <button class="chip" data-filter="holiday">节日专属<span class="chip-count">{holidayThemes.length}</span></button>
+  <section class="section-sm" style="padding-top:0">
+    <!-- Search bar -->
+    <div style="max-width:1120px;margin:0 auto 32px;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+      <div style="flex:1;min-width:240px;max-width:420px;position:relative">
+        <input
+          type="text"
+          id="search"
+          placeholder="搜索主题名称或色值… 按 / 聚焦"
+          value={initialSearch}
+          style="width:100%;height:44px;padding:0 44px 0 18px;border-radius:13px;border:1.5px solid var(--color-border);background:color-mix(in srgb, var(--color-surface) 40%, transparent);color:var(--color-text);font-size:14px;font-family:inherit;outline:none;transition:border-color 0.25s"
+        />
+        <button id="search-clear" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--color-text-muted);cursor:pointer;font-size:16px;padding:4px 8px;border-radius:6px;line-height:1" aria-label="清除搜索">✕</button>
+      </div>
+      <span id="result-count" style="font-size:13px;color:var(--color-text-muted);white-space:nowrap"></span>
     </div>
 
-    <div class="toolbar-right">
-      <div class="search-wrap">
-        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input type="text" id="search" placeholder="搜索名称或色值…" value={initialSearch}
-          class="search-input" />
-        <button id="search-clear" class="search-clear" aria-label="清除">✕</button>
-      </div>
-      <div class="dropdown" id="sort-dropdown">
-        <button class="dropdown-btn" id="sort-btn" type="button">
-          <span id="sort-label">默认排序</span>
-          <svg class="dropdown-chevron" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-        <div class="dropdown-menu" id="sort-menu">
-          <button class="dropdown-item dropdown-item-active" data-value="default">默认排序</button>
-          <button class="dropdown-item" data-value="az">名称 A → Z</button>
-        </div>
-      </div>
-      <span id="result-count" class="result-count"></span>
-    </div>
-  </div>
-
-  <!-- Grid -->
-  <section style="max-width:1120px;margin:0 auto;padding:0 32px 80px">
-    <div class="grid-auto" id="theme-grid">
-      {themes.map((t, idx) => {
+    <div class="grid-auto" id="theme-grid" style="max-width:1120px;margin:0 auto">
+      {themes.map((t, i) => {
         const isToday = t.preset === todayPreset;
         const isHoliday = t.preset.startsWith('holiday-');
-        const pri = t.cssVars['--color-primary'];
-        const sec = t.cssVars['--color-secondary'];
-        const acc = t.cssVars['--color-accent'];
-        const bg = t.cssVars['--color-bg'];
-        const txt = t.cssVars['--color-text'];
-        const cat = isHoliday ? 'holiday' : 'daily';
+        const primaryHex = t.cssVars['--color-primary'];
+        const bgHex = t.cssVars['--color-bg'];
+        const textHex = t.cssVars['--color-text'];
         return (
           <div
-            class="store-card reveal"
-            style={`animation-delay:${idx * 0.03}s`}
+            class="card card-interact theme-card"
             data-name={t.presetName.toLowerCase()}
-            data-preset={t.preset}
-            data-color={pri.toLowerCase()}
-            data-category={cat}
-            data-idx={String(idx)}
+            data-preset={t.preset.toLowerCase()}
+            data-color={primaryHex.toLowerCase()}
+            style={`padding:0;overflow:hidden;content-visibility:auto;contain-intrinsic-size:auto 220px;${isToday ? '--card-ring:var(--color-primary);box-shadow:0 0 0 2px var(--card-ring);' : '--card-ring:transparent;'}`}
           >
-            {/* Mini preview */}
-            <div class="card-preview" style={`background:${bg}`}>
-              <div class="preview-nav" style={`background:color-mix(in srgb,${pri} 22%,${bg})`}>
-                <span class="preview-dot" style={`background:${pri}`}></span>
-                <span class="preview-dot" style={`background:${sec}`}></span>
-                <span class="preview-dot" style={`background:${acc}`}></span>
-                <span class="preview-url" style={`background:color-mix(in srgb,${pri} 35%,transparent)`}></span>
-              </div>
-              <div class="preview-body">
-                <div class="preview-sidebar" style={`background:color-mix(in srgb,${sec} 12%,${bg})`}></div>
-                <div class="preview-content">
-                  <span class="preview-line" style={`background:color-mix(in srgb,${txt} 50%,${bg});width:82%`}></span>
-                  <span class="preview-line" style={`background:color-mix(in srgb,${txt} 30%,${bg});width:100%`}></span>
-                  <span class="preview-line" style={`background:color-mix(in srgb,${txt} 40%,${bg});width:55%`}></span>
-                  <span class="preview-card" style={`background:${acc};opacity:0.18`}></span>
-                  <span class="preview-line" style={`background:color-mix(in srgb,${txt} 30%,${bg});width:70%`}></span>
-                  <span class="preview-line" style={`background:color-mix(in srgb,${txt} 25%,${bg});width:90%`}></span>
-                </div>
-              </div>
+            {/* Top color bar — full theme palette */}
+            <div class="card-color-bar" style="display:flex;height:4px">
+              <div style="flex:3;background:{primaryHex}"></div>
+              <div style="flex:1.5;background:{t.cssVars['--color-secondary']}"></div>
+              <div style="flex:0.8;background:{t.cssVars['--color-accent']}"></div>
+              <div style="flex:2;background:{bgHex}"></div>
+              <div style="flex:1.2;background:{t.cssVars['--color-text']}"></div>
             </div>
 
-            {/* Card body */}
-            <div class="card-body">
-              <div class="card-header">
-                <h3 class="card-name" title={t.presetName}>{t.presetName}</h3>
-                <div class="card-badges">
-                  {isToday && <span class="badge badge-today">今日</span>}
-                  {isHoliday && <span class="badge badge-holiday">节日</span>}
+            <div style="padding:22px 24px 20px">
+              {/* Header row */}
+              <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:14px">
+                <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.02em;line-height:1.25;flex:1;min-width:0">
+                  {t.presetName}
+                </h3>
+                <div style="display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
+                  {isToday && (
+                    <span data-today style="font-size:9px;font-weight:700;letter-spacing:0.04em;background:var(--color-primary);color:#fff;padding:2px 8px;border-radius:4px;text-transform:uppercase;line-height:1.6">Today</span>
+                  )}
+                  {isHoliday && (
+                    <span style="font-size:9px;font-weight:600;letter-spacing:0.03em;background:color-mix(in srgb, var(--color-accent) 20%, transparent);color:var(--color-accent);padding:2px 8px;border-radius:4px;line-height:1.6">节日</span>
+                  )}
                 </div>
               </div>
 
-              {/* Swatches */}
-              <div class="swatch-row">
-                {[{c:pri,l:'Primary'},{c:sec,l:'Secondary'},{c:acc,l:'Accent'},{c:bg,l:'BG'},{c:txt,l:'Text'}].map((s, j) => (
-                  <span class="swatch" data-color={s.c} title={`${s.l} — 点击复制`} style={`background:${s.c};${j===3?'border:1.5px solid var(--color-border)':''}`}></span>
+              {/* Color swatches — larger, interactive */}
+              <div style="display:flex;gap:6px;margin-bottom:14px;align-items:center">
+                {[
+                  { v: '--color-primary', l: 'P' },
+                  { v: '--color-secondary', l: 'S' },
+                  { v: '--color-accent', l: 'A' },
+                  { v: '--color-bg', l: 'Bg' },
+                  { v: '--color-text', l: 'Tx' },
+                ].map(({ v, l }) => (
+                  <span
+                    class="color-dot"
+                    data-color={t.cssVars[v]}
+                    title={`${v}: ${t.cssVars[v]} — 点击复制`}
+                    style=`width:26px;height:26px;border-radius:8px;background:${t.cssVars[v]};border:2px solid ${v === '--color-bg' ? 'var(--color-border)' : 'transparent'};flex-shrink:0;cursor:pointer;transition:transform 0.18s ease,box-shadow 0.18s ease;position:relative`
+                  >
+                    <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:${v === '--color-text' ? bgHex : textHex};opacity:0.85;text-shadow:0 0 2px ${bgHex}">{l}</span>
+                  </span>
                 ))}
-                <span class="swatch-hex">{pri}</span>
+                <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--color-text-muted);font-weight:500;margin-left:2px">{primaryHex}</span>
               </div>
 
               {/* Actions */}
-              <div class="card-actions">
-                <button class="act act-apply js-apply" data-preset={t.preset} data-name={t.presetName}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <div style="display:flex;gap:4px;align-items:center">
+                <a href={`/?theme=${t.preset}`} class="store-action store-action-apply js-apply-btn" style="flex:1.2;text-align:center" title="全站应用此主题" data-preset={t.preset} data-name={t.presetName}>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   应用
-                </button>
-                <a href={`/?theme=${t.preset}`} class="act">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </a>
+                <a href={`?theme=${t.preset}`} class="store-action" style="flex:0.9;text-align:center" title="在本页预览">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/></svg>
                   预览
                 </a>
-                <a href={`/theme-builder?theme=${t.preset}`} class="act">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  编辑
+                <a href={`/theme-builder?theme=${t.preset}`} class="store-action" style="flex:0.9;text-align:center" title="在构建器中编辑">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+                  构建器
                 </a>
               </div>
             </div>
@@ -132,746 +115,138 @@ const initialSearch = Astro.url.searchParams.get('q') || '';
       })}
     </div>
 
-    <!-- Empty state -->
-    <div id="no-results" class="empty-state">
-      <div class="empty-icon">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M8 11h6"/><path d="M11 8v6"/></svg>
-      </div>
-      <p class="empty-title">未找到匹配的主题</p>
-      <p class="empty-hint">试试其他关键词，或 <a href="?" class="empty-link">清除筛选</a></p>
-    </div>
+    <p id="no-results" style="display:none;text-align:center;padding:60px 20px;color:var(--color-text-muted);font-size:15px">
+      未找到匹配的主题 — <a href="?" style="color:var(--color-primary)">清除搜索</a>
+    </p>
   </section>
 </Layout>
 
 <style>
-  /* ── Toolbar ── */
-  .store-toolbar {
-    max-width: 1120px;
-    margin: 0 auto;
-    padding: 0 32px 32px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
-    position: sticky;
-    top: 60px;
-    z-index: 40;
-    background: color-mix(in srgb, var(--color-bg) 88%, transparent);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    padding-top: 16px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid transparent;
-    transition: border-color 0.3s;
+  .theme-card {
+    transition: border-color 0.3s, box-shadow 0.3s, transform 0.25s cubic-bezier(0.22,0.61,0.36,1);
+    --card-ring: transparent;
   }
-  .store-toolbar.scrolled {
-    border-bottom-color: var(--color-border);
+  .theme-card:hover {
+    box-shadow: 0 0 0 2px var(--card-ring), 0 18px 48px -12px rgba(0,0,0,0.25) !important;
+  }
+  .theme-card:hover .card-color-bar {
+    height: 5px;
+    transition: height 0.2s;
   }
 
-  .filter-chips {
-    display: flex;
-    gap: 6px;
-    flex-shrink: 0;
-  }
-
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 12.5px;
-    font-weight: 600;
-    padding: 7px 14px;
-    border-radius: 10px;
-    border: 1px solid var(--color-border);
-    background: transparent;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.2s;
-    white-space: nowrap;
-    letter-spacing: -0.01em;
-  }
-  .chip:hover {
-    border-color: var(--color-primary);
-    color: var(--color-primary);
-  }
-  .chip-active {
-    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-    border-color: var(--color-primary);
-    color: var(--color-primary);
-  }
-  .chip-count {
-    font-size: 10.5px;
-    opacity: 0.7;
-    font-weight: 500;
-    background: color-mix(in srgb, currentColor 12%, transparent);
-    padding: 1px 6px;
-    border-radius: 99px;
-  }
-
-  .toolbar-right {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex: 1;
-    min-width: 0;
-    justify-content: flex-end;
-  }
-
-  .search-wrap {
-    position: relative;
-    flex: 1;
-    min-width: 180px;
-    max-width: 320px;
-  }
-  .search-icon {
-    position: absolute;
-    left: 13px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--color-text-muted);
-    pointer-events: none;
-  }
-  .search-input {
-    width: 100%;
-    height: 40px;
-    padding: 0 38px 0 36px;
-    border-radius: 11px;
-    border: 1.5px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
-    color: var(--color-text);
-    font-size: 13.5px;
-    font-family: inherit;
-    outline: none;
-    transition: all 0.25s;
-  }
-  .search-input:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
-  }
-  .search-input::placeholder {
-    color: var(--color-text-muted);
-    opacity: 0.55;
-  }
-  .search-clear {
-    display: none;
-    position: absolute;
-    right: 6px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    font-size: 14px;
-    padding: 5px 9px;
-    border-radius: 6px;
-    font-family: inherit;
-    transition: color 0.15s;
-  }
-  .search-clear:hover { color: var(--color-text); }
-  .search-clear.visible { display: block; }
-
-  .result-count {
-    font-size: 12.5px;
-    color: var(--color-text-muted);
-    white-space: nowrap;
-    min-width: 70px;
-    text-align: right;
-  }
-
-  /* ── Custom dropdown ── */
-  .dropdown {
-    position: relative;
-    flex-shrink: 0;
-  }
-  .dropdown-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 12.5px;
-    font-weight: 600;
-    padding: 7px 14px;
-    border-radius: 10px;
-    border: 1px solid var(--color-border);
-    background: transparent;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.2s;
-    white-space: nowrap;
-    letter-spacing: -0.01em;
-    height: 40px;
-  }
-  .dropdown-btn:hover {
-    border-color: var(--color-primary);
-    color: var(--color-primary);
-  }
-  .dropdown-chevron {
-    transition: transform 0.25s;
-    color: var(--color-text-muted);
-  }
-  .dropdown.open .dropdown-btn {
-    border-color: var(--color-primary);
-    color: var(--color-primary);
-    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
-  }
-  .dropdown.open .dropdown-chevron {
-    transform: rotate(180deg);
-  }
-  .dropdown-menu {
-    display: none;
-    position: absolute;
-    right: 0;
-    top: calc(100% + 6px);
-    min-width: 140px;
-    padding: 5px;
-    border-radius: 12px;
-    border: 1px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-surface) 95%, transparent);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.3);
-    z-index: 50;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .dropdown.open .dropdown-menu {
-    display: flex;
-  }
-  .dropdown-item {
-    display: block;
-    width: 100%;
-    text-align: left;
-    font-size: 12.5px;
-    font-weight: 500;
-    padding: 8px 12px;
-    border-radius: 8px;
-    border: none;
-    background: transparent;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.15s;
-    letter-spacing: -0.01em;
-  }
-  .dropdown-item:hover {
-    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
-    color: var(--color-primary);
-  }
-  .dropdown-item-active {
-    color: var(--color-primary);
-    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-    font-weight: 600;
-  }
-
-  /* ── Cards ── */
-  .store-card {
-    background: color-mix(in srgb, var(--color-surface) 50%, transparent);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid var(--color-border);
-    border-radius: 18px;
-    overflow: hidden;
-    transition: all 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
-    display: flex;
-    flex-direction: column;
-  }
-  .store-card:hover {
-    transform: translateY(-4px);
-    border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
-    box-shadow: 0 18px 48px -14px rgba(0, 0, 0, 0.25);
-  }
-  .store-card.active-theme {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 50%, transparent),
-                0 8px 32px color-mix(in srgb, var(--color-primary) 15%, transparent);
-  }
-
-  /* ── Mini preview ── */
-  .card-preview {
-    height: 78px;
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    border-bottom: 1px solid var(--color-border);
-  }
-  .preview-nav {
-    height: 22px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 0 10px;
-    flex-shrink: 0;
-  }
-  .preview-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-  .preview-url {
-    height: 4px;
-    border-radius: 2px;
-    width: 70px;
-    margin-left: 6px;
-  }
-  .preview-body {
-    flex: 1;
-    display: flex;
-    gap: 0;
-    padding: 6px 8px 8px;
-    min-height: 0;
-  }
-  .preview-sidebar {
-    width: 28px;
-    border-radius: 5px 0 0 5px;
-    flex-shrink: 0;
-  }
-  .preview-content {
-    flex: 1;
-    padding: 4px 6px;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    min-width: 0;
-  }
-  .preview-line {
-    height: 4px;
-    border-radius: 2px;
-    flex-shrink: 0;
-  }
-  .preview-card {
-    height: 18px;
-    border-radius: 4px;
-  }
-
-  /* ── Card body ── */
-  .card-body {
-    padding: 18px 20px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-  .card-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 6px;
-  }
-  .card-name {
-    font-size: 14.5px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    line-height: 1.25;
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .card-badges {
-    display: flex;
-    gap: 4px;
-    flex-shrink: 0;
-  }
-  .badge {
-    font-size: 9.5px;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    padding: 2px 8px;
-    border-radius: 5px;
-    line-height: 1.5;
-  }
-  .badge-today {
-    background: var(--color-primary);
-    color: #fff;
-  }
-  .badge-holiday {
-    background: color-mix(in srgb, var(--color-accent) 16%, transparent);
-    color: var(--color-accent);
-  }
-
-  /* ── Swatches ── */
-  .swatch-row {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-  .swatch {
-    width: 26px;
-    height: 26px;
-    border-radius: 8px;
-    flex-shrink: 0;
-    cursor: pointer;
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
-  }
-  .swatch:hover {
-    transform: scale(1.32);
+  .color-dot:hover {
+    transform: scale(1.25);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3);
     z-index: 2;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  }
-  .swatch:active { transform: scale(1.12); }
-  .swatch-hex {
-    font-size: 11px;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--color-text-muted);
-    font-weight: 500;
-    margin-left: 3px;
-    letter-spacing: -0.02em;
   }
 
-  /* ── Actions ── */
-  .card-actions {
-    display: flex;
-    gap: 5px;
+  .store-action {
+    display:inline-flex;align-items:center;justify-content:center;gap:4px;
+    font-size:11px;font-weight:600;
+    color:var(--color-text-muted);
+    text-decoration:none;
+    padding:7px 0;
+    border-radius:8px;
+    border:1px solid var(--color-border);
+    transition:all 0.2s;
   }
-  .act {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    font-size: 11px;
-    font-weight: 600;
-    text-decoration: none;
-    padding: 7px 0;
-    border-radius: 8px;
-    border: 1px solid var(--color-border);
-    color: var(--color-text-muted);
-    transition: all 0.2s;
-    flex: 1;
-    letter-spacing: -0.01em;
-    cursor: pointer;
-    font-family: inherit;
-    background: transparent;
-  }
-  .act:hover {
+  .store-action:hover {
     border-color: var(--color-primary);
     color: var(--color-primary);
-    background: color-mix(in srgb, var(--color-primary) 5%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 6%, transparent);
   }
-  .act-apply {
+  .store-action-apply {
     border-color: var(--color-primary);
     color: var(--color-primary);
-    background: color-mix(in srgb, var(--color-primary) 7%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
     font-weight: 700;
   }
-  .act-apply:hover {
+  .store-action-apply:hover {
     background: var(--color-primary) !important;
     color: #fff !important;
+    border-color: var(--color-primary) !important;
   }
-  .act-apply.applied {
-    background: color-mix(in srgb, var(--color-primary) 18%, transparent);
-    pointer-events: none;
-  }
-
-  /* ── Empty state ── */
-  .empty-state {
-    display: none;
-    text-align: center;
-    padding: 80px 20px;
-    grid-column: 1 / -1;
-  }
-  .empty-state.visible { display: block; }
-  .empty-icon {
-    color: var(--color-text-muted);
-    opacity: 0.35;
-    margin-bottom: 16px;
-  }
-  .empty-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--color-text-muted);
-    margin-bottom: 6px;
-  }
-  .empty-hint {
-    font-size: 13.5px;
-    color: var(--color-text-muted);
-    opacity: 0.7;
-  }
-  .empty-link {
-    color: var(--color-primary);
-    text-decoration: none;
-  }
-  .empty-link:hover { text-decoration: underline; }
-
-  /* ── Responsive ── */
-  @media (max-width: 768px) {
-    .grid-auto { grid-template-columns: 1fr; }
-    .store-toolbar {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 12px;
-      padding: 12px 20px 16px;
-      top: 60px;
-    }
-    .filter-chips {
-      overflow-x: auto;
-      padding-bottom: 2px;
-    }
-    .chip { font-size: 12px; padding: 6px 12px; }
-    .toolbar-right {
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .search-wrap { max-width: none; }
-    .card-preview { height: 66px; }
-    .preview-sidebar { width: 22px; }
-    .dropdown-menu { right: auto; left: 0; }
+  #search:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
   }
 </style>
 
 <script>
   const search = document.getElementById('search') as HTMLInputElement;
   const clearBtn = document.getElementById('search-clear')!;
-  const cards = Array.from(document.querySelectorAll('.store-card')) as HTMLElement[];
+  const cards = document.querySelectorAll('.theme-card') as NodeListOf<HTMLElement>;
   const noResults = document.getElementById('no-results')!;
   const resultCount = document.getElementById('result-count')!;
-  const chips = document.querySelectorAll('#filter-chips .chip') as NodeListOf<HTMLButtonElement>;
   const total = cards.length;
+  let debounceTimer: number;
 
-  let activeFilter = 'all';
-  let activeSort = 'default';
-  let query = search.value.toLowerCase().trim();
-  let searchTimer: number;
-
-  function applyFilterAndSort() {
-    let visible = cards.slice();
-
-    // Filter
-    if (activeFilter !== 'all') {
-      visible = visible.filter(c => c.dataset.category === activeFilter);
-    }
-
-    // Search
-    if (query) {
-      visible = visible.filter(c =>
-        (c.dataset.name || '').includes(query) ||
-        (c.dataset.preset || '').includes(query) ||
-        (c.dataset.color || '').includes(query)
-      );
-    }
-
-    // Sort: only reorder DOM nodes when sorting changes, batch with fragment
-    if (activeSort === 'az') {
-      visible.sort((a, b) => (a.dataset.name || '').localeCompare(b.dataset.name || '', 'zh-CN'));
-      const frag = document.createDocumentFragment();
-      visible.forEach(c => frag.appendChild(c));
-      document.getElementById('theme-grid')!.appendChild(frag);
-    }
-
-    // Toggle visibility directly — no per-element DOM moves
-    const visibleSet = new Set(visible);
-    cards.forEach(c => {
-      c.style.display = visibleSet.has(c) ? '' : 'none';
+  function updateSearch(q: string) {
+    let visible = 0;
+    cards.forEach(card => {
+      const name = card.dataset.name || '';
+      const preset = card.dataset.preset || '';
+      const color = card.dataset.color || '';
+      const match = !q || name.includes(q) || preset.includes(q) || color.includes(q);
+      card.style.display = match ? '' : 'none';
+      if (match) visible++;
     });
-
-    const visibleCount = visible.length;
-    noResults.classList.toggle('visible', visibleCount === 0);
-    if (query || activeFilter !== 'all') {
-      resultCount.textContent = `显示 ${visibleCount} / ${total} 个`;
-    } else {
-      resultCount.textContent = '';
-    }
-    clearBtn.classList.toggle('visible', query.length > 0);
 
     const url = new URL(location.href);
-    query ? url.searchParams.set('q', query) : url.searchParams.delete('q');
+    if (q) url.searchParams.set('q', q);
+    else url.searchParams.delete('q');
     history.replaceState(null, '', url.toString());
+
+    clearBtn.style.display = q ? 'block' : 'none';
+    noResults.style.display = q && visible === 0 ? 'block' : 'none';
+    resultCount.textContent = q ? `显示 ${visible} / ${total} 个` : '';
   }
 
-  // Search
   search.addEventListener('input', () => {
-    clearTimeout(searchTimer);
-    searchTimer = window.setTimeout(() => {
-      query = search.value.toLowerCase().trim();
-      applyFilterAndSort();
-    }, 150);
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => updateSearch(search.value.toLowerCase().trim()), 150);
   });
 
-  clearBtn.addEventListener('click', () => {
-    search.value = '';
-    query = '';
-    applyFilterAndSort();
-    search.focus();
-  });
-
-  // Filter chips
-  chips.forEach(chip => {
-    chip.addEventListener('click', () => {
-      chips.forEach(c => c.classList.remove('chip-active'));
-      chip.classList.add('chip-active');
-      activeFilter = chip.dataset.filter || 'all';
-      applyFilterAndSort();
-    });
-  });
-
-  // Custom dropdown
-  const dropdown = document.getElementById('sort-dropdown')!;
-  const sortBtn = document.getElementById('sort-btn')!;
-  const sortLabel = document.getElementById('sort-label')!;
-  const sortItems = document.querySelectorAll('#sort-menu .dropdown-item') as NodeListOf<HTMLButtonElement>;
-
-  sortBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    dropdown.classList.toggle('open');
-  });
-
-  sortItems.forEach(item => {
-    item.addEventListener('click', () => {
-      sortItems.forEach(i => i.classList.remove('dropdown-item-active'));
-      item.classList.add('dropdown-item-active');
-      sortLabel.textContent = item.textContent || '';
-      activeSort = item.dataset.value || 'default';
-      dropdown.classList.remove('open');
-      applyFilterAndSort();
-    });
-  });
-
-  document.addEventListener('click', (e) => {
-    if (!dropdown.contains(e.target as Node)) {
-      dropdown.classList.remove('open');
-    }
-  });
+  clearBtn.addEventListener('click', () => { search.value = ''; updateSearch(''); search.focus(); });
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
-    if (e.key === '/' && document.activeElement !== search && !(document.activeElement as HTMLElement)?.closest('input, textarea, select')) {
-      e.preventDefault();
-      search.focus();
-      search.select();
+    if (e.key === '/' && document.activeElement !== search && !(document.activeElement as HTMLElement)?.closest('input, textarea, [contenteditable]')) {
+      e.preventDefault(); search.focus(); search.select();
     }
     if (e.key === 'Escape' && document.activeElement === search && search.value) {
-      search.value = '';
-      query = '';
-      applyFilterAndSort();
+      search.value = ''; updateSearch('');
     }
   });
 
-  // Init
-  if (search.value) {
-    query = search.value.toLowerCase().trim();
-  }
-  applyFilterAndSort();
+  if (search.value) updateSearch(search.value.toLowerCase().trim());
 
-  // ── Instant apply ──
-  const APPLY_KEY = 'themeDistApplied';
-
-  function markActive(preset: string | null) {
-    cards.forEach(c => {
-      c.classList.toggle('active-theme', preset != null && c.dataset.preset === preset);
-    });
+  // Hide today badges when previewing another theme
+  const previewTheme = new URLSearchParams(location.search).get('theme');
+  if (previewTheme && previewTheme !== '{todayPreset}') {
+    document.querySelectorAll('[data-today]').forEach(b => { (b as HTMLElement).style.display = 'none'; });
   }
 
-  function cleanupInjected() {
-    document.querySelectorAll('#td-server-customcss, #preview-custom-css, #td-diy-css, #store-preview-css').forEach(s => s.remove());
-    const allDeco = '.omni-petal,.omni-stardust,.cinematic-vignette,.yozakura-glow,.summer-bubble,.ice-particle,.abyss-shard,.abyss-ember,.abyss-ambient,.omni-wave,.omni-firework,.omni-flower,.omni-raindrop,.omni-heart,.omni-star,.omni-lotus,.omni-steam,.omni-paw,.omni-coin,.dec-icon,.interactive-drink';
-    document.querySelectorAll(allDeco).forEach(el => el.remove());
-    const srv = document.getElementById('td-server-extensions');
-    if (srv) srv.innerHTML = '';
-    const prv = document.getElementById('preview-extensions');
-    if (prv) prv.remove();
-  }
-
-  async function applyTheme(preset: string, name: string) {
-    try {
-      const r = await fetch(`/api/theme/${encodeURIComponent(preset)}.json`);
-      if (!r.ok) return;
-      const data = await r.json();
-
-      const root = document.documentElement;
-      Object.entries(data.cssVars).forEach(([k, v]) => {
-        root.style.setProperty(k, v as string);
-      });
-
-      cleanupInjected();
-
-      if (data.customCss) {
-        const s = document.createElement('style');
-        s.id = 'store-preview-css';
-        s.textContent = data.customCss;
-        document.head.appendChild(s);
+  // "Apply to site" saves to localStorage before navigating
+  document.querySelectorAll('.js-apply-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      var preset = (this as HTMLElement).dataset.preset;
+      var name = (this as HTMLElement).dataset.name;
+      if (preset) {
+        localStorage.setItem('themeDistApplied', JSON.stringify({ preset: preset, name: name }));
       }
-
-      if (data.extensions && data.extensions.length) {
-        const container = document.createElement('div');
-        container.id = 'preview-extensions';
-        container.innerHTML = data.extensions.map((e: any) => e.content).join('');
-        document.body.insertBefore(container, document.body.firstChild);
-      }
-
-      const bar = document.getElementById('preview-bar')!;
-      const nameEl = document.getElementById('preview-bar-name')!;
-      bar.style.display = 'block';
-      nameEl.innerHTML = '主题已应用: <strong>' + data.presetName + '</strong>';
-
-      const badge = document.querySelector('.nav-badge');
-      if (badge) badge.textContent = data.presetName;
-
-      localStorage.setItem(APPLY_KEY, JSON.stringify({ preset, name }));
-      markActive(preset);
-
-      const btn = document.querySelector(`.js-apply[data-preset="${CSS.escape(preset)}"]`);
-      if (btn) {
-        btn.classList.add('applied');
-        const orig = btn.innerHTML;
-        btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> 已应用';
-        setTimeout(() => {
-          btn.classList.remove('applied');
-          btn.innerHTML = orig;
-        }, 2000);
-      }
-
-      (window as any).__toast?.(`已应用「${data.presetName}」`);
-    } catch { /* network error */ }
-  }
-
-  document.querySelectorAll('.js-apply').forEach(btn => {
-    btn.addEventListener('click', function (e) {
-      e.preventDefault();
-      const el = this as HTMLElement;
-      applyTheme(el.dataset.preset!, el.dataset.name!);
     });
   });
 
-  // Click swatch to copy
-  document.querySelectorAll('.swatch').forEach(d => {
-    d.addEventListener('click', (e) => {
+  // Click color swatch to copy hex
+  document.querySelectorAll('.color-dot').forEach(dot => {
+    dot.addEventListener('click', (e) => {
       e.stopPropagation();
       e.preventDefault();
-      const color = (d as HTMLElement).dataset.color || '';
+      const color = (dot as HTMLElement).dataset.color || '';
       navigator.clipboard.writeText(color).then(() => {
-        (window as any).__toast?.('已复制 ' + color);
+        (window as any).__toast?.(color + ' 已复制');
       }).catch(() => {});
     });
   });
-
-  // Detect currently active theme
-  (function detectActive() {
-    const params = new URLSearchParams(location.search);
-    const urlTheme = params.get('theme');
-    if (urlTheme) {
-      markActive(urlTheme);
-      return;
-    }
-    const stored = localStorage.getItem(APPLY_KEY);
-    if (stored) {
-      try {
-        const data = JSON.parse(stored);
-        markActive(data.preset);
-      } catch {}
-    }
-  })();
-
-  // Toolbar scroll effect
-  const toolbar = document.getElementById('toolbar')!;
-  window.addEventListener('scroll', () => {
-    toolbar.classList.toggle('scrolled', window.scrollY > 20);
-  }, { passive: true });
-
-  // Hide today badges when previewing another theme
-  const params = new URLSearchParams(location.search);
-  if (params.get('theme') && params.get('theme') !== '{todayPreset}') {
-    document.querySelectorAll('.badge-today').forEach(b => (b as HTMLElement).style.display = 'none');
-  }
 </script>

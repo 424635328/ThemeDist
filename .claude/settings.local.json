@@ -15,24 +15,7 @@
       "Bash(wc -c \"E:\\\\\\\\GitHub\\\\\\\\themeDist\\\\\\\\dist\\\\\\\\api\\\\\\\\theme\\\\\\\\crimson-abyss.json\")",
       "Bash(grep *)",
       "Bash(ls \"E:\\\\\\\\GitHub\\\\\\\\themeDist\\\\\\\\dist\\\\\\\\api\\\\\\\\spec\\\\\\\\\")",
-      "Bash(head -c 200 \"E:\\\\\\\\GitHub\\\\\\\\themeDist\\\\\\\\dist\\\\\\\\index.html\")",
-      "Bash(ls *)",
-      "Bash(test -f \"E:\\\\\\\\GitHub\\\\\\\\themeDist\\\\\\\\README.md\")",
-      "Bash(head -5 \"E:\\\\\\\\GitHub\\\\\\\\themeDist\\\\\\\\dist\\\\\\\\api\\\\\\\\today.json\")",
-      "Bash(wc *)",
-      "Bash(curl -s http://localhost:4322/theme-store)",
-      "Bash(kill %1)",
-      "Bash(git stash *)",
-      "Bash(npx -C E:/GitHub/themeDist astro dev --port 4323)",
-      "Bash(curl -s http://localhost:4323/theme-store)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:4321/theme-builder)",
-      "Bash(curl -s http://localhost:4321/theme-builder)",
-      "Bash(npm -v)",
-      "Bash(npx -C E:/GitHub/themeDist astro dev --port 4326)",
-      "Bash(curl -s http://localhost:4326/theme-store)",
-      "Bash(npm config *)",
-      "Bash(sed -n '/^\\(function\\(\\){const initialThemeData/,/^}\\)\\(\\);<\\\\/script>/p')",
-      "Read(//tmp/**)"
+      "Bash(head -c 200 \"E:\\\\\\\\GitHub\\\\\\\\themeDist\\\\\\\\dist\\\\\\\\index.html\")"
     ]
   }
 }

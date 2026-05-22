@@ -3,8 +3,6 @@ import Layout from '../../layouts/Layout.astro';
 import { getDailyTheme } from '../../utils/daily-theme';
 
 const today = getDailyTheme();
-const primary = today.cssVars['--color-primary'];
-const secondary = today.cssVars['--color-secondary'];
 
 const minimalResponse = JSON.stringify({
   date: today.date || new Date().toISOString().slice(0, 10),
@@ -44,32 +42,14 @@ const fullResponse = JSON.stringify({
   ]
 }, null, 2);
 
-const presetExample = JSON.stringify({
-  preset: "crimson-abyss",
-  presetName: "Crimson Abyss",
-  cssVars: Object.fromEntries(
-    Object.entries(today.cssVars).slice(0, 8)
-  ),
-  customCss: null,
-  extensions: null,
-  logoText: "CRIMSON",
-  logoColors: ["#ff2a4b", "#ff6b7f"]
-}, null, 2);
-
-const quickStartCurl = `# 获取今日主题
-curl https://YOUR.netlify.app/api/today.json
-
-# 获取指定预设
-curl https://YOUR.netlify.app/api/theme/crimson-abyss.json`;
-
-const vanillaJS = String.raw`// 完整集成 — 含缓存、降级、特效注入
+const vanillaJS = String.raw`// 完整集成示例 — 含缓存、降级、特效注入
 (async () => {
   const today = new Date().toISOString().slice(0, 10);
   const cached = JSON.parse(localStorage.getItem('td') || 'null');
+
   if (cached?.date === today) return applyTheme(cached);
 
   const res = await fetch('https://YOUR.netlify.app/api/today.json');
-  if (!res.ok) throw new Error('API unavailable');
   const t = await res.json();
 
   const data = { date: t.date, cssVars: t.cssVars, customCss: t.customCss, exts: t.extensions };
@@ -81,176 +61,34 @@ const vanillaJS = String.raw`// 完整集成 — 含缓存、降级、特效注�
 });
 
 function applyTheme(d) {
-  Object.entries(d.cssVars).forEach(([k, v]) =>
-    document.documentElement.style.setProperty(k, v));
-  if (d.customCss) {
-    const s = document.createElement('style');
-    s.textContent = d.customCss;
-    document.head.appendChild(s);
-  }
-  if (d.exts) {
-    const div = document.createElement('div');
-    div.innerHTML = d.exts.map(x => x.content).join('');
-    document.body.prepend(div);
-  }
+  Object.entries(d.cssVars).forEach(([k,v]) => document.documentElement.style.setProperty(k,v));
+  if (d.customCss) { let s = document.createElement('style'); s.textContent = d.customCss; document.head.appendChild(s); }
+  if (d.exts) { let e = document.createElement('div'); e.innerHTML = d.exts.map(x => x.content).join(''); document.body.prepend(e); }
 }`;
-
-const reactHook = String.raw`// React Hook — useDailyTheme.ts
-import { useState, useEffect } from 'react';
-
-interface ThemeData {
-  date: string;
-  preset: string;
-  presetName: string;
-  cssVars: Record<string, string>;
-  customCss: string | null;
-  extensions: { type: string; content: string }[] | null;
-  logoText: string | null;
-  logoColors: string[] | null;
-}
-
-export function useDailyTheme(apiBase: string) {
-  const [theme, setTheme] = useState<ThemeData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const cached = JSON.parse(localStorage.getItem('td') || 'null');
-
-    if (cached?.date === today) {
-      setTheme(cached);
-      setLoading(false);
-      return;
-    }
-
-    fetch(\`\${apiBase}/api/today.json\`)
-      .then(r => r.json())
-      .then(t => {
-        const data = { date: t.date, ...t };
-        localStorage.setItem('td', JSON.stringify(data));
-        setTheme(data);
-      })
-      .catch(() => {
-        const fallback = JSON.parse(localStorage.getItem('td') || 'null');
-        if (fallback) setTheme(fallback);
-      })
-      .finally(() => setLoading(false));
-  }, [apiBase]);
-
-  // Inject CSS variables into :root
-  useEffect(() => {
-    if (!theme?.cssVars) return;
-    const root = document.documentElement;
-    Object.entries(theme.cssVars).forEach(([k, v]) =>
-      root.style.setProperty(k, v));
-  }, [theme]);
-
-  return { theme, loading };
-}`;
-
-const vueComposable = String.raw`// Vue 3 Composable — useDailyTheme.ts
-import { ref, watch, onMounted } from 'vue';
-
-interface ThemeData {
-  date: string;
-  preset: string;
-  presetName: string;
-  cssVars: Record<string, string>;
-  customCss: string | null;
-  extensions: { type: string; content: string }[] | null;
-  logoText: string | null;
-  logoColors: string[] | null;
-}
-
-export function useDailyTheme(apiBase: string) {
-  const theme = ref<ThemeData | null>(null);
-  const loading = ref(true);
-
-  async function fetchTheme() {
-    const today = new Date().toISOString().slice(0, 10);
-    const cached = JSON.parse(localStorage.getItem('td') || 'null');
-
-    if (cached?.date === today) {
-      theme.value = cached;
-      loading.value = false;
-      return;
-    }
-
-    try {
-      const res = await fetch(\`\${apiBase}/api/today.json\`);
-      const t = await res.json();
-      const data = { date: t.date, ...t };
-      localStorage.setItem('td', JSON.stringify(data));
-      theme.value = data;
-    } catch {
-      const fallback = JSON.parse(localStorage.getItem('td') || 'null');
-      if (fallback) theme.value = fallback;
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  // Inject CSS variables whenever theme changes
-  watch(theme, (t) => {
-    if (!t?.cssVars) return;
-    const root = document.documentElement;
-    Object.entries(t.cssVars).forEach(([k, v]) =>
-      root.style.setProperty(k, v));
-  });
-
-  onMounted(fetchTheme);
-
-  return { theme, loading };
-}`;
-
-const availableCount = 232;
 ---
 
 <Layout>
-  <div class="docs-layout">
-    <!-- ═══════════ SIDEBAR ═══════════ -->
-    <aside class="sidebar" id="sidebar">
-      <nav class="sidebar-nav">
-        <div class="sidebar-section">
-          <span class="sidebar-label">开始</span>
-          <a href="#quick-start" class="sidebar-link">快速开始</a>
-          <a href="#try-it" class="sidebar-link">在线试用</a>
-          <a href="#overview" class="sidebar-link">概述</a>
-        </div>
-        <div class="sidebar-section">
-          <span class="sidebar-label">API 参考</span>
-          <a href="#endpoints" class="sidebar-link">端点</a>
-          <a href="#schema-today" class="sidebar-link">响应结构 (today)</a>
-          <a href="#schema-preset" class="sidebar-link">响应结构 (preset)</a>
-          <a href="#css-vars" class="sidebar-link">CSS 变量参考</a>
-          <a href="#rotation" class="sidebar-link">轮换策略</a>
-          <a href="#caching" class="sidebar-link">缓存策略</a>
-          <a href="#response-size" class="sidebar-link">响应体积</a>
-          <a href="#headers" class="sidebar-link">响应头</a>
-          <a href="#errors" class="sidebar-link">错误处理</a>
-        </div>
-        <div class="sidebar-section">
-          <span class="sidebar-label">集成</span>
-          <a href="#steps" class="sidebar-link">接入步骤</a>
-          <a href="#code" class="sidebar-link">代码示例</a>
-          <a href="#faq" class="sidebar-link">常见问题</a>
-        </div>
-      </nav>
-    </aside>
+  <section class="section">
+    <div class="text-center" style="margin-bottom:48px">
+      <p class="t-label">Documentation</p>
+      <h1 style="font-size:clamp(2.4rem,5.5vw,3.4rem);font-weight:700;letter-spacing:-0.04em;line-height:1.1;margin-top:8px">API 文档</h1>
+      <p class="t-subhead" style="margin-top:16px;max-width:560px;margin-inline:auto;font-size:1.1rem">
+        一个 GET 请求获取每日主题的完整 CSS 变量与特效数据
+      </p>
+    </div>
 
-    <!-- ═══════════ MAIN CONTENT ═══════════ -->
-    <main class="docs-main">
+    <div style="max-width:760px;margin:0 auto">
 
-      <!-- Hero -->
-      <div class="docs-hero">
-        <p class="t-label">Documentation</p>
-        <h1>API 文档</h1>
-        <p class="docs-subtitle">
-          一个 GET 请求获取每日主题的完整 CSS 变量与特效数据。
-          无认证 · 无速率限制 · 支持 CORS 跨域。
+      <!-- ====== OVERVIEW ====== -->
+      <h2 id="overview" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px">概述</h2>
+      <div class="card" style="margin-bottom:36px;padding:24px 28px">
+        <p class="text-muted" style="font-size:14px;line-height:1.75;margin:0">
+          ThemeDist 是<strong>每日自动轮换的主题分发 API</strong>。每天 UTC 0:00 通过 Netlify/Vercel 定时重建。
+          客户端 GET <code>/api/today.json</code>，将返回的 28 个 CSS 自定义属性注入 <code>:root</code>，即可获得当日主题。
+          无认证、无速率限制、支持 CORS 跨域。
         </p>
-        <div class="tag-row">
-          <span class="tag">{availableCount}+ 预设</span>
+        <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:10px">
+          <span class="tag">232+ 预设</span>
           <span class="tag">农历 + 公历节日</span>
           <span class="tag">CORS 跨域</span>
           <span class="tag">CDN 友好</span>
@@ -258,1552 +96,348 @@ const availableCount = 232;
         </div>
       </div>
 
-      <!-- ═══════════ QUICK START ═══════════ -->
-      <h2 id="quick-start">快速开始</h2>
-      <div class="card" style="margin-bottom:36px;padding:0;overflow:hidden">
-        <div class="card-header">
-          <span class="card-header-dot"></span>
-          <span class="card-header-text">cURL</span>
-        </div>
-        <pre style="margin:0;border-radius:0;border:none;border-top:1px solid var(--color-border)"><code>{quickStartCurl}</code></pre>
-      </div>
-
-      <!-- ═══════════ TRY IT LIVE ═══════════ -->
-      <h2 id="try-it">在线试用</h2>
-      <div class="card" style="margin-bottom:36px">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
-          <div>
-            <span style="font-weight:700;font-size:15px">GET /api/today.json</span>
-            <span class="text-muted" style="font-size:12px;margin-left:10px">点击按钮获取今日主题数据</span>
-          </div>
-          <button class="btn btn-primary" id="try-it-btn" style="height:38px;padding:0 20px;font-size:13px;border-radius:10px">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="margin-right:6px"><path d="M3 1l10 6-10 6V1z" fill="currentColor"/></svg>
-            发送请求
-          </button>
-        </div>
-        <pre id="try-it-output" style="max-height:500px;overflow-y:auto;margin:0;background:color-mix(in srgb, var(--color-bg) 70%, transparent)"><code style="color:var(--color-text-muted)">// 点击按钮获取实时响应...</code></pre>
-        <div id="try-it-meta" style="display:none;margin-top:12px;font-size:12px;color:var(--color-text-muted);display:flex;gap:20px;flex-wrap:wrap">
-          <span>Status: <strong id="try-it-status" style="color:var(--color-primary)">—</strong></span>
-          <span>Size: <strong id="try-it-size">—</strong></span>
-          <span>Time: <strong id="try-it-time">—</strong></span>
-        </div>
-      </div>
-
-      <!-- ═══════════ OVERVIEW ═══════════ -->
-      <h2 id="overview">概述</h2>
-      <div class="card" style="margin-bottom:36px">
-        <p class="text-muted" style="font-size:14px;line-height:1.8;margin:0">
-          ThemeDist 是<strong>每日自动轮换的主题分发 API</strong>。每天 UTC 0:00 通过 Netlify/Vercel 定时重建站点，
-          生成新的静态 JSON 文件。客户端只需 GET <code>/api/today.json</code>，
-          将返回的 28 个 CSS 自定义属性注入 <code>:root</code>，即可获得当日主题。
-        </p>
-        <div style="margin-top:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
-          <div class="info-tile">
-            <div class="info-tile-icon">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="2" width="14" height="14" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M6 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </div>
-            <div>
-              <p style="font-size:13px;font-weight:700;margin-bottom:1px">静态 JSON</p>
-              <p class="text-muted" style="font-size:12px">构建时预生成，无运行时开销</p>
-            </div>
-          </div>
-          <div class="info-tile">
-            <div class="info-tile-icon">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M9 5v4l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </div>
-            <div>
-              <p style="font-size:13px;font-weight:700;margin-bottom:1px">每日轮换</p>
-              <p class="text-muted" style="font-size:12px">UTC 0:00 定时重建，节日优先</p>
-            </div>
-          </div>
-          <div class="info-tile">
-            <div class="info-tile-icon">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M1 5l4-2 4 2 4-2 4 2M1 9l4-2 4 2 4-2 4 2M1 13l4-2 4 2 4-2 4 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </div>
-            <div>
-              <p style="font-size:13px;font-weight:700;margin-bottom:1px">全球 CDN</p>
-              <p class="text-muted" style="font-size:12px">Netlify/Vercel Edge 网络分发</p>
-            </div>
-          </div>
-          <div class="info-tile">
-            <div class="info-tile-icon">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 15A6 6 0 109 3a6 6 0 000 12z" stroke="currentColor" stroke-width="1.5"/><path d="M9 7v4M9 5v1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            </div>
-            <div>
-              <p style="font-size:13px;font-weight:700;margin-bottom:1px">零配置</p>
-              <p class="text-muted" style="font-size:12px">无需 API Key，无需注册</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ═══════════ ENDPOINTS ═══════════ -->
-      <h2 id="endpoints">端点</h2>
+      <!-- ====== ENDPOINTS ====== -->
+      <h2 id="endpoints" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">端点</h2>
       <div class="card card-glass" style="padding:0;overflow:hidden;margin-bottom:36px">
-        <table class="docs-table">
-          <thead><tr>
-            <th style="width:70px">方法</th>
-            <th style="width:220px">路径</th>
-            <th>说明</th>
+        <table style="width:100%;border-collapse:collapse;font-size:14px">
+          <thead><tr style="border-bottom:1px solid var(--color-border)">
+            <th style="text-align:left;padding:12px 18px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:60px">方法</th>
+            <th style="text-align:left;padding:12px 18px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:200px">路径</th>
+            <th style="text-align:left;padding:12px 18px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">说明</th>
           </tr></thead>
           <tbody>
-            <tr>
-              <td><span class="method-badge">GET</span></td>
-              <td><code class="endpoint-path">/api/today.json</code></td>
-              <td>今日主题的完整数据（CSS 变量 + 特效 + 目录），带日期标记</td>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span style="font-weight:800;font-size:11px;padding:3px 10px;border-radius:5px;background:var(--color-primary);color:#fff">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/today.json</td>
+              <td style="padding:12px 18px;font-size:13px">今日主题的完整数据（CSS 变量 + 特效 + 目录）</td>
             </tr>
             <tr>
-              <td><span class="method-badge">GET</span></td>
-              <td><code class="endpoint-path">/api/theme/{'{preset}'}.json</code></td>
-              <td>指定预设的完整数据（{availableCount} 个静态端点，永久缓存）</td>
+              <td style="padding:12px 18px"><span style="font-weight:800;font-size:11px;padding:3px 10px;border-radius:5px;background:var(--color-primary);color:#fff">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/theme/{'{preset}'}.json</td>
+              <td style="padding:12px 18px;font-size:13px">指定预设的完整数据（232 个端点，永久缓存）</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <p class="text-muted" style="font-size:13px;margin-bottom:6px">
-        所有端点均返回 <code>application/json</code>，支持 CORS（<code>Access-Control-Allow-Origin: *</code>）。
-        OPTIONS 预检请求返回 204。
-      </p>
-
-      <!-- ═══════════ SCHEMA: today ═══════════ -->
-      <h2 id="schema-today">响应结构 <code>/api/today.json</code></h2>
-      <p class="text-muted" style="font-size:13px;margin-bottom:14px">
-        当前主题：<strong style="color:var(--color-text)">{today.presetName}</strong>
-        <span class="color-dot" style="background:{primary};margin-left:8px"></span>
-      </p>
-
-      <div class="card card-glass" style="padding:0;overflow:hidden;margin-bottom:16px">
-        <table class="docs-table">
-          <thead><tr>
-            <th style="width:130px">字段</th>
-            <th style="width:80px">类型</th>
-            <th>说明</th>
+      <!-- ====== RESPONSE SCHEMA ====== -->
+      <h2 id="schema" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">响应结构 /api/today.json</h2>
+      <div class="card card-glass" style="padding:0;overflow:hidden;margin-bottom:20px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="border-bottom:1px solid var(--color-border)">
+            <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:110px">字段</th>
+            <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:80px">类型</th>
+            <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">说明</th>
           </tr></thead>
           <tbody>
-            <tr><td><code>date</code></td><td class="type-cell">string</td><td>ISO 日期 <code>YYYY-MM-DD</code>（UTC 时区）</td></tr>
-            <tr><td><code>generatedAt</code></td><td class="type-cell">string</td><td>ISO 8601 生成时间戳</td></tr>
-            <tr><td><code>preset</code></td><td class="type-cell">string</td><td>预设标识符 (kebab-case)，如 <code>crimson-abyss</code></td></tr>
-            <tr><td><code>presetName</code></td><td class="type-cell">string</td><td>人类可读名称，如 <code>Crimson Abyss</code></td></tr>
-            <tr><td><code>cssVars</code></td><td class="type-cell">object</td><td>28 个 CSS 自定义属性（5 组），见 <a href="#css-vars">CSS 变量参考</a></td></tr>
-            <tr><td><code>customCss</code></td><td class="type-cell">string|null</td><td>主题专属 CSS（动画 keyframes、特效样式），应注入为 <code>&lt;style&gt;</code></td></tr>
-            <tr><td><code>extensions</code></td><td class="type-cell">array|null</td><td>HTML 片段数组 <code>{'{ type:"html", content:"..." }'}</code>，应注入为 DOM 元素</td></tr>
-            <tr><td><code>logoText</code></td><td class="type-cell">string|null</td><td>推荐 Logo 文字，如 <code>CRIMSON</code></td></tr>
-            <tr><td><code>logoColors</code></td><td class="type-cell">array|null</td><td>Logo 渐变色 hex 数组，如 <code>["#ff2a4b","#ff6b7f"]</code></td></tr>
-            <tr><td><code>available</code></td><td class="type-cell">number</td><td>可用主题总数</td></tr>
-            <tr><td><code>directory</code></td><td class="type-cell">array</td><td>轻量主题索引 <code>[{'\{'}preset, name, primary, accent, logoText{'}\'}]</code></td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">date</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">ISO 日期 YYYY-MM-DD（UTC 时区）</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">generatedAt</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">ISO 8601 生成时间戳</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">preset</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">预设标识符 (kebab-case)</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">presetName</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">人类可读名称</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">cssVars</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object</td><td style="padding:9px 16px">28 个 CSS 自定义属性键值对（5 组：Colors / Typography / Spacing / Effects / Ambient）</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">customCss</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string|null</td><td style="padding:9px 16px">主题专属 CSS（动画 keyframes、特效样式），注入为 <code>&lt;style&gt;</code></td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">extensions</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array|null</td><td style="padding:9px 16px">HTML 片段数组 <code>{'{ type:"html", content:"..." }'}</code>，注入为 DOM 元素</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">logoText</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string|null</td><td style="padding:9px 16px">Logo 文字</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">logoColors</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array|null</td><td style="padding:9px 16px">Logo 渐变色 hex 数组</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">available</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">number</td><td style="padding:9px 16px">可用主题总数</td></tr>
+            <tr><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">directory</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array</td><td style="padding:9px 16px">轻量索引 <code>[{'\{'}preset, name, primary, accent, logoText{'}\}'}]</code></td></tr>
           </tbody>
         </table>
       </div>
+      <p class="text-muted" style="font-size:12px;margin-bottom:14px"><code>/api/theme/{'{preset}'}.json</code> 结构一致，但不含 <code>date</code>、<code>generatedAt</code>、<code>available</code>、<code>directory</code>。</p>
 
-      <details class="details-block" style="margin-bottom:40px">
-        <summary>展开示例响应</summary>
-        <pre style="margin-top:12px;max-height:400px;overflow-y:auto"><code>{minimalResponse}</code></pre>
-      </details>
+      <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px">示例响应</h3>
+      <pre style="max-height:400px;overflow-y:auto;margin-bottom:40px"><code>{minimalResponse}</code></pre>
 
-      <!-- ═══════════ SCHEMA: preset ═══════════ -->
-      <h2 id="schema-preset">响应结构 <code>/api/theme/{'{preset}'}.json</code></h2>
-      <p class="text-muted" style="font-size:13px;margin-bottom:14px">
-        与 <code>/api/today.json</code> 结构一致，但<strong>不含</strong> <code>date</code>、<code>generatedAt</code>、<code>available</code>、<code>directory</code> 字段。
-        适合按需加载特定预设或 Service Worker 预缓存。
-      </p>
-
-      <div class="card card-glass" style="padding:0;overflow:hidden;margin-bottom:16px">
-        <table class="docs-table">
-          <thead><tr>
-            <th style="width:130px">字段</th>
-            <th style="width:80px">类型</th>
-            <th>说明</th>
-          </tr></thead>
-          <tbody>
-            <tr><td><code>preset</code></td><td class="type-cell">string</td><td>预设标识符</td></tr>
-            <tr><td><code>presetName</code></td><td class="type-cell">string</td><td>人类可读名称</td></tr>
-            <tr><td><code>cssVars</code></td><td class="type-cell">object</td><td>28 个 CSS 自定义属性</td></tr>
-            <tr><td><code>customCss</code></td><td class="type-cell">string|null</td><td>主题专属 CSS</td></tr>
-            <tr><td><code>extensions</code></td><td class="type-cell">array|null</td><td>HTML 片段数组</td></tr>
-            <tr><td><code>logoText</code></td><td class="type-cell">string|null</td><td>推荐 Logo 文字</td></tr>
-            <tr><td><code>logoColors</code></td><td class="type-cell">array|null</td><td>Logo 渐变色数组</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <details class="details-block" style="margin-bottom:40px">
-        <summary>展开示例响应（crimson-abyss）</summary>
-        <pre style="margin-top:12px;max-height:400px;overflow-y:auto"><code>{presetExample}</code></pre>
-      </details>
-
-      <div class="callout callout-tip" style="margin-bottom:40px">
-        <p><strong>提示：</strong>该端点共 {availableCount} 个预生成静态文件，响应头包含 <code>immutable</code>，可永久缓存。非常适合 Service Worker 预缓存全部主题（总计约 500KB）以实现离线主题切换。</p>
-      </div>
-
-      <!-- ═══════════ CSS VARS ═══════════ -->
-      <h2 id="css-vars">CSS 变量参考</h2>
-      <p class="text-muted" style="font-size:13px;margin-bottom:18px">
-        所有 28 个变量均通过 <code>cssVars</code> 对象返回。使用 <code>var(--xxx)</code> 在 CSS 中引用，
-        建议为每个变量提供 fallback 值以应对网络异常。
-      </p>
+      <!-- ====== CSS VARS ====== -->
+      <h2 id="css-vars" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">CSS 变量参考</h2>
+      <p class="text-muted" style="font-size:13px;line-height:1.6;margin-bottom:16px">所有变量均通过 <code>cssVars</code> 对象返回，直接在 CSS 中 <code>var(--xxx)</code> 引用。</p>
 
       <div class="card card-glass" style="padding:0;overflow:hidden;margin-bottom:36px">
-        <table class="docs-table vars-table">
-          <thead><tr>
-            <th style="width:240px">变量</th>
-            <th>用途 / 示例值</th>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="border-bottom:1px solid var(--color-border)">
+            <th style="text-align:left;padding:10px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:150px">变量</th>
+            <th style="text-align:left;padding:10px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">用途</th>
           </tr></thead>
           <tbody>
-            <tr class="vars-group"><td colspan="2">
-              <span class="vars-group-label">COLORS 色板</span>
-            </td></tr>
-            <tr>
-              <td>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <span class="swatch" style="background:{primary}"></span>
-                  <code>--color-primary</code>
-                </div>
-              </td>
-              <td>主色，用于按钮、链接、强调元素 <code style="font-size:11px;margin-left:8px">{primary}</code></td>
-            </tr>
-            <tr>
-              <td>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <span class="swatch" style="background:{secondary}"></span>
-                  <code>--color-secondary</code>
-                </div>
-              </td>
-              <td>辅色，用于渐变、装饰元素 <code style="font-size:11px;margin-left:8px">{secondary}</code></td>
-            </tr>
-            <tr>
-              <td>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <span class="swatch" style="background:{today.cssVars['--color-accent']}"></span>
-                  <code>--color-accent</code>
-                </div>
-              </td>
-              <td>强调色，用于 hover、焦点、高亮</td>
-            </tr>
-            <tr>
-              <td>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <span class="swatch" style="background:{today.cssVars['--color-bg']}"></span>
-                  <code>--color-bg</code>
-                </div>
-              </td>
-              <td>页面背景色</td>
-            </tr>
-            <tr>
-              <td>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <span class="swatch" style="background:{today.cssVars['--color-surface']};border:1px solid var(--color-border)"></span>
-                  <code>--color-surface</code>
-                </div>
-              </td>
-              <td>卡片 / 面板背景色（比 bg 稍亮）</td>
-            </tr>
-            <tr>
-              <td>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <span class="swatch" style="background:{today.cssVars['--color-text']}"></span>
-                  <code>--color-text</code>
-                </div>
-              </td>
-              <td>正文颜色</td>
-            </tr>
-            <tr>
-              <td>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <span class="swatch" style="background:{today.cssVars['--color-text-muted']}"></span>
-                  <code>--color-text-muted</code>
-                </div>
-              </td>
-              <td>弱化文字（辅助信息、描述）</td>
-            </tr>
-            <tr>
-              <td>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <span class="swatch" style="background:{today.cssVars['--color-border']}"></span>
-                  <code>--color-border</code>
-                </div>
-              </td>
-              <td>边框色（含 alpha 通道）</td>
-            </tr>
+            <tr><td colspan="2" style="padding:8px 14px;font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 4%, transparent)">COLORS 色板</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">--color-primary / --color-secondary / --color-accent</td><td style="padding:8px 14px;font-size:12px">主色 / 辅色 / 强调色</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">--color-bg / --color-surface</td><td style="padding:8px 14px;font-size:12px">页面背景 / 卡片面板背景</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">--color-text / --color-text-muted / --color-border</td><td style="padding:8px 14px;font-size:12px">正文 / 弱化文字 / 边框（带 alpha）</td></tr>
 
-            <tr class="vars-group"><td colspan="2">
-              <span class="vars-group-label">TYPOGRAPHY 排版</span>
-            </td></tr>
-            <tr><td><code>--font-heading</code></td><td>标题字体栈</td></tr>
-            <tr><td><code>--font-body</code></td><td>正文字体栈</td></tr>
-            <tr><td><code>--font-mono</code></td><td>等宽字体栈</td></tr>
-            <tr><td><code>--text-base</code></td><td>基准字号（使用 clamp 流式缩放）</td></tr>
-            <tr><td><code>--text-lg</code> / <code>--text-xl</code> / <code>--text-2xl</code></td><td>Modular Scale 放大级</td></tr>
-            <tr><td><code>--text-sm</code></td><td>小号文字</td></tr>
+            <tr><td colspan="2" style="padding:8px 14px;font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 4%, transparent)">TYPOGRAPHY 排版</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">--font-heading / --font-body / --font-mono</td><td style="padding:8px 14px;font-size:12px">标题 / 正文 / 等宽字体栈</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">--text-base / --text-lg / --text-xl / --text-2xl / --text-sm</td><td style="padding:8px 14px;font-size:12px">Modular Scale 字号（base 使用 clamp 流式）</td></tr>
 
-            <tr class="vars-group"><td colspan="2">
-              <span class="vars-group-label">SPACING 间距</span>
-            </td></tr>
-            <tr><td><code>--space-unit</code></td><td>基准间距 4px（<code>0.25rem</code>）</td></tr>
-            <tr><td><code>--space-1</code> ~ <code>--space-12</code></td><td>7 级阶梯（4 / 8 / 12 / 16 / 24 / 32 / 48px）</td></tr>
-            <tr><td><code>--radii</code></td><td>统一圆角（默认 <code>0.75rem</code>）</td></tr>
-            <tr><td><code>--content-max</code></td><td>内容最大宽度（默认 <code>72rem</code>）</td></tr>
+            <tr><td colspan="2" style="padding:8px 14px;font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 4%, transparent)">SPACING 间距</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">--space-unit / --space-1~12</td><td style="padding:8px 14px;font-size:12px">4px 基准间距，7 级阶梯 (4~48px)</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">--radii / --content-max</td><td style="padding:8px 14px;font-size:12px">统一圆角 (0.75rem) / 内容最大宽度 (72rem)</td></tr>
 
-            <tr class="vars-group"><td colspan="2">
-              <span class="vars-group-label">EFFECTS 效果</span>
-            </td></tr>
-            <tr><td><code>--shadow-sm</code> / <code>--shadow-md</code> / <code>--shadow-lg</code></td><td>三级阴影</td></tr>
-            <tr><td><code>--glass-bg</code></td><td>毛玻璃背景（含 color-mix 表达式）</td></tr>
-            <tr><td><code>--glass-blur</code></td><td>毛玻璃模糊量（默认 <code>blur(16px)</code>）</td></tr>
-            <tr><td><code>--noise-opacity</code></td><td>噪点纹理透明度（绝大多数主题为 0）</td></tr>
+            <tr><td colspan="2" style="padding:8px 14px;font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 4%, transparent)">EFFECTS 效果</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">--shadow-sm / --shadow-md / --shadow-lg</td><td style="padding:8px 14px;font-size:12px">三级阴影</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">--glass-bg / --glass-blur / --noise-opacity</td><td style="padding:8px 14px;font-size:12px">毛玻璃背景 / 模糊量 / 噪点纹理</td></tr>
 
-            <tr class="vars-group"><td colspan="2">
-              <span class="vars-group-label">AMBIENT 氛围</span>
-            </td></tr>
-            <tr><td><code>--ambient-1</code></td><td>氛围光球 1（rgba 颜色，左侧上方）</td></tr>
-            <tr><td><code>--ambient-2</code></td><td>氛围光球 2（rgba 颜色，右侧下方）</td></tr>
+            <tr><td colspan="2" style="padding:8px 14px;font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 4%, transparent)">AMBIENT 氛围</td></tr>
+            <tr><td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">--ambient-1 / --ambient-2</td><td style="padding:8px 14px;font-size:12px">氛围光球 rgba 颜色</td></tr>
           </tbody>
         </table>
       </div>
 
-      <!-- ═══════════ ROTATION ═══════════ -->
-      <h2 id="rotation">轮换策略</h2>
-      <p class="text-muted" style="font-size:13px;margin-bottom:16px">
-        每天 UTC 0:00 Netlify/Vercel 定时触发重建。系统按以下优先级确定当日主题：
-      </p>
+      <!-- ====== ROTATION ====== -->
+      <h2 id="rotation" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">轮换策略</h2>
+      <div class="card card-glass" style="padding:0;overflow:hidden;margin-bottom:36px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="border-bottom:1px solid var(--color-border)">
+            <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:50px">#</th>
+            <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:110px">来源</th>
+            <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">说明</th>
+          </tr></thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:10px 16px;font-weight:700;color:var(--color-primary)">1</td><td style="padding:10px 16px;font-weight:600">🌙 农历节日</td><td style="padding:10px 16px;line-height:1.55">20+ 个中国传统节日（春节/元宵/端午/七夕/中秋等），每个有专属特效主题</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:10px 16px;font-weight:700;color:var(--color-primary)">2</td><td style="padding:10px 16px;font-weight:600">📅 公历节日</td><td style="padding:10px 16px;line-height:1.55">元旦/情人节/Pi Day/圣帕特里克节/愚人节等</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:10px 16px;font-weight:700;color:var(--color-primary)">3</td><td style="padding:10px 16px;font-weight:600">🍗 Crazy Thu</td><td style="padding:10px 16px;line-height:1.55">每周四特殊覆盖</td></tr>
+            <tr><td style="padding:10px 16px;font-weight:700;color:var(--color-primary)">4</td><td style="padding:10px 16px;font-weight:600">🎲 DailyPool</td><td style="padding:10px 16px;line-height:1.55">200+ 预设按 dayOfYear % poolLength 轮换，全年无空档</td></tr>
+          </tbody>
+        </table>
+      </div>
 
-      <div class="rotation-cards" style="margin-bottom:36px">
-        <div class="rotation-card" style="--r-order:1">
-          <div class="rotation-rank">1</div>
-          <div class="rotation-content">
-            <p class="rotation-title">农历节日</p>
-            <p class="rotation-desc">20+ 个中国传统节日（春节、元宵、端午、七夕、中秋等），每个配有专属特效主题。基于 lunar-javascript 库计算。</p>
-          </div>
-        </div>
-        <div class="rotation-card" style="--r-order:2">
-          <div class="rotation-rank">2</div>
-          <div class="rotation-content">
-            <p class="rotation-title">公历节日</p>
-            <p class="rotation-desc">元旦、情人节、Pi Day、圣帕特里克节、愚人节、圣诞节等固定日期节日。</p>
-          </div>
-        </div>
-        <div class="rotation-card" style="--r-order:3">
-          <div class="rotation-rank">3</div>
-          <div class="rotation-content">
-            <p class="rotation-title">Crazy Thursday</p>
-            <p class="rotation-desc">每周四特殊覆盖主题（"疯狂星期四" 梗）。</p>
-          </div>
-        </div>
-        <div class="rotation-card" style="--r-order:4">
-          <div class="rotation-rank">4</div>
-          <div class="rotation-content">
-            <p class="rotation-title">DailyPool 日常池</p>
-            <p class="rotation-desc">200+ 预设按 <code>dayOfYear % poolLength</code> 轮换，全年无空档。非节日日期均从此池选取。</p>
-          </div>
+      <!-- ====== CACHING ====== -->
+      <h2 id="caching" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">缓存策略</h2>
+      <div class="card" style="margin-bottom:36px;padding:24px 28px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:18px">
+          <thead><tr style="border-bottom:1px solid var(--color-border)">
+            <th style="text-align:left;padding:8px 0;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:140px">端点</th>
+            <th style="text-align:left;padding:8px 0;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">浏览器</th>
+            <th style="text-align:left;padding:8px 0;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">CDN</th>
+          </tr></thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">/api/today.json</td><td style="padding:6px 0">1 小时</td><td style="padding:6px 0">24 小时</td></tr>
+            <tr><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">/api/theme/*.json</td><td style="padding:6px 0">24 小时</td><td style="padding:6px 0">永久 (immutable)</td></tr>
+          </tbody>
+        </table>
+        <div style="padding:14px 18px;border-radius:10px;background:color-mix(in srgb, var(--color-primary) 8%, transparent);border-left:3px solid var(--color-primary)">
+          <p style="font-size:13px;font-weight:600;margin-bottom:2px">推荐客户端策略</p>
+          <p style="font-size:12px;color:var(--color-text-muted);line-height:1.6;margin:0">
+            fetch → 解析 date → 存入 localStorage → 同日访问跳过网络请求 → 每人每天最多 1 次请求。
+            Service Worker 可预缓存全部 232 个 <code>/api/theme/*.json</code>（总计 ~500KB）。
+          </p>
         </div>
       </div>
 
-      <div class="callout callout-info">
-        <p><strong>手动指定：</strong>客户端可通过 <code>/api/theme/{'{preset}'}.json</code> 获取任意预设，不受轮换策略影响。适合用户自主选主题、A/B 测试等场景。</p>
+      <!-- ====== STEPS ====== -->
+      <h2 id="steps" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">接入步骤</h2>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:36px">
+        <div class="card" style="padding:18px 24px"><strong style="font-size:13px">1. 请求 API</strong> <span class="text-muted" style="font-size:13px">— 页面加载时 GET <code>/api/today.json</code>，尽早执行减少 FOUC</span></div>
+        <div class="card" style="padding:18px 24px"><strong style="font-size:13px">2. 注入 CSS 变量</strong> <span class="text-muted" style="font-size:13px">— 遍历 <code>cssVars</code>，逐条 <code>setProperty(k, v)</code> 到 <code>:root</code></span></div>
+        <div class="card" style="padding:18px 24px"><strong style="font-size:13px">3. 注入特效</strong> <span class="text-muted" style="font-size:13px">— <code>customCss</code> 非 null → 创建 <code>&lt;style&gt;</code>；<code>extensions</code> 非 null → 遍历 <code>content</code> 插入 <code>&lt;body&gt;</code></span></div>
+        <div class="card" style="padding:18px 24px"><strong style="font-size:13px">4. localStorage 缓存</strong> <span class="text-muted" style="font-size:13px">— 存 date + cssVars + customCss，同日跳过网络请求</span></div>
+        <div class="card" style="padding:18px 24px"><strong style="font-size:13px">5. 错误降级</strong> <span class="text-muted" style="font-size:13px">— fetch 失败 → 从 localStorage 恢复昨日主题 → CSS <code>var(--xxx, fallback)</code> 兜底</span></div>
       </div>
 
-      <!-- ═══════════ CACHING ═══════════ -->
-      <h2 id="caching">缓存策略</h2>
+      <!-- ====== CODE ====== -->
+      <h2 id="code" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">代码示例</h2>
+      <h3 style="font-size:14px;font-weight:700;letter-spacing:-0.01em;margin-bottom:10px">Vanilla JavaScript（含缓存+降级+特效）</h3>
+      <pre style="margin-bottom:36px"><code>{vanillaJS}</code></pre>
+
+      <!-- ====== ERROR HANDLING ====== -->
+      <h2 id="errors" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">错误处理</h2>
+      <div class="card" style="margin-bottom:36px;padding:24px 28px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px">
+          <thead><tr style="border-bottom:1px solid var(--color-border)">
+            <th style="text-align:left;padding:8px 0;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:70px">状态</th>
+            <th style="text-align:left;padding:8px 0;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">场景</th>
+            <th style="text-align:left;padding:8px 0;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">处理</th>
+          </tr></thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--color-primary)">200</td><td style="padding:6px 0;font-size:12px">正常</td><td style="padding:6px 0;font-size:12px">解析 JSON，注入变量</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--color-primary)">404</td><td style="padding:6px 0;font-size:12px">文件不存在</td><td style="padding:6px 0;font-size:12px">提示检查 API 地址</td></tr>
+            <tr><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--color-primary)">—</td><td style="padding:6px 0;font-size:12px">网络中断</td><td style="padding:6px 0;font-size:12px"><code>catch</code> → localStorage 降级</td></tr>
+          </tbody>
+        </table>
+        <p class="text-muted" style="font-size:12px;line-height:1.6">API 为静态 JSON 文件，不存在运行时错误。唯一失败场景为网络问题。</p>
+      </div>
+
+      <!-- ====== HEADERS ====== -->
+      <h2 id="headers" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">响应头</h2>
       <div class="card" style="margin-bottom:36px;padding:0;overflow:hidden">
-        <table class="docs-table">
-          <thead><tr>
-            <th>端点</th>
-            <th style="width:160px">浏览器缓存</th>
-            <th style="width:160px">CDN 缓存</th>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="border-bottom:1px solid var(--color-border)">
+            <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:160px">Header</th>
+            <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">值</th>
           </tr></thead>
           <tbody>
-            <tr>
-              <td><code>/api/today.json</code></td>
-              <td>1 小时 <code class="cache-hint">max-age=3600</code></td>
-              <td>24 小时 <code class="cache-hint">s-maxage=86400</code></td>
-            </tr>
-            <tr>
-              <td><code>/api/theme/*.json</code></td>
-              <td>24 小时 <code class="cache-hint">max-age=86400</code></td>
-              <td>永久 <code class="cache-hint">immutable</code></td>
-            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px">Content-Type</td><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px">application/json</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px">Access-Control-Allow-Origin</td><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px">*</td></tr>
+            <tr><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px">Cache-Control</td><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px">public, max-age=3600, s-maxage=86400</td></tr>
           </tbody>
         </table>
       </div>
 
-      <div class="callout callout-tip">
-        <p><strong>推荐客户端策略：</strong>fetch → 对比 <code>date</code> 字段 → 存入 localStorage → 同日访问跳过网络请求 → 每人每天最多 1 次请求。
-        Service Worker 可预缓存全部 {availableCount} 个 <code>/api/theme/*.json</code>（总计约 500KB），实现离线秒切主题。</p>
-      </div>
+      <!-- ====== FULL RESPONSE ====== -->
+      <h2 id="full" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">完整响应示例（今日）</h2>
+      <p class="text-muted" style="font-size:13px;margin-bottom:12px">当前主题：<strong>{today.presetName}</strong></p>
+      <pre style="max-height:600px;overflow-y:auto"><code>{fullResponse}</code></pre>
 
-      <!-- ═══════════ RESPONSE SIZE ═══════════ -->
-      <h2 id="response-size">响应体积</h2>
-      <div class="card" style="margin-bottom:36px;padding:0;overflow:hidden">
-        <table class="docs-table">
-          <thead><tr>
-            <th style="width:220px">端点</th>
-            <th>典型体积</th>
-            <th>Gzip 后</th>
-            <th>Brotli 后</th>
-          </tr></thead>
-          <tbody>
-            <tr>
-              <td><code>/api/today.json</code></td>
-              <td>~15-30 KB</td>
-              <td>~3-6 KB</td>
-              <td>~2-4 KB</td>
-            </tr>
-            <tr>
-              <td><code>/api/theme/*.json</code></td>
-              <td>~1-3 KB</td>
-              <td>~0.5-1.5 KB</td>
-              <td>~0.4-1 KB</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="text-muted" style="font-size:12px;margin-top:-20px;margin-bottom:36px">
-        <code>/api/today.json</code> 体积较大是因为包含了 <code>directory</code> 数组（{availableCount} 个主题索引）。
-        如果只需要 CSS 变量，可考虑使用 <code>/api/theme/{'{preset}'}.json</code>（先查 directory 获取 preset，再请求具体主题）。
-      </p>
+    </div>
+  </section>
 
-      <!-- ═══════════ INTEGRATION STEPS ═══════════ -->
-      <h2 id="steps">接入步骤</h2>
-      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:40px">
-        <div class="step-card">
-          <span class="step-num">1</span>
-          <div>
-            <strong>请求 API</strong>
-            <p class="text-muted" style="font-size:13px;margin-top:3px">页面加载时尽早 GET <code>/api/today.json</code>，放在 <code>&lt;head&gt;</code> 中执行以减少 FOUC</p>
-          </div>
-        </div>
-        <div class="step-card">
-          <span class="step-num">2</span>
-          <div>
-            <strong>注入 CSS 变量</strong>
-            <p class="text-muted" style="font-size:13px;margin-top:3px">遍历 <code>cssVars</code>，逐条 <code>document.documentElement.style.setProperty(k, v)</code></p>
-          </div>
-        </div>
-        <div class="step-card">
-          <span class="step-num">3</span>
-          <div>
-            <strong>注入特效</strong>
-            <p class="text-muted" style="font-size:13px;margin-top:3px"><code>customCss</code> → 创建 <code>&lt;style&gt;</code> 标签插入 <code>&lt;head&gt;</code>；<code>extensions</code> → 遍历 <code>content</code> 插入 <code>&lt;body&gt;</code></p>
-          </div>
-        </div>
-        <div class="step-card">
-          <span class="step-num">4</span>
-          <div>
-            <strong>localStorage 缓存</strong>
-            <p class="text-muted" style="font-size:13px;margin-top:3px">存储 <code>{'{'}date, cssVars, customCss{'}'}</code>，同日跳过网络请求</p>
-          </div>
-        </div>
-        <div class="step-card">
-          <span class="step-num">5</span>
-          <div>
-            <strong>错误降级</strong>
-            <p class="text-muted" style="font-size:13px;margin-top:3px">fetch 失败 → 从 localStorage 恢复昨日主题 → 所有 CSS 引用使用 <code>var(--xxx, fallback)</code> 兜底</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- ═══════════ CODE EXAMPLES ═══════════ -->
-      <h2 id="code">代码示例</h2>
-
-      <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px">Vanilla JavaScript</h3>
-      <p class="text-muted" style="font-size:12px;margin-bottom:10px">零依赖，含缓存、降级、特效注入。</p>
-      <pre style="margin-bottom:28px"><code>{vanillaJS}</code></pre>
-
-      <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px">React Hook</h3>
-      <p class="text-muted" style="font-size:12px;margin-bottom:10px">完整的 <code>useDailyTheme</code> hook，自动注入 CSS 变量。</p>
-      <pre style="margin-bottom:28px"><code>{reactHook}</code></pre>
-
-      <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px">Vue 3 Composable</h3>
-      <p class="text-muted" style="font-size:12px;margin-bottom:10px"><code>useDailyTheme</code> composable，响应式主题数据 + 自动 CSS 注入。</p>
-      <pre style="margin-bottom:40px"><code>{vueComposable}</code></pre>
-
-      <!-- ═══════════ ERROR HANDLING ═══════════ -->
-      <h2 id="errors">错误处理</h2>
-      <div class="card" style="margin-bottom:36px;padding:0;overflow:hidden">
-        <table class="docs-table">
-          <thead><tr>
-            <th style="width:80px">状态</th>
-            <th style="width:200px">场景</th>
-            <th>处理方式</th>
-          </tr></thead>
-          <tbody>
-            <tr>
-              <td><span class="status-ok">200</span></td>
-              <td>正常响应</td>
-              <td>解析 JSON，注入变量与特效</td>
-            </tr>
-            <tr>
-              <td><span class="status-err">404</span></td>
-              <td>文件不存在（路径错误或部署未完成）</td>
-              <td>返回 <code>{'{'}error, code:404{'}'}</code> JSON，客户端应提示检查 API 地址</td>
-            </tr>
-            <tr>
-              <td><span class="status-err">—</span></td>
-              <td>网络中断 / DNS 解析失败</td>
-              <td><code>catch</code> 捕获 → 从 localStorage 读取最近一次成功响应</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="text-muted" style="font-size:12px;margin-top:-20px;margin-bottom:40px">
-        API 的本质是<strong>静态 JSON 文件</strong>，不存在运行时错误（数据库故障、超时等）。唯一失败来源是网络或部署问题。
-      </p>
-
-      <!-- ═══════════ HEADERS ═══════════ -->
-      <h2 id="headers">响应头</h2>
-      <div class="card" style="margin-bottom:36px;padding:0;overflow:hidden">
-        <table class="docs-table">
-          <thead><tr>
-            <th style="width:220px">Header</th>
-            <th>值</th>
-          </tr></thead>
-          <tbody>
-            <tr>
-              <td><code>Content-Type</code></td>
-              <td><code>application/json</code></td>
-            </tr>
-            <tr>
-              <td><code>Access-Control-Allow-Origin</code></td>
-              <td><code>*</code></td>
-            </tr>
-            <tr>
-              <td><code>Access-Control-Allow-Methods</code></td>
-              <td><code>GET, OPTIONS</code></td>
-            </tr>
-            <tr>
-              <td><code>Access-Control-Allow-Headers</code></td>
-              <td><code>Content-Type</code></td>
-            </tr>
-            <tr>
-              <td><code>Cache-Control</code></td>
-              <td><code>public, max-age=3600, s-maxage=86400</code> (today) / <code>public, max-age=86400, s-maxage=31536000, immutable</code> (preset)</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- ═══════════ FAQ ═══════════ -->
-      <h2 id="faq">常见问题</h2>
-      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:48px">
-        <details class="faq-item">
-          <summary>需要 API Key 吗？有速率限制吗？</summary>
-          <div class="faq-answer">
-            <p>都不需要。API 是纯静态 JSON 文件，托管在 Netlify/Vercel 的 CDN 上。没有认证、没有速率限制、没有配额。你甚至可以直接用 <code>curl</code> 或浏览器地址栏访问。</p>
-          </div>
-        </details>
-        <details class="faq-item">
-          <summary>如何处理 FOUC（主题闪烁）？</summary>
-          <div class="faq-answer">
-            <p>三种方式：</p>
-            <ol>
-              <li><strong>服务端渲染时注入</strong> — 如果是 SSR 框架（Next.js/Nuxt/Astro），在服务端 fetch 并注入 CSS 变量到 <code>&lt;style&gt;</code> 标签中（如本站做法）。</li>
-              <li><strong>阻塞脚本</strong> — 将 fetch 逻辑放在 <code>&lt;head&gt;</code> 中的同步 <code>&lt;script&gt;</code> 里执行。</li>
-              <li><strong>localStorage 优先</strong> — 页面加载时先读取 localStorage 中的主题并立即注入，再异步 fetch 最新主题进行更新。</li>
-            </ol>
-          </div>
-        </details>
-        <details class="faq-item">
-          <summary>如何让用户手动选择主题？</summary>
-          <div class="faq-answer">
-            <p>从 <code>/api/today.json</code> 获取 <code>directory</code> 数组展示主题列表，用户选择后请求 <code>/api/theme/{'{preset}'}.json</code> 获取完整数据。将选中的主题存入 localStorage，每次页面加载时优先使用用户选择的主题而非今日主题。</p>
-          </div>
-        </details>
-        <details class="faq-item">
-          <summary>可以自建部署吗？</summary>
-          <div class="faq-answer">
-            <p>可以。本项目是标准 Astro 静态站点，一键部署到 Netlify、Vercel、Cloudflare Pages 等平台。克隆仓库后连接 Git 即可自动部署，定时重建通过平台 Cron Jobs 触发。</p>
-          </div>
-        </details>
-        <details class="faq-item">
-          <summary>每天的主题什么时候更新？</summary>
-          <div class="faq-answer">
-            <p>UTC 0:00（北京时间 8:00 AM）触发重建。但由于 <code>/api/today.json</code> 浏览器缓存为 1 小时，实际客户端感知到变化可能延迟最多 1 小时。如需即时获取，可添加 Cache-Busting 参数（如 <code>?t=timestamp</code>，不过 CDN 可能忽略 query string）。</p>
-          </div>
-        </details>
-        <details class="faq-item">
-          <summary>可以在移动端使用吗？</summary>
-          <div class="faq-answer">
-            <p>完全可以。CSS 变量是 Web 标准，所有现代浏览器均支持。响应体积小（Gzip 后 2-6KB），适合移动网络。建议做好 localStorage 缓存以减少重复请求。</p>
-          </div>
-        </details>
-      </div>
-
-    </main>
+  <!-- Apple-style floating TOC -->
+  <div class="toc-fab" id="toc-fab">
+    <button class="toc-trigger" id="toc-trigger" aria-label="目录">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" class="toc-icon-list"><circle cx="9" cy="3" r="1.5" fill="currentColor"/><line x1="12" y1="3" x2="16" y2="3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="9" cy="9" r="1.5" fill="currentColor"/><line x1="12" y1="9" x2="16" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="9" cy="15" r="1.5" fill="currentColor"/><line x1="12" y1="15" x2="16" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" class="toc-icon-close"><line x1="5" y1="5" x2="13" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="13" y1="5" x2="5" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <nav class="toc-menu" id="toc-menu">
+      <a href="#" class="toc-dot" data-target="overview" title="概述"></a>
+      <a href="#" class="toc-dot" data-target="endpoints" title="端点"></a>
+      <a href="#" class="toc-dot" data-target="schema" title="响应结构"></a>
+      <a href="#" class="toc-dot" data-target="css-vars" title="CSS 变量"></a>
+      <a href="#" class="toc-dot" data-target="rotation" title="轮换策略"></a>
+      <a href="#" class="toc-dot" data-target="caching" title="缓存策略"></a>
+      <a href="#" class="toc-dot" data-target="steps" title="接入步骤"></a>
+      <a href="#" class="toc-dot" data-target="code" title="代码示例"></a>
+      <a href="#" class="toc-dot" data-target="errors" title="错误处理"></a>
+      <a href="#" class="toc-dot" data-target="full" title="完整响应"></a>
+    </nav>
   </div>
 
-  <!-- ═══════════ COPY ALL BUTTON ═══════════ -->
-  <script type="text/plain" id="copy-all-content"># ThemeDist API — 每日主题集成指南
-
-## 概述
-ThemeDist 是一个每日自动轮换的主题分发 API。一个 GET 请求即可获取当日主题的 28 个 CSS 变量 + 特效数据，注入到 `:root` 即可完成主题切换。
-- **无认证** · **无速率限制** · **CORS 跨域** · **全球 CDN**
-- **232+ 预设** · 农历 + 公历节日覆盖 · 每日 UTC 0:00 自动轮换
-- **静态 JSON** · 零运行时 · 构建时预生成
-
-**Base URL:** `https://YOUR.netlify.app`（替换为你的部署域名）
-
----
-
-## 端点
-
-### GET /api/today.json
-返回今日主题的完整数据，含 CSS 变量、特效、主题目录索引。
-
-### GET /api/theme/{preset}.json
-返回指定预设的完整数据（不含 date、directory 等元数据字段）。232 个预设端点，响应头含 `immutable`，可永久缓存。
-
----
-
-## /api/today.json 响应结构
-
-```json
-{fullResponse}
-```
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| date | string | ISO 日期 YYYY-MM-DD（UTC 时区） |
-| generatedAt | string | ISO 8601 生成时间戳 |
-| preset | string | 预设标识符 kebab-case，如 crimson-abyss |
-| presetName | string | 人类可读名称，如 Crimson Abyss |
-| cssVars | object | 28 个 CSS 自定义属性（分 5 组，见下文） |
-| customCss | string\|null | 主题专属 CSS（动画 keyframes、特效样式）→ 注入为 `<style>` |
-| extensions | array\|null | HTML 片段 [{type:"html", content:"..."}] → 注入为 DOM |
-| logoText | string\|null | 推荐 Logo 文字 |
-| logoColors | array\|null | Logo 渐变色 hex 数组，如 ["#ff2a4b","#ff6b7f"] |
-| available | number | 可用主题总数 |
-| directory | array | 轻量索引 [{preset, name, primary, accent, logoText}] |
-
-## /api/theme/{preset}.json 响应结构
-
-与 today.json 结构一致，但**不含** date、generatedAt、available、directory 字段。
-
-```json
-{presetExample}
-```
-
----
-
-## CSS 变量完整参考（28 个，5 组）
-
-使用 `var(--xxx)` 引用，建议提供 fallback：`var(--color-primary, #3b82f6)`
-
-### COLORS 色板（8 个）
-| 变量 | 用途 |
-|------|------|
-| --color-primary | 主色：按钮、链接、强调元素 |
-| --color-secondary | 辅色：渐变、装饰、次要强调 |
-| --color-accent | 强调色：hover、焦点、高亮 |
-| --color-bg | 页面背景色 |
-| --color-surface | 卡片/面板背景（比 bg 稍亮） |
-| --color-text | 正文颜色 |
-| --color-text-muted | 弱化文字（辅助、描述、placeholder） |
-| --color-border | 边框色（含 alpha 通道） |
-
-### TYPOGRAPHY 排版（7 个）
-| 变量 | 用途 |
-|------|------|
-| --font-heading | 标题字体栈 |
-| --font-body | 正文字体栈 |
-| --font-mono | 等宽字体栈 |
-| --text-base | 基准字号（clamp 流式缩放） |
-| --text-lg / --text-xl / --text-2xl | Modular Scale 放大级 |
-| --text-sm | 小号文字 |
-
-### SPACING 间距（4 个）
-| 变量 | 用途 |
-|------|------|
-| --space-unit | 基准间距 4px (= 0.25rem) |
-| --space-1 ~ --space-12 | 7 级阶梯：4 / 8 / 12 / 16 / 24 / 32 / 48 px |
-| --radii | 统一圆角（默认 0.75rem） |
-| --content-max | 内容最大宽度（默认 72rem） |
-
-### EFFECTS 效果（4 个）
-| 变量 | 用途 |
-|------|------|
-| --shadow-sm / --shadow-md / --shadow-lg | 三级阴影 |
-| --glass-bg | 毛玻璃背景（color-mix 表达式） |
-| --glass-blur | 毛玻璃模糊量（默认 blur(16px)） |
-| --noise-opacity | 噪点纹理透明度 |
-
-### AMBIENT 氛围（2 个）
-| 变量 | 用途 |
-|------|------|
-| --ambient-1 | 氛围光球 1（rgba，页面左上区域） |
-| --ambient-2 | 氛围光球 2（rgba，页面右下区域） |
-
----
-
-## 缓存策略与响应头
-
-| 端点 | 浏览器缓存 | CDN 缓存 |
-|------|-----------|----------|
-| /api/today.json | 1 小时 max-age=3600 | 24 小时 s-maxage=86400 |
-| /api/theme/*.json | 24 小时 max-age=86400 | 永久 immutable |
-
-**响应头：**
-- Content-Type: application/json
-- Access-Control-Allow-Origin: *
-- Access-Control-Allow-Methods: GET, OPTIONS
-- Access-Control-Allow-Headers: Content-Type
-
----
-
-## 轮换策略（优先级从高到低）
-
-1. **农历节日** — 20+ 个（春节/元宵/端午/七夕/中秋），每节专属特效
-2. **公历节日** — 元旦/情人节/Pi Day/圣帕特里克/愚人节/圣诞等固定日期
-3. **Crazy Thursday** — 每周四特殊覆盖
-4. **DailyPool 日常池** — 200+ 预设按 dayOfYear % poolLength 轮换
-
-手动获取任意主题（不受轮换限制）：`GET /api/theme/{preset}.json`
-
----
-
-## 接入步骤（5 步）
-
-1. **请求 API** — 页面加载时尽早 GET /api/today.json，放在 `<head>` 中执行以减少 FOUC
-2. **注入 CSS 变量** — 遍历 cssVars 对象，逐条 `document.documentElement.style.setProperty(k, v)`
-3. **注入特效** — customCss → 创建 `<style>` 标签插入 `<head>`；extensions → 遍历 content 插入 `<body>`
-4. **localStorage 缓存** — 存储 {date, cssVars, customCss}，同日跳过网络请求（每人每天最多 1 次）
-5. **错误降级** — fetch 失败 → localStorage 恢复上次主题 → CSS 引用均带 fallback 兜底
-
----
-
-## 代码示例
-
-### Vanilla JavaScript（零依赖，直接复制使用）
-
-```javascript
-{vanillaJS}
-```
-
-### React Hook — useDailyTheme.ts
-
-```typescript
-{reactHook}
-```
-
-使用示例：
-```tsx
-import { useDailyTheme } from './useDailyTheme';
-
-function App() {
-  const { theme, loading } = useDailyTheme('https://YOUR.netlify.app');
-  if (loading) return null;
-  return <div>Current theme: {theme?.presetName}</div>;
-}
-```
-
-### Vue 3 Composable — useDailyTheme.ts
-
-```typescript
-{vueComposable}
-```
-
-使用示例：
-```vue
-<script setup>
-import { useDailyTheme } from './useDailyTheme';
-const { theme, loading } = useDailyTheme('https://YOUR.netlify.app');
-</script>
-<template>
-  <div v-if="!loading">Current theme: {{ theme?.presetName }}</div>
-</template>
-```
-
----
-
-## 错误处理
-
-| 状态 | 场景 | 处理 |
-|------|------|------|
-| 200 | 正常 | 解析 JSON → 注入变量与特效 |
-| 404 | 路径错误/部署未完成 | 返回 {error, code:404}，检查 API 地址 |
-| 网络中断 | DNS/连接失败 | catch → localStorage 读取上次成功响应 |
-
-API 本质是静态 JSON 文件，不存在运行时错误（数据库故障、超时等）。
-
----
-
-## 常见问题
-
-**Q: 需要 API Key 吗？有速率限制吗？**
-不需要。API 是纯静态 JSON 文件，无认证、无速率限制、无配额。
-
-**Q: 如何避免 FOUC（页面闪烁）？**
-三种方案：(1) SSR 服务端 fetch 并注入 CSS 变量到 `<style>` 标签；(2) 阻塞式 `<script>` 放在 `<head>` 中；(3) 页面加载时先用 localStorage 缓存立即注入，再异步更新。
-
-**Q: 如何让用户手动选择主题？**
-从 /api/today.json 获取 directory 数组 → 展示主题列表 → 用户选择后 GET /api/theme/{preset}.json → 存入 localStorage → 每次加载时优先用用户选择。
-
-**Q: 主题何时更新？**
-UTC 0:00（北京时间 8:00 AM）定时重建。浏览器缓存 1h → 最迟 1h 后客户端感知。可加 ?t=timestamp 绕过缓存。
-
-**Q: 移动端兼容吗？**
-CSS 变量是 Web 标准，所有现代浏览器均支持。响应体积 Gzip 后 2-6KB，移动网络友好。
-</script>
-  <button class="copy-all-btn" id="copy-all-btn" aria-label="复制全部代码">
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" class="copy-icon-copy">
-      <rect x="5" y="5" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
-      <path d="M3 13V3h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-    </svg>
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" class="copy-icon-check" style="display:none">
-      <path d="M4 9l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    <span>全部复制</span>
+  <!-- Copy all button -->
+  <button class="copy-all-fab" id="copy-all" title="复制全部文档">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6v8a2 2 0 002 2h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
   </button>
 
-  <!-- ═══════════ MOBILE SIDEBAR TOGGLE ═══════════ -->
-  <button class="sidebar-toggle" id="sidebar-toggle" aria-label="目录">
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" class="sb-icon-list"><circle cx="9" cy="3" r="1.5" fill="currentColor"/><line x1="12" y1="3" x2="16" y2="3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="9" cy="9" r="1.5" fill="currentColor"/><line x1="12" y1="9" x2="16" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="9" cy="15" r="1.5" fill="currentColor"/><line x1="12" y1="15" x2="16" y2="15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" class="sb-icon-close"><line x1="5" y1="5" x2="13" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="13" y1="5" x2="5" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-  </button>
-
-  <div class="sidebar-overlay" id="sidebar-overlay"></div>
-</Layout>
-
-<style>
-  /* ═══════════ LAYOUT ═══════════ */
-  .docs-layout {
-    display: grid;
-    grid-template-columns: 240px 1fr;
-    max-width: 1200px;
-    margin: 0 auto;
-    gap: 0;
-    align-items: start;
-  }
-
-  .docs-main {
-    min-width: 0;
-    padding: 56px 48px 80px;
-  }
-
-  /* ═══════════ SIDEBAR ═══════════ */
-  .sidebar {
-    position: sticky;
-    top: 76px;
-    height: calc(100vh - 76px);
-    overflow-y: auto;
-    padding: 40px 20px 40px 32px;
-    border-right: 1px solid var(--color-border);
-  }
-
-  .sidebar-nav {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-  }
-
-  .sidebar-section {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .sidebar-label {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--color-text-muted);
-    padding: 0 10px;
-    margin-bottom: 4px;
-  }
-
-  .sidebar-link {
-    display: block;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--color-text-muted);
-    text-decoration: none;
-    padding: 6px 10px;
-    border-radius: 7px;
-    transition: all 0.15s;
-    line-height: 1.4;
-  }
-
-  .sidebar-link:hover {
-    color: var(--color-text);
-    background: color-mix(in srgb, var(--color-primary) 6%, transparent);
-  }
-
-  .sidebar-link.active {
-    color: var(--color-primary);
-    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-    font-weight: 600;
-  }
-
-  .sidebar-toggle {
-    display: none;
-    position: fixed;
-    bottom: 32px;
-    right: 32px;
-    z-index: 260;
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    border: 1.5px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-surface) 90%, transparent);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    color: var(--color-text);
-    cursor: pointer;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-    font-family: inherit;
-  }
-
-  .sidebar-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    z-index: 255;
-    background: rgba(0,0,0,0.4);
-    backdrop-filter: blur(4px);
-  }
-
-  .sidebar-toggle .sb-icon-close { display: none; }
-  .sidebar-toggle.open .sb-icon-list { display: none; }
-  .sidebar-toggle.open .sb-icon-close { display: block; }
-
-  /* ═══════════ HERO ═══════════ */
-  .docs-hero {
-    margin-bottom: 44px;
-    padding-bottom: 32px;
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .docs-hero h1 {
-    font-size: clamp(2rem, 4.5vw, 3rem);
-    font-weight: 700;
-    letter-spacing: -0.04em;
-    line-height: 1.15;
-    margin-top: 6px;
-  }
-
-  .docs-subtitle {
-    font-size: 1.05rem;
-    color: var(--color-text-muted);
-    line-height: 1.65;
-    margin-top: 14px;
-    max-width: 520px;
-  }
-
-  .tag-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 20px;
-  }
-
-  .tag {
-    font-size: 11px;
-    padding: 4px 12px;
-    border-radius: 99px;
-    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-    color: var(--color-primary);
-    font-weight: 600;
-  }
-
-  /* ═══════════ HEADINGS ═══════════ */
-  .docs-main h2 {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    margin-bottom: 14px;
-    margin-top: 44px;
-    scroll-margin-top: 80px;
-  }
-
-  .docs-main h2:first-of-type {
-    margin-top: 0;
-  }
-
-  .docs-main h3 {
-    font-size: 16px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    margin-bottom: 10px;
-  }
-
-  /* ═══════════ TABLES ═══════════ */
-  .docs-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-  }
-
-  .docs-table thead tr {
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .docs-table th {
-    text-align: left;
-    padding: 11px 16px;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-  }
-
-  .docs-table td {
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--color-border);
-    line-height: 1.5;
-  }
-
-  .docs-table tbody tr:last-child td {
-    border-bottom: none;
-  }
-
-  .type-cell {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    color: var(--color-text-muted);
-  }
-
-  .method-badge {
-    font-weight: 800;
-    font-size: 11px;
-    padding: 3px 10px;
-    border-radius: 5px;
-    background: var(--color-primary);
-    color: #fff;
-  }
-
-  .endpoint-path {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
-    font-weight: 600;
-  }
-
-  .cache-hint {
-    font-size: 11px;
-    color: var(--color-text-muted);
-    margin-left: 6px;
-  }
-
-  .status-ok {
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 700;
-    color: var(--color-primary);
-  }
-
-  .status-err {
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 700;
-    color: var(--color-text-muted);
-  }
-
-  /* ═══════════ CARD HEADER ═══════════ */
-  .card-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 14px 20px;
-  }
-
-  .card-header-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--color-primary);
-  }
-
-  .card-header-text {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--color-text-muted);
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-  }
-
-  /* ═══════════ COLOR SWATCH ═══════════ */
-  .swatch {
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-    flex-shrink: 0;
-  }
-
-  .color-dot {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    vertical-align: middle;
-  }
-
-  .vars-group td {
-    padding: 8px 16px !important;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    background: color-mix(in srgb, var(--color-primary) 5%, transparent);
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .vars-group-label {
-    color: var(--color-primary);
-  }
-
-  .vars-table td {
-    vertical-align: middle;
-  }
-
-  .vars-table td:last-child {
-    font-size: 12px;
-    color: var(--color-text-muted);
-  }
-
-  /* ═══════════ CALLOUTS ═══════════ */
-  .callout {
-    padding: 16px 20px;
-    border-radius: 12px;
-    font-size: 13px;
-    line-height: 1.65;
-    margin-bottom: 24px;
-  }
-
-  .callout-tip {
-    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
-    border-left: 3px solid var(--color-primary);
-  }
-
-  .callout-info {
-    background: color-mix(in srgb, var(--color-secondary) 6%, transparent);
-    border: 1px solid var(--color-border);
-  }
-
-  /* ═══════════ ROTATION CARDS ═══════════ */
-  .rotation-cards {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .rotation-card {
-    display: flex;
-    gap: 18px;
-    align-items: flex-start;
-    padding: 20px 22px;
-    border-radius: 14px;
-    border: 1px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
-    transition: border-color 0.2s;
-  }
-
-  .rotation-card:hover {
-    border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
-  }
-
-  .rotation-rank {
-    width: 32px;
-    height: 32px;
-    border-radius: 9px;
-    background: color-mix(in srgb, var(--color-primary) 14%, transparent);
-    color: var(--color-primary);
-    font-weight: 700;
-    font-size: 15px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .rotation-title {
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-  }
-
-  .rotation-desc {
-    font-size: 13px;
-    color: var(--color-text-muted);
-    line-height: 1.6;
-    margin-top: 3px;
-  }
-
-  /* ═══════════ STEPS ═══════════ */
-  .step-card {
-    display: flex;
-    gap: 16px;
-    align-items: flex-start;
-    padding: 18px 22px;
-    border-radius: 14px;
-    border: 1px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
-  }
-
-  .step-num {
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
-    background: var(--color-primary);
-    color: #fff;
-    font-weight: 700;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  /* ═══════════ INFO TILES ═══════════ */
-  .info-tile {
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-    padding: 14px 16px;
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--color-surface) 35%, transparent);
-    border: 1px solid var(--color-border);
-  }
-
-  .info-tile-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-    color: var(--color-primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  /* ═══════════ FAQ ═══════════ */
-  .faq-item {
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    overflow: hidden;
-    transition: border-color 0.2s;
-  }
-
-  .faq-item[open] {
-    border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
-  }
-
-  .faq-item summary {
-    padding: 16px 20px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    user-select: none;
-    letter-spacing: -0.01em;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .faq-item summary::after {
-    content: '+';
-    font-size: 18px;
-    font-weight: 400;
-    color: var(--color-text-muted);
-    transition: transform 0.25s;
-    margin-left: 12px;
-  }
-
-  .faq-item[open] summary::after {
-    content: '−';
-    color: var(--color-primary);
-  }
-
-  .faq-item summary:hover {
-    color: var(--color-primary);
-  }
-
-  .faq-answer {
-    padding: 0 20px 18px;
-    font-size: 13px;
-    color: var(--color-text-muted);
-    line-height: 1.7;
-  }
-
-  .faq-answer ol {
-    padding-left: 18px;
-    margin: 8px 0;
-  }
-
-  .faq-answer li {
-    margin-bottom: 6px;
-  }
-
-  /* ═══════════ DETAILS BLOCK ═══════════ */
-  .details-block {
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    overflow: hidden;
-  }
-
-  .details-block summary {
-    padding: 12px 18px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    color: var(--color-text-muted);
-    user-select: none;
-  }
-
-  .details-block summary:hover {
-    color: var(--color-primary);
-  }
-
-  .details-block pre {
-    margin: 0;
-    border-radius: 0;
-    border: none;
-    border-top: 1px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-bg) 60%, transparent);
-  }
-
-  /* ═══════════ RESPONSIVE ═══════════ */
-  @media (max-width: 960px) {
-    .docs-layout {
-      grid-template-columns: 1fr;
+  <style>
+    .tag {
+      font-size:11px;padding:3px 10px;border-radius:99px;
+      background:color-mix(in srgb, var(--color-primary) 10%, transparent);
+      color:var(--color-primary);font-weight:600;
     }
-
-    .sidebar {
-      display: none;
-      position: fixed;
-      top: 60px;
-      left: 0;
-      bottom: 0;
-      width: 280px;
-      z-index: 260;
-      background: color-mix(in srgb, var(--color-bg) 95%, transparent);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      border-right: 1px solid var(--color-border);
-      height: calc(100vh - 60px);
-      padding: 24px 20px;
+    .toc-fab {
+      position:fixed;bottom:88px;right:32px;z-index:250;
+      display:flex;flex-direction:column;align-items:center;gap:10px;
     }
-
-    .sidebar.open {
-      display: block;
+    .toc-trigger {
+      width:48px;height:48px;border-radius:50%;
+      border:1.5px solid var(--color-border);
+      background:color-mix(in srgb, var(--color-surface) 90%, transparent);
+      backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+      color:var(--color-text);cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      box-shadow:0 8px 32px rgba(0,0,0,0.18);
+      position:relative;z-index:1;
     }
-
-    .sidebar-overlay.open {
-      display: block;
+    .toc-trigger:hover {border-color:var(--color-primary);transform:scale(1.05);}
+    .toc-trigger:active {transform:scale(0.94);}
+    .toc-icon-close {display:none;}
+    .toc-fab.open .toc-icon-list {display:none;}
+    .toc-fab.open .toc-icon-close {display:block;}
+    .toc-menu {
+      display:flex;flex-direction:column;align-items:center;gap:14px;
+      opacity:0;pointer-events:none;
+      transform:translateY(20px) scale(0.5);
+      transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1);
+      padding:24px 0 8px;margin-top:-68px;
+      background:color-mix(in srgb, var(--color-surface) 85%, transparent);
+      backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+      border-radius:28px;border:1px solid var(--color-border);
+      min-width:56px;
     }
-
-    .sidebar-toggle {
-      display: flex;
+    .toc-fab.open .toc-menu {opacity:1;pointer-events:auto;transform:translateY(0) scale(1);}
+    .toc-dot {
+      display:block;width:11px;height:11px;border-radius:50%;
+      background:var(--color-text-muted);border:2px solid transparent;
+      transition:all 0.25s cubic-bezier(0.34,1.56,0.64,1);
+      position:relative;flex-shrink:0;
     }
-
-    .docs-main {
-      padding: 40px 24px 80px;
+    .toc-dot::after {
+      content:attr(title);position:absolute;right:24px;top:50%;transform:translateY(-50%);
+      font-size:11px;font-weight:600;color:var(--color-text);white-space:nowrap;
+      background:color-mix(in srgb, var(--color-surface) 95%, transparent);
+      padding:4px 12px;border-radius:7px;opacity:0;pointer-events:none;
+      transition:opacity 0.2s;border:1px solid var(--color-border);
     }
-  }
+    .toc-dot:hover {background:var(--color-primary);border-color:var(--color-primary);transform:scale(1.5);box-shadow:0 4px 14px color-mix(in srgb, var(--color-primary) 40%, transparent);}
+    .toc-dot:hover::after {opacity:1;}
+    .toc-dot.active {background:var(--color-primary);border-color:var(--color-primary);width:13px;height:13px;box-shadow:0 0 10px color-mix(in srgb, var(--color-primary) 50%, transparent);}
 
-  /* ═══════════ COPY ALL BUTTON ═══════════ */
-  .copy-all-btn {
-    position: fixed;
-    bottom: 32px;
-    right: 96px;
-    z-index: 260;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0 20px;
-    height: 48px;
-    border-radius: 14px;
-    border: 1.5px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-surface) 90%, transparent);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    color: var(--color-text);
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 600;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-    transition: all 0.2s;
-  }
-
-  .copy-all-btn:hover {
-    border-color: var(--color-primary);
-    color: var(--color-primary);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
-  }
-
-  .copy-all-btn.copied {
-    border-color: #22c55e;
-    color: #22c55e;
-  }
-
-  @media (max-width: 640px) {
-    .docs-main {
-      padding: 32px 16px 80px;
+    .copy-all-fab {
+      position:fixed;bottom:32px;right:32px;z-index:240;
+      width:44px;height:44px;border-radius:50%;
+      border:1.5px solid var(--color-border);
+      background:color-mix(in srgb, var(--color-surface) 90%, transparent);
+      backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+      color:var(--color-text-muted);cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      transition:all 0.25s;
+      box-shadow:0 6px 24px rgba(0,0,0,0.15);
+      font-family:inherit;
     }
+    .copy-all-fab:hover {border-color:var(--color-primary);color:var(--color-primary);transform:scale(1.06);}
+    .copy-all-fab.copied {border-color:var(--color-primary);color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 12%, transparent);}
 
-    .sidebar-toggle {
-      bottom: 24px;
-      right: 16px;
+    @media (max-width:768px) {
+      .toc-fab {bottom:80px;right:16px;}
+      .toc-dot::after {display:none;}
+      .toc-fab.open .toc-dot {width:15px;height:15px;}
+      .copy-all-fab {bottom:24px;right:16px;}
     }
+  </style>
 
-    .copy-all-btn {
-      bottom: 84px;
-      right: 16px;
-    }
+  <script>
+    // TOC logic
+    const tocFab = document.getElementById('toc-fab')!;
+    document.getElementById('toc-trigger')!.addEventListener('click', () => tocFab.classList.toggle('open'));
+    document.addEventListener('click', (e) => { if (!tocFab.contains(e.target as Node)) tocFab.classList.remove('open'); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') tocFab.classList.remove('open'); });
 
-    .info-tile {
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .rotation-card {
-      flex-direction: column;
-      gap: 10px;
-    }
-  }
-</style>
-
-<script>
-  // ── Sidebar toggle (mobile) ──
-  const sidebarToggle = document.getElementById('sidebar-toggle')!;
-  const sidebar = document.getElementById('sidebar')!;
-  const overlay = document.getElementById('sidebar-overlay')!;
-
-  function openSidebar() {
-    sidebar.classList.add('open');
-    overlay.classList.add('open');
-    sidebarToggle.classList.add('open');
-    document.body.style.overflow = 'hidden';
-  }
-
-  function closeSidebar() {
-    sidebar.classList.remove('open');
-    overlay.classList.remove('open');
-    sidebarToggle.classList.remove('open');
-    document.body.style.overflow = '';
-  }
-
-  sidebarToggle.addEventListener('click', () => {
-    sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
-  });
-
-  overlay.addEventListener('click', closeSidebar);
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && sidebar.classList.contains('open')) closeSidebar();
-  });
-
-  // Close sidebar on link click (mobile)
-  sidebar.querySelectorAll('.sidebar-link').forEach(link => {
-    link.addEventListener('click', () => {
-      if (window.innerWidth <= 960) closeSidebar();
+    document.querySelectorAll('.toc-dot').forEach(dot => {
+      dot.addEventListener('click', (e) => {
+        e.preventDefault();
+        const id = (dot as HTMLElement).dataset.target || '';
+        const el = document.getElementById(id);
+        if (el) { el.scrollIntoView({ behavior:'smooth', block:'start' }); tocFab.classList.remove('open'); }
+      });
     });
-  });
 
-  // ── Scroll spy ──
-  const sidebarLinks = document.querySelectorAll('.sidebar-link');
-  const mainHeadings = document.querySelectorAll('.docs-main h2[id]');
+    // Scroll spy
+    const dots = document.querySelectorAll('.toc-dot');
+    const headings = document.querySelectorAll('h2[id]');
+    let scrollTimer: number;
+    window.addEventListener('scroll', () => {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        let current = '';
+        headings.forEach(h => { if (h.getBoundingClientRect().top < 180) current = h.id; });
+        dots.forEach(d => d.classList.toggle('active', d.getAttribute('data-target') === current));
+      }, 80);
+    }, { passive:true });
 
-  let spyTimer: number;
-  function updateActiveLink() {
-    let current = '';
-    mainHeadings.forEach(h => {
-      if (h.getBoundingClientRect().top < 140) current = h.id;
-    });
-    sidebarLinks.forEach(link => {
-      const target = link.getAttribute('href')?.replace('#', '');
-      link.classList.toggle('active', target === current);
-    });
-  }
-
-  window.addEventListener('scroll', () => {
-    clearTimeout(spyTimer);
-    spyTimer = setTimeout(updateActiveLink, 60);
-  }, { passive: true });
-
-  // Initial active state
-  updateActiveLink();
-
-  // ── Try It Live ──
-  const tryBtn = document.getElementById('try-it-btn')!;
-  const tryOutput = document.getElementById('try-it-output')!;
-  const tryMeta = document.getElementById('try-it-meta')!;
-  const tryStatus = document.getElementById('try-it-status')!;
-  const trySize = document.getElementById('try-it-size')!;
-  const tryTime = document.getElementById('try-it-time')!;
-
-  tryBtn.addEventListener('click', async () => {
-    tryBtn.disabled = true;
-    tryBtn.style.opacity = '0.6';
-    tryOutput.querySelector('code')!.textContent = '// 加载中...';
-    tryOutput.querySelector('code')!.style.color = 'var(--color-text-muted)';
-    tryMeta.style.display = 'none';
-
-    const start = performance.now();
-    try {
-      const res = await fetch('/api/today.json');
-      const text = await res.text();
-      const elapsed = (performance.now() - start).toFixed(0);
-      const bytes = new TextEncoder().encode(text).length;
-      const kb = bytes > 1024 ? (bytes / 1024).toFixed(1) + ' KB' : bytes + ' B';
-
+    // Copy all docs as structured reference
+    const copyAll = document.getElementById('copy-all')!;
+    copyAll.addEventListener('click', async () => {
+      const sections = document.querySelectorAll('h2[id]');
+      const lines: string[] = ['# ThemeDist API Reference', '', `> Base: ${location.origin}/api/today.json`, ''];
+      sections.forEach(h => {
+        const text = h.textContent?.trim() || '';
+        lines.push(`## ${text}`, '');
+        let el = h.nextElementSibling;
+        while (el && el.tagName !== 'H2') {
+          const txt = (el as HTMLElement).textContent?.trim();
+          if (txt) lines.push(txt, '');
+          el = el.nextElementSibling;
+        }
+        lines.push('');
+      });
       try {
-        const json = JSON.parse(text);
-        tryOutput.querySelector('code')!.textContent = JSON.stringify(json, null, 2);
-      } catch {
-        tryOutput.querySelector('code')!.textContent = text;
-      }
-
-      tryOutput.querySelector('code')!.style.color = 'var(--color-text)';
-      tryStatus.textContent = String(res.status);
-      tryStatus.style.color = res.ok ? 'var(--color-primary)' : '#ef4444';
-      trySize.textContent = kb;
-      tryTime.textContent = elapsed + ' ms';
-      tryMeta.style.display = 'flex';
-    } catch (err: any) {
-      tryOutput.querySelector('code')!.textContent = '// 请求失败: ' + (err.message || '网络错误');
-      tryOutput.querySelector('code')!.style.color = '#ef4444';
-      tryStatus.textContent = 'ERR';
-      tryStatus.style.color = '#ef4444';
-      trySize.textContent = '—';
-      tryTime.textContent = '—';
-      tryMeta.style.display = 'flex';
-    } finally {
-      tryBtn.disabled = false;
-      tryBtn.style.opacity = '1';
-    }
-  });
-
-  // ── Copy All ──
-  const copyAllBtn = document.getElementById('copy-all-btn')!;
-  const copyIconCopy = copyAllBtn.querySelector('.copy-icon-copy')! as HTMLElement;
-  const copyIconCheck = copyAllBtn.querySelector('.copy-icon-check')! as HTMLElement;
-  const copyBtnText = copyAllBtn.querySelector('span')!;
-  const copyAllContent = document.getElementById('copy-all-content')!.textContent || '';
-
-  copyAllBtn.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(copyAllContent);
-    } catch {
-      const ta = document.createElement('textarea');
-      ta.value = copyAllContent;
-      ta.style.position = 'fixed';
-      ta.style.left = '-9999px';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-    }
-    copyIconCopy.style.display = 'none';
-    copyIconCheck.style.display = 'block';
-    copyBtnText.textContent = '已复制';
-    copyAllBtn.classList.add('copied');
-    setTimeout(() => {
-      copyIconCopy.style.display = 'block';
-      copyIconCheck.style.display = 'none';
-      copyBtnText.textContent = '全部复制';
-      copyAllBtn.classList.remove('copied');
-    }, 2000);
-  });
-</script>
+        await navigator.clipboard.writeText(lines.join('\n'));
+        copyAll.classList.add('copied');
+        copyAll.innerHTML = '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 9l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        setTimeout(() => {
+          copyAll.classList.remove('copied');
+          copyAll.innerHTML = '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6v8a2 2 0 002 2h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+        }, 1800);
+      } catch { (window as any).__toast?.('复制失败'); }
+    });
+  </script>
+</Layout>

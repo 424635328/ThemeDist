@@ -11,7 +11,7 @@ const style = Object.entries(cssVars)
 const currentPath = Astro.url.pathname;
 
 const themeStyleTag = `<style>:root{${style}}</style>`;
-const customCssTag = customCss ? `<style id="td-server-customcss">${customCss}</style>` : '';
+const customCssTag = customCss ? `<style>${customCss}</style>` : '';
 const extensionsHTML = extensions ? extensions.map(e => e.content).join('') : '';
 const brandGradient = logoColors && logoColors.length >= 2
   ? `linear-gradient(135deg, ${logoColors[0]}, ${logoColors[1]})`
@@ -522,9 +522,7 @@ function navClass(path: string) {
     <div class="amb-orb"></div>
   </div>
   <div class="amb-grain"></div>
-  <div id="td-server-extensions" style="position:fixed;inset:0;pointer-events:none;z-index:0">
-    {extensions && <Fragment set:html={extensionsHTML} />}
-  </div>
+  {extensions && <Fragment set:html={extensionsHTML} />}
 
   <nav class="nav" id="nav">
     <a href="/" class="nav-brand" style={`background:${brandGradient};-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text`}>ThemeDist</a>
@@ -576,21 +574,6 @@ function navClass(path: string) {
         }
       }
 
-      // Clean up ALL old theme effects before applying new ones
-      function cleanupOldEffects() {
-        // 1. Kill server-injected extensions container
-        var srv = document.getElementById('td-server-extensions');
-        if (srv) srv.innerHTML = '';
-        // 2. Kill preview-injected extensions container
-        var prv = document.getElementById('preview-extensions');
-        if (prv) prv.remove();
-        // 3. Remove ALL old custom CSS style tags (by ID or by known class-based selectors)
-        document.querySelectorAll('#td-server-customcss, #preview-custom-css, #td-diy-css').forEach(function(s) { s.remove(); });
-        // 4. Brute-force: remove ALL leftover decorative elements from previous themes
-        var allDecoClasses = '.omni-petal,.omni-stardust,.cinematic-vignette,.yozakura-glow,.summer-bubble,.ice-particle,.abyss-shard,.abyss-ember,.abyss-ambient,.omni-wave,.omni-firework,.omni-flower,.omni-raindrop,.omni-heart,.omni-star,.omni-lotus,.omni-steam,.omni-paw,.omni-coin,.dec-icon,.interactive-drink';
-        document.querySelectorAll(allDecoClasses).forEach(function(el) { el.remove(); });
-      }
-
       function loadPreview(t: string) {
         var bar = document.getElementById('preview-bar')!;
         var nameEl = document.getElementById('preview-bar-name')!;
@@ -607,15 +590,16 @@ function navClass(path: string) {
             var vars = JSON.parse(diyVars);
             var root = document.documentElement;
             Object.entries(vars).forEach(function(e: any) { root.style.setProperty(e[0], e[1]); });
-            cleanupOldEffects();
             if (diyCSS) {
-              var style = document.createElement('style');
+              var style = document.getElementById('preview-custom-css') || document.createElement('style');
               style.id = 'preview-custom-css';
               style.textContent = diyCSS;
-              document.head.appendChild(style);
+              if (!style.parentNode) document.head.appendChild(style);
             }
             if (diyExts) {
               var exts = JSON.parse(diyExts);
+              var oldExt = document.getElementById('preview-extensions');
+              if (oldExt) oldExt.remove();
               if (exts && exts.length) {
                 var container = document.createElement('div');
                 container.id = 'preview-extensions';
@@ -647,9 +631,8 @@ function navClass(path: string) {
             var badge = document.querySelector('.nav-badge');
             if (badge) badge.textContent = data.presetName;
 
-            // Clean up ALL old effects before injecting new ones
-            cleanupOldEffects();
-
+            var oldStyle = document.getElementById('preview-custom-css');
+            if (oldStyle) oldStyle.remove();
             if (data.customCss) {
               var style = document.createElement('style');
               style.id = 'preview-custom-css';
@@ -657,12 +640,17 @@ function navClass(path: string) {
               document.head.appendChild(style);
             }
 
+            var oldExt = document.getElementById('preview-extensions');
+            if (oldExt) oldExt.remove();
             if (data.extensions && data.extensions.length) {
               var container = document.createElement('div');
               container.id = 'preview-extensions';
               container.innerHTML = data.extensions.map(function(e: any) { return e.content; }).join('');
               document.body.insertBefore(container, document.body.firstChild);
             }
+
+            // If applied (not just preview via ?theme=), store to localStorage
+            var stored = localStorage.getItem(APPLY_STORAGE_KEY);
           })
           .catch(function() {});
       }

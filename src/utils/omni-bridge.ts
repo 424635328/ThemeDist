@@ -116,55 +116,38 @@ export function getAllOmniThemes(): ComposedTheme[] {
   const dailyPool = OmniConfig.dailyPool as OmniThemeEntry[];
   const composed = dailyPool.map((t) => omniToComposed(t));
 
-  // Add ALL holiday themes from the config
-  const holidayThemes = getAllHolidayThemes();
+  // Add holiday themes for next 30 days
+  const holidayThemes = getUpcomingHolidayThemes(30);
   composed.unshift(...holidayThemes);
 
   return composed;
 }
 
-/** Extract ALL holiday/Lunar themes from OmniConfig into ComposedTheme format */
-function getAllHolidayThemes(): ComposedTheme[] {
-  const holidays = OmniConfig.holidays;
-  if (!holidays || typeof holidays !== 'object') return [];
-
-  const defaults = (OmniConfig as any).default;
-  const defaultTheme = defaults?.theme || {};
-  const defaultLogo = defaults?.logo || {};
-
-  const seen = new Set<string>();
+function getUpcomingHolidayThemes(days: number): ComposedTheme[] {
   const results: ComposedTheme[] = [];
+  const today = new Date();
 
-  for (const key of Object.keys(holidays)) {
-    const raw = holidays[key];
-    if (!raw || !raw.theme) continue;
-
-    // Merge with defaults for any missing theme fields
-    const t = { ...defaultTheme, ...raw.theme };
-    const logo = raw.logo || defaultLogo;
-
-    const id = `holiday-${key}`;
-    if (seen.has(id)) continue;
-    seen.add(id);
-
-    const composed = omniToComposed({
-      id,
-      name: logo.text || key,
-      logo,
-      theme: t,
-      extensions: raw.extensions,
-      type: 'holiday',
-    });
-
-    // Prefer holiday-specific naming
-    if (logo.text) {
-      // Add the date/lunar key suffix for distinguishability
-      composed.presetName = `${logo.text}`;
-    }
-
-    results.push(composed);
+  for (let i = 0; i < days; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    try {
+      const config = OmniConfig.getThemeConfig('auto', d.toISOString().slice(5, 10));
+      const isHoliday = config.logo && config.logo.text !== OmniConfig.default.logo.text;
+      if (isHoliday) {
+        const mmdd = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const composed = omniToComposed({
+          id: `holiday-${mmdd}`,
+          name: config.logo.text,
+          theme: config.theme,
+          logo: config.logo,
+          extensions: config.extensions,
+          type: 'holiday',
+        });
+        composed.presetName = `${config.logo.text} (${mmdd})`;
+        results.push(composed);
+      }
+    } catch { /* skip */ }
   }
-
   return results;
 }
 
