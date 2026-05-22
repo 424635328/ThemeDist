@@ -297,7 +297,7 @@ const initialThemeData = {
   let extensionsContainer = null;
   let currentPreset = selectedPreset;
 
-  function getDIYStyle( {
+  function getDIYStyle() {
     if (!diyStyleEl) {
       diyStyleEl = document.createElement('style');
       diyStyleEl.id = 'td-diy-css';
@@ -337,11 +337,11 @@ const initialThemeData = {
 
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
-      const target = tab.dataset.tab!;
+      const target = tab.dataset.tab;
       tabs.forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
-      panels.forEach(p => (p ).style.display = 'none');
-      document.getElementById('panel-' + target)!.style.display = '';
+      panels.forEach(p => p.style.display = 'none');
+      document.getElementById('panel-' + target).style.display = '';
 
       if (target === 'vars') {
         // Sync editor content with current vars
@@ -355,11 +355,11 @@ const initialThemeData = {
   const themeItems = document.querySelectorAll('.theme-item');
   const varsEditor = document.getElementById('vars-editor') ;
   const cssEditor = document.getElementById('css-editor') ;
-  const varsError = document.getElementById('vars-error')!;
-  const varsOk = document.getElementById('vars-ok')!;
-  const editStatus = document.getElementById('edit-status')!;
-  const btnReset = document.getElementById('btn-reset')!;
-  const diyHint = document.getElementById('diy-hint')!;
+  const varsError = document.getElementById('vars-error');
+  const varsOk = document.getElementById('vars-ok');
+  const editStatus = document.getElementById('edit-status');
+  const btnReset = document.getElementById('btn-reset');
+  const diyHint = document.getElementById('diy-hint');
 
   function loadTheme(vars, customCSS, exts, _presetName) {
     originalVars = { ...vars };
@@ -499,7 +499,7 @@ const initialThemeData = {
   });
 
   // ── Apply to site ──
-  document.getElementById('btn-apply-site')!.addEventListener('click', () => {
+  document.getElementById('btn-apply-site').addEventListener('click', () => {
     const preset = currentPreset;
 
     if (hasEdits) {
@@ -520,7 +520,7 @@ const initialThemeData = {
   });
 
   // ── Copy DIY theme ──
-  document.getElementById('btn-copy-diy')!.addEventListener('click', async () => {
+  document.getElementById('btn-copy-diy').addEventListener('click', async () => {
     const diy = {
       preset: 'custom',
       presetName: 'DIY Custom Theme',
@@ -558,7 +558,7 @@ const initialThemeData = {
       // If in editor, prevent save dialog and apply instead
       if (document.activeElement === varsEditor || document.activeElement === cssEditor) {
         e.preventDefault();
-        document.getElementById('btn-apply-site')!.click();
+        document.getElementById('btn-apply-site').click();
       }
     }
   });
@@ -568,10 +568,10 @@ const initialThemeData = {
   // ═══════════════════════════════════════════
 
   const imageInput = document.getElementById('image-input') ;
-  const dropZone = document.getElementById('image-drop-zone')!;
-  const imageResult = document.getElementById('image-result')!;
+  const dropZone = document.getElementById('image-drop-zone');
+  const imageResult = document.getElementById('image-result');
   const imagePreview = document.getElementById('image-preview') ;
-  const paletteSwatches = document.getElementById('palette-swatches')!;
+  const paletteSwatches = document.getElementById('palette-swatches');
   const colorCanvas = document.getElementById('color-canvas') ;
   let extractedColors = [];
 
@@ -609,7 +609,7 @@ const initialThemeData = {
         const scale = Math.min(maxDim / img.width, maxDim / img.height);
         colorCanvas.width = Math.floor(img.width * scale);
         colorCanvas.height = Math.floor(img.height * scale);
-        const ctx = colorCanvas.getContext('2d')!;
+        const ctx = colorCanvas.getContext('2d');
         ctx.drawImage(img, 0, 0, colorCanvas.width, colorCanvas.height);
 
         // Extract dominant colors
@@ -809,7 +809,7 @@ const initialThemeData = {
   }
 
   // Apply palette as theme
-  document.getElementById('btn-apply-palette')!.addEventListener('click', () => {
+  document.getElementById('btn-apply-palette').addEventListener('click', () => {
     if (extractedColors.length < 3) {
       (window as any).__toast?.('需要至少 3 种颜色');
       return;
@@ -826,11 +826,11 @@ const initialThemeData = {
     updateEditUI();
     (window as any).__toast?.('调色板已应用，可在 CSS 变量面板微调');
     // Switch to preview tab
-    document.getElementById('tab-preview')!.click();
+    document.getElementById('tab-preview').click();
   });
 
   // Copy AI prompt with palette description
-  document.getElementById('btn-copy-palette-ai')!.addEventListener('click', async () => {
+  document.getElementById('btn-copy-palette-ai').addEventListener('click', async () => {
     if (extractedColors.length < 3) {
       (window as any).__toast?.('请先上传图片');
       return;
@@ -947,7 +947,7 @@ The design should feel cohesive with the color palette extracted from the image.
   })();
 
   // ── Copy for AI: generates a structured prompt + theme data ──
-  document.getElementById('btn-copy-ai')!.addEventListener('click', async () => {
+  document.getElementById('btn-copy-ai').addEventListener('click', async () => {
     const hasExtensions = originalExtensions.length > 0;
     const themeJSON = JSON.stringify({
       cssVars: currentVars,
@@ -1002,10 +1002,10 @@ Theme color summary: primary=${currentVars['--color-primary']}, bg=${currentVars
     }
   }
 
-  document.getElementById('btn-format')!.addEventListener('click', () => {
+  document.getElementById('btn-format').addEventListener('click', () => {
     formatVarsJSON();
     // Also switch to vars tab if not already there
-    document.getElementById('tab-vars')!.click();
+    document.getElementById('tab-vars').click();
   });
 
   // ── File input: import theme JSON ──

@@ -22,7 +22,11 @@
       "Bash(curl -s http://localhost:4321/theme-builder)",
       "Bash(npx tsc *)",
       "Read(//tmp/**)",
-      "Bash(npm ls *)"
+      "Bash(npm ls *)",
+      "Bash(sed 's/<\\\\/script>$//')",
+      "Bash(node --check /tmp/tb-script.js)",
+      "Bash(git *)",
+      "Bash(node --check -)"
     ]
   }
 }

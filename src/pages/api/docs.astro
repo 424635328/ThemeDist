@@ -44,6 +44,13 @@ const fullResponse = JSON.stringify({
   directory,
 }, null, 2);
 
+const siteUrl = 'https://themedist.vercel.app';
+
+const curlCmd = `curl ${siteUrl}/api/today.json`;
+const curlJqCmd = `curl -s ${siteUrl}/api/today.json | jq .`;
+const fetchCmd = `fetch('${siteUrl}/api/today.json').then(r => r.json()).then(console.log)`;
+const wgetCmd = `wget -qO- ${siteUrl}/api/today.json | jq .`;
+
 const vanillaJS = String.raw`// 完整集成示例 — 含缓存、降级、特效注入
 (async () => {
   const today = new Date().toISOString().slice(0, 10);
@@ -95,6 +102,56 @@ function applyTheme(d) {
           <span class="tag">CORS 跨域</span>
           <span class="tag">CDN 友好</span>
           <span class="tag">特效动画</span>
+        </div>
+      </div>
+
+      <!-- ====== QUICKSTART ====== -->
+      <h2 id="quickstart" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">快速开始</h2>
+      <div class="card" style="margin-bottom:36px;padding:24px 28px">
+        <p class="text-muted" style="font-size:13px;line-height:1.6;margin:0 0 18px 0">点击右侧按钮即可复制命令，粘贴到终端或浏览器控制台即可获取今日主题数据。</p>
+
+        <div class="cmd-group">
+          <div class="cmd-header">
+            <span class="cmd-label">curl</span>
+            <button class="cmd-copy-btn" data-cmd={curlCmd} type="button">
+              <svg width="14" height="14" viewBox="0 0 18 18" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6v8a2 2 0 002 2h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              复制
+            </button>
+          </div>
+          <pre class="cmd-block"><code>{curlCmd}</code></pre>
+        </div>
+
+        <div class="cmd-group">
+          <div class="cmd-header">
+            <span class="cmd-label">curl + jq (格式化输出)</span>
+            <button class="cmd-copy-btn" data-cmd={curlJqCmd} type="button">
+              <svg width="14" height="14" viewBox="0 0 18 18" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6v8a2 2 0 002 2h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              复制
+            </button>
+          </div>
+          <pre class="cmd-block"><code>{curlJqCmd}</code></pre>
+        </div>
+
+        <div class="cmd-group">
+          <div class="cmd-header">
+            <span class="cmd-label">fetch (浏览器控制台)</span>
+            <button class="cmd-copy-btn" data-cmd={fetchCmd} type="button">
+              <svg width="14" height="14" viewBox="0 0 18 18" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6v8a2 2 0 002 2h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              复制
+            </button>
+          </div>
+          <pre class="cmd-block"><code>{fetchCmd}</code></pre>
+        </div>
+
+        <div class="cmd-group" style="margin-bottom:0">
+          <div class="cmd-header">
+            <span class="cmd-label">wget</span>
+            <button class="cmd-copy-btn" data-cmd={wgetCmd} type="button">
+              <svg width="14" height="14" viewBox="0 0 18 18" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6v8a2 2 0 002 2h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              复制
+            </button>
+          </div>
+          <pre class="cmd-block"><code>{wgetCmd}</code></pre>
         </div>
       </div>
 
@@ -238,7 +295,13 @@ function applyTheme(d) {
 
       <!-- ====== CODE ====== -->
       <h2 id="code" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">代码示例</h2>
-      <h3 style="font-size:14px;font-weight:700;letter-spacing:-0.01em;margin-bottom:10px">Vanilla JavaScript（含缓存+降级+特效）</h3>
+      <div class="cmd-header" style="margin-bottom:8px">
+        <h3 style="font-size:14px;font-weight:700;letter-spacing:-0.01em;margin:0">Vanilla JavaScript（含缓存+降级+特效）</h3>
+        <button class="cmd-copy-btn" data-cmd={vanillaJS} type="button">
+          <svg width="14" height="14" viewBox="0 0 18 18" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6v8a2 2 0 002 2h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          复制
+        </button>
+      </div>
       <pre style="margin-bottom:36px"><code>{vanillaJS}</code></pre>
 
       <!-- ====== ERROR HANDLING ====== -->
@@ -291,6 +354,7 @@ function applyTheme(d) {
     </button>
     <nav class="toc-menu" id="toc-menu" role="menu" aria-label="页面目录">
       <a href="#overview" class="toc-link" data-target="overview" role="menuitem" tabindex="-1">概述</a>
+      <a href="#quickstart" class="toc-link" data-target="quickstart" role="menuitem" tabindex="-1">快速开始</a>
       <a href="#endpoints" class="toc-link" data-target="endpoints" role="menuitem" tabindex="-1">端点</a>
       <a href="#schema" class="toc-link" data-target="schema" role="menuitem" tabindex="-1">响应结构</a>
       <a href="#css-vars" class="toc-link" data-target="css-vars" role="menuitem" tabindex="-1">CSS 变量</a>
@@ -315,6 +379,41 @@ function applyTheme(d) {
       background:color-mix(in srgb, var(--color-primary) 10%, transparent);
       color:var(--color-primary);font-weight:600;
     }
+    /* command blocks */
+    .cmd-group { margin-bottom:18px; }
+    .cmd-header {
+      display:flex;align-items:center;justify-content:space-between;
+      margin-bottom:6px;gap:12px;
+    }
+    .cmd-label {
+      font-size:11px;font-weight:600;
+      color:var(--color-text-muted);
+      text-transform:uppercase;letter-spacing:0.04em;
+    }
+    .cmd-copy-btn {
+      display:inline-flex;align-items:center;gap:5px;
+      padding:4px 12px;font-size:11px;font-weight:600;
+      border-radius:7px;border:1px solid var(--color-border);
+      background:var(--color-surface);color:var(--color-text-muted);
+      cursor:pointer;transition:all 0.2s;
+      font-family:inherit;line-height:1.5;
+      white-space:nowrap;flex-shrink:0;
+    }
+    .cmd-copy-btn:hover {
+      border-color:var(--color-primary);color:var(--color-primary);
+    }
+    .cmd-copy-btn:active {transform:scale(0.95);}
+    .cmd-copy-btn.copied {
+      border-color:var(--color-primary);color:var(--color-primary);
+      background:color-mix(in srgb, var(--color-primary) 10%, transparent);
+    }
+    .cmd-block {
+      background:#1e1e2e;color:#cdd6f4;
+      padding:14px 18px;border-radius:10px;
+      font-size:13px;overflow-x:auto;
+      margin:0;line-height:1.7;
+    }
+    .cmd-block code {background:none;padding:0;color:inherit;}
     .toc-fab {
       position:fixed;bottom:200px;right:32px;z-index:250;
     }
@@ -396,6 +495,23 @@ function applyTheme(d) {
   </style>
 
   <script>
+    // Copy button handler — all elements with .cmd-copy-btn
+    document.querySelectorAll('.cmd-copy-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const cmd = (btn as HTMLElement).dataset.cmd || '';
+        try {
+          await navigator.clipboard.writeText(cmd);
+          btn.classList.add('copied');
+          const origHTML = btn.innerHTML;
+          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 18 18" fill="none"><path d="M4 9l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> 已复制';
+          setTimeout(() => {
+            btn.classList.remove('copied');
+            btn.innerHTML = origHTML;
+          }, 1800);
+        } catch { (window as any).__toast?.('复制失败'); }
+      });
+    });
+
     const tocFab = document.getElementById('toc-fab')!;
     const tocTrigger = document.getElementById('toc-trigger')! as HTMLButtonElement;
     const tocMenu = document.getElementById('toc-menu')!;
