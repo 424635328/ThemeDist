@@ -127,12 +127,29 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
       <button class="chip" data-filter="community" aria-pressed="false">社区 <span class="chip-count" id="community-chip-count">-</span></button>
     </div>
 
-    <!-- Community sort (only visible when community tab active) -->
-    <div id="community-sort" style="display:none;max-width:1120px;margin:0 auto 16px">
-      <div style="display:flex;gap:8px;align-items:center">
-        <span style="font-size:12px;color:var(--color-text-muted);font-weight:500">排序：</span>
-        <button class="comm-sort-btn comm-sort-active" data-comm-sort="new">最新</button>
-        <button class="comm-sort-btn" data-comm-sort="hot">最热</button>
+    <!-- Community header bar (visible when community tab active) -->
+    <div id="community-header" style="display:none;max-width:1120px;margin:0 auto 20px">
+      <div class="comm-header-card">
+        <div class="comm-header-top">
+          <div class="comm-header-title-row">
+            <span class="comm-header-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </span>
+            <h2 class="comm-header-title">社区精选</h2>
+            <span class="comm-header-count" id="community-header-count">-</span>
+          </div>
+          <div class="comm-header-sort" id="community-sort">
+            <button class="comm-sort-btn comm-sort-active" data-comm-sort="new">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v12M3 7l5-5 5 5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              最新
+            </button>
+            <button class="comm-sort-btn" data-comm-sort="hot">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 14s-6-3.5-6-7.5a3.5 3.5 0 016-2.2 3.5 3.5 0 016 2.2C14 10.5 8 14 8 14z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              最热
+            </button>
+          </div>
+        </div>
+        <p class="comm-header-desc">用户投稿的原创主题设计，经管理员审核后收录。点击下方卡片即可预览或一键应用。</p>
       </div>
     </div>
 
@@ -164,7 +181,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
             style={(t.isToday ? '--card-ring:var(--color-primary);' : '--card-ring:transparent;') + (t.index >= BATCH_SIZE ? 'display:none' : '')}
             data-pending={t.index >= BATCH_SIZE ? '1' : undefined}
           >
-            {/* Full-bleed color bar — wider, more vivid */}
+            {/* Full-bleed color bar */}
             <div class="card-color-bar" aria-hidden="true">
               <div class="color-bar-seg" style={`flex:3;background:${p}`}></div>
               <div class="color-bar-seg" style={`flex:1.5;background:${v['--color-secondary']}`}></div>
@@ -231,17 +248,22 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
 
     <!-- Empty state -->
     <p id="no-results" class="empty-state" hidden>未找到匹配的主题 — <a href="?" class="empty-link">清除所有筛选</a></p>
-    <p id="community-empty" class="empty-state" hidden>
-      暂无社区主题 —
-      <a href="/submit" class="empty-link">提交第一个</a>
-    </p>
+    <div id="community-empty" class="comm-empty-state" hidden>
+      <div class="comm-empty-icon">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6M9 13h6M9 17h4" stroke-linecap="round"/></svg>
+      </div>
+      <h3 class="comm-empty-title">暂无社区主题</h3>
+      <p class="comm-empty-desc">成为第一个分享主题设计的人</p>
+      <a href="/submit" class="btn btn-primary" style="margin-top:12px;height:38px;padding:0 20px;font-size:13px">提交你的主题</a>
+    </div>
 
     <!-- Load more sentinel -->
     <div id="load-sentinel" class="load-sentinel" aria-hidden="true"></div>
   </section>
 </Layout>
 
-<style>
+<!-- 🌸 启用 is:global 全局渲染，突破 Astro 作用域对动态生成社区卡片 CSS 的封锁 -->
+<style is:global>
   /* ─── Controls bar ─── */
   .store-controls {
     max-width: 1120px;
@@ -462,20 +484,23 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     font-weight: 500;
   }
 
-  /* ─── Cards ─── */
+  /* ─── Static Theme Cards ─── */
   .theme-card {
     padding: 0;
     overflow: hidden;
     content-visibility: auto;
     contain-intrinsic-size: auto 200px;
+    border-radius: 16px !important;
+    border: 1.5px solid var(--color-border);
+    background: var(--color-surface);
     transition: border-color 0.3s, box-shadow 0.3s, transform 0.25s cubic-bezier(0.22,0.61,0.36,1);
     --card-ring: transparent;
   }
   .theme-card:hover {
     box-shadow:
-      0 0 0 2px var(--card-ring),
+      0 0 0 2.5px var(--card-ring),
       0 18px 48px -12px rgba(0,0,0,0.25) !important;
-    transform: translateY(-2px);
+    transform: translateY(-2.5px);
   }
   .theme-card:hover .card-color-bar {
     height: 5px;
@@ -500,8 +525,8 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     margin-bottom: 12px;
   }
   .card-title {
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 15px;
+    font-weight: 800;
     letter-spacing: -0.01em;
     line-height: 1.25;
     flex: 1;
@@ -509,6 +534,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    color: var(--color-text);
   }
   .card-badges {
     display: flex;
@@ -529,10 +555,11 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     color: #fff;
   }
   .badge-holiday {
-    background: color-mix(in srgb, var(--color-accent) 20%, transparent);
+    background: color-mix(in srgb, var(--color-accent) 15%, transparent);
     color: var(--color-accent);
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: 0.02em;
+    border: 1px solid color-mix(in srgb, var(--color-accent) 25%, transparent);
   }
 
   .swatch-row {
@@ -570,15 +597,15 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     align-items: center;
     justify-content: center;
     font-size: 8px;
-    font-weight: 700;
-    opacity: 0.85;
+    font-weight: 800;
+    opacity: 0.9;
     pointer-events: none;
   }
   .card-hex {
     font-size: 11px;
     font-family: 'JetBrains Mono', monospace;
     color: var(--color-text-muted);
-    font-weight: 500;
+    font-weight: 600;
     margin-left: 2px;
   }
 
@@ -643,8 +670,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     width: 100%;
   }
 
-  /* ─── Responsive ─── */
-  /* Community sort buttons */
+  /* ─── Community sort buttons ─── */
   .comm-sort-btn {
     padding: 5px 14px;
     border-radius: 8px;
@@ -665,168 +691,275 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
   }
   .comm-sort-active:hover { color: #fff; }
 
-  /* ─── Community card ─── */
-  .badge-comm {
-    background: color-mix(in srgb, var(--comm-primary, var(--color-primary)) 14%, transparent);
-    color: var(--comm-primary, var(--color-primary));
-    font-weight: 700;
-    font-size: 9px;
-    letter-spacing: 0.04em;
-    padding: 3px 9px;
-    border-radius: 6px;
-    border: 1px solid color-mix(in srgb, var(--comm-primary, var(--color-primary)) 16%, transparent);
-    flex-shrink: 0;
+  /* ─── Community header ─── */
+  .comm-header-card {
+    padding: 18px 22px;
+    border-radius: 14px;
+    border: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
+    box-shadow: var(--shadow-sm);
   }
-
-  /* Palette strip */
-  .comm-palette-strip {
-    display: flex;
-    gap: 6px;
-    margin: 14px 0;
-    flex-wrap: wrap;
-  }
-  .comm-palette-chip {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
-    padding: 6px 8px 7px;
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--comm-bg, var(--color-bg)) 60%, transparent);
-    border: 1px solid transparent;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.2s ease;
-    min-width: 48px;
-    flex: 1;
-  }
-  .comm-palette-chip:hover {
-    border-color: var(--color-border);
-    background: color-mix(in srgb, var(--comm-bg, var(--color-bg)) 80%, transparent);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  }
-  .comm-chip-swatch {
-    width: 22px;
-    height: 22px;
-    border-radius: 6px;
-    flex-shrink: 0;
-    transition: transform 0.2s ease;
-  }
-  .comm-palette-chip:hover .comm-chip-swatch {
-    transform: scale(1.15);
-  }
-  .comm-chip-hex {
-    font-size: 9px;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--color-text-muted);
-    font-weight: 500;
-    line-height: 1;
-    white-space: nowrap;
-  }
-
-  /* Meta row */
-  .comm-meta-row {
+  .comm-header-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 12px;
+    gap: 16px;
+    flex-wrap: wrap;
   }
-  .comm-meta-left {
+  .comm-header-title-row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    color: var(--color-text-muted);
-    min-width: 0;
+    gap: 10px;
   }
-  .comm-author-avatar {
-    width: 20px;
-    height: 20px;
-    border-radius: 6px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    font-weight: 700;
-    flex-shrink: 0;
-  }
-  .comm-author-name {
-    font-weight: 600;
-    color: var(--color-text);
-    max-width: 80px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .comm-meta-sep {
-    opacity: 0.35;
-    font-weight: 700;
-    flex-shrink: 0;
-  }
-  .comm-meta-date {
-    font-weight: 500;
-    flex-shrink: 0;
-  }
-  .comm-meta-right {
+  .comm-header-icon {
+    color: var(--color-primary);
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
   }
-  .comm-like-num {
+  .comm-header-title {
+    font-size: 16px;
+    font-weight: 800;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .comm-header-count {
     font-size: 12px;
     font-weight: 600;
     color: var(--color-text-muted);
-    font-variant-numeric: tabular-nums;
-    line-height: 1;
+    background: color-mix(in srgb, var(--color-text) 6%, transparent);
+    padding: 3px 10px;
+    border-radius: 6px;
+  }
+  .comm-header-sort {
+    display: flex;
+    gap: 4px;
+    padding: 3px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--color-text) 5%, transparent);
+    border: 1px solid var(--color-border);
+  }
+  .comm-sort-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .comm-sort-btn:hover {
+    color: var(--color-text);
+  }
+  .comm-sort-active {
+    background: var(--color-bg);
+    color: var(--color-text);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    border: 1px solid var(--color-border);
+  }
+  .comm-header-desc {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin: 12px 0 0;
+    line-height: 1.5;
   }
 
-  /* Like button — icon only */
-  .comm-like-btn {
+  /* ─── Community empty state ─── */
+  .comm-empty-state {
+    text-align: center;
+    padding: 64px 20px;
+    animation: fadeIn 0.4s ease-out;
+  }
+  .comm-empty-state[hidden] {
+    display: none;
+  }
+  .comm-empty-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
-    border: 1px solid transparent;
-    background: transparent;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+    color: var(--color-primary);
+    margin-bottom: 16px;
+  }
+  .comm-empty-title {
+    font-size: 16px;
+    font-weight: 800;
+    margin: 0 0 6px;
+    color: var(--color-text);
+  }
+  .comm-empty-desc {
+    font-size: 13px;
     color: var(--color-text-muted);
-    cursor: pointer;
-    padding: 0;
-    font-family: inherit;
-    transition: all 0.2s ease;
-  }
-  .comm-like-btn:hover {
-    border-color: rgba(239, 68, 68, 0.25);
-    color: #ef4444;
-    background: rgba(239, 68, 68, 0.06);
-  }
-  .comm-like-btn:hover svg {
-    transform: scale(1.2);
-  }
-  .comm-like-btn svg {
-    transition: transform 0.2s ease, fill 0.2s ease;
-  }
-  .comm-like-btn.liked {
-    color: #ef4444;
-    border-color: rgba(239, 68, 68, 0.2);
-    background: rgba(239, 68, 68, 0.08);
-  }
-  .comm-like-btn.liked svg path {
-    fill: #ef4444;
-    stroke: #ef4444;
+    margin: 0;
   }
 
-  /* Apply button — themed to the card's primary */
-  .comm-apply-btn {
-    flex: 1.3;
-    border-color: var(--comm-primary, var(--color-primary));
+  /* ─── 💅 社区主题卡片美化重构 (彻底解决横向排布与堆叠难看的问题) ─── */
+  .badge-comm {
+    background: color-mix(in srgb, var(--comm-primary, var(--color-primary)) 10%, transparent);
     color: var(--comm-primary, var(--color-primary));
-    background: color-mix(in srgb, var(--comm-primary, var(--color-primary)) 8%, transparent);
-    font-weight: 700;
+    font-weight: 800;
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: 1.5px solid color-mix(in srgb, var(--comm-primary, var(--color-primary)) 16%, transparent);
+    flex-shrink: 0;
+  }
+
+  /* 色盘网格一字排开，高度规整 */
+  .comm-palette-strip {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 6px !important;
+    margin: 14px 0 !important;
+  }
+  .comm-palette-chip {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 6px 4px !important;
+    border-radius: 8px !important;
+    background: color-mix(in srgb, var(--comm-bg, var(--color-bg)) 60%, transparent) !important;
+    border: 1px solid var(--color-border) !important;
+    cursor: pointer !important;
+    font-family: inherit !important;
+    transition: all 0.25s var(--dash-transition) !important;
+    min-width: 0 !important;
+    flex: 1 !important;
+  }
+  .comm-palette-chip:hover {
+    border-color: var(--comm-primary) !important;
+    background: color-mix(in srgb, var(--comm-bg, var(--color-bg)) 85%, transparent) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.2) !important;
+  }
+  .comm-chip-swatch {
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 6px !important;
+    flex-shrink: 0 !important;
+    transition: transform 0.2s ease !important;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1) !important;
+  }
+  .comm-palette-chip:hover .comm-chip-swatch {
+    transform: scale(1.1) !important;
+  }
+  .comm-chip-hex {
+    font-size: 9px !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    color: var(--color-text-muted) !important;
+    font-weight: 600 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  /* 基础Meta排版对齐 */
+  .comm-meta-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    margin-bottom: 14px !important;
+  }
+  .comm-meta-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    font-size: 11px !important;
+    color: var(--color-text-muted) !important;
+    min-width: 0 !important;
+  }
+  .comm-author-avatar {
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 6px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    flex-shrink: 0 !important;
+  }
+  .comm-author-name {
+    font-weight: 700 !important;
+    color: var(--color-text) !important;
+    max-width: 80px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+  .comm-meta-sep {
+    opacity: 0.35 !important;
+    font-weight: 700 !important;
+    flex-shrink: 0 !important;
+  }
+  .comm-meta-date {
+    font-weight: 600 !important;
+    flex-shrink: 0 !important;
+  }
+  .comm-meta-right {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex-shrink: 0 !important;
+  }
+  .comm-like-num {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    color: var(--color-text-muted) !important;
+    font-variant-numeric: tabular-nums !important;
+    line-height: 1 !important;
+  }
+
+  /* 心形点赞动效 */
+  .comm-like-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--color-border) !important;
+    background: transparent !important;
+    color: var(--color-text-muted) !important;
+    cursor: pointer !important;
+    padding: 0 !important;
+    transition: all 0.2s ease !important;
+  }
+  .comm-like-btn:hover {
+    border-color: rgba(239, 68, 68, 0.25) !important;
+    color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.06) !important;
+  }
+  .comm-like-btn:hover svg {
+    transform: scale(1.15) !important;
+  }
+  .comm-like-btn.liked {
+    color: #ef4444 !important;
+    border-color: rgba(239, 68, 68, 0.2) !important;
+    background: rgba(239, 68, 68, 0.08) !important;
+  }
+  .comm-like-btn.liked svg path {
+    fill: #ef4444 !important;
+    stroke: #ef4444 !important;
+  }
+
+  /* 专属主色赋能的「应用」按钮 */
+  .comm-apply-btn {
+    flex: 1.3 !important;
+    border-color: var(--comm-primary, var(--color-primary)) !important;
+    color: var(--comm-primary, var(--color-primary)) !important;
+    background: color-mix(in srgb, var(--comm-primary, var(--color-primary)) 8%, transparent) !important;
+    font-weight: 800 !important;
   }
   .comm-apply-btn:hover {
     background: var(--comm-primary, var(--color-primary)) !important;
@@ -862,6 +995,9 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     .btn-card {
       font-size: 10px;
       padding: 5px 0;
+    }
+    .comm-palette-strip {
+      grid-template-columns: repeat(5, 1fr) !important;
     }
   }
 </style>
@@ -1057,7 +1193,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     }
   });
 
-  // ─── Consolidated Chips logic (Cleaned up Conflict) ───
+  // ─── Consolidated Chips logic ───
   chips.forEach(chip => {
     chip.addEventListener('click', () => {
       const filter = chip.dataset.filter || 'all';
@@ -1119,11 +1255,13 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
   });
 
   // ══════════════════════════════════════
-  // Community themes — declared BEFORE init so switchToCommunity() can access them
+  // Community themes 
   // ══════════════════════════════════════
   const communityGrid = document.getElementById('community-grid');
   const communityEmpty = document.getElementById('community-empty');
   const communitySort = document.getElementById('community-sort');
+  const communityHeader = document.getElementById('community-header');
+  const communityHeaderCount = document.getElementById('community-header-count');
   const communityChipCount = document.getElementById('community-chip-count');
   let commSort = 'new';
   let commPage = 1;
@@ -1154,7 +1292,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     sortOptions.forEach(o => {
       const isActive = o.dataset.value === sortParam;
       o.classList.toggle('sort-option-active', isActive);
-      o.setAttribute('aria-selected', String(isActive));
+      o.setAttribute('aria-selected', String(o.dataset.value === sortParam));
       if (isActive) sortLabel.textContent = o.textContent || '';
     });
   }
@@ -1271,6 +1409,9 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
         communityGrid.style.display = '';
         communityEmpty.hidden = commTotal > 0 || page > 1;
         sentinel.style.display = commLoaded.length < commTotal ? '' : 'none';
+
+        if (communityHeaderCount) communityHeaderCount.textContent = commTotal + ' 个主题';
+        resultCount.textContent = commTotal > 0 ? '已加载 ' + commLoaded.length + ' / ' + commTotal + ' 个主题' : '';
       }
     } catch {
       communityEmpty.hidden = false;
@@ -1283,7 +1424,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     allCards.forEach(c => c.style.display = 'none');
     noResults.hidden = true;
 
-    communitySort.style.display = '';
+    if (communityHeader) communityHeader.style.display = '';
     communityGrid.style.display = '';
     commPage = 1;
     loadCommunityThemes(1);
@@ -1292,7 +1433,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     sortDropdown.style.display = 'none';
     search.value = '';
     clearBtn.hidden = true;
-    resultCount.textContent = '';
+    resultCount.textContent = '加载中…';
 
     // Synchronize URL query
     const url = new URL(location.href);
@@ -1303,7 +1444,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
   }
 
   function switchToRegular() {
-    communitySort.style.display = 'none';
+    if (communityHeader) communityHeader.style.display = 'none';
     communityGrid.style.display = 'none';
     communityEmpty.hidden = true;
     sortDropdown.style.display = '';
@@ -1358,7 +1499,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     }
   });
 
-  // Community apply saves to localStorage (matches system card behavior)
+  // Community apply saves to localStorage
   communityGrid.addEventListener('click', (e) => {
     const btn = e.target.closest('.js-apply-btn');
     if (!btn) return;
@@ -1380,7 +1521,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     }).catch(() => {});
   });
 
-  // Unified Sentinel Observer (Replacing the double observer performance leak)
+  // Unified Sentinel Observer
   const ioSingle = new IntersectionObserver((entries) => {
     if (!entries[0].isIntersecting) return;
     if (isCommunityMode()) {

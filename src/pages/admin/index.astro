@@ -7,7 +7,7 @@ const siteUrl = Astro.url.origin;
 ---
 
 <Layout>
-  <!-- Data Bridge Container -->
+  <!-- Data Bridge Container (采用标准 DOM 传递 data) -->
   <div 
     id="admin-dashboard-container"
     data-authed={authed ? 'true' : 'false'}
@@ -105,9 +105,9 @@ const siteUrl = Astro.url.origin;
           <div class="toolbar-left">
             <label class="select-all-label">
               <input type="checkbox" id="select-all" class="custom-checkbox" />
-              <span>全选</span>
+              <span>全选本页</span>
             </label>
-            <span id="selected-count" class="selected-counter">已选 0 个</span>
+            <span id="selected-count" class="selected-counter">已选 0 个主题</span>
           </div>
           <div class="toolbar-actions">
             <button id="btn-approve" class="btn btn-primary action-btn-green" disabled>
@@ -153,7 +153,8 @@ const siteUrl = Astro.url.origin;
   </div>
 </Layout>
 
-<style>
+<!-- 💡 BINGO! 增加 is:global 关键字，彻底解除 Astro 样式对动态生成 DOM 树的局部隔离 -->
+<style is:global>
   /* ─── Variables & Global Reset for Dashboard ─── */
   :root {
     --dash-transition: cubic-bezier(0.16, 1, 0.3, 1);
@@ -388,19 +389,54 @@ const siteUrl = Astro.url.origin;
     cursor: pointer;
     user-select: none;
   }
+  
+  /* 自定义复选框美化 */
   .custom-checkbox {
-    width: 17px;
-    height: 17px;
-    accent-color: var(--color-primary);
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--color-border);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--color-surface) 60%, transparent);
     cursor: pointer;
-    border-radius: 4px;
+    position: relative;
+    outline: none;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
+  .custom-checkbox:hover {
+    border-color: var(--color-primary);
+  }
+  .custom-checkbox:checked {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+  }
+  .custom-checkbox:checked::before {
+    content: "✓";
+    color: #fff;
+    font-size: 11px;
+    font-weight: 900;
+  }
+  .custom-checkbox:indeterminate {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+  }
+  .custom-checkbox:indeterminate::before {
+    content: "-";
+    color: #fff;
+    font-size: 14px;
+    font-weight: 900;
+  }
+
   .selected-counter {
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--color-text-muted);
     background: color-mix(in srgb, var(--color-text) 6%, transparent);
-    padding: 2px 8px;
+    padding: 3px 10px;
     border-radius: 6px;
   }
   .toolbar-actions {
@@ -477,57 +513,61 @@ const siteUrl = Astro.url.origin;
     gap: 16px;
   }
 
-  /* ─── Dynamic Card Custom CSS Injecting ─── */
-  .review-card {
+  /* ─── Dynamic Card Styles (Now successfully rendering in Client-side DOM!) ─── */
+  #admin-dashboard-container .review-card {
     border-radius: 16px !important;
-    border: 1px solid var(--color-border);
+    border: 1.5px solid var(--color-border);
     background: var(--color-surface);
     overflow: hidden;
     cursor: pointer;
     transition: all 0.25s var(--dash-transition) !important;
+    animation: slideInCard 0.3s var(--dash-transition);
   }
-  .review-card:hover {
+  @keyframes slideInCard {
+    from { opacity: 0; transform: translateY(12px); }
+  }
+  #admin-dashboard-container .review-card:hover {
     transform: translateY(-2px);
     border-color: color-mix(in srgb, var(--rv-primary) 40%, var(--color-border));
     box-shadow: 0 12px 30px -10px rgba(0,0,0,0.3);
   }
-  .review-card.selected {
+  #admin-dashboard-container .review-card.selected {
     border-color: var(--rv-primary) !important;
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--rv-primary) 15%, transparent), var(--shadow-md) !important;
   }
-  .review-card-top-bar {
+  #admin-dashboard-container .review-card-top-bar {
     height: 5px;
   }
-  .review-card-body {
+  #admin-dashboard-container .review-card-body {
     padding: 24px;
     display: flex;
     gap: 16px;
   }
-  .review-left {
+  #admin-dashboard-container .review-left {
     display: flex;
     align-items: flex-start;
     padding-top: 4px;
   }
-  .review-main {
+  #admin-dashboard-container .review-main {
     flex: 1;
     min-width: 0;
   }
 
   /* ─── Card Header Meta ─── */
-  .review-header {
+  #admin-dashboard-container .review-header {
     display: flex;
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
     margin-bottom: 8px;
   }
-  .review-title {
+  #admin-dashboard-container .review-title {
     font-size: 18px;
     font-weight: 800;
     color: var(--color-text);
     margin: 0;
   }
-  .review-badge-pending {
+  #admin-dashboard-container .review-badge-pending {
     display: inline-flex;
     align-items: center;
     gap: 5px;
@@ -540,7 +580,7 @@ const siteUrl = Astro.url.origin;
     color: #f59e0b;
     border: 1px solid rgba(245, 158, 11, 0.15);
   }
-  .review-badge-dot {
+  #admin-dashboard-container .review-badge-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
@@ -551,7 +591,7 @@ const siteUrl = Astro.url.origin;
     0% { opacity: 0.4; }
     100% { opacity: 1; }
   }
-  .review-ttl {
+  #admin-dashboard-container .review-ttl {
     margin-left: auto;
     font-size: 11px;
     font-weight: 700;
@@ -560,11 +600,11 @@ const siteUrl = Astro.url.origin;
     align-items: center;
     gap: 4px;
   }
-  .review-ttl.ttl-warn { color: #f59e0b; }
-  .review-ttl.ttl-urgent { color: #ef4444; }
+  #admin-dashboard-container .review-ttl.ttl-warn { color: #f59e0b; }
+  #admin-dashboard-container .review-ttl.ttl-urgent { color: #ef4444; }
 
   /* ─── Card Author Metas ─── */
-  .review-meta {
+  #admin-dashboard-container .review-meta {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -573,7 +613,7 @@ const siteUrl = Astro.url.origin;
     color: var(--color-text-muted);
     flex-wrap: wrap;
   }
-  .review-author-avatar {
+  #admin-dashboard-container .review-author-avatar {
     width: 22px;
     height: 22px;
     border-radius: 6px;
@@ -583,11 +623,11 @@ const siteUrl = Astro.url.origin;
     font-weight: 800;
     font-size: 10px;
   }
-  .review-author-name {
+  #admin-dashboard-container .review-author-name {
     font-weight: 700;
     color: var(--color-text);
   }
-  .review-meta-tag {
+  #admin-dashboard-container .review-meta-tag {
     font-size: 10px;
     font-weight: 700;
     padding: 1px 7px;
@@ -597,48 +637,50 @@ const siteUrl = Astro.url.origin;
     border: 1.5px solid color-mix(in srgb, var(--rv-primary) 15%, transparent);
   }
 
-  /* ─── Color Swatches row ─── */
-  .review-swatches {
-    display: flex;
+  /* ─── Color Swatches Grid (彻底解决纵向排布问题) ─── */
+  #admin-dashboard-container .review-swatches {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
     gap: 8px;
-    flex-wrap: wrap;
     margin-bottom: 16px;
   }
-  .review-swatch {
+  #admin-dashboard-container .review-swatch {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 10px 4px 4px;
+    padding: 5px 8px;
     border-radius: 8px;
     background: color-mix(in srgb, var(--rv-surface) 60%, transparent);
     border: 1px solid var(--color-border);
     transition: all 0.2s;
   }
-  .review-swatch:hover {
+  #admin-dashboard-container .review-swatch:hover {
     transform: translateY(-1px);
     border-color: var(--rv-primary);
     box-shadow: var(--shadow-sm);
   }
-  .review-swatch-color {
-    width: 24px;
-    height: 24px;
+  #admin-dashboard-container .review-swatch-color {
+    width: 22px;
+    height: 22px;
     border-radius: 5px;
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
   }
-  .review-swatch-letter {
+  #admin-dashboard-container .review-swatch-letter {
     font-size: 9px;
     font-weight: 800;
   }
-  .review-swatch-hex {
+  #admin-dashboard-container .review-swatch-hex {
     font-size: 11px;
     font-family: 'JetBrains Mono', monospace;
     font-weight: 600;
+    color: var(--color-text-muted);
   }
 
-  /* ─── Micro Preview Component ─── */
-  .review-preview-chip {
+  /* ─── Micro Preview Sandbox Module ─── */
+  #admin-dashboard-container .review-preview-chip {
     padding: 16px;
     margin-bottom: 16px;
     position: relative;
@@ -646,62 +688,62 @@ const siteUrl = Astro.url.origin;
     background: var(--rv-bg);
     border: 1.5px solid color-mix(in srgb, var(--rv-primary) 15%, transparent);
   }
-  .review-preview-chip::before {
+  #admin-dashboard-container .review-preview-chip::before {
     content: '';
     position: absolute;
     inset: 0;
     background: radial-gradient(circle at 85% 15%, color-mix(in srgb, var(--rv-primary) 8%, transparent) 0%, transparent 60%);
     pointer-events: none;
   }
-  .preview-chip-header {
+  #admin-dashboard-container .preview-chip-header {
     margin-bottom: 10px;
   }
-  .preview-chip-muted {
+  #admin-dashboard-container .preview-chip-muted {
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
-  .preview-chip-buttons {
+  #admin-dashboard-container .preview-chip-buttons {
     display: flex;
-    gap: 6px;
+    gap: 8px;
     margin-bottom: 12px;
   }
-  .preview-chip-btn-primary {
+  #admin-dashboard-container .preview-chip-btn-primary {
     font-size: 10px;
     font-weight: 700;
     padding: 4px 12px;
     box-shadow: 0 2px 8px color-mix(in srgb, var(--rv-primary) 20%, transparent);
   }
-  .preview-chip-btn-ghost {
+  #admin-dashboard-container .preview-chip-btn-ghost {
     font-size: 10px;
     font-weight: 700;
     padding: 4px 12px;
   }
-  .preview-chip-card {
+  #admin-dashboard-container .preview-chip-card {
     padding: 12px;
     border: 1.5px solid color-mix(in srgb, var(--rv-primary) 8%, transparent);
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   }
-  .preview-chip-card-title {
+  #admin-dashboard-container .preview-chip-card-title {
     display: block;
     font-size: 12px;
     font-weight: 800;
     margin-bottom: 2px;
   }
-  .preview-chip-card-desc {
+  #admin-dashboard-container .preview-chip-card-desc {
     font-size: 10px;
     line-height: 1.4;
   }
 
   /* ─── Review Card Buttons Row ─── */
-  .review-actions {
+  #admin-dashboard-container .review-actions {
     display: flex;
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
   }
-  .review-action-link {
+  #admin-dashboard-container .review-action-link {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -715,12 +757,12 @@ const siteUrl = Astro.url.origin;
     background: color-mix(in srgb, var(--rv-primary) 4%, transparent);
     transition: all 0.2s;
   }
-  .review-action-link:hover {
+  #admin-dashboard-container .review-action-link:hover {
     background: color-mix(in srgb, var(--rv-primary) 10%, transparent);
     border-color: var(--rv-primary);
     transform: translateY(-0.5px);
   }
-  .review-action-copy {
+  #admin-dashboard-container .review-action-copy {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -735,7 +777,7 @@ const siteUrl = Astro.url.origin;
     font-family: inherit;
     transition: all 0.2s;
   }
-  .review-action-copy:hover {
+  #admin-dashboard-container .review-action-copy:hover {
     border-color: var(--rv-primary);
     color: var(--rv-primary);
     background: color-mix(in srgb, var(--rv-primary) 6%, transparent);
@@ -743,30 +785,30 @@ const siteUrl = Astro.url.origin;
 
   /* ─── Responsive Media ─── */
   @media (max-width: 640px) {
-    .review-card-body {
+    #admin-dashboard-container .review-card-body {
       padding: 16px;
     }
-    .review-header {
+    #admin-dashboard-container .review-header {
       gap: 6px;
     }
-    .review-title {
+    #admin-dashboard-container .review-title {
       font-size: 15px;
       width: 100%;
     }
-    .review-ttl {
+    #admin-dashboard-container .review-ttl {
       margin-left: 0;
       margin-top: 4px;
     }
-    .review-swatches {
-      gap: 4px;
+    #admin-dashboard-container .review-swatches {
+      grid-template-columns: repeat(2, 1fr);
     }
-    .review-swatch {
+    #admin-dashboard-container .review-swatch {
       padding: 3px 6px 3px 3px;
     }
-    .review-swatch-hex {
+    #admin-dashboard-container .review-swatch-hex {
       font-size: 10px;
     }
-    .preview-chip-buttons {
+    #admin-dashboard-container .preview-chip-buttons {
       flex-direction: column;
       gap: 4px;
     }
@@ -1176,6 +1218,7 @@ const siteUrl = Astro.url.origin;
     return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
   }
 
+  // 安全转义函数
   function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function escapeAttr(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 </script>
