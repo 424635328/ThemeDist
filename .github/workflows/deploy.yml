@@ -39,6 +39,7 @@ jobs:
           publish-dir: 'dist'
           functions-dir: '.netlify/v1/functions'
           production-deploy: true
+          production-branch: main
           github-token: ${{ secrets.GITHUB_TOKEN }}
           enable-commit-comment: true
         env:
