@@ -1,4 +1,6 @@
 import { getAllThemes } from '../../../utils/daily-theme';
+import { getCommunityThemes } from '../../../utils/omni-bridge';
+import { get as redisGet } from '../../../lib/redis';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -14,8 +16,44 @@ export async function getStaticPaths() {
 }
 
 export async function GET({ params }: { params: { preset: string } }) {
+  const presetId = params.preset;
+
+  // Handle community themes from Redis
+  if (presetId.startsWith('community-')) {
+    const redisId = presetId.slice('community-'.length);
+    try {
+      const raw = await redisGet(`td:theme:${redisId}`);
+      if (raw) {
+        const ct = JSON.parse(raw);
+        return new Response(
+          JSON.stringify({
+            preset: presetId,
+            presetName: ct.name,
+            cssVars: ct.cssVars,
+            customCss: ct.customCss || null,
+            extensions: null,
+            logoText: null,
+            logoColors: null,
+          }),
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'public, max-age=3600',
+              ...CORS_HEADERS,
+            },
+          },
+        );
+      }
+    } catch { /* fall through to 404 */ }
+    return new Response(JSON.stringify({ error: 'Theme not found', code: 404 }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+    });
+  }
+
+  // Static themes
   const themes = getAllThemes();
-  const theme = themes.find((t) => t.preset === params.preset);
+  const theme = themes.find((t) => t.preset === presetId);
 
   if (!theme) {
     return new Response(JSON.stringify({ error: 'Theme not found', code: 404 }), {

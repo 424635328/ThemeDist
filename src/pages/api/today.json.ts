@@ -1,4 +1,5 @@
 import { getDailyTheme, getAllThemes } from '../../utils/daily-theme';
+import { getCommunityThemes } from '../../utils/omni-bridge';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -13,6 +14,25 @@ const CACHE_HEADERS = {
 export async function GET() {
   const theme = getDailyTheme();
   const allThemes = getAllThemes();
+  const communityThemes = await getCommunityThemes(0);
+  const totalAvailable = allThemes.length + communityThemes.length;
+
+  const staticDir = allThemes.map((t) => ({
+    preset: t.preset,
+    name: t.presetName,
+    primary: t.cssVars['--color-primary'],
+    accent: t.cssVars['--color-accent'],
+    logoText: t.logoText || null,
+  }));
+
+  const communityDir = communityThemes.map((t) => ({
+    preset: t.preset,
+    name: t.presetName,
+    primary: t.cssVars['--color-primary'],
+    accent: t.cssVars['--color-accent'],
+    logoText: null,
+    community: true,
+  }));
 
   return new Response(
     JSON.stringify(
@@ -26,14 +46,8 @@ export async function GET() {
         extensions: theme.extensions || null,
         logoText: theme.logoText || null,
         logoColors: theme.logoColors || null,
-        available: allThemes.length,
-        directory: allThemes.map((t) => ({
-          preset: t.preset,
-          name: t.presetName,
-          primary: t.cssVars['--color-primary'],
-          accent: t.cssVars['--color-accent'],
-          logoText: t.logoText || null,
-        })),
+        available: totalAvailable,
+        directory: [...staticDir.slice(0, 20), ...communityDir.slice(0, 10)],
       },
       null,
       2,

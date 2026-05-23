@@ -1,0 +1,418 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout>
+  <section class="section text-center" style="padding-bottom:32px">
+    <p class="t-label">Community</p>
+    <h1 class="t-heading mt-2">提交你的 DIY 主题</h1>
+    <p class="t-subhead mt-2" style="max-width:560px;margin-inline:auto">
+      在构建器中调好的主题？粘贴 JSON，命名，一键提交到社区主题池。<br/>
+      提交后获得分享码，供其他用户预览和使用。
+    </p>
+  </section>
+
+  <section style="max-width:960px;margin:0 auto;padding:0 32px 80px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">
+
+      <!-- LEFT: Editor -->
+      <div>
+        <div class="card card-glass" style="padding:24px">
+          <p style="font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;margin-bottom:18px">主题数据</p>
+
+          <!-- Import from clipboard -->
+          <button id="btn-import" class="btn btn-outline" style="width:100%;height:42px;font-size:13px;margin-bottom:14px">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6v8a2 2 0 002 2h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            从剪贴板导入（从构建器复制）
+          </button>
+
+          <div style="margin-bottom:12px">
+            <label style="display:block;font-size:12px;font-weight:600;color:var(--color-text-muted);margin-bottom:6px">CSS 变量 JSON</label>
+            <textarea
+              id="vars-input"
+              spellcheck="false"
+              placeholder='{"--color-primary": "#6366f1", "--color-bg": "#0f0f23", ...}'
+              style="width:100%;height:260px;padding:16px;border-radius:12px;border:1.5px solid var(--color-border);background:color-mix(in srgb, var(--color-text) 3%, var(--color-bg));color:var(--color-text);font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;resize:vertical;outline:none;transition:border-color 0.2s"
+            ></textarea>
+            <span id="vars-error" style="font-size:11px;color:#ef4444;font-weight:600;display:none;margin-top:4px"></span>
+          </div>
+
+          <div style="margin-bottom:12px">
+            <label style="display:block;font-size:12px;font-weight:600;color:var(--color-text-muted);margin-bottom:6px">自定义 CSS（可选）</label>
+            <textarea
+              id="css-input"
+              spellcheck="false"
+              placeholder="/* 可选：额外的 CSS 样式 */"
+              style="width:100%;height:100px;padding:16px;border-radius:12px;border:1.5px solid var(--color-border);background:color-mix(in srgb, var(--color-text) 3%, var(--color-bg));color:var(--color-text);font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;resize:vertical;outline:none;transition:border-color 0.2s"
+            ></textarea>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div>
+              <label style="display:block;font-size:12px;font-weight:600;color:var(--color-text-muted);margin-bottom:4px">主题名称 *</label>
+              <input id="name-input" type="text" maxlength="100" placeholder="如: 霓虹都市" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1.5px solid var(--color-border);background:color-mix(in srgb, var(--color-surface) 30%, transparent);color:var(--color-text);font-size:13px;font-family:inherit;outline:none;transition:border-color 0.2s" />
+            </div>
+            <div>
+              <label style="display:block;font-size:12px;font-weight:600;color:var(--color-text-muted);margin-bottom:4px">作者署名 *</label>
+              <input id="author-input" type="text" maxlength="50" placeholder="你的昵称" style="width:100%;height:42px;padding:0 12px;border-radius:10px;border:1.5px solid var(--color-border);background:color-mix(in srgb, var(--color-surface) 30%, transparent);color:var(--color-text);font-size:13px;font-family:inherit;outline:none;transition:border-color 0.2s" />
+            </div>
+          </div>
+
+          <button id="btn-submit" class="btn btn-primary" style="width:100%;height:46px;font-size:14px" disabled>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v10M4 8l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            提交到社区主题池
+          </button>
+
+          <!-- Submit result -->
+          <div id="submit-result" style="display:none;margin-top:16px"></div>
+        </div>
+
+        <!-- Recently submitted (from this session) -->
+        <div id="recent-section" style="display:none;margin-top:20px">
+          <p style="font-size:12px;font-weight:600;color:var(--color-text-muted);margin-bottom:8px">本次提交记录</p>
+          <div id="recent-list" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Live Preview -->
+      <div style="position:sticky;top:80px">
+        <p style="font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;margin-bottom:12px">实时预览</p>
+
+        <div id="preview-shell" style="border-radius:20px;overflow:hidden;border:2px solid var(--color-border);background:var(--color-bg);min-height:400px;transition:all 0.3s">
+          <div style="padding:12px 16px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--color-border);background:color-mix(in srgb, var(--color-surface) 40%, transparent)">
+            <span style="width:10px;height:10px;border-radius:50%;background:#ff5f57"></span>
+            <span style="width:10px;height:10px;border-radius:50%;background:#ffbd2e"></span>
+            <span style="width:10px;height:10px;border-radius:50%;background:#28ca41"></span>
+            <span style="margin-left:8px;font-size:11px;color:var(--color-text-muted)">Theme Preview</span>
+          </div>
+          <div id="preview-content" style="padding:28px">
+            <p style="text-align:center;color:var(--color-text-muted);font-size:14px;padding:60px 0">
+              粘贴或导入主题 JSON <br/>即可在此实时预览
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+</Layout>
+
+<style>
+  #vars-input:focus, #css-input:focus, #name-input:focus, #author-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 10%, transparent);
+  }
+  #btn-submit:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+  #btn-submit.loading {
+    pointer-events: none;
+    opacity: 0.7;
+  }
+  @media (max-width: 768px) {
+    [style*="grid-template-columns:1fr 1fr"] {
+      grid-template-columns: 1fr !important;
+    }
+  }
+</style>
+
+<script>
+  let currentVars: Record<string, string> | null = null;
+  let currentCss = '';
+  let previewStyle: HTMLStyleElement | null = null;
+  let submitting = false;
+
+  const $ = (sel: string) => document.getElementById(sel)!;
+
+  function showError(msg: string) {
+    const el = $('vars-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+  function clearError() {
+    $('vars-error').style.display = 'none';
+  }
+
+  function validateVars(vars: any): vars is Record<string, string> {
+    if (!vars || typeof vars !== 'object' || Array.isArray(vars)) return false;
+    const keys = Object.keys(vars);
+    if (keys.length < 5) return false;
+    for (const [k, v] of Object.entries(vars)) {
+      if (typeof k !== 'string' || typeof v !== 'string') return false;
+      if (!k.startsWith('--')) return false;
+    }
+    return true;
+  }
+
+  function updatePreview(vars: Record<string, string> | null, css: string) {
+    currentVars = vars;
+    currentCss = css;
+
+    const content = $('preview-content');
+    if (!vars) {
+      content.innerHTML = '<p style="text-align:center;color:var(--color-text-muted);font-size:14px;padding:60px 0">粘贴或导入主题 JSON <br/>即可在此实时预览</p>';
+      if (previewStyle) { previewStyle.remove(); previewStyle = null; }
+      updateSubmitBtn();
+      return;
+    }
+
+    // Inject preview CSS vars into a shadow-like scoped container
+    const varsCSS = Object.entries(vars).map(([k, v]) => `${k}:${v}`).join(';');
+    const primary = vars['--color-primary'] || '#6366f1';
+    const secondary = vars['--color-secondary'] || '#8b5cf6';
+    const accent = vars['--color-accent'] || '#06b6d4';
+    const bg = vars['--color-bg'] || '#0f0f23';
+    const surface = vars['--color-surface'] || bg;
+    const text = vars['--color-text'] || '#f4f4f5';
+    const muted = vars['--color-text-muted'] || '#71717a';
+    const border = vars['--color-border'] || 'rgba(255,255,255,0.1)';
+
+    const scopeClass = 'pv-scope-' + Date.now();
+    content.innerHTML = `
+      <div class="${scopeClass}" style="${varsCSS};color:${text}">
+        <div style="margin-bottom:16px">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${primary};margin-right:8px"></span>
+          <span style="font-size:11px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:${muted}">Theme Preview</span>
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+          <div style="flex:1;min-width:60px;padding:16px;border-radius:14px;background:${primary};color:#fff;text-align:center;font-size:12px;font-weight:700;box-shadow:0 4px 16px ${primary}44">Primary</div>
+          <div style="flex:1;min-width:60px;padding:16px;border-radius:14px;background:${secondary};color:#fff;text-align:center;font-size:12px;font-weight:700">Secondary</div>
+          <div style="flex:1;min-width:60px;padding:16px;border-radius:14px;background:${accent};color:#fff;text-align:center;font-size:12px;font-weight:700">Accent</div>
+        </div>
+
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px">
+          ${['--color-primary','--color-secondary','--color-accent','--color-bg','--color-surface','--color-text','--color-text-muted'].map(vv => `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+              <span style="width:32px;height:32px;border-radius:8px;background:${vars[vv]};border:1.5px solid ${border}"></span>
+              <span style="font-size:8px;font-family:'JetBrains Mono',monospace;color:${muted}">${vv.replace('--color-','')}</span>
+            </div>
+          `).join('')}
+        </div>
+
+        <div style="padding:18px;border-radius:14px;background:${surface};border:1px solid ${border};margin-bottom:14px">
+          <div style="font-weight:700;font-size:14px;color:${text}">卡片示例</div>
+          <div style="font-size:13px;color:${muted};margin-top:4px;line-height:1.5">使用 muted 颜色区分信息层级，这里展示主题在卡片中的表现效果。</div>
+        </div>
+
+        <div style="display:flex;gap:8px">
+          <div style="padding:8px 18px;border-radius:10px;background:${primary};color:#fff;font-size:12px;font-weight:600">主按钮</div>
+          <div style="padding:8px 18px;border-radius:10px;border:1.5px solid ${border};color:${text};font-size:12px;font-weight:600">次按钮</div>
+          <div style="padding:8px 18px;border-radius:10px;color:${muted};font-size:12px;font-weight:600">文字按钮</div>
+        </div>
+      </div>
+    `;
+
+    if (previewStyle) previewStyle.remove();
+    if (css) {
+      previewStyle = document.createElement('style');
+      previewStyle.textContent = css;
+      document.head.appendChild(previewStyle);
+    }
+
+    updateSubmitBtn();
+  }
+
+  function updateSubmitBtn() {
+    const btn = $('btn-submit') as HTMLButtonElement;
+    const name = ($('name-input') as HTMLInputElement).value.trim();
+    const author = ($('author-input') as HTMLInputElement).value.trim();
+    btn.disabled = !currentVars || !name || !author || submitting;
+  }
+
+  // ─── Import from clipboard ───
+  $('btn-import').addEventListener('click', async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      let data: any;
+      try { data = JSON.parse(text); } catch { showError('剪贴板内容不是有效 JSON'); return; }
+
+      // Accept { cssVars: {...}, customCss: "..." } wrapper OR raw cssVars
+      let vars = data;
+      let css = '';
+      if (data.cssVars && typeof data.cssVars === 'object') {
+        vars = data.cssVars;
+        css = data.customCss || '';
+      }
+
+      if (!validateVars(vars)) {
+        showError('JSON 格式无效：需要 --color-primary, --color-bg 等 CSS 变量');
+        return;
+      }
+
+      clearError();
+      ($('vars-input') as HTMLTextAreaElement).value = JSON.stringify(vars, null, 2);
+      ($('css-input') as HTMLTextAreaElement).value = css;
+      updatePreview(vars, css);
+      (window as any).__toast?.('主题已导入');
+    } catch {
+      showError('无法读取剪贴板，请手动粘贴');
+    }
+  });
+
+  // ─── Live preview on input ───
+  let varsDebounce: number;
+  $('vars-input').addEventListener('input', () => {
+    clearTimeout(varsDebounce);
+    varsDebounce = window.setTimeout(() => {
+      const raw = ($('vars-input') as HTMLTextAreaElement).value.trim();
+      if (!raw) {
+        updatePreview(null, '');
+        clearError();
+        return;
+      }
+      try {
+        const vars = JSON.parse(raw);
+        if (!validateVars(vars)) {
+          showError('JSON 必须包含 --color- 开头的 CSS 变量');
+          updatePreview(null, '');
+          return;
+        }
+        clearError();
+        const css = ($('css-input') as HTMLTextAreaElement).value;
+        updatePreview(vars, css);
+      } catch {
+        showError('JSON 解析错误');
+        updatePreview(null, '');
+      }
+    }, 350);
+  });
+
+  let cssDebounce: number;
+  $('css-input').addEventListener('input', () => {
+    clearTimeout(cssDebounce);
+    cssDebounce = window.setTimeout(() => {
+      if (currentVars) {
+        updatePreview(currentVars, ($('css-input') as HTMLTextAreaElement).value);
+      }
+    }, 350);
+  });
+
+  $('name-input').addEventListener('input', updateSubmitBtn);
+  $('author-input').addEventListener('input', updateSubmitBtn);
+
+  // ─── Submit ───
+  $('btn-submit').addEventListener('click', async () => {
+    const btn = $('btn-submit') as HTMLButtonElement;
+    if (btn.disabled || !currentVars || submitting) return;
+
+    const name = ($('name-input') as HTMLInputElement).value.trim();
+    const author = ($('author-input') as HTMLInputElement).value.trim();
+    const css = ($('css-input') as HTMLTextAreaElement).value.trim();
+
+    submitting = true;
+    btn.classList.add('loading');
+    btn.innerHTML = '<span class="spinner"></span> 提交中…';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch('/api/diy/submit.json', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          author,
+          cssVars: currentVars,
+          customCss: css || undefined,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.theme) {
+        // Show success
+        const resultEl = $('submit-result');
+        resultEl.style.display = 'block';
+        const shareUrl = `${location.origin}/share?id=${data.theme.id}`;
+        resultEl.innerHTML = `
+          <div style="padding:18px;border-radius:14px;background:color-mix(in srgb, #22c55e 12%, transparent);border:1px solid #22c55e44">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+              <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#22c55e" stroke-width="1.5"/><path d="M5 8l2 2 4-4" stroke="#22c55e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span style="font-weight:700;font-size:14px;color:#22c55e">提交成功！</span>
+            </div>
+            <div style="font-size:13px;margin-bottom:6px;color:var(--color-text)">
+              分享码: <code style="font-weight:700;font-size:14px;color:var(--color-primary)">${data.theme.id}</code>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <input readonly value="${shareUrl}" style="flex:1;min-width:200px;height:34px;padding:0 10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:12px;font-family:'JetBrains Mono',monospace" onclick="this.select()" />
+              <button class="btn btn-outline copy-share-btn" data-url="${shareUrl}" data-code="${data.theme.id}" style="height:34px;padding:0 14px;font-size:12px;white-space:nowrap">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6v8a2 2 0 002 2h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                复制
+              </button>
+              <a href="/share?id=${data.theme.id}" class="btn btn-primary" style="height:34px;padding:0 14px;font-size:12px;text-decoration:none;white-space:nowrap">查看</a>
+            </div>
+          </div>
+        `;
+
+        // Add to recent
+        const recentSection = $('recent-section');
+        recentSection.style.display = 'block';
+        const recentList = $('recent-list');
+        const item = document.createElement('div');
+        item.className = 'card card-interact';
+        item.style.cssText = 'padding:12px 16px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px';
+        item.innerHTML = `
+          <div>
+            <span style="font-weight:700">${escapeHtml(name)}</span>
+            <span style="color:var(--color-text-muted);margin-left:8px;font-family:'JetBrains Mono',monospace;font-size:11px">${data.theme.id}</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <span style="font-size:11px;color:var(--color-text-muted)">${escapeHtml(author)}</span>
+            <a href="/share?id=${data.theme.id}" style="font-size:12px;color:var(--color-primary);font-weight:600;text-decoration:none">预览</a>
+          </div>
+        `;
+        recentList.insertBefore(item, recentList.firstChild);
+
+        // Reset form
+        ($('name-input') as HTMLInputElement).value = '';
+        ($('author-input') as HTMLInputElement).value = '';
+      } else {
+        const resultEl = $('submit-result');
+        resultEl.style.display = 'block';
+        resultEl.innerHTML = `<div style="padding:14px;border-radius:12px;background:color-mix(in srgb, #ef4444 10%, transparent);border:1px solid #ef444444;color:#ef4444;font-size:13px;font-weight:600">提交失败: ${escapeHtml(data.error || '未知错误')}</div>`;
+      }
+    } catch {
+      const resultEl = $('submit-result');
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = `<div style="padding:14px;border-radius:12px;background:color-mix(in srgb, #ef4444 10%, transparent);border:1px solid #ef444444;color:#ef4444;font-size:13px;font-weight:600">网络错误，请稍后重试</div>`;
+    } finally {
+      submitting = false;
+      btn.classList.remove('loading');
+      btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v10M4 8l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> 提交到社区主题池`;
+      updateSubmitBtn();
+    }
+  });
+
+  // ─── Copy share button (delegated) ───
+  document.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest('.copy-share-btn') as HTMLElement | null;
+    if (!btn) return;
+    const url = btn.dataset.url || '';
+    navigator.clipboard.writeText(url).then(() => {
+      const orig = btn.innerHTML;
+      btn.innerHTML = '已复制';
+      btn.style.color = '#22c55e';
+      setTimeout(() => { btn.innerHTML = orig; btn.style.color = ''; }, 1500);
+    });
+  });
+
+  function escapeHtml(s: string) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Spinner style
+  const spinnerCSS = document.createElement('style');
+  spinnerCSS.textContent = `
+    .spinner {
+      display:inline-block;width:16px;height:16px;
+      border:2px solid rgba(255,255,255,0.3);
+      border-top-color:#fff;
+      border-radius:50%;
+      animation:spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  `;
+  document.head.appendChild(spinnerCSS);
+</script>

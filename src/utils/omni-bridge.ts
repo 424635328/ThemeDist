@@ -1,5 +1,6 @@
 import OmniConfig from '../api/index_config.js';
 import type { ComposedTheme, ThemeExtension } from '../themes/types';
+import { isReady, zrevrange, get } from '../lib/redis';
 
 interface OmniThemeEntry {
   id: string;
@@ -176,4 +177,53 @@ function lightenDarken(hex: string, amount: number): string {
   const g = Math.min(255, Math.max(0, parseInt(c.slice(2, 4), 16) + Math.round(amount * 255)));
   const b = Math.min(255, Math.max(0, parseInt(c.slice(4, 6), 16) + Math.round(amount * 255)));
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+/** Community theme from Redis, in ComposedTheme shape */
+interface CommunityThemeRaw {
+  id: string;
+  name: string;
+  author: string;
+  createdAt: number;
+  likes: number;
+  cssVars: Record<string, string>;
+  customCss: string | null;
+}
+
+function communityToComposed(ct: CommunityThemeRaw): ComposedTheme {
+  return {
+    preset: `community-${ct.id}`,
+    presetName: ct.name,
+    cssVars: ct.cssVars,
+    customCss: ct.customCss || undefined,
+  };
+}
+
+const COMMUNITY_NEWEST_KEY = 'td:themes:by_newest';
+
+/**
+ * Load community themes from Redis. Returns [] on any failure.
+ * This is designed to never throw—DB outage must not break the site.
+ */
+export async function getCommunityThemes(limit: number = 50): Promise<ComposedTheme[]> {
+  try {
+    if (!isReady() || limit <= 0) return [];
+
+    const ids = await zrevrange(COMMUNITY_NEWEST_KEY, 0, limit - 1) as string[];
+    if (!ids || ids.length === 0) return [];
+
+    const themes: ComposedTheme[] = [];
+    for (const id of ids) {
+      try {
+        const raw = await get(`td:theme:${id}`);
+        if (raw) {
+          const ct: CommunityThemeRaw = JSON.parse(raw);
+          themes.push(communityToComposed(ct));
+        }
+      } catch { /* skip broken entries */ }
+    }
+    return themes;
+  } catch {
+    return [];
+  }
 }

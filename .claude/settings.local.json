@@ -26,7 +26,15 @@
       "Bash(sed 's/<\\\\/script>$//')",
       "Bash(node --check /tmp/tb-script.js)",
       "Bash(git *)",
-      "Bash(node --check -)"
+      "Bash(node --check -)",
+      "Bash(npm config *)",
+      "Bash(curl -s http://localhost:4322/)",
+      "Bash(curl -s http://localhost:4322/submit/)",
+      "Bash(curl -s http://localhost:4322/share?id=test123)",
+      "Bash(curl -s http://localhost:4322/theme-store/)",
+      "Bash(curl -s http://localhost:4322/api/diy/themes.json)",
+      "Bash(curl -s http://localhost:4322/share)",
+      "Bash(pkill -f \"astro dev\")"
     ]
   }
 }

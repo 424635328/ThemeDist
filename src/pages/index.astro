@@ -27,7 +27,7 @@ const accent = today.cssVars['--color-accent'];
     </h1>
 
     <p class="t-subhead reveal reveal-d2" style="max-width:540px;margin:28px auto 0;font-size:1.15rem">
-      聚合 {allThemes.length}+ 套预设，融合农历节气与公历节日，<br/>
+      聚合 {allThemes.length}+ 套预设<span id="community-count"></span>，融合农历节气与公历节日，<br/>
       每日自动轮换。你的站点，只需一个请求。
     </p>
 
@@ -206,3 +206,15 @@ fetch('/api/today.json')
     </div>
   </section>
 </Layout>
+
+<script>
+  fetch('/api/diy/themes.json?size=1')
+    .then(r => r.json())
+    .then(data => {
+      if (data.dbAvailable && data.total > 0) {
+        const el = document.getElementById('community-count');
+        if (el) el.textContent = ` + ${data.total} 个社区主题`;
+      }
+    })
+    .catch(() => {});
+</script>

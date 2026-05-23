@@ -120,6 +120,17 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
       <span class="chip-divider"></span>
       <button class="chip" data-filter="warm" aria-pressed="false">暖色 <span class="chip-count">{warmCount}</span></button>
       <button class="chip" data-filter="cool" aria-pressed="false">冷色 <span class="chip-count">{coolCount}</span></button>
+      <span class="chip-divider"></span>
+      <button class="chip" data-filter="community" aria-pressed="false">社区 <span class="chip-count" id="community-chip-count">-</span></button>
+    </div>
+
+    <!-- Community sort (only visible when community tab active) -->
+    <div id="community-sort" style="display:none;max-width:1120px;margin:0 auto 16px">
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-size:12px;color:var(--color-text-muted);font-weight:500">排序：</span>
+        <button class="comm-sort-btn comm-sort-active" data-comm-sort="new">最新</button>
+        <button class="comm-sort-btn" data-comm-sort="hot">最热</button>
+      </div>
     </div>
 
     <!-- Result count -->
@@ -207,8 +218,15 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
       })}
     </div>
 
+    <!-- Community grid (populated by JS) -->
+    <div class="grid-auto" id="community-grid" style="display:none;max-width:1120px;margin:0 auto"></div>
+
     <!-- Empty state -->
     <p id="no-results" class="empty-state" hidden>未找到匹配的主题 — <a href="?" class="empty-link">清除所有筛选</a></p>
+    <p id="community-empty" class="empty-state" hidden>
+      暂无社区主题 —
+      <a href="/submit" class="empty-link">提交第一个</a>
+    </p>
 
     <!-- Load more sentinel -->
     <div id="load-sentinel" class="load-sentinel" aria-hidden="true"></div>
@@ -618,6 +636,56 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
   }
 
   /* ── Responsive ── */
+  /* Community sort buttons */
+  .comm-sort-btn {
+    padding: 5px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .comm-sort-btn:hover { border-color: var(--color-primary); color: var(--color-text); }
+  .comm-sort-active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+  }
+  .comm-sort-active:hover { color: #fff; }
+
+  /* Community card extras */
+  .comm-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--color-text-muted);
+  }
+  .comm-like-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 11px;
+    font-family: inherit;
+    font-weight: 500;
+    transition: all 0.15s;
+    margin-left: auto;
+  }
+  .comm-like-btn:hover { border-color: #ef444444; color: #ef4444; }
+  .comm-like-btn.liked { color: #ef4444; }
+  .comm-like-btn.liked svg path { fill: #ef4444; stroke: #ef4444; }
+
   @media (max-width: 640px) {
     .store-controls {
       flex-direction: column;
@@ -931,4 +999,260 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
       (b as HTMLElement).style.display = 'none';
     });
   }
+
+  // ══════════════════════════════════════
+  // Community themes
+  // ══════════════════════════════════════
+  const communityGrid = document.getElementById('community-grid')!;
+  const communityEmpty = document.getElementById('community-empty')!;
+  const communitySort = document.getElementById('community-sort')!;
+  const communityChipCount = document.getElementById('community-chip-count')!;
+  let commSort: 'new' | 'hot' = 'new';
+  let commPage = 1;
+  let commTotal = 0;
+  let commLoaded: any[] = [];
+
+  function isCommunityMode(): boolean {
+    return activeFilter === 'community';
+  }
+
+  function renderCommunityCard(t: any): string {
+    const v = t.cssVars;
+    const p = v['--color-primary'] || '#6366f1';
+    const s = v['--color-secondary'] || '#8b5cf6';
+    const a = v['--color-accent'] || '#06b6d4';
+    const bg = v['--color-bg'] || '#0f0f23';
+    const tx = v['--color-text'] || '#f4f4f5';
+    const d = new Date(t.createdAt);
+    const dateStr = d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+    const likeKey = `td-like-${t.id}`;
+    const liked = localStorage.getItem(likeKey) === '1';
+
+    return `
+      <div class="card card-interact theme-card" data-comm-id="${escapeAttr(t.id)}">
+        <div class="card-color-bar" aria-hidden="true">
+          <div class="color-bar-seg" style="flex:3;background:${p}"></div>
+          <div class="color-bar-seg" style="flex:1.5;background:${s}"></div>
+          <div class="color-bar-seg" style="flex:0.8;background:${a}"></div>
+          <div class="color-bar-seg" style="flex:2;background:${bg}"></div>
+          <div class="color-bar-seg" style="flex:1.2;background:${tx}"></div>
+        </div>
+        <div class="card-body">
+          <div class="card-header">
+            <h3 class="card-title">${escapeHtml(t.name)}</h3>
+            <div class="card-badges">
+              <span class="badge" style="background:color-mix(in srgb, var(--color-primary) 14%, transparent);color:var(--color-primary);font-weight:600">社区</span>
+            </div>
+          </div>
+          <div class="swatch-row">
+            ${[
+              { v: '--color-primary', l: 'P' },
+              { v: '--color-secondary', l: 'S' },
+              { v: '--color-accent', l: 'A' },
+              { v: '--color-bg', l: 'Bg' },
+              { v: '--color-text', l: 'Tx' },
+            ].map(({ v: vk, l }) => `
+              <button class="color-dot" data-color="${v[vk] || p}" title="${vk}: ${v[vk] || '—'} — 点击复制" aria-label="复制 ${vk}" style="background:${v[vk] || p};--dot-border:${vk === '--color-bg' ? 'var(--color-border)' : 'transparent'}">
+                <span class="dot-label" style="color:${vk === '--color-text' ? bg : tx};text-shadow:0 0 2px ${bg}">${l}</span>
+              </button>
+            `).join('')}
+            <span class="card-hex">${p}</span>
+          </div>
+          <div class="comm-card-meta">
+            <span>${escapeHtml(t.author)}</span>
+            <span>·</span>
+            <span>${dateStr}</span>
+            <span>·</span>
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="vertical-align:-1px"><path d="M8 14s-6-3.5-6-7.5a3.5 3.5 0 016-2.2 3.5 3.5 0 016 2.2C14 10.5 8 14 8 14z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="comm-like-num">${t.likes}</span>
+            <button class="comm-like-btn ${liked ? 'liked' : ''}" data-comm-like="${escapeAttr(t.id)}">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 14s-6-3.5-6-7.5a3.5 3.5 0 016-2.2 3.5 3.5 0 016 2.2C14 10.5 8 14 8 14z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              ${liked ? '已赞' : '点赞'}
+            </button>
+          </div>
+          <div class="card-actions">
+            <a href="/share?id=${escapeAttr(t.id)}" class="btn-card btn-card-primary">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/></svg>
+              预览
+            </a>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  async function loadCommunityThemes(page: number) {
+    if (!isCommunityMode()) return;
+    try {
+      const res = await fetch(`/api/diy/themes.json?sort=${commSort}&page=${page}&size=20`);
+      const data = await res.json();
+      if (data.themes) {
+        if (page === 1) {
+          commLoaded = data.themes;
+          communityGrid.innerHTML = '';
+        } else {
+          commLoaded = commLoaded.concat(data.themes);
+        }
+        commTotal = data.total;
+
+        const html = data.themes.map(renderCommunityCard).join('');
+        communityGrid.insertAdjacentHTML('beforeend', html);
+        communityGrid.style.display = '';
+        communityEmpty.hidden = commTotal > 0 || page > 1;
+        sentinel.style.display = commLoaded.length < commTotal ? '' : 'none';
+      }
+    } catch {
+      communityEmpty.hidden = false;
+    }
+  }
+
+  function switchToCommunity() {
+    // Hide regular grid
+    const allCards = getAllCards();
+    allCards.forEach(c => c.style.display = 'none');
+    (document.getElementById('no-results')! as HTMLElement).hidden = true;
+
+    communitySort.style.display = '';
+    communityGrid.style.display = '';
+    commPage = 1;
+    loadCommunityThemes(1);
+
+    // Disable regular sort while in community mode
+    (document.getElementById('sort-dropdown')! as HTMLElement).style.display = 'none';
+    search.value = '';
+    clearBtn.hidden = true;
+    resultCount.textContent = '';
+  }
+
+  function switchToRegular() {
+    communitySort.style.display = 'none';
+    communityGrid.style.display = 'none';
+    communityEmpty.hidden = true;
+    (document.getElementById('sort-dropdown')! as HTMLElement).style.display = '';
+    refresh();
+  }
+
+  // Override chip click behavior for community
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      const filter = chip.dataset.filter!;
+      if (filter === 'community') {
+        if (activeFilter !== 'community') {
+          activeFilter = 'community';
+          chips.forEach(c => {
+            c.classList.toggle('chip-active', c.dataset.filter === filter);
+            c.setAttribute('aria-pressed', String(c.dataset.filter === filter));
+          });
+          switchToCommunity();
+        }
+      } else if (activeFilter === 'community') {
+        // Leaving community mode
+        activeFilter = filter;
+        chips.forEach(c => {
+          c.classList.toggle('chip-active', c.dataset.filter === filter);
+          c.setAttribute('aria-pressed', String(c.dataset.filter === filter));
+        });
+        switchToRegular();
+      }
+      // If not in community mode and not switching to community, the original handler runs
+    });
+  });
+
+  // Ensure the leaf chip handler runs AFTER the community check
+  // Remove original chip listeners that conflict
+  chips.forEach(chip => {
+    const orig = chip.onclick;
+    if (orig) chip.removeEventListener('click', orig as any);
+    // The handler above covers all cases
+  });
+
+  // Community sort buttons
+  communitySort.querySelectorAll('.comm-sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sort = btn.getAttribute('data-comm-sort') as 'new' | 'hot';
+      if (sort === commSort) return;
+      commSort = sort;
+      communitySort.querySelectorAll('.comm-sort-btn').forEach(b => {
+        b.classList.toggle('comm-sort-active', b.getAttribute('data-comm-sort') === sort);
+      });
+      commPage = 1;
+      loadCommunityThemes(1);
+    });
+  });
+
+  // Community like button delegation
+  communityGrid.addEventListener('click', async (e) => {
+    const btn = (e.target as HTMLElement).closest('[data-comm-like]') as HTMLElement | null;
+    if (!btn) return;
+    e.preventDefault();
+    const id = btn.getAttribute('data-comm-like')!;
+    const likeKey = `td-like-${id}`;
+    if (localStorage.getItem(likeKey) === '1') {
+      (window as any).__toast?.('你已经点过赞了');
+      return;
+    }
+    try {
+      const res = await fetch('/api/diy/like.json', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      // Update count in card
+      const card = btn.closest('.theme-card')!;
+      const numEl = card.querySelector('.comm-like-num');
+      if (numEl) numEl.textContent = data.likes;
+      btn.classList.add('liked');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 14s-6-3.5-6-7.5a3.5 3.5 0 016-2.2 3.5 3.5 0 016 2.2C14 10.5 8 14 8 14z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> 已赞`;
+      localStorage.setItem(likeKey, '1');
+      // Update in commLoaded too
+      const idx = commLoaded.findIndex((t: any) => t.id === id);
+      if (idx >= 0) commLoaded[idx].likes = data.likes;
+    } catch {
+      (window as any).__toast?.('点赞失败');
+    }
+  });
+
+  // Community card color dot copy (reuse existing handler which works by delegation)
+  // The existing grid click handler does this, but communityGrid is separate
+  communityGrid.addEventListener('click', (e) => {
+    const dot = (e.target as HTMLElement).closest('.color-dot') as HTMLElement | null;
+    if (!dot) return;
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(dot.dataset.color || '').then(() => {
+      (window as any).__toast?.(`${dot.dataset.color} 已复制`);
+    }).catch(() => {});
+  });
+
+  // Modified sentinel observer to also load community batches
+  const origLoadBatch = loadBatch;
+  const io2 = new IntersectionObserver((entries) => {
+    if (!entries[0].isIntersecting) return;
+    if (isCommunityMode()) {
+      if (commLoaded.length < commTotal) {
+        commPage++;
+        loadCommunityThemes(commPage);
+      }
+    } else {
+      loadBatch();
+    }
+  }, { rootMargin: '400px' });
+  io2.observe(sentinel);
+
+  // Fetch community count on load
+  fetch('/api/diy/themes.json?size=1')
+    .then(r => r.json())
+    .then(data => {
+      if (data.dbAvailable) {
+        communityChipCount.textContent = String(data.total);
+      } else {
+        communityChipCount.textContent = '离线';
+      }
+    })
+    .catch(() => { communityChipCount.textContent = '离线'; });
+
+  function escapeHtml(s: string) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function escapeAttr(s: string) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 </script>
