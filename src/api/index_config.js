@@ -6139,242 +6139,232 @@ const OmniConfig = {
         <div class="omni-surprise-icon">🎁</div>
     </div>
 
-    <img src="x" style="display:none;" onerror="
-        if(!window.OmniBoxV2) {
-            window.OmniBoxV2 = {
-                // 1. 初始化检测
-                init: function(box) {
-                    if (!box || box.dataset.init) return;
-                    box.dataset.init = 'true';
-                    
-                    // 【关键修复点】：将盲盒脱离原本的挂载层(#omni-extensions, z-index:0)，
-                    // 提升到 document.body 下，避免被 main(z-index:1) 遮挡拦截点击事件。
-                    document.querySelectorAll('.omni-surprise-wrapper').forEach(el => {
-                        if (el !== box) el.remove(); // 清除切换主题时可能残留的旧盒子
-                    });
-                    document.body.appendChild(box); 
+    <script>
+        (function() {
+            if(!window.OmniBoxV2) {
+                window.OmniBoxV2 = {
+                    init: function(box) {
+                        if (!box || box.dataset.init) return;
+                        box.dataset.init = 'true';
 
-                    try {
-                        const todayStr = new Date().toLocaleDateString('en-CA');
-                        const lastOpened = localStorage.getItem('omni_surprise_opened_date');
-                        if (lastOpened === todayStr) {
-                            box.remove();
-                        } else {
-                            box.style.opacity = '1';
-                            box.style.pointerEvents = 'auto'; // 激活点击穿透
-                            box.style.animation = 'boxEntrance 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, floatSurpriseBox 3.5s ease-in-out infinite 0.8s';
-                        }
-                    } catch(e) {
-                        box.style.opacity = '1';
-                        box.style.pointerEvents = 'auto';
-                    }
-                },
-
-                // 2. 空间回音合成器 (Space Echo Audio Engine)
-                playMagicChime: function(baseFreq, isHighTier) {
-                    try {
-                        let ctx = new (window.AudioContext || window.webkitAudioContext)();
-                        const filter = ctx.createBiquadFilter();
-                        filter.type = 'lowpass';
-                        filter.frequency.value = 3500;
-                        
-                        // 创建空间延迟回音效果
-                        const delay = ctx.createDelay();
-                        delay.delayTime.value = 0.25;
-                        const feedback = ctx.createGain();
-                        feedback.gain.value = 0.3; // 回音衰减率
-                        delay.connect(feedback);
-                        feedback.connect(delay);
-                        delay.connect(ctx.destination);
-                        
-                        filter.connect(ctx.destination);
-                        filter.connect(delay); 
-
-                        const notes = isHighTier ? [baseFreq, baseFreq*1.25, baseFreq*1.5, baseFreq*2] : [baseFreq, baseFreq*1.25, baseFreq*1.5];
-                        
-                        notes.forEach((freq, i) => {
-                            const osc = ctx.createOscillator();
-                            const gain = ctx.createGain();
-                            osc.type = 'sine';
-                            osc.detune.value = (Math.random() - 0.5) * 15; 
-                            osc.frequency.setValueAtTime(freq, ctx.currentTime);
-                            
-                            gain.gain.setValueAtTime(0, ctx.currentTime);
-                            gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.05);
-                            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5 + i * 0.3);
-                            
-                            osc.connect(gain);
-                            gain.connect(filter);
-                            osc.start();
-                            osc.stop(ctx.currentTime + 3);
+                        document.querySelectorAll('.omni-surprise-wrapper').forEach(function(el) {
+                            if (el !== box) el.remove();
                         });
-                    } catch(e) {}
-                },
+                        document.body.appendChild(box);
 
-                // 3. 核心开箱逻辑
-                open: function(box) {
-                    if(box.dataset.clicked) return;
-                    box.dataset.clicked = 'true';
-                    
-                    // UI反馈：隐藏提示，蓄力动画
-                    const tooltip = box.querySelector('.omni-surprise-tooltip');
-                    if(tooltip) tooltip.style.opacity = '0';
-                    box.style.animation = 'boxCharge 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both';
-                    if(navigator.vibrate) navigator.vibrate(30);
-                    
-                    try { localStorage.setItem('omni_surprise_opened_date', new Date().toLocaleDateString('en-CA')); } catch(e) {}
-
-                    setTimeout(() => {
-                        if(navigator.vibrate) navigator.vibrate([60, 40, 80]);
-                        
-                        // 🌟 保底机制系统 (Pity System)
-                        let pity = parseInt(localStorage.getItem('omni_box_pity') || '0');
-                        let rawRoll = Math.random();
-                        let finalRoll = rawRoll + (pity * 0.015); 
-                        
-                        let rarity;
-                        if (finalRoll > 0.99) { rarity = 'mythic'; pity = 0; }
-                        else if (finalRoll > 0.88) { rarity = 'legendary'; pity = 0; }
-                        else if (finalRoll > 0.65) { rarity = 'epic'; pity = Math.max(0, pity - 3); }
-                        else if (finalRoll > 0.30) { rarity = 'rare'; pity += 1; }
-                        else { rarity = 'common'; pity += 2; }
-                        
-                        localStorage.setItem('omni_box_pity', pity.toString());
-
-                        const pools = {
-                            common: { color: '#4ade80', bg: 'rgba(255, 255, 255, 0.95)', textColor: '#14532d', emojis:['🍀', '☀️', '☕', '🍬', '🍃', '🌸', '🍵', '🍉'], msgs:['今日好运 +1 🍀', '代码无 BUG 🛡️', '喝杯水休息一下 ☕', '祝你今天开心 ☀️', '宜：摸鱼、发呆 🐟'], count: 20, baseSound: 523.25 },
-                            rare: { color: '#60a5fa', bg: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', textColor: '#1e3a8a', emojis:['✨', '🚀', '🎁', '🎉', '🌟', '🔮', '🌊', '💎'], msgs:['发现稀有彩蛋！🎁', '灵感爆棚的一天 🚀', '性能优化 +100% ✨', '编译一次通过！🎉'], count: 30, baseSound: 659.25 },
-                            epic: { color: '#c084fc', bg: 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 50%, #e9d5ff 100%)', textColor: '#581c87', emojis:['👾', '🦄', '🎸', '⚡', '🌌', '🦋', '🎆', '🌠'], msgs:['💜 史诗级掉落！紫气东来！', '⚡ 状态绝佳，键盘冒火星了！', '🌌 代码闪耀着宇宙的光芒！'], count: 50, baseSound: 783.99 },
-                            legendary: { color: '#fbbf24', bg: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 40%, #fde68a 100%)', textColor: '#92400e', emojis:['👑', '🔥', '🏆', '🐲', '💰', '🦁', '🥇'], msgs:['🌟 传说级运气！万事胜意！', '👑 SSR！今天你最全能！', '🔥 终极彩蛋：运气爆表了！'], count: 75, baseSound: 1046.50 },
-                            mythic: { color: '#f43f5e', bg: 'linear-gradient(135deg, #111827 0%, #4c1d95 50%, #9f1239 100%)', textColor: '#fecdd3', emojis:['☄️', '🧿', '💮', '🪐', '🖤', '🩸', '👁️‍🗨️', '🎇'], msgs:['☄️【神话级】奇迹降临！究极彩蛋！', '🌌 宇宙级别的幸运儿诞生了！', '❤️‍🔥 愿望成真，你就是天命之子！'], count: 100, baseSound: 1318.51 }
-                        };
-                        const config = pools[rarity];
-
-                        // 播放音效
-                        this.playMagicChime(config.baseSound, (rarity === 'legendary' || rarity === 'mythic'));
-
-                        // 盒子爆炸动画
-                        box.style.transition = 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s';
-                        box.style.transform = 'scale(2.2) rotate(' + (Math.random() > 0.5 ? 30 : -30) + 'deg)';
-                        box.style.opacity = '0';
-                        box.style.filter = 'brightness(3) drop-shadow(0 0 60px ' + config.color + ')';
-                        
-                        // 屏幕震动 CSS 注入
-                        document.body.classList.add('omni-screen-shake');
-                        setTimeout(() => document.body.classList.remove('omni-screen-shake'), 400);
-
-                        // 极品神光全屏闪烁
-                        if(rarity === 'legendary' || rarity === 'mythic') {
-                            let flashColor = rarity === 'mythic' ? 'radial-gradient(circle, rgba(244,63,94,0.4) 0%, transparent 80%)' : 'radial-gradient(circle, rgba(251,191,36,0.3) 0%, transparent 80%)';
-                            let flash = document.createElement('div');
-                            flash.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:' + flashColor + ';z-index:99997;pointer-events:none;transition:opacity 0.8s ease-out; mix-blend-mode: screen;';
-                            document.body.appendChild(flash);
-                            setTimeout(() => flash.style.opacity = '0', 50);
-                            setTimeout(() => flash.remove(), 850);
-                        }
-
-                        // DOM 粒子引擎
-                        const rect = box.getBoundingClientRect();
-                        const centerX = rect.left + rect.width / 2;
-                        const centerY = rect.top + rect.height / 2;
-                        const fragment = document.createDocumentFragment();
-
-                        for(let i = 0; i < config.count; i++) {
-                            let el = document.createElement('div');
-                            let isDot = Math.random() > 0.4;
-                            
-                            if(isDot) {
-                                let size = 4 + Math.random() * 10;
-                                el.style.width = el.style.height = size + 'px';
-                                el.style.background = config.color;
-                                el.style.borderRadius = (Math.random() > 0.5 ? '50%' : '3px');
-                                el.style.boxShadow = '0 0 15px ' + config.color;
+                        try {
+                            var todayStr = new Date().toLocaleDateString('en-CA');
+                            var lastOpened = localStorage.getItem('omni_surprise_opened_date');
+                            if (lastOpened === todayStr) {
+                                box.remove();
                             } else {
-                                el.innerText = config.emojis[Math.floor(Math.random() * config.emojis.length)];
-                                el.style.fontSize = (16 + Math.random() * 20) + 'px';
-                                if(Math.random() > 0.75) el.style.filter = 'blur(1.5px)';
+                                box.style.opacity = '1';
+                                box.style.pointerEvents = 'auto';
+                                box.style.animation = 'boxEntrance 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, floatSurpriseBox 3.5s ease-in-out infinite 0.8s';
                             }
-                            
-                            el.style.position = 'fixed';
-                            el.style.left = centerX + 'px';
-                            el.style.top = centerY + 'px';
-                            el.style.pointerEvents = 'none';
-                            el.style.zIndex = '99998';
-                            el.style.willChange = 'transform, opacity';
-                            el.style.transform = 'translate(-50%, -50%) scale(0)';
-                            fragment.appendChild(el);
-                            
-                            let angle = Math.random() * Math.PI * 2;
-                            let velocity = 80 + Math.random() * (rarity === 'mythic' ? 350 : (rarity === 'legendary' ? 280 : 180));
-                            let endX = Math.cos(angle) * velocity;
-                            let endY = Math.sin(angle) * velocity - (60 + Math.random() * 120); 
-                            let rot = Math.random() * 1080 - 540;
-                            let duration = 0.8 + Math.random() * 1.2;
-                            
-                            setTimeout(() => {
-                                el.style.transition = 'transform ' + (duration*0.4) + 's cubic-bezier(0.25, 1, 0.5, 1), opacity ' + duration + 's ease-out';
-                                el.style.transform = 'translate(calc(-50% + ' + endX + 'px), calc(-50% + ' + endY + 'px)) rotate(' + rot + 'deg) scale(' + (0.5 + Math.random()) + ')';
-                            }, 10);
-                            
-                            setTimeout(() => {
-                                el.style.transition = 'transform ' + (duration*0.6) + 's cubic-bezier(0.5, 0, 1, 1), opacity ' + (duration*0.5) + 's';
-                                el.style.transform = 'translate(calc(-50% + ' + endX + 'px), calc(-50% + ' + (endY + 250 + Math.random()*200) + 'px)) rotate(' + (rot+180) + 'deg) scale(0.1)';
-                                el.style.opacity = '0';
-                            }, duration * 400);
-                            
-                            setTimeout(() => el.remove(), duration * 1000 + 500);
+                        } catch(e) {
+                            box.style.opacity = '1';
+                            box.style.pointerEvents = 'auto';
                         }
-                        document.body.appendChild(fragment); 
-                        
-                        // 结果弹窗
-                        let msgWrap = document.createElement('div');
-                        msgWrap.setAttribute('role', 'alert');
-                        msgWrap.setAttribute('aria-live', 'assertive');
-                        msgWrap.style.cssText = 'position:fixed; left:' + centerX + 'px; top:' + centerY + 'px; transform:translate(-50%, -50%) scale(0.5); z-index:99999; opacity:0; pointer-events:none; transition:all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); will-change:transform, opacity;';
-                        
-                        let msgEl = document.createElement('div');
-                        msgEl.innerText = config.msgs[Math.floor(Math.random() * config.msgs.length)];
-                        msgEl.style.cssText = 'padding:16px 32px; border-radius:50px; font-size:17px; font-weight:900; letter-spacing:1px; white-space:nowrap; text-align:center; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.5); box-shadow:0 15px 40px rgba(0,0,0,0.15), 0 0 25px ' + config.color + '50;';
-                        msgEl.style.background = config.bg;
-                        msgEl.style.color = config.textColor;
-                        
-                        if (rarity === 'epic') {
-                            msgEl.style.border = '2px solid #c084fc';
-                            msgWrap.style.animation = 'legendaryFloat 2.5s ease-in-out infinite';
-                        } else if(rarity === 'legendary') {
-                            msgEl.style.border = '2px solid #fbbf24';
-                            msgEl.style.boxShadow = '0 15px 50px rgba(251,191,36,0.4), inset 0 0 20px rgba(255,255,255,0.9)';
-                            msgWrap.style.animation = 'legendaryFloat 2s ease-in-out infinite';
-                        } else if(rarity === 'mythic') {
-                            msgEl.style.border = '2px solid #f43f5e';
-                            msgEl.style.boxShadow = '0 15px 60px rgba(244,63,94,0.6), inset 0 0 25px rgba(255,255,255,0.4)';
-                            msgWrap.style.animation = 'legendaryFloat 1.5s ease-in-out infinite';
-                        }
-                        
-                        msgWrap.appendChild(msgEl);
-                        document.body.appendChild(msgWrap);
-                        
-                        setTimeout(() => { 
-                            msgWrap.style.opacity = '1'; 
-                            msgWrap.style.transform = 'translate(-50%, -190px) scale(1)'; 
-                        }, 50);
-                        
-                        setTimeout(() => { 
-                            msgWrap.style.transition = 'all 0.5s cubic-bezier(0.55, 0.085, 0.68, 0.53)';
-                            msgWrap.style.opacity = '0'; 
-                            msgWrap.style.transform = 'translate(-50%, -240px) scale(0.8)'; 
-                            setTimeout(() => msgWrap.remove(), 500); 
-                        }, 4000); 
-                        
-                        setTimeout(() => box.remove(), 600);
+                    },
 
-                    }, 400); 
-                }
-            };
-        }
-        window.OmniBoxV2.init(this.previousElementSibling);
-        this.remove();
-    ">
+                    playMagicChime: function(baseFreq, isHighTier) {
+                        try {
+                            var ctx = new (window.AudioContext || window.webkitAudioContext)();
+                            var filter = ctx.createBiquadFilter();
+                            filter.type = 'lowpass';
+                            filter.frequency.value = 3500;
+
+                            var delay = ctx.createDelay();
+                            delay.delayTime.value = 0.25;
+                            var feedback = ctx.createGain();
+                            feedback.gain.value = 0.3;
+                            delay.connect(feedback);
+                            feedback.connect(delay);
+                            delay.connect(ctx.destination);
+
+                            filter.connect(ctx.destination);
+                            filter.connect(delay);
+
+                            var notes = isHighTier ? [baseFreq, baseFreq*1.25, baseFreq*1.5, baseFreq*2] : [baseFreq, baseFreq*1.25, baseFreq*1.5];
+
+                            notes.forEach(function(freq, i) {
+                                var osc = ctx.createOscillator();
+                                var gain = ctx.createGain();
+                                osc.type = 'sine';
+                                osc.detune.value = (Math.random() - 0.5) * 15;
+                                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+                                gain.gain.setValueAtTime(0, ctx.currentTime);
+                                gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.05);
+                                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5 + i * 0.3);
+
+                                osc.connect(gain);
+                                gain.connect(filter);
+                                osc.start();
+                                osc.stop(ctx.currentTime + 3);
+                            });
+                        } catch(e) {}
+                    },
+
+                    open: function(box) {
+                        if(box.dataset.clicked) return;
+                        box.dataset.clicked = 'true';
+
+                        var tooltip = box.querySelector('.omni-surprise-tooltip');
+                        if(tooltip) tooltip.style.opacity = '0';
+                        box.style.animation = 'boxCharge 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both';
+                        if(navigator.vibrate) navigator.vibrate(30);
+
+                        try { localStorage.setItem('omni_surprise_opened_date', new Date().toLocaleDateString('en-CA')); } catch(e) {}
+
+                        setTimeout(function() {
+                            if(navigator.vibrate) navigator.vibrate([60, 40, 80]);
+
+                            var pity = parseInt(localStorage.getItem('omni_box_pity') || '0');
+                            var rawRoll = Math.random();
+                            var finalRoll = rawRoll + (pity * 0.015);
+
+                            var rarity;
+                            if (finalRoll > 0.99) { rarity = 'mythic'; pity = 0; }
+                            else if (finalRoll > 0.88) { rarity = 'legendary'; pity = 0; }
+                            else if (finalRoll > 0.65) { rarity = 'epic'; pity = Math.max(0, pity - 3); }
+                            else if (finalRoll > 0.30) { rarity = 'rare'; pity += 1; }
+                            else { rarity = 'common'; pity += 2; }
+
+                            localStorage.setItem('omni_box_pity', pity.toString());
+
+                            var pools = {
+                                common: { color: '#4ade80', bg: 'rgba(255, 255, 255, 0.95)', textColor: '#14532d', emojis:['🍀', '☀️', '☕', '🍬', '🍃', '🌸', '🍵', '🍉'], msgs:['今日好运 +1 🍀', '代码无 BUG 🛡️', '喝杯水休息一下 ☕', '祝你今天开心 ☀️', '宜：摸鱼、发呆 🐟'], count: 20, baseSound: 523.25 },
+                                rare: { color: '#60a5fa', bg: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', textColor: '#1e3a8a', emojis:['✨', '🚀', '🎁', '🎉', '🌟', '🔮', '🌊', '💎'], msgs:['发现稀有彩蛋！🎁', '灵感爆棚的一天 🚀', '性能优化 +100% ✨', '编译一次通过！🎉'], count: 30, baseSound: 659.25 },
+                                epic: { color: '#c084fc', bg: 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 50%, #e9d5ff 100%)', textColor: '#581c87', emojis:['👾', '🦄', '🎸', '⚡', '🌌', '🦋', '🎆', '🌠'], msgs:['💜 史诗级掉落！紫气东来！', '⚡ 状态绝佳，键盘冒火星了！', '🌌 代码闪耀着宇宙的光芒！'], count: 50, baseSound: 783.99 },
+                                legendary: { color: '#fbbf24', bg: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 40%, #fde68a 100%)', textColor: '#92400e', emojis:['👑', '🔥', '🏆', '🐲', '💰', '🦁', '🥇'], msgs:['🌟 传说级运气！万事胜意！', '👑 SSR！今天你最全能！', '🔥 终极彩蛋：运气爆表了！'], count: 75, baseSound: 1046.50 },
+                                mythic: { color: '#f43f5e', bg: 'linear-gradient(135deg, #111827 0%, #4c1d95 50%, #9f1239 100%)', textColor: '#fecdd3', emojis:['☄️', '🧿', '💮', '🪐', '🖤', '🩸', '👁️‍🗨️', '🎇'], msgs:['☄️【神话级】奇迹降临！究极彩蛋！', '🌌 宇宙级别的幸运儿诞生了！', '❤️‍🔥 愿望成真，你就是天命之子！'], count: 100, baseSound: 1318.51 }
+                            };
+                            var config = pools[rarity];
+
+                            window.OmniBoxV2.playMagicChime(config.baseSound, (rarity === 'legendary' || rarity === 'mythic'));
+
+                            box.style.transition = 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s';
+                            box.style.transform = 'scale(2.2) rotate(' + (Math.random() > 0.5 ? 30 : -30) + 'deg)';
+                            box.style.opacity = '0';
+                            box.style.filter = 'brightness(3) drop-shadow(0 0 60px ' + config.color + ')';
+
+                            document.body.classList.add('omni-screen-shake');
+                            setTimeout(function() { document.body.classList.remove('omni-screen-shake'); }, 400);
+
+                            if(rarity === 'legendary' || rarity === 'mythic') {
+                                var flashColor = rarity === 'mythic' ? 'radial-gradient(circle, rgba(244,63,94,0.4) 0%, transparent 80%)' : 'radial-gradient(circle, rgba(251,191,36,0.3) 0%, transparent 80%)';
+                                var flash = document.createElement('div');
+                                flash.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:' + flashColor + ';z-index:99997;pointer-events:none;transition:opacity 0.8s ease-out; mix-blend-mode: screen;';
+                                document.body.appendChild(flash);
+                                setTimeout(function() { flash.style.opacity = '0'; }, 50);
+                                setTimeout(function() { flash.remove(); }, 850);
+                            }
+
+                            var rect = box.getBoundingClientRect();
+                            var centerX = rect.left + rect.width / 2;
+                            var centerY = rect.top + rect.height / 2;
+                            var fragment = document.createDocumentFragment();
+
+                            for(var i = 0; i < config.count; i++) {
+                                var el = document.createElement('div');
+                                var isDot = Math.random() > 0.4;
+
+                                if(isDot) {
+                                    var size = 4 + Math.random() * 10;
+                                    el.style.width = el.style.height = size + 'px';
+                                    el.style.background = config.color;
+                                    el.style.borderRadius = (Math.random() > 0.5 ? '50%' : '3px');
+                                    el.style.boxShadow = '0 0 15px ' + config.color;
+                                } else {
+                                    el.innerText = config.emojis[Math.floor(Math.random() * config.emojis.length)];
+                                    el.style.fontSize = (16 + Math.random() * 20) + 'px';
+                                    if(Math.random() > 0.75) el.style.filter = 'blur(1.5px)';
+                                }
+
+                                el.style.position = 'fixed';
+                                el.style.left = centerX + 'px';
+                                el.style.top = centerY + 'px';
+                                el.style.pointerEvents = 'none';
+                                el.style.zIndex = '99998';
+                                el.style.willChange = 'transform, opacity';
+                                el.style.transform = 'translate(-50%, -50%) scale(0)';
+                                fragment.appendChild(el);
+
+                                var angle = Math.random() * Math.PI * 2;
+                                var velocity = 80 + Math.random() * (rarity === 'mythic' ? 350 : (rarity === 'legendary' ? 280 : 180));
+                                var endX = Math.cos(angle) * velocity;
+                                var endY = Math.sin(angle) * velocity - (60 + Math.random() * 120);
+                                var rot = Math.random() * 1080 - 540;
+                                var duration = 0.8 + Math.random() * 1.2;
+
+                                (function(el, endX, endY, rot, duration) {
+                                    setTimeout(function() {
+                                        el.style.transition = 'transform ' + (duration*0.4) + 's cubic-bezier(0.25, 1, 0.5, 1), opacity ' + duration + 's ease-out';
+                                        el.style.transform = 'translate(calc(-50% + ' + endX + 'px), calc(-50% + ' + endY + 'px)) rotate(' + rot + 'deg) scale(' + (0.5 + Math.random()) + ')';
+                                    }, 10);
+
+                                    setTimeout(function() {
+                                        el.style.transition = 'transform ' + (duration*0.6) + 's cubic-bezier(0.5, 0, 1, 1), opacity ' + (duration*0.5) + 's';
+                                        el.style.transform = 'translate(calc(-50% + ' + endX + 'px), calc(-50% + ' + (endY + 250 + Math.random()*200) + 'px)) rotate(' + (rot+180) + 'deg) scale(0.1)';
+                                        el.style.opacity = '0';
+                                    }, duration * 400);
+
+                                    setTimeout(function() { el.remove(); }, duration * 1000 + 500);
+                                })(el, endX, endY, rot, duration);
+                            }
+                            document.body.appendChild(fragment);
+
+                            var msgWrap = document.createElement('div');
+                            msgWrap.setAttribute('role', 'alert');
+                            msgWrap.setAttribute('aria-live', 'assertive');
+                            msgWrap.style.cssText = 'position:fixed; left:' + centerX + 'px; top:' + centerY + 'px; transform:translate(-50%, -50%) scale(0.5); z-index:99999; opacity:0; pointer-events:none; transition:all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); will-change:transform, opacity;';
+
+                            var msgEl = document.createElement('div');
+                            msgEl.innerText = config.msgs[Math.floor(Math.random() * config.msgs.length)];
+                            msgEl.style.cssText = 'padding:16px 32px; border-radius:50px; font-size:17px; font-weight:900; letter-spacing:1px; white-space:nowrap; text-align:center; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.5); box-shadow:0 15px 40px rgba(0,0,0,0.15), 0 0 25px ' + config.color + '50;';
+                            msgEl.style.background = config.bg;
+                            msgEl.style.color = config.textColor;
+
+                            if (rarity === 'epic') {
+                                msgEl.style.border = '2px solid #c084fc';
+                                msgWrap.style.animation = 'legendaryFloat 2.5s ease-in-out infinite';
+                            } else if(rarity === 'legendary') {
+                                msgEl.style.border = '2px solid #fbbf24';
+                                msgEl.style.boxShadow = '0 15px 50px rgba(251,191,36,0.4), inset 0 0 20px rgba(255,255,255,0.9)';
+                                msgWrap.style.animation = 'legendaryFloat 2s ease-in-out infinite';
+                            } else if(rarity === 'mythic') {
+                                msgEl.style.border = '2px solid #f43f5e';
+                                msgEl.style.boxShadow = '0 15px 60px rgba(244,63,94,0.6), inset 0 0 25px rgba(255,255,255,0.4)';
+                                msgWrap.style.animation = 'legendaryFloat 1.5s ease-in-out infinite';
+                            }
+
+                            msgWrap.appendChild(msgEl);
+                            document.body.appendChild(msgWrap);
+
+                            setTimeout(function() {
+                                msgWrap.style.opacity = '1';
+                                msgWrap.style.transform = 'translate(-50%, -190px) scale(1)';
+                            }, 50);
+
+                            setTimeout(function() {
+                                msgWrap.style.transition = 'all 0.5s cubic-bezier(0.55, 0.085, 0.68, 0.53)';
+                                msgWrap.style.opacity = '0';
+                                msgWrap.style.transform = 'translate(-50%, -240px) scale(0.8)';
+                                setTimeout(function() { msgWrap.remove(); }, 500);
+                            }, 4000);
+
+                            setTimeout(function() { box.remove(); }, 600);
+
+                        }, 400);
+                    }
+                };
+            }
+            var box = document.getElementById('omni-surprise-box');
+            if (box) window.OmniBoxV2.init(box);
+        })();
+    </script>
 
     <style>
         .omni-surprise-wrapper { 

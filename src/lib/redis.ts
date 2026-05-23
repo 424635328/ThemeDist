@@ -11,13 +11,16 @@ function getClient(): Redis | null {
   const token = import.meta.env.KV_REST_API_TOKEN;
 
   if (!url || !token) {
+    console.warn('[redis] 环境变量 KV_REST_API_URL 或 KV_REST_API_TOKEN 未设置，Redis 功能已禁用');
     disabled = true;
     return null;
   }
 
   try {
     client = new Redis({ url, token });
-  } catch {
+    console.log('[redis] Upstash Redis 客户端已创建');
+  } catch (err) {
+    console.error('[redis] 创建 Redis 客户端失败:', err);
     disabled = true;
   }
   return client;

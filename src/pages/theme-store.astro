@@ -18,7 +18,13 @@ interface ThemeWithMeta {
 }
 
 function hexToHue(hex: string): number {
-  const c = hex.replace('#', '');
+  if (!hex || typeof hex !== 'string') return 0;
+  const c = hex.replace('#', '').trim();
+  if (c.length === 3) {
+    const chars = c.split('');
+    return hexToHue(`#${chars[0]}${chars[0]}${chars[1]}${chars[1]}${chars[2]}${chars[2]}`);
+  }
+  if (c.length !== 6) return 0;
   const r = parseInt(c.slice(0, 2), 16) / 255;
   const g = parseInt(c.slice(2, 4), 16) / 255;
   const b = parseInt(c.slice(4, 6), 16) / 255;
@@ -35,15 +41,12 @@ function hexToHue(hex: string): number {
 
 function classifyColor(hex: string): 'warm' | 'cool' {
   const hue = hexToHue(hex);
-  // Warm: red through yellow (0-60), also includes warm greens 60-100
-  // Cool: cyan through purple (180-330), also includes cool blues 180-330
-  // Everything else (neutral greens, etc) falls to nearest
   if (hue <= 100 || hue >= 330) return 'warm';
   return 'cool';
 }
 
 const themes: ThemeWithMeta[] = allThemes.map((t, i) => {
-  const primaryHex = t.cssVars['--color-primary'];
+  const primaryHex = t.cssVars['--color-primary'] || '#000000';
   return {
     preset: t.preset,
     presetName: t.presetName,
@@ -139,7 +142,12 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     </div>
 
     <!-- Theme grid -->
-    <div class="grid-auto" id="theme-grid" style="max-width:1120px;margin:0 auto">
+    <div 
+      class="grid-auto" 
+      id="theme-grid" 
+      data-today-preset={todayPreset} 
+      style="max-width:1120px;margin:0 auto"
+    >
       {themes.map((t) => {
         const { cssVars: v, primaryHex: p, preset } = t;
         const bgHex = v['--color-bg'];
@@ -234,7 +242,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
 </Layout>
 
 <style>
-  /* ── Controls bar ── */
+  /* ─── Controls bar ─── */
   .store-controls {
     max-width: 1120px;
     margin: 0 auto 20px;
@@ -297,7 +305,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     color: var(--color-text);
   }
 
-  /* ── Sort dropdown ── */
+  /* ─── Sort dropdown ─── */
   .sort-dropdown {
     position: relative;
   }
@@ -390,7 +398,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     color: var(--color-primary);
   }
 
-  /* ── Filter chips ── */
+  /* ─── Filter chips ─── */
   .filter-chips {
     max-width: 1120px;
     margin: 0 auto 16px;
@@ -442,7 +450,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     margin: 0 4px;
   }
 
-  /* ── Result count ── */
+  /* ─── Result count ─── */
   .result-bar {
     max-width: 1120px;
     margin: 0 auto 8px;
@@ -454,7 +462,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     font-weight: 500;
   }
 
-  /* ── Cards ── */
+  /* ─── Cards ─── */
   .theme-card {
     padding: 0;
     overflow: hidden;
@@ -614,7 +622,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     border-color: var(--color-primary) !important;
   }
 
-  /* ── Empty state ── */
+  /* ─── Empty state ─── */
   .empty-state {
     text-align: center;
     padding: 60px 20px;
@@ -629,13 +637,13 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     font-weight: 600;
   }
 
-  /* ── Load sentinel ── */
+  /* ─── Load sentinel ─── */
   .load-sentinel {
     height: 1px;
     width: 100%;
   }
 
-  /* ── Responsive ── */
+  /* ─── Responsive ─── */
   /* Community sort buttons */
   .comm-sort-btn {
     padding: 5px 14px;
@@ -718,8 +726,8 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
   }
 </style>
 
-<script lang="ts">
-  // ── State ──
+<script>
+  // ─── State ───
   const BATCH_SIZE = 40;
   let activeFilter = 'all';
   let activeSort = 'default';
@@ -732,15 +740,15 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
   const sortTrigger = document.getElementById('sort-trigger');
   const sortLabel = document.getElementById('sort-label');
   const sortMenu = document.getElementById('sort-menu');
-  const sortOptions = sortMenu.querySelectorAll<HTMLElement>('.sort-option');
+  const sortOptions = sortMenu.querySelectorAll('.sort-option');
   const grid = document.getElementById('theme-grid');
   const noResults = document.getElementById('no-results');
   const resultCount = document.getElementById('result-count');
   const sentinel = document.getElementById('load-sentinel');
-  const chips = document.querySelectorAll<HTMLButtonElement>('.chip');
+  const chips = document.querySelectorAll('.chip');
   const totalCount = grid.children.length;
 
-  // ── Helpers ──
+  // ─── Helpers ───
   function getAllCards() {
     return Array.from(grid.children);
   }
@@ -753,7 +761,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     return getAllCards().filter(c => !isPending(c));
   }
 
-  // ── Match a card against current filters ──
+  // ─── Match a card against current filters ───
   function cardMatches(card, q, filter) {
     const name = card.dataset.name || '';
     const preset = card.dataset.preset || '';
@@ -773,8 +781,8 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     return true;
   }
 
-  // ── Sort cards in the DOM ──
-  function sortCards(cards,sort) {
+  // ─── Sort cards in the DOM ───
+  function sortCards(cards, sort) {
     const sorted = [...cards];
     if (sort === 'name-asc') {
       sorted.sort((a, b) => (a.dataset.name || '').localeCompare(b.dataset.name || ''));
@@ -788,7 +796,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     return sorted;
   }
 
-  // ── Apply filters + sort to loaded cards ──
+  // ─── Apply filters + sort to loaded cards ───
   function refresh() {
     const q = search.value.toLowerCase().trim();
     const filter = activeFilter;
@@ -824,7 +832,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     history.replaceState(null, '', url.toString());
   }
 
-  // ── Progressive loading ──
+  // ─── Progressive loading ───
   function loadBatch() {
     const pending = getAllCards().filter(c => isPending(c));
     if (pending.length === 0) {
@@ -845,13 +853,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     sentinel.style.display = hasMore ? '' : 'none';
   }
 
-  // ── IntersectionObserver ──
-  const io = new IntersectionObserver((entries) => {
-    if (entries[0].isIntersecting) loadBatch();
-  }, { rootMargin: '400px' });
-  io.observe(sentinel);
-
-  // ── Events ──
+  // ─── Events ───
   let debounceTimer;
   search.addEventListener('input', () => {
     clearTimeout(debounceTimer);
@@ -864,7 +866,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     search.focus();
   });
 
-  // ── Sort dropdown ──
+  // ─── Sort dropdown ───
   function openSortMenu() {
     sortDropdown.classList.add('open');
     sortMenu.hidden = false;
@@ -872,6 +874,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     document.addEventListener('click', onClickOutsideSort, { once: true });
   }
 
+  // Close Sort menu
   function closeSortMenu() {
     sortDropdown.classList.remove('open');
     sortMenu.hidden = true;
@@ -892,7 +895,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
 
   sortOptions.forEach(opt => {
     opt.addEventListener('click', () => {
-      const value = opt.dataset.value;
+      const value = opt.dataset.value || 'default';
       activeSort = value;
 
       sortOptions.forEach(o => {
@@ -914,15 +917,29 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     }
   });
 
+  // ─── Consolidated Chips logic (Cleaned up Conflict) ───
   chips.forEach(chip => {
     chip.addEventListener('click', () => {
-      const filter = chip.dataset.filter;
+      const filter = chip.dataset.filter || 'all';
+      if (filter === activeFilter) return;
+
+      const prevFilter = activeFilter;
       activeFilter = filter;
+
       chips.forEach(c => {
         c.classList.toggle('chip-active', c.dataset.filter === filter);
         c.setAttribute('aria-pressed', String(c.dataset.filter === filter));
       });
-      refresh();
+
+      if (filter === 'community') {
+        switchToCommunity();
+      } else {
+        if (prevFilter === 'community') {
+          switchToRegular();
+        } else {
+          refresh();
+        }
+      }
     });
   });
 
@@ -941,7 +958,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
 
   // Copy color from swatch
   grid.addEventListener('click', (e) => {
-    const dot = (e.target).closest('.color-dot');
+    const dot = e.target.closest('.color-dot');
     if (!dot) return;
     e.preventDefault();
     e.stopPropagation();
@@ -952,7 +969,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
 
   // Apply saves to localStorage
   grid.addEventListener('click', (e) => {
-    const btn = (e.target).closest('.js-apply-btn');
+    const btn = e.target.closest('.js-apply-btn');
     if (!btn) return;
     const preset = btn.dataset.preset;
     const name = btn.dataset.name;
@@ -961,7 +978,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     }
   });
 
-  // ── Init ──
+  // ─── Init ───
   let cards = getAllCards();
   loadedCount = cards.filter(c => !isPending(c)).length;
 
@@ -990,13 +1007,18 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     });
   }
 
-  refresh();
+  if (activeFilter === 'community') {
+    switchToCommunity();
+  } else {
+    refresh();
+  }
 
   // Hide today badges when previewing another theme
   const previewTheme = params.get('theme');
-  if (previewTheme && previewTheme !== '{todayPreset}') {
+  const todayPreset = grid.dataset.todayPreset;
+  if (previewTheme && previewTheme !== todayPreset) {
     document.querySelectorAll('.badge-today').forEach(b => {
-      (b).style.display = 'none';
+      b.style.display = 'none';
     });
   }
 
@@ -1007,7 +1029,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
   const communityEmpty = document.getElementById('community-empty');
   const communitySort = document.getElementById('community-sort');
   const communityChipCount = document.getElementById('community-chip-count');
-  let commSort: 'new' | 'hot' = 'new';
+  let commSort = 'new';
   let commPage = 1;
   let commTotal = 0;
   let commLoaded = [];
@@ -1110,67 +1132,40 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     // Hide regular grid
     const allCards = getAllCards();
     allCards.forEach(c => c.style.display = 'none');
-    (document.getElementById('no-results')).hidden = true;
+    noResults.hidden = true;
 
     communitySort.style.display = '';
     communityGrid.style.display = '';
     commPage = 1;
     loadCommunityThemes(1);
 
-    // Disable regular sort while in community mode
-    (document.getElementById('sort-dropdown')).style.display = 'none';
+    // Disable regular sort dropdown and search bar when switching to community
+    sortDropdown.style.display = 'none';
     search.value = '';
     clearBtn.hidden = true;
     resultCount.textContent = '';
+
+    // Synchronize URL query
+    const url = new URL(location.href);
+    url.searchParams.set('cat', 'community');
+    url.searchParams.delete('q');
+    url.searchParams.delete('sort');
+    history.replaceState(null, '', url.toString());
   }
 
   function switchToRegular() {
     communitySort.style.display = 'none';
     communityGrid.style.display = 'none';
     communityEmpty.hidden = true;
-    (document.getElementById('sort-dropdown')).style.display = '';
+    sortDropdown.style.display = '';
     refresh();
   }
-
-  // Override chip click behavior for community
-  chips.forEach(chip => {
-    chip.addEventListener('click', () => {
-      const filter = chip.dataset.filter;
-      if (filter === 'community') {
-        if (activeFilter !== 'community') {
-          activeFilter = 'community';
-          chips.forEach(c => {
-            c.classList.toggle('chip-active', c.dataset.filter === filter);
-            c.setAttribute('aria-pressed', String(c.dataset.filter === filter));
-          });
-          switchToCommunity();
-        }
-      } else if (activeFilter === 'community') {
-        // Leaving community mode
-        activeFilter = filter;
-        chips.forEach(c => {
-          c.classList.toggle('chip-active', c.dataset.filter === filter);
-          c.setAttribute('aria-pressed', String(c.dataset.filter === filter));
-        });
-        switchToRegular();
-      }
-      // If not in community mode and not switching to community, the original handler runs
-    });
-  });
-
-  // Ensure the leaf chip handler runs AFTER the community check
-  // Remove original chip listeners that conflict
-  chips.forEach(chip => {
-    const orig = chip.onclick;
-    if (orig) chip.removeEventListener('click', orig);
-    // The handler above covers all cases
-  });
 
   // Community sort buttons
   communitySort.querySelectorAll('.comm-sort-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const sort = btn.getAttribute('data-comm-sort');
-      if (sort === commSort) return;
+      if (!sort || sort === commSort) return;
       commSort = sort;
       communitySort.querySelectorAll('.comm-sort-btn').forEach(b => {
         b.classList.toggle('comm-sort-active', b.getAttribute('data-comm-sort') === sort);
@@ -1182,13 +1177,13 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
 
   // Community like button delegation
   communityGrid.addEventListener('click', async (e) => {
-    const btn = (e.target).closest('[data-comm-like]');
+    const btn = e.target.closest('[data-comm-like]');
     if (!btn) return;
     e.preventDefault();
-    const id = btn.getAttribute('data-comm-like');
+    const id = btn.getAttribute('data-comm-like') || '';
     const likeKey = `td-like-${id}`;
     if (localStorage.getItem(likeKey) === '1') {
-      window.__toast?.('你已经点过赞了');
+      window.__toast?.('您已经为该主题点过赞了');
       return;
     }
     try {
@@ -1197,7 +1192,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
       });
-      if (!res.ok) return;
+      if (!res.ok) throw new Error('Failed');
       const data = await res.json();
       // Update count in card
       const card = btn.closest('.theme-card');
@@ -1210,14 +1205,13 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
       const idx = commLoaded.findIndex((t) => t.id === id);
       if (idx >= 0) commLoaded[idx].likes = data.likes;
     } catch {
-      window.__toast?.('点赞失败');
+      window.__toast?.('点赞暂时不可用，请稍后重试');
     }
   });
 
-  // Community card color dot copy (reuse existing handler which works by delegation)
-  // The existing grid click handler does this, but communityGrid is separate
+  // Community card color dot copy
   communityGrid.addEventListener('click', (e) => {
-    const dot = (e.target).closest('.color-dot');
+    const dot = e.target.closest('.color-dot');
     if (!dot) return;
     e.preventDefault();
     e.stopPropagation();
@@ -1226,9 +1220,8 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     }).catch(() => {});
   });
 
-  // Modified sentinel observer to also load community batches
-  const origLoadBatch = loadBatch;
-  const io2 = new IntersectionObserver((entries) => {
+  // Unified Sentinel Observer (Replacing the double observer performance leak)
+  const ioSingle = new IntersectionObserver((entries) => {
     if (!entries[0].isIntersecting) return;
     if (isCommunityMode()) {
       if (commLoaded.length < commTotal) {
@@ -1239,7 +1232,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
       loadBatch();
     }
   }, { rootMargin: '400px' });
-  io2.observe(sentinel);
+  ioSingle.observe(sentinel);
 
   // Fetch community count on load
   fetch('/api/diy/themes.json?size=1')
