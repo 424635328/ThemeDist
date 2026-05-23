@@ -576,8 +576,8 @@ function navClass(path: string) {
       }
 
       function loadPreview(t: string) {
-        var bar = document.getElementById('preview-bar')!;
-        var nameEl = document.getElementById('preview-bar-name')!;
+        var bar = document.getElementById('preview-bar');
+        var nameEl = document.getElementById('preview-bar-name');
 
         // Check for DIY theme
         var diyVars = sessionStorage.getItem('td-diy-vars');
@@ -679,7 +679,7 @@ function navClass(path: string) {
     })();
 
     // Back to top
-    const btop = document.getElementById('btop')!;
+    const btop = document.getElementById('btop');
     let btopTimer: number;
     window.addEventListener('scroll', () => {
       clearTimeout(btopTimer);
@@ -690,8 +690,8 @@ function navClass(path: string) {
     btop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 
     // Mobile nav toggle
-    const navToggle = document.getElementById('nav-toggle')!;
-    const nav = document.getElementById('nav')!;
+    const navToggle = document.getElementById('nav-toggle');
+    const nav = document.getElementById('nav');
     let lastScrollY = window.scrollY;
 
     function closeNav() {
@@ -719,7 +719,7 @@ function navClass(path: string) {
     // Toast
     let toastTimer: number;
     function toast(msg: string) {
-      const el = document.getElementById('toast')!;
+      const el = document.getElementById('toast');
       el.textContent = msg;
       el.classList.add('show');
       clearTimeout(toastTimer);
@@ -734,7 +734,7 @@ function navClass(path: string) {
       if (!wrapper || !wrapper.classList.contains('code-block')) {
         wrapper = document.createElement('div');
         wrapper.className = 'code-block';
-        pre.parentNode!.insertBefore(wrapper, pre);
+        pre.parentNode.insertBefore(wrapper, pre);
         wrapper.appendChild(pre);
       }
 

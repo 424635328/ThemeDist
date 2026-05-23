@@ -500,9 +500,9 @@ function applyTheme(d) {
       });
     });
 
-    const tocFab = document.getElementById('toc-fab')!;
-    const tocTrigger = document.getElementById('toc-trigger')! as HTMLButtonElement;
-    const tocMenu = document.getElementById('toc-menu')!;
+    const tocFab = document.getElementById('toc-fab');
+    const tocTrigger = document.getElementById('toc-trigger') as HTMLButtonElement;
+    const tocMenu = document.getElementById('toc-menu');
     const dots = Array.from(document.querySelectorAll('.toc-link')) as HTMLElement[];
     const headings = Array.from(document.querySelectorAll('h2[id]'));
 
@@ -570,7 +570,7 @@ function applyTheme(d) {
     }
 
     // Copy all docs
-    const copyAll = document.getElementById('copy-all')!;
+    const copyAll = document.getElementById('copy-all');
     copyAll.addEventListener('click', async () => {
       const sections = document.querySelectorAll('h2[id]');
       const lines: string[] = ['# ThemeDist API Reference', '', `> Base: ${location.origin}/api/today.json`, ''];

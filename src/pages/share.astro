@@ -107,8 +107,8 @@ const siteUrl = Astro.url.origin;
   const themeId = id;
 
   if (!themeId) {
-    document.getElementById('loading-state')!.style.display = 'none';
-    document.getElementById('no-id-state')!.style.display = 'block';
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('no-id-state').style.display = 'block';
   }
 
   let themeData: any = null;
@@ -121,30 +121,30 @@ const siteUrl = Astro.url.origin;
       themeData = await res.json();
       renderTheme(themeData);
     } catch {
-      document.getElementById('loading-state')!.style.display = 'none';
-      document.getElementById('error-state')!.style.display = 'block';
+      document.getElementById('loading-state').style.display = 'none';
+      document.getElementById('error-state').style.display = 'block';
     }
   }
 
   function renderTheme(t: any) {
-    document.getElementById('loading-state')!.style.display = 'none';
-    document.getElementById('theme-content')!.style.display = 'block';
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('theme-content').style.display = 'block';
 
-    document.getElementById('theme-title')!.textContent = t.name;
+    document.getElementById('theme-title').textContent = t.name;
     document.title = `${t.name} — ThemeDist Community`;
 
-    document.getElementById('author-avatar')!.textContent = t.author.charAt(0).toUpperCase();
-    document.getElementById('author-name')!.textContent = t.author;
+    document.getElementById('author-avatar').textContent = t.author.charAt(0).toUpperCase();
+    document.getElementById('author-name').textContent = t.author;
 
     const d = new Date(t.createdAt);
-    document.getElementById('theme-date')!.textContent = d.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById('theme-date').textContent = d.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    document.getElementById('like-count')!.textContent = t.likes;
-    document.getElementById('share-code')!.textContent = themeId;
+    document.getElementById('like-count').textContent = t.likes;
+    document.getElementById('share-code').textContent = themeId;
 
     const vars = t.cssVars;
     const colorKeys = ['--color-primary','--color-secondary','--color-accent','--color-bg','--color-surface','--color-text','--color-text-muted','--color-border'];
-    document.getElementById('swatches')!.innerHTML = colorKeys.filter(k => vars[k]).map(k => `
+    document.getElementById('swatches').innerHTML = colorKeys.filter(k => vars[k]).map(k => `
       <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
         <span style="width:48px;height:48px;border-radius:14px;background:${vars[k]};border:2px solid var(--color-border);transition:transform 0.2s;cursor:pointer" title="${k}: ${vars[k]} — 点击复制" onclick="navigator.clipboard.writeText('${vars[k].replace(/'/g, "\\'")}')" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform=''"></span>
         <span style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--color-text-muted)">${k.replace('--color-','')}</span>
@@ -160,7 +160,7 @@ const siteUrl = Astro.url.origin;
     const muted = vars['--color-text-muted'] || '#888';
     const border = vars['--color-border'] || 'rgba(255,255,255,0.1)';
 
-    document.getElementById('preview-area')!.innerHTML = `
+    document.getElementById('preview-area').innerHTML = `
       <div style="display:flex;flex-direction:column;gap:16px">
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <div style="flex:1;min-width:70px;padding:20px 12px;border-radius:14px;background:${primary};color:#fff;text-align:center;font-weight:700;font-size:13px;box-shadow:0 8px 24px ${primary}44">Primary</div>
@@ -180,7 +180,7 @@ const siteUrl = Astro.url.origin;
       </div>
     `;
 
-    document.querySelector('#vars-table tbody')!.innerHTML = Object.entries(vars).map(([k, v]) => `
+    document.querySelector('#vars-table tbody').innerHTML = Object.entries(vars).map(([k, v]) => `
       <tr style="border-bottom:1px solid var(--color-border)">
         <td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">${k}</td>
         <td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">${v}</td>
@@ -191,7 +191,7 @@ const siteUrl = Astro.url.origin;
     `).join('');
   }
 
-  document.getElementById('btn-apply')!.addEventListener('click', () => {
+  document.getElementById('btn-apply').addEventListener('click', () => {
     if (!themeData) return;
     const url = new URL(location.origin + '/');
     url.searchParams.set('theme', themeId);
@@ -204,15 +204,15 @@ const siteUrl = Astro.url.origin;
     location.href = url.toString();
   });
 
-  document.getElementById('btn-share-url')!.addEventListener('click', async () => {
+  document.getElementById('btn-share-url').addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(location.href);
       (window as any).__toast?.('分享链接已复制');
     } catch { (window as any).__toast?.('复制失败'); }
   });
 
-  const likeBtn = document.getElementById('btn-like')!;
-  const likeCountEl = document.getElementById('like-count')!;
+  const likeBtn = document.getElementById('btn-like');
+  const likeCountEl = document.getElementById('like-count');
 
   const likeKey = `td-like-${themeId}`;
   if (localStorage.getItem(likeKey) === '1') {

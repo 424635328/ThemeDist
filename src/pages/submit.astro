@@ -124,7 +124,7 @@ import Layout from '../layouts/Layout.astro';
   let previewStyle: HTMLStyleElement | null = null;
   let submitting = false;
 
-  const $ = (sel: string) => document.getElementById(sel)!;
+  const $ = (sel: string) => document.getElementById(sel);
 
   function showError(msg: string) {
     const el = $('vars-error');

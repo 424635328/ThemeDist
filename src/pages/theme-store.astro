@@ -727,16 +727,16 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
   let loadedCount = 0;
 
   const search = document.getElementById('search') as HTMLInputElement;
-  const clearBtn = document.getElementById('search-clear')!;
-  const sortDropdown = document.getElementById('sort-dropdown')!;
+  const clearBtn = document.getElementById('search-clear');
+  const sortDropdown = document.getElementById('sort-dropdown');
   const sortTrigger = document.getElementById('sort-trigger') as HTMLButtonElement;
-  const sortLabel = document.getElementById('sort-label')!;
-  const sortMenu = document.getElementById('sort-menu')!;
+  const sortLabel = document.getElementById('sort-label');
+  const sortMenu = document.getElementById('sort-menu');
   const sortOptions = sortMenu.querySelectorAll<HTMLElement>('.sort-option');
-  const grid = document.getElementById('theme-grid')!;
-  const noResults = document.getElementById('no-results')!;
-  const resultCount = document.getElementById('result-count')!;
-  const sentinel = document.getElementById('load-sentinel')!;
+  const grid = document.getElementById('theme-grid');
+  const noResults = document.getElementById('no-results');
+  const resultCount = document.getElementById('result-count');
+  const sentinel = document.getElementById('load-sentinel');
   const chips = document.querySelectorAll<HTMLButtonElement>('.chip');
   const totalCount = grid.children.length;
 
@@ -1003,10 +1003,10 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
   // ══════════════════════════════════════
   // Community themes
   // ══════════════════════════════════════
-  const communityGrid = document.getElementById('community-grid')!;
-  const communityEmpty = document.getElementById('community-empty')!;
-  const communitySort = document.getElementById('community-sort')!;
-  const communityChipCount = document.getElementById('community-chip-count')!;
+  const communityGrid = document.getElementById('community-grid');
+  const communityEmpty = document.getElementById('community-empty');
+  const communitySort = document.getElementById('community-sort');
+  const communityChipCount = document.getElementById('community-chip-count');
   let commSort: 'new' | 'hot' = 'new';
   let commPage = 1;
   let commTotal = 0;
@@ -1110,7 +1110,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     // Hide regular grid
     const allCards = getAllCards();
     allCards.forEach(c => c.style.display = 'none');
-    (document.getElementById('no-results')! as HTMLElement).hidden = true;
+    (document.getElementById('no-results') as HTMLElement).hidden = true;
 
     communitySort.style.display = '';
     communityGrid.style.display = '';
@@ -1118,7 +1118,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     loadCommunityThemes(1);
 
     // Disable regular sort while in community mode
-    (document.getElementById('sort-dropdown')! as HTMLElement).style.display = 'none';
+    (document.getElementById('sort-dropdown') as HTMLElement).style.display = 'none';
     search.value = '';
     clearBtn.hidden = true;
     resultCount.textContent = '';
@@ -1128,7 +1128,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     communitySort.style.display = 'none';
     communityGrid.style.display = 'none';
     communityEmpty.hidden = true;
-    (document.getElementById('sort-dropdown')! as HTMLElement).style.display = '';
+    (document.getElementById('sort-dropdown') as HTMLElement).style.display = '';
     refresh();
   }
 
@@ -1185,7 +1185,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     const btn = (e.target as HTMLElement).closest('[data-comm-like]') as HTMLElement | null;
     if (!btn) return;
     e.preventDefault();
-    const id = btn.getAttribute('data-comm-like')!;
+    const id = btn.getAttribute('data-comm-like');
     const likeKey = `td-like-${id}`;
     if (localStorage.getItem(likeKey) === '1') {
       (window as any).__toast?.('你已经点过赞了');
@@ -1200,7 +1200,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
       if (!res.ok) return;
       const data = await res.json();
       // Update count in card
-      const card = btn.closest('.theme-card')!;
+      const card = btn.closest('.theme-card');
       const numEl = card.querySelector('.comm-like-num');
       if (numEl) numEl.textContent = data.likes;
       btn.classList.add('liked');
