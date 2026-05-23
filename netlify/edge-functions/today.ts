@@ -35,6 +35,7 @@ interface IndexData {
   pool: string[];
   poolLength: number;
   gregorianHolidays: Record<string, string>;
+  lunarHolidays: Record<string, string>;
   directory: DirEntry[];
 }
 
@@ -128,15 +129,19 @@ export default async (request: Request, context: Context) => {
     // Determine today's preset
     let preset: string;
 
-    // 1. Gregorian holiday
-    if (idx.gregorianHolidays[mmdd]) {
+    // 1. Lunar holiday (checked first, matching OmniConfig priority)
+    if (idx.lunarHolidays[mmdd]) {
+      preset = idx.lunarHolidays[mmdd];
+    }
+    // 2. Gregorian holiday
+    else if (idx.gregorianHolidays[mmdd]) {
       preset = idx.gregorianHolidays[mmdd];
     }
-    // 2. Crazy Thursday
+    // 3. Crazy Thursday
     else if (today.getDay() === 4) {
       preset = 'crazy-thursday';
     }
-    // 3. Daily pool rotation
+    // 4. Daily pool rotation
     else {
       preset = idx.pool[dayOfYear % idx.poolLength] || idx.pool[0];
     }
