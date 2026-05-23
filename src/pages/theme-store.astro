@@ -666,33 +666,148 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
   .comm-sort-active:hover { color: #fff; }
 
   /* Community card extras */
+  .comm-card {
+    position: relative;
+    overflow: hidden;
+  }
+  .comm-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.06;
+    background: radial-gradient(ellipse 80% 60% at 100% 0%, var(--comm-primary, var(--color-primary)), transparent 70%),
+                radial-gradient(ellipse 60% 50% at 0% 100%, var(--comm-primary, var(--color-primary)), transparent 70%);
+    pointer-events: none;
+    transition: opacity 0.3s;
+    z-index: 0;
+  }
+  .comm-card:hover::before {
+    opacity: 0.12;
+  }
+  .comm-card .card-body {
+    position: relative;
+    z-index: 1;
+  }
+  .badge-comm {
+    background: color-mix(in srgb, var(--comm-primary, var(--color-primary)) 16%, transparent);
+    color: var(--comm-primary, var(--color-primary));
+    font-weight: 700;
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 5px;
+    border: 1px solid color-mix(in srgb, var(--comm-primary, var(--color-primary)) 18%, transparent);
+  }
+
   .comm-card-meta {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     margin-top: 6px;
     font-size: 11px;
     color: var(--color-text-muted);
   }
+  .comm-author-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-right: 2px;
+  }
+  .comm-author-name {
+    font-weight: 600;
+    color: var(--color-text);
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .comm-meta-dot {
+    opacity: 0.4;
+    font-weight: 700;
+  }
+  .comm-meta-date {
+    font-weight: 500;
+  }
+  .comm-meta-heart {
+    flex-shrink: 0;
+    color: var(--color-text-muted);
+    opacity: 0.6;
+  }
+  .comm-like-num {
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
   .comm-like-btn {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
-    padding: 2px 8px;
-    border-radius: 6px;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 8px;
     border: 1px solid transparent;
     background: transparent;
     color: var(--color-text-muted);
     cursor: pointer;
     font-size: 11px;
     font-family: inherit;
-    font-weight: 500;
-    transition: all 0.15s;
+    font-weight: 600;
+    transition: all 0.2s ease;
     margin-left: auto;
   }
-  .comm-like-btn:hover { border-color: #ef444444; color: #ef4444; }
-  .comm-like-btn.liked { color: #ef4444; }
-  .comm-like-btn.liked svg path { fill: #ef4444; stroke: #ef4444; }
+  .comm-like-btn svg {
+    transition: transform 0.2s ease, fill 0.2s ease;
+  }
+  .comm-like-btn:hover {
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.06);
+  }
+  .comm-like-btn:hover svg {
+    transform: scale(1.15);
+  }
+  .comm-like-btn.liked {
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.25);
+    background: rgba(239, 68, 68, 0.08);
+  }
+  .comm-like-btn.liked svg path {
+    fill: #ef4444;
+    stroke: #ef4444;
+  }
+
+  .comm-card-actions {
+    margin-top: 2px;
+  }
+  .comm-apply-btn {
+    flex: 1.2;
+    border-color: var(--comm-primary, var(--color-primary));
+    color: var(--comm-primary, var(--color-primary));
+    background: color-mix(in srgb, var(--comm-primary, var(--color-primary)) 8%, transparent);
+    font-weight: 700;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 11px;
+    padding: 6px 0;
+    border-radius: 8px;
+    border: 1px solid;
+    transition: all 0.2s;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .comm-apply-btn:hover {
+    background: var(--comm-primary, var(--color-primary)) !important;
+    color: #fff !important;
+    border-color: var(--comm-primary, var(--color-primary)) !important;
+  }
 
   @media (max-width: 640px) {
     .store-controls {
@@ -1049,9 +1164,11 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     const dateStr = d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
     const likeKey = `td-like-${t.id}`;
     const liked = localStorage.getItem(likeKey) === '1';
+    const authorInitial = (t.author || '?')[0].toUpperCase();
+    const presetName = t.name || 'Untitled';
 
     return `
-      <div class="card card-interact theme-card" data-comm-id="${escapeAttr(t.id)}">
+      <div class="card card-interact theme-card comm-card" data-comm-id="${escapeAttr(t.id)}" style="--comm-primary:${p};--comm-bg:${bg}">
         <div class="card-color-bar" aria-hidden="true">
           <div class="color-bar-seg" style="flex:3;background:${p}"></div>
           <div class="color-bar-seg" style="flex:1.5;background:${s}"></div>
@@ -1061,9 +1178,9 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
         </div>
         <div class="card-body">
           <div class="card-header">
-            <h3 class="card-title">${escapeHtml(t.name)}</h3>
+            <h3 class="card-title" title="${escapeHtml(presetName)}">${escapeHtml(presetName)}</h3>
             <div class="card-badges">
-              <span class="badge" style="background:color-mix(in srgb, var(--color-primary) 14%, transparent);color:var(--color-primary);font-weight:600">社区</span>
+              <span class="badge badge-comm">社区</span>
             </div>
           </div>
           <div class="swatch-row">
@@ -1081,21 +1198,26 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
             <span class="card-hex">${p}</span>
           </div>
           <div class="comm-card-meta">
-            <span>${escapeHtml(t.author)}</span>
-            <span>·</span>
-            <span>${dateStr}</span>
-            <span>·</span>
-            <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="vertical-align:-1px"><path d="M8 14s-6-3.5-6-7.5a3.5 3.5 0 016-2.2 3.5 3.5 0 016 2.2C14 10.5 8 14 8 14z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <div class="comm-author-avatar" style="background:${p};color:${isLight(p) ? '#0f0f23' : '#fff'}">${authorInitial}</div>
+            <span class="comm-author-name">${escapeHtml(t.author)}</span>
+            <span class="comm-meta-dot">·</span>
+            <span class="comm-meta-date">${dateStr}</span>
+            <span class="comm-meta-dot">·</span>
+            <svg class="comm-meta-heart" width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 14s-6-3.5-6-7.5a3.5 3.5 0 016-2.2 3.5 3.5 0 016 2.2C14 10.5 8 14 8 14z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span class="comm-like-num">${t.likes}</span>
-            <button class="comm-like-btn ${liked ? 'liked' : ''}" data-comm-like="${escapeAttr(t.id)}">
-              <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 14s-6-3.5-6-7.5a3.5 3.5 0 016-2.2 3.5 3.5 0 016 2.2C14 10.5 8 14 8 14z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              ${liked ? '已赞' : '点赞'}
+            <button class="comm-like-btn ${liked ? 'liked' : ''}" data-comm-like="${escapeAttr(t.id)}" title="${liked ? '已点赞' : '点赞'}">
+              <svg width="13" height="13" viewBox="0 0 16 16"><path d="M8 14s-6-3.5-6-7.5a3.5 3.5 0 016-2.2 3.5 3.5 0 016 2.2C14 10.5 8 14 8 14z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>${liked ? '已赞' : '点赞'}</span>
             </button>
           </div>
-          <div class="card-actions">
+          <div class="card-actions comm-card-actions">
             <a href="/share?id=${escapeAttr(t.id)}" class="btn-card btn-card-primary">
               <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/></svg>
               预览
+            </a>
+            <a href="/?theme=community-${escapeAttr(t.id)}" class="btn-card comm-apply-btn js-apply-btn" data-preset="community-${escapeAttr(t.id)}" data-name="${escapeHtml(presetName)}">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              应用
             </a>
           </div>
         </div>
@@ -1209,6 +1331,17 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     }
   });
 
+  // Community apply saves to localStorage (matches system card behavior)
+  communityGrid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.js-apply-btn');
+    if (!btn) return;
+    const preset = btn.dataset.preset;
+    const name = btn.dataset.name;
+    if (preset) {
+      localStorage.setItem('themeDistApplied', JSON.stringify({ preset, name }));
+    }
+  });
+
   // Community card color dot copy
   communityGrid.addEventListener('click', (e) => {
     const dot = e.target.closest('.color-dot');
@@ -1245,6 +1378,14 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
       }
     })
     .catch(() => { communityChipCount.textContent = '离线'; });
+
+  function isLight(hex) {
+    const c = hex.replace('#', '');
+    const r = parseInt(c.slice(0, 2), 16);
+    const g = parseInt(c.slice(2, 4), 16);
+    const b = parseInt(c.slice(4, 6), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) > 150;
+  }
 
   function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function escapeAttr(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }

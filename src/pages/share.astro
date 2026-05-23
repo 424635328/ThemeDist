@@ -785,19 +785,9 @@ const id = Astro.url.searchParams.get('id') || '';
   // Apply action flow
   document.getElementById('btn-apply').addEventListener('click', () => {
     if (!themeData) return;
-    const url = new URL(location.origin + '/');
-    url.searchParams.set('theme', themeId);
-    url.searchParams.set('diy', '1');
-    sessionStorage.setItem('td-diy-vars', JSON.stringify(themeData.cssVars));
-    sessionStorage.setItem('td-diy-css', themeData.customCss || '');
-    sessionStorage.setItem('td-diy-exts', '[]');
-    sessionStorage.setItem('td-diy-name', themeData.name);
-    localStorage.setItem('themeDistApplied', JSON.stringify({ preset: themeId, name: themeData.name }));
-    
-    window.__toast?.('正在应用主题并重定向…');
-    setTimeout(() => {
-      location.href = url.toString();
-    }, 1000);
+    const preset = 'community-' + themeId;
+    localStorage.setItem('themeDistApplied', JSON.stringify({ preset, name: themeData.name }));
+    location.href = '/?theme=' + encodeURIComponent(preset);
   });
 
   // Share action flow

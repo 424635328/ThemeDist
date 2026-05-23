@@ -31,34 +31,53 @@ import Layout from '../layouts/Layout.astro';
             </button>
             <button id="btn-demo" class="btn btn-outline demo-btn" title="加载一组精美动态樱花主题体验">
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1v14M1 8h14" stroke-linecap="round"/><circle cx="8" cy="8" r="3" fill="var(--color-surface)"/></svg>
-              加载精美示例
+              加载樱花示例
             </button>
           </div>
 
-          <!-- JSON Area -->
-          <div class="input-block">
-            <div class="block-header">
-              <label for="vars-input" class="input-label">CSS 变量 JSON <span class="required">*</span></label>
-              <button id="btn-format" class="text-btn" title="自动排版美化 JSON 代码">格式化</button>
-            </div>
-            <textarea
-              id="vars-input"
-              spellcheck="false"
-              placeholder='{"--color-primary": "#ff8fa3", "--color-bg": "#fff0f3", ...}'
-              class="code-textarea"
-            ></textarea>
-            <span id="vars-error" class="validation-error"></span>
+          <!-- Code Editors Tab Container -->
+          <div class="tabs-container">
+            <button id="tab-btn-vars" class="tab-btn active" type="button">🎨 核心 CSS 变量</button>
+            <button id="tab-btn-css" class="tab-btn" type="button">✨ 自定义 CSS (可选)</button>
           </div>
 
-          <!-- CSS Area -->
-          <div class="input-block">
-            <label for="css-input" class="input-label">额外的自定义 CSS（可选）</label>
-            <textarea
-              id="css-input"
-              spellcheck="false"
-              placeholder="/* 可以在这里编写针对当前主题的专属 CSS 动画、粒子效果等 */"
-              class="code-textarea css-textarea"
-            ></textarea>
+          <!-- Tab 1: CSS Variables JSON -->
+          <div id="tab-content-vars" class="tab-content active">
+            <div class="input-block">
+              <div class="block-header">
+                <label for="vars-input" class="input-label">JSON 代码 <span class="required">*</span></label>
+                <button id="btn-format" class="text-btn" title="自动排版美化 JSON 代码">格式化</button>
+              </div>
+              <textarea
+                id="vars-input"
+                spellcheck="false"
+                placeholder='{"--color-primary": "#ff8fa3", "--color-bg": "#fff0f3", ...}'
+                class="code-textarea"
+              ></textarea>
+              <div id="vars-error-container" class="validation-error-container">
+                <span id="vars-error" class="validation-error"></span>
+                <button id="btn-autofix" class="text-btn autofix-btn" style="display: none;">尝试自动修复</button>
+              </div>
+
+              <!-- Inline parsed palette helper inside editor card -->
+              <div class="palette-preview-panel">
+                <span class="palette-title">已识别的色彩配置：</span>
+                <div id="editor-swatches" class="editor-swatches-strip"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 2: Custom CSS Area -->
+          <div id="tab-content-css" class="tab-content">
+            <div class="input-block">
+              <label for="css-input" class="input-label">额外的自定义 CSS 样式规则</label>
+              <textarea
+                id="css-input"
+                spellcheck="false"
+                placeholder="/* 可以在这里编写针对当前主题的专属 CSS 动画、粒子效果等 */"
+                class="code-textarea css-textarea"
+              ></textarea>
+            </div>
           </div>
 
           <!-- Meta Area -->
@@ -137,7 +156,7 @@ import Layout from '../layouts/Layout.astro';
   }
   .submit-grid {
     display: grid;
-    grid-template-columns: 1.1fr 0.9fr;
+    grid-template-columns: 1.15fr 0.85fr;
     gap: 32px;
     align-items: start;
   }
@@ -198,6 +217,45 @@ import Layout from '../layouts/Layout.astro';
     background: color-mix(in srgb, var(--color-accent) 6%, transparent);
   }
 
+  /* ─── Tabs Switcher UI ─── */
+  .tabs-container {
+    display: flex;
+    border-bottom: 1.5px solid var(--color-border);
+    margin-bottom: 16px;
+    gap: 8px;
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+    border-radius: 6px 6px 0 0;
+  }
+  .tab-btn:hover {
+    color: var(--color-text);
+    background: color-mix(in srgb, var(--color-text) 4%, transparent);
+  }
+  .tab-btn.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+  }
+  .tab-content {
+    display: none;
+  }
+  .tab-content.active {
+    display: block;
+    animation: fadeInTab 0.25s ease;
+  }
+  @keyframes fadeInTab {
+    from { opacity: 0; transform: translateY(2px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   /* ─── Input Fields ─── */
   .input-block {
     margin-bottom: 18px;
@@ -236,7 +294,7 @@ import Layout from '../layouts/Layout.astro';
   /* Textareas */
   .code-textarea {
     width: 100%;
-    height: 220px;
+    height: 190px;
     padding: 14px;
     border-radius: 12px;
     border: 1.5px solid var(--color-border);
@@ -254,14 +312,71 @@ import Layout from '../layouts/Layout.astro';
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 10%, transparent);
   }
   .css-textarea {
-    height: 100px;
+    height: 190px;
+  }
+  
+  /* Validation container & Autofix button */
+  .validation-error-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+    min-height: 20px;
   }
   .validation-error {
     font-size: 11px;
     color: #ef4444;
     font-weight: 700;
     display: none;
-    margin-top: 6px;
+  }
+  .autofix-btn {
+    color: #ef4444;
+    border: 1px solid color-mix(in srgb, #ef4444 30%, transparent);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  .autofix-btn:hover {
+    background: color-mix(in srgb, #ef4444 10%, transparent);
+  }
+
+  /* ─── Inline color swatches inside editor card ─── */
+  .palette-preview-panel {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--color-text) 2%, var(--color-bg));
+    border: 1px dashed var(--color-border);
+  }
+  .palette-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    display: block;
+    margin-bottom: 6px;
+  }
+  .editor-swatches-strip {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .editor-swatch {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 6px;
+    background: var(--color-surface);
+    border: 1.5px solid var(--color-border);
+    border-radius: 6px;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    color: var(--color-text-muted);
+  }
+  .editor-swatch-color {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    border: 1px solid rgba(0,0,0,0.15);
   }
 
   /* Text Inputs with length counter */
@@ -497,6 +612,26 @@ import Layout from '../layouts/Layout.astro';
 </style>
 
 <script>
+  // 🌌 默认加载的主题数据（提供良好的首屏呈现感，不让沙箱空置）
+  const DEFAULT_THEME = {
+    name: "深邃暗夜",
+    author: "设计先锋",
+    cssVars: {
+      "--color-primary": "#6366f1",
+      "--color-secondary": "#818cf8",
+      "--color-accent": "#f43f5e",
+      "--color-bg": "#09090b",
+      "--color-surface": "#18181b",
+      "--color-text": "#f4f4f5",
+      "--color-text-muted": "#a1a1aa",
+      "--color-border": "rgba(255, 255, 255, 0.08)",
+      "--radii": "12px",
+      "--glass-bg": "rgba(24, 24, 27, 0.75)",
+      "--glass-blur": "10px"
+    },
+    customCss: "/* 欢迎自由自定义额外的样式 */"
+  };
+
   // 🌸 精美示例主题数据
   const DEMO_THEME = {
     name: "樱花梦境",
@@ -676,6 +811,26 @@ import Layout from '../layouts/Layout.astro';
 
   const $ = (sel) => document.getElementById(sel);
 
+  // ─── Code Editors Tabs Switcher Logics ───
+  const tabBtnVars = $('tab-btn-vars');
+  const tabBtnCss = $('tab-btn-css');
+  const tabContentVars = $('tab-content-vars');
+  const tabContentCss = $('tab-content-css');
+
+  tabBtnVars.addEventListener('click', () => {
+    tabBtnVars.classList.add('active');
+    tabBtnCss.classList.remove('active');
+    tabContentVars.classList.add('active');
+    tabContentCss.classList.remove('active');
+  });
+
+  tabBtnCss.addEventListener('click', () => {
+    tabBtnCss.classList.add('active');
+    tabBtnVars.classList.remove('active');
+    tabContentCss.classList.add('active');
+    tabContentVars.classList.remove('active');
+  });
+
   // Character limit dynamic counter UI
   function setupCounter(inputEl, counterEl, max) {
     inputEl.addEventListener('input', () => {
@@ -698,6 +853,7 @@ import Layout from '../layouts/Layout.astro';
   }
   function clearError() {
     $('vars-error').style.display = 'none';
+    $('btn-autofix').style.display = 'none';
   }
 
   function validateVars(vars) {
@@ -711,9 +867,37 @@ import Layout from '../layouts/Layout.astro';
     return true;
   }
 
+  // 🎨 Editor Live parsed swatches renderer
+  function renderEditorSwatches(vars) {
+    const swatchesContainer = $('editor-swatches');
+    if (!vars) {
+      swatchesContainer.innerHTML = '';
+      return;
+    }
+    // Filter hex colors to render tiny previews in editor container
+    const colors = Object.entries(vars).filter(([k, v]) => {
+      return (v.startsWith('#') || v.startsWith('rgb') || v.startsWith('hsl')) && k.startsWith('--color-');
+    });
+
+    if (colors.length === 0) {
+      swatchesContainer.innerHTML = '<span style="font-size:11px;color:var(--color-text-muted)">（暂无可识别的颜色变量）</span>';
+      return;
+    }
+
+    swatchesContainer.innerHTML = colors.map(([key, val]) => `
+      <div class="editor-swatch" title="${key}: ${val}">
+        <div class="editor-swatch-color" style="background: ${val}"></div>
+        <span>${key.replace('--color-', '')}</span>
+      </div>
+    `).join('');
+  }
+
   // ─── Sandboxed Preview Engine (Dynamic inside isolated iframe) ───
-  function initIframe() {
+  function initIframe(callback) {
     const iframe = $('preview-iframe');
+    iframe.onload = () => {
+      if (callback) callback();
+    };
     const doc = iframe.contentDocument || iframe.contentWindow?.document;
     if (!doc) return;
     doc.open();
@@ -732,6 +916,7 @@ import Layout from '../layouts/Layout.astro';
       placeholder.style.opacity = '1';
       iframe.classList.remove('active');
       updateSubmitBtn();
+      renderEditorSwatches(null);
       return;
     }
 
@@ -783,6 +968,7 @@ import Layout from '../layouts/Layout.astro';
       }
     }
 
+    renderEditorSwatches(vars);
     updateSubmitBtn();
   }
 
@@ -804,22 +990,46 @@ import Layout from '../layouts/Layout.astro';
       clearError();
     } catch {
       showError('无法排版：非有效 JSON 格式');
+      $('btn-autofix').style.display = 'inline-block';
     }
   });
 
-  // ─── Load Demo Template (UX Accelerator) ───
-  $('btn-demo').addEventListener('click', () => {
-    $('vars-input').value = JSON.stringify(DEMO_THEME.cssVars, null, 2);
-    $('css-input').value = DEMO_THEME.customCss;
-    $('name-input').value = DEMO_THEME.name;
-    $('author-input').value = DEMO_THEME.author;
+  // ─── Autofix typical JSON syntax errors ───
+  $('btn-autofix').addEventListener('click', () => {
+    const input = $('vars-input');
+    let raw = input.value.trim();
+    try {
+      // 1. Try removing trailing commas
+      raw = raw.replace(/,\s*([\]}])/g, '$1');
+      // 2. Try wrapping unquoted keys in quotes (common mistake)
+      raw = raw.replace(/([{,]\s*)([a-zA-Z0-9_\-]+)\s*:/g, '$1"$2":');
+      // Test parsing again
+      const parsed = JSON.parse(raw);
+      input.value = JSON.stringify(parsed, null, 2);
+      clearError();
+      updatePreview(parsed, $('css-input').value, $('name-input').value || undefined);
+    } catch (e) {
+      showError('自动修复失败，请手动修正括号或引号');
+    }
+  });
+
+  // ─── Load Template ───
+  function loadThemeData(themeObj) {
+    $('vars-input').value = JSON.stringify(themeObj.cssVars, null, 2);
+    $('css-input').value = themeObj.customCss || '';
+    $('name-input').value = themeObj.name;
+    $('author-input').value = themeObj.author;
     
     // Dispatch events to refresh counters
     $('name-input').dispatchEvent(new Event('input'));
     $('author-input').dispatchEvent(new Event('input'));
 
     clearError();
-    updatePreview(DEMO_THEME.cssVars, DEMO_THEME.customCss, DEMO_THEME.name);
+    updatePreview(themeObj.cssVars, themeObj.customCss || '', themeObj.name);
+  }
+
+  $('btn-demo').addEventListener('click', () => {
+    loadThemeData(DEMO_THEME);
     window.__toast?.('樱花漫舞梦境主题已载入');
   });
 
@@ -828,7 +1038,7 @@ import Layout from '../layouts/Layout.astro';
     try {
       const text = await navigator.clipboard.readText();
       let data;
-      try { data = JSON.parse(text); } catch { showError('未在剪贴板中检测到有效 JSON'); return; }
+      try { data = JSON.parse(text); } catch { showError('未在剪贴板中检测到有效 JSON'); $('btn-autofix').style.display = 'inline-block'; return; }
 
       let vars = data;
       let css = '';
@@ -875,6 +1085,7 @@ import Layout from '../layouts/Layout.astro';
         updatePreview(vars, css, $('name-input').value || undefined);
       } catch {
         showError('JSON 语法错误，请检查括号与双引号格式');
+        $('btn-autofix').style.display = 'inline-block';
         updatePreview(null, '');
       }
     }, 250);
@@ -1059,6 +1270,9 @@ import Layout from '../layouts/Layout.astro';
   document.head.appendChild(spinnerCSS);
 
   // ─── Initialize Sandboxed browser state on page load ───
-  initIframe();
+  initIframe(() => {
+    // Iframe就绪后，加载预设的默认暗色主题，使页面瞬间充满表现力
+    loadThemeData(DEFAULT_THEME);
+  });
   renderHistory();
 </script>
