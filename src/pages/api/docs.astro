@@ -482,11 +482,11 @@ function applyTheme(d) {
     }
   </style>
 
-  <script lang="ts">
+  <script>
     // Copy button handler — all elements with .cmd-copy-btn
     document.querySelectorAll('.cmd-copy-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const cmd = (btn).dataset.cmd || '';
+        const cmd = btn.dataset.cmd || '';
         try {
           await navigator.clipboard.writeText(cmd);
           btn.classList.add('copied');
@@ -579,7 +579,7 @@ function applyTheme(d) {
         lines.push(`## ${text}`, '');
         let el = h.nextElementSibling;
         while (el && el.tagName !== 'H2') {
-          const txt = (el).textContent?.trim();
+          const txt = el.textContent?.trim();
           if (txt) lines.push(txt, '');
           el = el.nextElementSibling;
         }

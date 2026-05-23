@@ -51,7 +51,7 @@ import Layout from '../layouts/Layout.astro';
               <textarea
                 id="vars-input"
                 spellcheck="false"
-                placeholder='{"--color-primary": "#ff8fa3", "--color-bg": "#fff0f3", ...}'
+                placeholder='{"--color-primary":"#ff8fa3","--color-bg":"#fff0f3","--font-heading":"Inter, sans-serif","--radii":"12px",...}'
                 class="code-textarea"
               ></textarea>
               <div id="vars-error-container" class="validation-error-container">
@@ -119,7 +119,10 @@ import Layout from '../layouts/Layout.astro';
       <div class="preview-sticky">
         <div class="preview-header-meta">
           <span class="section-badge">Interactive Sandbox</span>
-          <span class="badge-live-dot">LIVE SENSING</span>
+          <div class="badge-live-dot-wrapper" style="display:flex;align-items:center;gap:8px">
+            <span class="badge-live-dot">LIVE SENSING</span>
+            <span id="sensing-detailed-status" class="sensing-details" style="font-size:10px;font-weight:700;letter-spacing:0.04em;color:var(--color-text-muted);opacity:0.85">Idle</span>
+          </div>
         </div>
 
         <div id="preview-shell" class="preview-browser">
@@ -131,6 +134,9 @@ import Layout from '../layouts/Layout.astro';
             </div>
             <span class="browser-url">themedist.preview.local</span>
           </div>
+
+          <!-- Micro simulated browser progress line indicator -->
+          <div id="browser-loading-bar" class="browser-loading-bar"></div>
           
           <!-- Embedded Preview SandBox Iframe -->
           <div class="iframe-container">
@@ -147,7 +153,8 @@ import Layout from '../layouts/Layout.astro';
   </section>
 </Layout>
 
-<style>
+<!-- 🌸 启动 is:global 彻底清除 Astro 局部哈希隔离，使 JS 渲染的色块和历史列表得到完美美化 -->
+<style is:global>
   /* ─── Grid layout & Containers ─── */
   .submit-container {
     max-width: 1040px;
@@ -356,27 +363,60 @@ import Layout from '../layouts/Layout.astro';
   }
   .editor-swatches-strip {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .palette-group-label {
+    width: 100%;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-muted);
+    opacity: 0.5;
+    margin: 2px 0;
   }
   .editor-swatch {
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 3px 6px;
+    gap: 6px;
+    padding: 4px 8px;
     background: var(--color-surface);
     border: 1.5px solid var(--color-border);
-    border-radius: 6px;
-    font-size: 10px;
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 700;
-    color: var(--color-text-muted);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .editor-swatch:hover {
+    border-color: var(--color-primary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   }
   .editor-swatch-color {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     border-radius: 4px;
-    border: 1px solid rgba(0,0,0,0.15);
+    border: 1px solid rgba(0,0,0,0.12);
+    flex-shrink: 0;
+  }
+  .editor-swatch-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .editor-swatch-name {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: 1;
+  }
+  .editor-swatch-val {
+    font-size: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--color-text-muted);
+    font-weight: 500;
+    line-height: 1;
   }
 
   /* Text Inputs with length counter */
@@ -462,6 +502,8 @@ import Layout from '../layouts/Layout.astro';
     font-weight: 800;
     color: var(--color-accent);
     letter-spacing: 0.04em;
+    transition: color 0.3s;
+    user-select: none;
   }
   .badge-live-dot::before {
     content: '';
@@ -469,11 +511,34 @@ import Layout from '../layouts/Layout.astro';
     height: 6px;
     border-radius: 50%;
     background: var(--color-accent);
-    animation: flash 1.5s ease-in-out infinite alternate;
+    transition: background 0.3s, box-shadow 0.3s;
+    animation: livePulse 1.5s ease-in-out infinite alternate;
   }
-  @keyframes flash {
+  @keyframes livePulse {
     0% { opacity: 0.3; transform: scale(0.9); }
     100% { opacity: 1; transform: scale(1.15); }
+  }
+  
+  /* ⚡ Micro-interactions states styling */
+  .badge-live-dot.sensing {
+    color: #f59e0b;
+  }
+  .badge-live-dot.sensing::before {
+    background: #f59e0b;
+    animation: sensingPulse 0.6s ease-in-out infinite alternate;
+  }
+  @keyframes sensingPulse {
+    0% { opacity: 0.7; transform: scale(1); box-shadow: 0 0 0 0px rgba(245, 158, 11, 0.4); }
+    100% { opacity: 1; transform: scale(1.3); box-shadow: 0 0 0 4px rgba(245, 158, 11, 0); }
+  }
+  .badge-live-dot.synced {
+    color: #22c55e;
+  }
+  .badge-live-dot.synced::before {
+    background: #22c55e;
+    animation: none;
+    opacity: 1;
+    transform: scale(1);
   }
 
   .preview-browser {
@@ -482,7 +547,23 @@ import Layout from '../layouts/Layout.astro';
     border: 2.5px solid var(--color-border);
     background: var(--color-bg);
     box-shadow: var(--shadow-lg);
+    transition: border-color 0.3s, box-shadow 0.3s;
   }
+  
+  /* browser compile state borders */
+  .preview-browser.compiling {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15), var(--shadow-lg);
+  }
+  .preview-browser.error-state {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15), var(--shadow-lg);
+  }
+  .preview-browser.synced-state {
+    border-color: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15), var(--shadow-lg);
+  }
+
   .browser-bar {
     padding: 12px 16px;
     display: grid;
@@ -492,6 +573,16 @@ import Layout from '../layouts/Layout.astro';
     background: color-mix(in srgb, var(--color-surface) 40%, transparent);
     user-select: none;
   }
+  
+  /* Browser Loading Indicator Progress Bar */
+  .browser-loading-bar {
+    height: 2px;
+    width: 0%;
+    background: var(--color-primary, #6366f1);
+    transition: width 0.25s ease, opacity 0.2s ease, background-color 0.2s;
+    opacity: 0;
+  }
+
   .browser-dots {
     display: flex;
     gap: 6px;
@@ -560,7 +651,7 @@ import Layout from '../layouts/Layout.astro';
     line-height: 1.6;
   }
 
-  /* ─── My Submissions List ─── */
+  /* My Submissions List */
   .recent-submissions {
     margin-top: 32px;
     animation: fadeIn 0.4s ease-out;
@@ -625,9 +716,27 @@ import Layout from '../layouts/Layout.astro';
       "--color-text": "#f4f4f5",
       "--color-text-muted": "#a1a1aa",
       "--color-border": "rgba(255, 255, 255, 0.08)",
+      "--font-heading": "'Inter', system-ui, sans-serif",
+      "--font-body": "'Inter', system-ui, sans-serif",
+      "--font-mono": "'JetBrains Mono', monospace",
+      "--text-base": "clamp(1rem, 0.9rem + 0.5vw, 1.125rem)",
+      "--text-lg": "calc(var(--text-base) * 1.25)",
+      "--text-xl": "calc(var(--text-lg) * 1.25)",
+      "--text-2xl": "calc(var(--text-xl) * 1.25)",
+      "--text-sm": "calc(var(--text-base) / 1.25)",
+      "--space-unit": "0.25rem",
+      "--space-1": "0.25rem", "--space-2": "0.5rem", "--space-3": "0.75rem",
+      "--space-4": "1rem", "--space-6": "1.5rem", "--space-8": "2rem", "--space-12": "3rem",
       "--radii": "12px",
+      "--content-max": "72rem",
+      "--shadow-sm": "0 1px 2px rgba(0,0,0,0.08)",
+      "--shadow-md": "0 4px 12px rgba(0,0,0,0.12)",
+      "--shadow-lg": "0 12px 32px rgba(0,0,0,0.18)",
       "--glass-bg": "rgba(24, 24, 27, 0.75)",
-      "--glass-blur": "10px"
+      "--glass-blur": "blur(10px)",
+      "--noise-opacity": "0",
+      "--ambient-1": "rgba(99, 102, 241, 0.15)",
+      "--ambient-2": "rgba(129, 140, 248, 0.1)"
     },
     customCss: "/* 欢迎自由自定义额外的样式 */"
   };
@@ -645,9 +754,27 @@ import Layout from '../layouts/Layout.astro';
       "--color-text": "#590d22",
       "--color-text-muted": "#800f2f",
       "--color-border": "rgba(255, 143, 163, 0.25)",
+      "--font-heading": "'Inter', system-ui, sans-serif",
+      "--font-body": "'Inter', system-ui, sans-serif",
+      "--font-mono": "'JetBrains Mono', monospace",
+      "--text-base": "clamp(1rem, 0.9rem + 0.5vw, 1.125rem)",
+      "--text-lg": "calc(var(--text-base) * 1.25)",
+      "--text-xl": "calc(var(--text-lg) * 1.25)",
+      "--text-2xl": "calc(var(--text-xl) * 1.25)",
+      "--text-sm": "calc(var(--text-base) / 1.25)",
+      "--space-unit": "0.25rem",
+      "--space-1": "0.25rem", "--space-2": "0.5rem", "--space-3": "0.75rem",
+      "--space-4": "1rem", "--space-6": "1.5rem", "--space-8": "2rem", "--space-12": "3rem",
       "--radii": "14px",
+      "--content-max": "72rem",
+      "--shadow-sm": "0 1px 3px rgba(89, 13, 34, 0.06)",
+      "--shadow-md": "0 4px 14px rgba(89, 13, 34, 0.08)",
+      "--shadow-lg": "0 12px 32px rgba(89, 13, 34, 0.12)",
       "--glass-bg": "rgba(255, 255, 255, 0.7)",
-      "--glass-blur": "12px"
+      "--glass-blur": "blur(12px)",
+      "--noise-opacity": "0",
+      "--ambient-1": "rgba(255, 143, 163, 0.18)",
+      "--ambient-2": "rgba(255, 179, 193, 0.12)"
     },
     customCss: `
       @keyframes sakuraFall {
@@ -874,22 +1001,37 @@ import Layout from '../layouts/Layout.astro';
       swatchesContainer.innerHTML = '';
       return;
     }
-    // Filter hex colors to render tiny previews in editor container
-    const colors = Object.entries(vars).filter(([k, v]) => {
-      return (v.startsWith('#') || v.startsWith('rgb') || v.startsWith('hsl')) && k.startsWith('--color-');
-    });
+    // Filter all color-like values (hex, rgb, rgba, hsl) — includes color vars + ambient
+    const isColorVal = (v) => typeof v === 'string' && (
+      v.startsWith('#') || v.startsWith('rgb') || v.startsWith('hsl') || v.startsWith('rgba')
+    );
+    const colorSwatches = Object.entries(vars).filter(([k, v]) => isColorVal(v) && k.startsWith('--color-'));
+    const ambientSwatches = Object.entries(vars).filter(([k, v]) => isColorVal(v) && k.startsWith('--ambient-'));
 
-    if (colors.length === 0) {
+    if (colorSwatches.length === 0 && ambientSwatches.length === 0) {
       swatchesContainer.innerHTML = '<span style="font-size:11px;color:var(--color-text-muted)">（暂无可识别的颜色变量）</span>';
       return;
     }
 
-    swatchesContainer.innerHTML = colors.map(([key, val]) => `
-      <div class="editor-swatch" title="${key}: ${val}">
+    const renderChip = ([key, val]) => `
+      <div class="editor-swatch" title="${key}: ${val} — 点击复制" data-swatch-val="${val}">
         <div class="editor-swatch-color" style="background: ${val}"></div>
-        <span>${key.replace('--color-', '')}</span>
+        <div class="editor-swatch-info">
+          <span class="editor-swatch-name">${key.replace('--color-', '').replace('--ambient-', '')}</span>
+          <span class="editor-swatch-val">${val}</span>
+        </div>
       </div>
-    `).join('');
+    `;
+
+    let html = '';
+    if (colorSwatches.length > 0) {
+      html += '<span class="palette-group-label">色板</span>' + colorSwatches.map(renderChip).join('');
+    }
+    if (ambientSwatches.length > 0) {
+      html += '<span class="palette-group-label">氛围</span>' + ambientSwatches.map(renderChip).join('');
+    }
+
+    swatchesContainer.innerHTML = html;
   }
 
   // ─── Sandboxed Preview Engine (Dynamic inside isolated iframe) ───
@@ -940,14 +1082,17 @@ import Layout from '../layouts/Layout.astro';
     const titleEl = doc.getElementById('preview-title');
     if (titleEl) titleEl.textContent = themeName;
 
-    // 3. Render theme palettes swatches
+    // 3. Render theme palettes swatches (all color-type vars) 
+    // 🌸 修复运行时 BUG：原 Object.keys(themeVars) 导致 ReferenceError 崩溃，现修正为 Object.keys(vars)
     const swatchesContainer = doc.getElementById('swatches-container');
     if (swatchesContainer) {
-      const colors = ['--color-primary', '--color-secondary', '--color-accent', '--color-bg', '--color-surface'];
-      swatchesContainer.innerHTML = colors.map(k => `
+      const colorKeys = Object.keys(vars).filter(k =>
+        k.startsWith('--color-') || k.startsWith('--ambient-')
+      );
+      swatchesContainer.innerHTML = colorKeys.map(k => `
         <div class="swatch-item">
           <div class="swatch-color" style="background: var(${k})"></div>
-          <span class="swatch-label">${k.replace('--color-', '')}</span>
+          <span class="swatch-label">${k.replace('--color-', '').replace('--ambient-', '')}</span>
         </div>
       `).join('');
     }
@@ -1019,14 +1164,27 @@ import Layout from '../layouts/Layout.astro';
     $('css-input').value = themeObj.customCss || '';
     $('name-input').value = themeObj.name;
     $('author-input').value = themeObj.author;
-    
+
     // Dispatch events to refresh counters
     $('name-input').dispatchEvent(new Event('input'));
     $('author-input').dispatchEvent(new Event('input'));
 
     clearError();
     updatePreview(themeObj.cssVars, themeObj.customCss || '', themeObj.name);
+    setSynced();
   }
+
+  // Click-to-copy swatch hex/color value
+  document.getElementById('editor-swatches')?.addEventListener('click', (e) => {
+    const swatch = e.target.closest('[data-swatch-val]');
+    if (!swatch) return;
+    const val = swatch.getAttribute('data-swatch-val');
+    if (val) {
+      navigator.clipboard.writeText(val).then(() => {
+        window.__toast?.(`颜色值 ${val} 已复制`);
+      }).catch(() => {});
+    }
+  });
 
   $('btn-demo').addEventListener('click', () => {
     loadThemeData(DEMO_THEME);
@@ -1062,15 +1220,73 @@ import Layout from '../layouts/Layout.astro';
     }
   });
 
+  // ─── ⚡ LIVE SENSING badge & progress state controllers ───
+  const liveBadge = document.querySelector('.badge-live-dot');
+  const detailedStatus = $('sensing-detailed-status');
+  const browserShell = $('preview-shell');
+  const loadingBar = $('browser-loading-bar');
+  let syncTimer;
+
+  function setSensing() {
+    if (!liveBadge) return;
+    liveBadge.className = 'badge-live-dot sensing';
+    detailedStatus.textContent = 'DETECTING…';
+    detailedStatus.style.color = '#f59e0b';
+    
+    // Ambient feedback trigger
+    browserShell.className = 'preview-browser compiling';
+    loadingBar.style.width = '65%';
+    loadingBar.style.opacity = '1';
+  }
+
+  function setSynced() {
+    if (!liveBadge) return;
+    liveBadge.className = 'badge-live-dot synced';
+    detailedStatus.textContent = '已同步';
+    detailedStatus.style.color = '#22c55e';
+    
+    browserShell.className = 'preview-browser synced-state';
+    loadingBar.style.width = '100%';
+
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => {
+      liveBadge.className = 'badge-live-dot';
+      detailedStatus.textContent = 'LIVE SENSING';
+      detailedStatus.style.color = '';
+      loadingBar.style.opacity = '0';
+      
+      // Delay reset width
+      setTimeout(() => {
+        loadingBar.style.width = '0%';
+        browserShell.className = 'preview-browser';
+      }, 200);
+    }, 1200);
+  }
+
+  function setLiveError() {
+    if (!liveBadge) return;
+    liveBadge.className = 'badge-live-dot';
+    detailedStatus.textContent = '语法错误';
+    detailedStatus.style.color = '#ef4444';
+    
+    browserShell.className = 'preview-browser error-state';
+    loadingBar.style.opacity = '0';
+    setTimeout(() => {
+      loadingBar.style.width = '0%';
+    }, 200);
+  }
+
   // ─── Live preview debounce engines ───
   let varsDebounce;
   $('vars-input').addEventListener('input', () => {
+    setSensing();
     clearTimeout(varsDebounce);
     varsDebounce = window.setTimeout(() => {
       const raw = $('vars-input').value.trim();
       if (!raw) {
         updatePreview(null, '');
         clearError();
+        setLiveError();
         return;
       }
       try {
@@ -1078,25 +1294,30 @@ import Layout from '../layouts/Layout.astro';
         if (!validateVars(vars)) {
           showError('JSON 中至少需包含 5 个以 --color 开头的主题自定义变量');
           updatePreview(null, '');
+          setLiveError();
           return;
         }
         clearError();
         const css = $('css-input').value;
         updatePreview(vars, css, $('name-input').value || undefined);
+        setSynced();
       } catch {
         showError('JSON 语法错误，请检查括号与双引号格式');
         $('btn-autofix').style.display = 'inline-block';
         updatePreview(null, '');
+        setLiveError();
       }
     }, 250);
   });
 
   let cssDebounce;
   $('css-input').addEventListener('input', () => {
+    setSensing();
     clearTimeout(cssDebounce);
     cssDebounce = window.setTimeout(() => {
       if (currentVars) {
         updatePreview(currentVars, $('css-input').value, $('name-input').value || undefined);
+        setSynced();
       }
     }, 250);
   });
