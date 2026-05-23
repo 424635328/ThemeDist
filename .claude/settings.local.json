@@ -43,7 +43,11 @@
       "Bash(awk *)",
       "Bash(perl -ne 'print if /^\\\\x{20}{4,8}\\\\x{27}/' \"E:/GitHub/themeDist/src/api/index_config.js\")",
       "Bash(ADAPTER=netlify npm run build)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(ADAPTER=netlify npx astro dev --port 4322)",
+      "Bash(kill %1)",
+      "Bash(ADAPTER=netlify KV_REST_API_URL=\"\" KV_REST_API_TOKEN=\"\" npm run build)",
+      "Bash(ADAPTER=netlify npx astro dev --port 4323)"
     ]
   }
 }

@@ -7,8 +7,16 @@ function getClient(): Redis | null {
   if (disabled) return null;
   if (client) return client;
 
-  const url = import.meta.env.UPSTASH_REDIS_REST_URL || import.meta.env.KV_REST_API_URL || import.meta.env.KV_URL;
-  const token = import.meta.env.UPSTASH_REDIS_REST_TOKEN || import.meta.env.KV_REST_API_TOKEN;
+  const url = import.meta.env.UPSTASH_REDIS_REST_URL
+    || import.meta.env.KV_REST_API_URL
+    || import.meta.env.KV_URL
+    || process.env.UPSTASH_REDIS_REST_URL
+    || process.env.KV_REST_API_URL
+    || process.env.KV_URL;
+  const token = import.meta.env.UPSTASH_REDIS_REST_TOKEN
+    || import.meta.env.KV_REST_API_TOKEN
+    || process.env.UPSTASH_REDIS_REST_TOKEN
+    || process.env.KV_REST_API_TOKEN;
 
   if (!url || !token) {
     console.warn('[redis] 环境变量 UPSTASH_REDIS_REST_URL 或 KV_REST_API_URL 未设置，Redis 功能已禁用。本地开发请检查 .env.local');
