@@ -211,7 +211,7 @@ export default async (request: Request, context: Context) => {
       extensions: themeData.extensions || null,
       logoText: themeData.logoText || null,
       logoColors: themeData.logoColors || null,
-      available: idx.poolLength + communityDir.length,
+      available: idx.directory.length + communityDir.length,
       directory: [...idx.directory, ...communityDir],
       dailyIsCommunity,
     };

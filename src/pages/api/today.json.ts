@@ -21,8 +21,6 @@ export async function GET() {
 
   const allThemes = getAllThemes();
   const communityThemes = await getCommunityThemes(50);
-  const totalAvailable = allThemes.length + communityThemes.length;
-
   const staticDir = allThemes.map((t) => ({
     preset: t.preset,
     name: t.presetName,
@@ -40,6 +38,8 @@ export async function GET() {
     community: true,
   }));
 
+  const directory = [...staticDir.slice(0, 20), ...communityDir.slice(0, 10)];
+
   return new Response(
     JSON.stringify(
       {
@@ -52,8 +52,8 @@ export async function GET() {
         extensions: theme.extensions || null,
         logoText: theme.logoText || null,
         logoColors: theme.logoColors || null,
-        available: totalAvailable,
-        directory: [...staticDir.slice(0, 20), ...communityDir.slice(0, 10)],
+        available: directory.length,
+        directory,
         dailyIsCommunity: !!communityDaily,
       },
       null,
