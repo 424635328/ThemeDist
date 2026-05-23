@@ -1,0 +1,6 @@
+---
+// Redirect to merged API docs
+const newUrl = new URL(Astro.url);
+newUrl.pathname = '/api/docs';
+return Astro.redirect(newUrl.toString(), 301);
+---

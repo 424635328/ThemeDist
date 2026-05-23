@@ -1,5 +1,5 @@
 [build]
-  command = "npm run build"
+  command = "ADAPTER=netlify npm run build"
   publish = "dist"
 
 # Daily rebuild at midnight UTC for new daily theme

@@ -1,0 +1,1560 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getAllThemes, getDailyTheme } from '../utils/daily-theme';
+
+const allThemes = getAllThemes();
+const today = getDailyTheme();
+const todayPreset = today.preset;
+
+interface ThemeWithMeta {
+  preset: string;
+  presetName: string;
+  cssVars: Record<string, string>;
+  isToday: boolean;
+  isHoliday: boolean;
+  primaryHex: string;
+  colorFamily: 'warm' | 'cool';
+  index: number;
+}
+
+function hexToHue(hex: string): number {
+  if (!hex || typeof hex !== 'string') return 0;
+  const c = hex.replace('#', '').trim();
+  if (c.length === 3) {
+    const chars = c.split('');
+    return hexToHue(`#${chars[0]}${chars[0]}${chars[1]}${chars[1]}${chars[2]}${chars[2]}`);
+  }
+  if (c.length !== 6) return 0;
+  const r = parseInt(c.slice(0, 2), 16) / 255;
+  const g = parseInt(c.slice(2, 4), 16) / 255;
+  const b = parseInt(c.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  if (d === 0) return 0;
+  let h = 0;
+  if (max === r) h = ((g - b) / d) % 6;
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  return Math.round(h * 60);
+}
+
+function classifyColor(hex: string): 'warm' | 'cool' {
+  const hue = hexToHue(hex);
+  if (hue <= 100 || hue >= 330) return 'warm';
+  return 'cool';
+}
+
+const themes: ThemeWithMeta[] = allThemes.map((t, i) => {
+  const primaryHex = t.cssVars['--color-primary'] || '#000000';
+  return {
+    preset: t.preset,
+    presetName: t.presetName,
+    cssVars: t.cssVars,
+    isToday: t.preset === todayPreset,
+    isHoliday: t.preset.startsWith('holiday-'),
+    primaryHex,
+    colorFamily: classifyColor(primaryHex),
+    index: i,
+  };
+});
+
+const BATCH_SIZE = 40;
+const totalCount = themes.length;
+const holidayCount = themes.filter(t => t.isHoliday).length;
+const dailyCount = totalCount - holidayCount;
+const warmCount = themes.filter(t => t.colorFamily === 'warm').length;
+const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
+---
+
+<Layout>
+  <section class="section text-center">
+    <p class="t-label">Theme Store</p>
+    <h1 class="t-heading mt-2">主题商店</h1>
+    <p class="t-subhead mt-2" style="max-width:560px;margin-inline:auto">
+      {totalCount}+ 套预设主题，包含 {holidayCount} 个节日主题和 {dailyCount} 个日常主题。节日自动优先，其余按日轮换。
+    </p>
+  </section>
+
+  <section class="section-sm" style="padding-top:0">
+    <div class="store-controls">
+      <!-- Search -->
+      <div class="search-wrapper">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input
+          type="text"
+          id="search"
+          placeholder="搜索主题名称或色值…"
+          autocomplete="off"
+          class="search-input"
+        />
+        <button id="search-clear" class="search-clear" aria-label="清除搜索" hidden>✕</button>
+      </div>
+
+      <!-- Sort dropdown -->
+      <div class="sort-dropdown" id="sort-dropdown">
+        <button class="sort-trigger" id="sort-trigger" aria-haspopup="listbox" aria-expanded="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="sort-icon"><path d="M3 7h18M6 12h12M9 17h6"/></svg>
+          <span id="sort-label">默认排序</span>
+          <svg width="10" height="6" viewBox="0 0 10 6" fill="none" class="sort-chevron"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <ul class="sort-menu" id="sort-menu" role="listbox" aria-label="排序方式" hidden>
+          <li class="sort-option sort-option-active" role="option" aria-selected="true" data-value="default">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg>
+            默认排序
+          </li>
+          <li class="sort-option" role="option" aria-selected="false" data-value="name-asc">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l4-4 4 4M7 4v16M14 8h7M14 16h5"/></svg>
+            名称 A → Z
+          </li>
+          <li class="sort-option" role="option" aria-selected="false" data-value="name-desc">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8l4-4 4 4M7 4v16M21 8h-5M17 16h-3"/></svg>
+            名称 Z → A
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Category filter chips -->
+    <div class="filter-chips" role="group" aria-label="主题分类筛选">
+      <button class="chip chip-active" data-filter="all" aria-pressed="true">全部 <span class="chip-count">{totalCount}</span></button>
+      <button class="chip" data-filter="holiday" aria-pressed="false">节日 <span class="chip-count">{holidayCount}</span></button>
+      <button class="chip" data-filter="daily" aria-pressed="false">日常 <span class="chip-count">{dailyCount}</span></button>
+      <span class="chip-divider"></span>
+      <button class="chip" data-filter="warm" aria-pressed="false">暖色 <span class="chip-count">{warmCount}</span></button>
+      <button class="chip" data-filter="cool" aria-pressed="false">冷色 <span class="chip-count">{coolCount}</span></button>
+      <span class="chip-divider"></span>
+      <button class="chip" data-filter="community" aria-pressed="false">社区 <span class="chip-count" id="community-chip-count">-</span></button>
+    </div>
+
+    <!-- Community header bar (visible when community tab active) -->
+    <div id="community-header" style="display:none;max-width:1120px;margin:0 auto 20px">
+      <div class="comm-header-card">
+        <div class="comm-header-top">
+          <div class="comm-header-title-row">
+            <span class="comm-header-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </span>
+            <h2 class="comm-header-title">社区精选</h2>
+            <span class="comm-header-count" id="community-header-count">-</span>
+          </div>
+          <div class="comm-header-sort" id="community-sort">
+            <button class="comm-sort-btn comm-sort-active" data-comm-sort="new">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v12M3 7l5-5 5 5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              最新
+            </button>
+            <button class="comm-sort-btn" data-comm-sort="hot">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 14s-6-3.5-6-7.5a3.5 3.5 0 016-2.2 3.5 3.5 0 016 2.2C14 10.5 8 14 8 14z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              最热
+            </button>
+          </div>
+        </div>
+        <p class="comm-header-desc">用户投稿的原创主题设计，经管理员审核后收录。点击下方卡片即可预览或一键应用。</p>
+      </div>
+    </div>
+
+    <!-- Result count -->
+    <div class="result-bar">
+      <span id="result-count" class="result-count"></span>
+    </div>
+
+    <!-- Theme grid -->
+    <div 
+      class="grid-auto" 
+      id="theme-grid" 
+      data-today-preset={todayPreset} 
+      style="max-width:1120px;margin:0 auto"
+    >
+      {themes.map((t) => {
+        const { cssVars: v, primaryHex: p, preset } = t;
+        const bgHex = v['--color-bg'];
+        const textHex = v['--color-text'];
+        return (
+          <div
+            class="card card-interact theme-card"
+            data-name={t.presetName.toLowerCase()}
+            data-preset={preset}
+            data-color={p.toLowerCase()}
+            data-cat={t.isHoliday ? 'holiday' : 'daily'}
+            data-family={t.colorFamily}
+            data-index={String(t.index)}
+            style={(t.isToday ? '--card-ring:var(--color-primary);' : '--card-ring:transparent;') + (t.index >= BATCH_SIZE ? 'display:none' : '')}
+            data-pending={t.index >= BATCH_SIZE ? '1' : undefined}
+          >
+            {/* Full-bleed color bar */}
+            <div class="card-color-bar" aria-hidden="true">
+              <div class="color-bar-seg" style={`flex:3;background:${p}`}></div>
+              <div class="color-bar-seg" style={`flex:1.5;background:${v['--color-secondary']}`}></div>
+              <div class="color-bar-seg" style={`flex:0.8;background:${v['--color-accent']}`}></div>
+              <div class="color-bar-seg" style={`flex:2;background:${bgHex}`}></div>
+              <div class="color-bar-seg" style={`flex:1.2;background:${textHex}`}></div>
+            </div>
+
+            <div class="card-body">
+              {/* Header row */}
+              <div class="card-header">
+                <h3 class="card-title">{t.presetName}</h3>
+                <div class="card-badges">
+                  {t.isToday && <span class="badge badge-today">Today</span>}
+                  {t.isHoliday && <span class="badge badge-holiday">节日</span>}
+                </div>
+              </div>
+
+              {/* Color swatches */}
+              <div class="swatch-row">
+                {[
+                  { v: '--color-primary', l: 'P' },
+                  { v: '--color-secondary', l: 'S' },
+                  { v: '--color-accent', l: 'A' },
+                  { v: '--color-bg', l: 'Bg' },
+                  { v: '--color-text', l: 'Tx' },
+                ].map(({ v: varKey, l }) => (
+                  <button
+                    class="color-dot"
+                    data-color={v[varKey]}
+                    title={`${varKey}: ${v[varKey]} — 点击复制`}
+                    aria-label={`复制 ${varKey}: ${v[varKey]}`}
+                    style={`background:${v[varKey]};--dot-border:${varKey === '--color-bg' ? 'var(--color-border)' : 'transparent'}`}
+                  >
+                    <span class="dot-label" style={`color:${varKey === '--color-text' ? bgHex : textHex};text-shadow:0 0 2px ${bgHex}`}>{l}</span>
+                  </button>
+                ))}
+                <span class="card-hex">{p}</span>
+              </div>
+
+              {/* Actions */}
+              <div class="card-actions">
+                <a href={`/?theme=${preset}`} class="btn-card btn-card-primary js-apply-btn" data-preset={preset} data-name={t.presetName}>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  应用
+                </a>
+                <a href={`?theme=${preset}`} class="btn-card" title="在本页预览">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/></svg>
+                  预览
+                </a>
+                <a href={`/theme-builder?theme=${preset}`} class="btn-card" title="在构建器中编辑">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+                  构建器
+                </a>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+
+    <!-- Community grid (populated by JS) -->
+    <div class="grid-auto" id="community-grid" style="display:none;max-width:1120px;margin:0 auto"></div>
+
+    <!-- Empty state -->
+    <p id="no-results" class="empty-state" hidden>未找到匹配的主题 — <a href="?" class="empty-link">清除所有筛选</a></p>
+    <div id="community-empty" class="comm-empty-state" hidden>
+      <div class="comm-empty-icon">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6M9 13h6M9 17h4" stroke-linecap="round"/></svg>
+      </div>
+      <h3 class="comm-empty-title">暂无社区主题</h3>
+      <p class="comm-empty-desc">成为第一个分享主题设计的人</p>
+      <a href="/submit" class="btn btn-primary" style="margin-top:12px;height:38px;padding:0 20px;font-size:13px">提交你的主题</a>
+    </div>
+
+    <!-- Load more sentinel -->
+    <div id="load-sentinel" class="load-sentinel" aria-hidden="true"></div>
+  </section>
+</Layout>
+
+<!-- 🌸 启用 is:global 全局渲染，突破 Astro 作用域对动态生成社区卡片 CSS 的封锁 -->
+<style is:global>
+  /* ─── Controls bar ─── */
+  .store-controls {
+    max-width: 1120px;
+    margin: 0 auto 20px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .search-wrapper {
+    flex: 1;
+    min-width: 200px;
+    max-width: 400px;
+    position: relative;
+  }
+  .search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-text-muted);
+    pointer-events: none;
+  }
+  .search-input {
+    width: 100%;
+    height: 42px;
+    padding: 0 42px 0 40px;
+    border-radius: 12px;
+    border: 1.5px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
+    color: var(--color-text);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.25s, box-shadow 0.25s;
+  }
+  .search-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+  }
+  .search-input::placeholder {
+    color: var(--color-text-muted);
+    opacity: 0.6;
+  }
+  .search-clear {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    line-height: 1;
+  }
+  .search-clear:hover {
+    color: var(--color-text);
+  }
+
+  /* ─── Sort dropdown ─── */
+  .sort-dropdown {
+    position: relative;
+  }
+  .sort-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 42px;
+    padding: 0 14px;
+    border-radius: 12px;
+    border: 1.5px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
+    color: var(--color-text);
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.25s, box-shadow 0.25s;
+    white-space: nowrap;
+  }
+  .sort-trigger:hover {
+    border-color: var(--color-primary);
+  }
+  .sort-trigger:focus-visible,
+  .sort-dropdown.open .sort-trigger {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+  }
+  .sort-icon {
+    flex-shrink: 0;
+    color: var(--color-text-muted);
+  }
+  .sort-chevron {
+    flex-shrink: 0;
+    color: var(--color-text-muted);
+    transition: transform 0.2s;
+  }
+  .sort-dropdown.open .sort-chevron {
+    transform: rotate(180deg);
+  }
+
+  .sort-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 180px;
+    padding: 6px;
+    border-radius: 12px;
+    border: 1.5px solid var(--color-border);
+    background: var(--color-bg);
+    box-shadow: 0 12px 40px -8px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04) inset;
+    backdrop-filter: blur(20px);
+    list-style: none;
+    z-index: 100;
+    animation: menuIn 0.18s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  .sort-menu[hidden] {
+    display: none;
+  }
+  @keyframes menuIn {
+    from { opacity: 0; transform: translateY(-6px) scale(0.96); }
+  }
+
+  .sort-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .sort-option:hover {
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  }
+  .sort-option svg {
+    flex-shrink: 0;
+    color: var(--color-text-muted);
+  }
+  .sort-option-active {
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    color: var(--color-primary);
+    font-weight: 600;
+  }
+  .sort-option-active svg {
+    color: var(--color-primary);
+  }
+
+  /* ─── Filter chips ─── */
+  .filter-chips {
+    max-width: 1120px;
+    margin: 0 auto 16px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .chip:hover {
+    border-color: var(--color-primary);
+    color: var(--color-text);
+  }
+  .chip-active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+  }
+  .chip-active:hover {
+    color: #fff;
+  }
+  .chip-count {
+    font-size: 10px;
+    font-weight: 600;
+    opacity: 0.75;
+  }
+  .chip-active .chip-count {
+    opacity: 0.9;
+  }
+  .chip-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--color-border);
+    margin: 0 4px;
+  }
+
+  /* ─── Result count ─── */
+  .result-bar {
+    max-width: 1120px;
+    margin: 0 auto 8px;
+    min-height: 20px;
+  }
+  .result-count {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    font-weight: 500;
+  }
+
+  /* ─── Static Theme Cards ─── */
+  .theme-card {
+    padding: 0;
+    overflow: hidden;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 200px;
+    border-radius: 16px !important;
+    border: 1.5px solid var(--color-border);
+    background: var(--color-surface);
+    transition: border-color 0.3s, box-shadow 0.3s, transform 0.25s cubic-bezier(0.22,0.61,0.36,1);
+    --card-ring: transparent;
+  }
+  .theme-card:hover {
+    box-shadow:
+      0 0 0 2.5px var(--card-ring),
+      0 18px 48px -12px rgba(0,0,0,0.25) !important;
+    transform: translateY(-2.5px);
+  }
+  .theme-card:hover .card-color-bar {
+    height: 5px;
+  }
+
+  .card-color-bar {
+    display: flex;
+    height: 4px;
+    transition: height 0.2s;
+  }
+  .color-bar-seg {
+    min-width: 0;
+  }
+
+  .card-body {
+    padding: 18px 20px 16px;
+  }
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .card-title {
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-text);
+  }
+  .card-badges {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .badge {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 2px 7px;
+    border-radius: 5px;
+    text-transform: uppercase;
+    line-height: 1.5;
+  }
+  .badge-today {
+    background: var(--color-primary);
+    color: #fff;
+  }
+  .badge-holiday {
+    background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+    color: var(--color-accent);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    border: 1px solid color-mix(in srgb, var(--color-accent) 25%, transparent);
+  }
+
+  .swatch-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+    align-items: center;
+  }
+  .color-dot {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    border: 2px solid var(--dot-border, transparent);
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    position: relative;
+    padding: 0;
+    outline: none;
+  }
+  .color-dot:hover,
+  .color-dot:focus-visible {
+    transform: scale(1.25);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+    z-index: 2;
+  }
+  .color-dot:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+  .dot-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    font-weight: 800;
+    opacity: 0.9;
+    pointer-events: none;
+  }
+  .card-hex {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--color-text-muted);
+    font-weight: 600;
+    margin-left: 2px;
+  }
+
+  .card-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .btn-card {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    padding: 6px 0;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    transition: all 0.2s;
+    flex: 1;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .btn-card:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+  }
+  .btn-card-primary {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+    font-weight: 700;
+    flex: 1.2;
+  }
+  .btn-card-primary:hover {
+    background: var(--color-primary) !important;
+    color: #fff !important;
+    border-color: var(--color-primary) !important;
+  }
+
+  /* ─── Empty state ─── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--color-text-muted);
+    font-size: 15px;
+  }
+  .empty-state[hidden] {
+    display: none;
+  }
+  .empty-link {
+    color: var(--color-primary);
+    font-weight: 600;
+  }
+
+  /* ─── Load sentinel ─── */
+  .load-sentinel {
+    height: 1px;
+    width: 100%;
+  }
+
+  /* ─── Community sort buttons ─── */
+  .comm-sort-btn {
+    padding: 5px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .comm-sort-btn:hover { border-color: var(--color-primary); color: var(--color-text); }
+  .comm-sort-active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+  }
+  .comm-sort-active:hover { color: #fff; }
+
+  /* ─── Community header ─── */
+  .comm-header-card {
+    padding: 18px 22px;
+    border-radius: 14px;
+    border: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
+    box-shadow: var(--shadow-sm);
+  }
+  .comm-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .comm-header-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .comm-header-icon {
+    color: var(--color-primary);
+    display: flex;
+    align-items: center;
+  }
+  .comm-header-title {
+    font-size: 16px;
+    font-weight: 800;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .comm-header-count {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    background: color-mix(in srgb, var(--color-text) 6%, transparent);
+    padding: 3px 10px;
+    border-radius: 6px;
+  }
+  .comm-header-sort {
+    display: flex;
+    gap: 4px;
+    padding: 3px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--color-text) 5%, transparent);
+    border: 1px solid var(--color-border);
+  }
+  .comm-sort-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .comm-sort-btn:hover {
+    color: var(--color-text);
+  }
+  .comm-sort-active {
+    background: var(--color-bg);
+    color: var(--color-text);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    border: 1px solid var(--color-border);
+  }
+  .comm-header-desc {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin: 12px 0 0;
+    line-height: 1.5;
+  }
+
+  /* ─── Community empty state ─── */
+  .comm-empty-state {
+    text-align: center;
+    padding: 64px 20px;
+    animation: fadeIn 0.4s ease-out;
+  }
+  .comm-empty-state[hidden] {
+    display: none;
+  }
+  .comm-empty-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+    color: var(--color-primary);
+    margin-bottom: 16px;
+  }
+  .comm-empty-title {
+    font-size: 16px;
+    font-weight: 800;
+    margin: 0 0 6px;
+    color: var(--color-text);
+  }
+  .comm-empty-desc {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    margin: 0;
+  }
+
+  /* ─── 💅 社区主题卡片美化重构 (彻底解决横向排布与堆叠难看的问题) ─── */
+  .badge-comm {
+    background: color-mix(in srgb, var(--comm-primary, var(--color-primary)) 10%, transparent);
+    color: var(--comm-primary, var(--color-primary));
+    font-weight: 800;
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: 1.5px solid color-mix(in srgb, var(--comm-primary, var(--color-primary)) 16%, transparent);
+    flex-shrink: 0;
+  }
+
+  /* 色盘网格一字排开，高度规整 */
+  .comm-palette-strip {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 6px !important;
+    margin: 14px 0 !important;
+  }
+  .comm-palette-chip {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 6px 4px !important;
+    border-radius: 8px !important;
+    background: color-mix(in srgb, var(--comm-bg, var(--color-bg)) 60%, transparent) !important;
+    border: 1px solid var(--color-border) !important;
+    cursor: pointer !important;
+    font-family: inherit !important;
+    transition: all 0.25s var(--dash-transition) !important;
+    min-width: 0 !important;
+    flex: 1 !important;
+  }
+  .comm-palette-chip:hover {
+    border-color: var(--comm-primary) !important;
+    background: color-mix(in srgb, var(--comm-bg, var(--color-bg)) 85%, transparent) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.2) !important;
+  }
+  .comm-chip-swatch {
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 6px !important;
+    flex-shrink: 0 !important;
+    transition: transform 0.2s ease !important;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1) !important;
+  }
+  .comm-palette-chip:hover .comm-chip-swatch {
+    transform: scale(1.1) !important;
+  }
+  .comm-chip-hex {
+    font-size: 9px !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    color: var(--color-text-muted) !important;
+    font-weight: 600 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  /* 基础Meta排版对齐 */
+  .comm-meta-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    margin-bottom: 14px !important;
+  }
+  .comm-meta-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    font-size: 11px !important;
+    color: var(--color-text-muted) !important;
+    min-width: 0 !important;
+  }
+  .comm-author-avatar {
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 6px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    flex-shrink: 0 !important;
+  }
+  .comm-author-name {
+    font-weight: 700 !important;
+    color: var(--color-text) !important;
+    max-width: 80px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+  .comm-meta-sep {
+    opacity: 0.35 !important;
+    font-weight: 700 !important;
+    flex-shrink: 0 !important;
+  }
+  .comm-meta-date {
+    font-weight: 600 !important;
+    flex-shrink: 0 !important;
+  }
+  .comm-meta-right {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex-shrink: 0 !important;
+  }
+  .comm-like-num {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    color: var(--color-text-muted) !important;
+    font-variant-numeric: tabular-nums !important;
+    line-height: 1 !important;
+  }
+
+  /* 心形点赞动效 */
+  .comm-like-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--color-border) !important;
+    background: transparent !important;
+    color: var(--color-text-muted) !important;
+    cursor: pointer !important;
+    padding: 0 !important;
+    transition: all 0.2s ease !important;
+  }
+  .comm-like-btn:hover {
+    border-color: rgba(239, 68, 68, 0.25) !important;
+    color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.06) !important;
+  }
+  .comm-like-btn:hover svg {
+    transform: scale(1.15) !important;
+  }
+  .comm-like-btn.liked {
+    color: #ef4444 !important;
+    border-color: rgba(239, 68, 68, 0.2) !important;
+    background: rgba(239, 68, 68, 0.08) !important;
+  }
+  .comm-like-btn.liked svg path {
+    fill: #ef4444 !important;
+    stroke: #ef4444 !important;
+  }
+
+  /* 专属主色赋能的「应用」按钮 */
+  .comm-apply-btn {
+    flex: 1.3 !important;
+    border-color: var(--comm-primary, var(--color-primary)) !important;
+    color: var(--comm-primary, var(--color-primary)) !important;
+    background: color-mix(in srgb, var(--comm-primary, var(--color-primary)) 8%, transparent) !important;
+    font-weight: 800 !important;
+  }
+  .comm-apply-btn:hover {
+    background: var(--comm-primary, var(--color-primary)) !important;
+    color: #fff !important;
+    border-color: var(--comm-primary, var(--color-primary)) !important;
+  }
+
+  @media (max-width: 640px) {
+    .store-controls {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .search-wrapper {
+      max-width: none;
+    }
+    .sort-dropdown {
+      width: 100%;
+    }
+    .sort-trigger {
+      width: 100%;
+      justify-content: space-between;
+    }
+    .filter-chips {
+      gap: 6px;
+    }
+    .chip {
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+    .card-body {
+      padding: 14px 16px 12px;
+    }
+    .btn-card {
+      font-size: 10px;
+      padding: 5px 0;
+    }
+    .comm-palette-strip {
+      grid-template-columns: repeat(5, 1fr) !important;
+    }
+  }
+</style>
+
+<script>
+  // ─── State ───
+  const BATCH_SIZE = 40;
+  let activeFilter = 'all';
+  let activeSort = 'default';
+  let visibleCount = 0;
+  let loadedCount = 0;
+
+  const search = document.getElementById('search');
+  const clearBtn = document.getElementById('search-clear');
+  const sortDropdown = document.getElementById('sort-dropdown');
+  const sortTrigger = document.getElementById('sort-trigger');
+  const sortLabel = document.getElementById('sort-label');
+  const sortMenu = document.getElementById('sort-menu');
+  const sortOptions = sortMenu.querySelectorAll('.sort-option');
+  const grid = document.getElementById('theme-grid');
+  const noResults = document.getElementById('no-results');
+  const resultCount = document.getElementById('result-count');
+  const sentinel = document.getElementById('load-sentinel');
+  const chips = document.querySelectorAll('.chip');
+  const totalCount = grid.children.length;
+
+  // ─── Helpers ───
+  function getAllCards() {
+    return Array.from(grid.children);
+  }
+
+  function isPending(card) {
+    return card.dataset.pending === '1';
+  }
+
+  function getLoadedCards() {
+    return getAllCards().filter(c => !isPending(c));
+  }
+
+  // ─── Match a card against current filters ───
+  function cardMatches(card, q, filter) {
+    const name = card.dataset.name || '';
+    const preset = card.dataset.preset || '';
+    const color = card.dataset.color || '';
+    const cat = card.dataset.cat || '';
+    const family = card.dataset.family || '';
+
+    if (q && !name.includes(q) && !preset.includes(q) && !color.includes(q)) {
+      return false;
+    }
+
+    if (filter === 'holiday') return cat === 'holiday';
+    if (filter === 'daily') return cat === 'daily';
+    if (filter === 'warm') return family === 'warm';
+    if (filter === 'cool') return family === 'cool';
+
+    return true;
+  }
+
+  // ─── Sort cards in the DOM ───
+  function sortCards(cards, sort) {
+    const sorted = [...cards];
+    if (sort === 'name-asc') {
+      sorted.sort((a, b) => (a.dataset.name || '').localeCompare(b.dataset.name || ''));
+    } else if (sort === 'name-desc') {
+      sorted.sort((a, b) => (b.dataset.name || '').localeCompare(a.dataset.name || ''));
+    } else {
+      sorted.sort((a, b) => {
+        return parseInt(a.dataset.index || '0') - parseInt(b.dataset.index || '0');
+      });
+    }
+    return sorted;
+  }
+
+  // ─── Apply filters + sort to loaded cards ───
+  function refresh() {
+    const q = search.value.toLowerCase().trim();
+    const filter = activeFilter;
+    const sort = activeSort;
+
+    const allCards = getAllCards();
+    const sorted = sortCards(allCards, sort);
+    sorted.forEach(c => grid.appendChild(c));
+
+    visibleCount = 0;
+    allCards.forEach(card => {
+      if (isPending(card)) {
+        card.style.display = 'none';
+        return;
+      }
+      const match = cardMatches(card, q, filter);
+      card.style.display = match ? '' : 'none';
+      if (match) visibleCount++;
+    });
+
+    updateSentinel();
+
+    clearBtn.hidden = !q;
+    noResults.hidden = visibleCount > 0;
+    resultCount.textContent = q || filter !== 'all'
+      ? `显示 ${visibleCount} / ${loadedCount} 个主题`
+      : '';
+
+    const url = new URL(location.href);
+    if (q) url.searchParams.set('q', q); else url.searchParams.delete('q');
+    if (filter !== 'all') url.searchParams.set('cat', filter); else url.searchParams.delete('cat');
+    if (sort !== 'default') url.searchParams.set('sort', sort); else url.searchParams.delete('sort');
+    history.replaceState(null, '', url.toString());
+  }
+
+  // ─── Progressive loading ───
+  function loadBatch() {
+    const pending = getAllCards().filter(c => isPending(c));
+    if (pending.length === 0) {
+      sentinel.style.display = 'none';
+      return;
+    }
+
+    const batch = pending.slice(0, BATCH_SIZE);
+    batch.forEach(card => {
+      delete card.dataset.pending;
+    });
+    loadedCount = getLoadedCards().length;
+    refresh();
+  }
+
+  function updateSentinel() {
+    const hasMore = getAllCards().some(c => isPending(c));
+    sentinel.style.display = hasMore ? '' : 'none';
+  }
+
+  // ─── Events ───
+  let debounceTimer;
+  search.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = window.setTimeout(refresh, 150);
+  });
+
+  clearBtn.addEventListener('click', () => {
+    search.value = '';
+    refresh();
+    search.focus();
+  });
+
+  // ─── Sort dropdown ───
+  function openSortMenu() {
+    sortDropdown.classList.add('open');
+    sortMenu.hidden = false;
+    sortTrigger.setAttribute('aria-expanded', 'true');
+    document.addEventListener('click', onClickOutsideSort, { once: true });
+  }
+
+  // Close Sort menu
+  function closeSortMenu() {
+    sortDropdown.classList.remove('open');
+    sortMenu.hidden = true;
+    sortTrigger.setAttribute('aria-expanded', 'false');
+  }
+
+  function onClickOutsideSort(e) {
+    if (!sortDropdown.contains(e.target)) {
+      closeSortMenu();
+    } else {
+      document.addEventListener('click', onClickOutsideSort, { once: true });
+    }
+  }
+
+  sortTrigger.addEventListener('click', () => {
+    if (sortMenu.hidden) openSortMenu(); else closeSortMenu();
+  });
+
+  sortOptions.forEach(opt => {
+    opt.addEventListener('click', () => {
+      const value = opt.dataset.value || 'default';
+      activeSort = value;
+
+      sortOptions.forEach(o => {
+        o.classList.toggle('sort-option-active', o.dataset.value === value);
+        o.setAttribute('aria-selected', String(o.dataset.value === value));
+      });
+      sortLabel.textContent = opt.textContent || '';
+
+      closeSortMenu();
+      refresh();
+    });
+  });
+
+  // Keyboard: close menu on Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !sortMenu.hidden) {
+      closeSortMenu();
+      sortTrigger.focus();
+    }
+  });
+
+  // ─── Consolidated Chips logic ───
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      const filter = chip.dataset.filter || 'all';
+      if (filter === activeFilter) return;
+
+      const prevFilter = activeFilter;
+      activeFilter = filter;
+
+      chips.forEach(c => {
+        c.classList.toggle('chip-active', c.dataset.filter === filter);
+        c.setAttribute('aria-pressed', String(c.dataset.filter === filter));
+      });
+
+      if (filter === 'community') {
+        switchToCommunity();
+      } else {
+        if (prevFilter === 'community') {
+          switchToRegular();
+        } else {
+          refresh();
+        }
+      }
+    });
+  });
+
+  document.addEventListener('keydown', (e) => {
+    const isInput = !!(document.activeElement)?.closest('input, textarea, select, [contenteditable]');
+    if (e.key === '/' && !isInput) {
+      e.preventDefault();
+      search.focus();
+      search.select();
+    }
+    if (e.key === 'Escape' && document.activeElement === search && search.value) {
+      search.value = '';
+      refresh();
+    }
+  });
+
+  // Copy color from swatch
+  grid.addEventListener('click', (e) => {
+    const dot = e.target.closest('.color-dot');
+    if (!dot) return;
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(dot.dataset.color || '').then(() => {
+      window.__toast?.(`${dot.dataset.color} 已复制`);
+    }).catch(() => {});
+  });
+
+  // Apply saves to localStorage
+  grid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.js-apply-btn');
+    if (!btn) return;
+    const preset = btn.dataset.preset;
+    const name = btn.dataset.name;
+    if (preset) {
+      localStorage.setItem('themeDistApplied', JSON.stringify({ preset, name }));
+    }
+  });
+
+  // ══════════════════════════════════════
+  // Community themes 
+  // ══════════════════════════════════════
+  const communityGrid = document.getElementById('community-grid');
+  const communityEmpty = document.getElementById('community-empty');
+  const communitySort = document.getElementById('community-sort');
+  const communityHeader = document.getElementById('community-header');
+  const communityHeaderCount = document.getElementById('community-header-count');
+  const communityChipCount = document.getElementById('community-chip-count');
+  let commSort = 'new';
+  let commPage = 1;
+  let commTotal = 0;
+  let commLoaded = [];
+
+  // ─── Init ───
+  let cards = getAllCards();
+  loadedCount = cards.filter(c => !isPending(c)).length;
+
+  // Read URL params
+  const params = new URLSearchParams(location.search);
+  const qParam = params.get('q');
+  if (qParam) search.value = qParam;
+
+  const catParam = params.get('cat');
+  if (catParam) {
+    activeFilter = catParam;
+    chips.forEach(c => {
+      c.classList.toggle('chip-active', c.dataset.filter === catParam);
+      c.setAttribute('aria-pressed', String(c.dataset.filter === catParam));
+    });
+  }
+
+  const sortParam = params.get('sort');
+  if (sortParam) {
+    activeSort = sortParam;
+    sortOptions.forEach(o => {
+      const isActive = o.dataset.value === sortParam;
+      o.classList.toggle('sort-option-active', isActive);
+      o.setAttribute('aria-selected', String(o.dataset.value === sortParam));
+      if (isActive) sortLabel.textContent = o.textContent || '';
+    });
+  }
+
+  if (activeFilter === 'community') {
+    switchToCommunity();
+  } else {
+    refresh();
+  }
+
+  // Hide today badges when previewing another theme
+  const previewTheme = params.get('theme');
+  const todayPreset = grid.dataset.todayPreset;
+  if (previewTheme && previewTheme !== todayPreset) {
+    document.querySelectorAll('.badge-today').forEach(b => {
+      b.style.display = 'none';
+    });
+  }
+
+  function isCommunityMode() {
+    return activeFilter === 'community';
+  }
+
+  function renderCommunityCard(t) {
+    const v = t.cssVars;
+    const p = v['--color-primary'] || '#6366f1';
+    const s = v['--color-secondary'] || '#8b5cf6';
+    const a = v['--color-accent'] || '#06b6d4';
+    const bg = v['--color-bg'] || '#0f0f23';
+    const tx = v['--color-text'] || '#f4f4f5';
+    const d = new Date(t.createdAt);
+    const dateStr = d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+    const likeKey = `td-like-${t.id}`;
+    const liked = localStorage.getItem(likeKey) === '1';
+    const authorInitial = (t.author || '?')[0].toUpperCase();
+    const presetName = t.name || 'Untitled';
+
+    return `
+      <div class="card card-interact theme-card comm-card" data-comm-id="${escapeAttr(t.id)}" style="--comm-primary:${p};--comm-bg:${bg};--comm-text:${tx}">
+        <div class="card-color-bar" aria-hidden="true">
+          <div class="color-bar-seg" style="flex:3;background:${p}"></div>
+          <div class="color-bar-seg" style="flex:1.5;background:${s}"></div>
+          <div class="color-bar-seg" style="flex:0.8;background:${a}"></div>
+          <div class="color-bar-seg" style="flex:2;background:${bg}"></div>
+          <div class="color-bar-seg" style="flex:1.2;background:${tx}"></div>
+        </div>
+        <div class="card-body">
+          <div class="card-header">
+            <h3 class="card-title" title="${escapeHtml(presetName)}">${escapeHtml(presetName)}</h3>
+            <span class="badge badge-comm">社区</span>
+          </div>
+
+          <div class="comm-palette-strip" aria-label="主题色盘">
+            ${[
+              { c: p, key: '--color-primary', label: '主色' },
+              { c: s, key: '--color-secondary', label: '辅色' },
+              { c: a, key: '--color-accent', label: '强调' },
+              { c: bg, key: '--color-bg', label: '背景' },
+              { c: tx, key: '--color-text', label: '文字' },
+            ].map(({ c, key, label }) => `
+              <button class="comm-palette-chip" data-color="${c}" title="${key}: ${c} — ${label}，点击复制" aria-label="复制 ${label} ${c}">
+                <span class="comm-chip-swatch" style="background:${c};${key === '--color-bg' ? 'box-shadow:inset 0 0 0 1.5px var(--color-border)' : ''}"></span>
+                <span class="comm-chip-hex">${c}</span>
+              </button>
+            `).join('')}
+          </div>
+
+          <div class="comm-meta-row">
+            <div class="comm-meta-left">
+              <span class="comm-author-avatar" style="background:${p};color:${isLight(p) ? '#0f0f23' : '#fff'}">${authorInitial}</span>
+              <span class="comm-author-name">${escapeHtml(t.author)}</span>
+              <span class="comm-meta-sep">·</span>
+              <span class="comm-meta-date">${dateStr}</span>
+            </div>
+            <div class="comm-meta-right">
+              <span class="comm-like-num">${t.likes}</span>
+              <button class="comm-like-btn ${liked ? 'liked' : ''}" data-comm-like="${escapeAttr(t.id)}" title="${liked ? '已点赞' : '点赞'}">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 14s-6-3.5-6-7.5a3.5 3.5 0 016-2.2 3.5 3.5 0 016 2.2C14 10.5 8 14 8 14z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="card-actions">
+            <a href="/share?id=${escapeAttr(t.id)}" class="btn-card btn-card-primary">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/></svg>
+              预览
+            </a>
+            <a href="/?theme=community-${escapeAttr(t.id)}" class="btn-card comm-apply-btn js-apply-btn" data-preset="community-${escapeAttr(t.id)}" data-name="${escapeHtml(presetName)}">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              应用
+            </a>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  async function loadCommunityThemes(page) {
+    if (!isCommunityMode()) return;
+    try {
+      const res = await fetch(`/api/diy/themes.json?sort=${commSort}&page=${page}&size=20`);
+      const data = await res.json();
+      if (data.themes) {
+        if (page === 1) {
+          commLoaded = data.themes;
+          communityGrid.innerHTML = '';
+        } else {
+          commLoaded = commLoaded.concat(data.themes);
+        }
+        commTotal = data.total;
+
+        const html = data.themes.map(renderCommunityCard).join('');
+        communityGrid.insertAdjacentHTML('beforeend', html);
+        communityGrid.style.display = '';
+        communityEmpty.hidden = commTotal > 0 || page > 1;
+        sentinel.style.display = commLoaded.length < commTotal ? '' : 'none';
+
+        if (communityHeaderCount) communityHeaderCount.textContent = commTotal + ' 个主题';
+        resultCount.textContent = commTotal > 0 ? '已加载 ' + commLoaded.length + ' / ' + commTotal + ' 个主题' : '';
+      }
+    } catch {
+      communityEmpty.hidden = false;
+    }
+  }
+
+  function switchToCommunity() {
+    // Hide regular grid
+    const allCards = getAllCards();
+    allCards.forEach(c => c.style.display = 'none');
+    noResults.hidden = true;
+
+    if (communityHeader) communityHeader.style.display = '';
+    communityGrid.style.display = '';
+    commPage = 1;
+    loadCommunityThemes(1);
+
+    // Disable regular sort dropdown and search bar when switching to community
+    sortDropdown.style.display = 'none';
+    search.value = '';
+    clearBtn.hidden = true;
+    resultCount.textContent = '加载中…';
+
+    // Synchronize URL query
+    const url = new URL(location.href);
+    url.searchParams.set('cat', 'community');
+    url.searchParams.delete('q');
+    url.searchParams.delete('sort');
+    history.replaceState(null, '', url.toString());
+  }
+
+  function switchToRegular() {
+    if (communityHeader) communityHeader.style.display = 'none';
+    communityGrid.style.display = 'none';
+    communityEmpty.hidden = true;
+    sortDropdown.style.display = '';
+    refresh();
+  }
+
+  // Community sort buttons
+  communitySort.querySelectorAll('.comm-sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sort = btn.getAttribute('data-comm-sort');
+      if (!sort || sort === commSort) return;
+      commSort = sort;
+      communitySort.querySelectorAll('.comm-sort-btn').forEach(b => {
+        b.classList.toggle('comm-sort-active', b.getAttribute('data-comm-sort') === sort);
+      });
+      commPage = 1;
+      loadCommunityThemes(1);
+    });
+  });
+
+  // Community like button delegation
+  communityGrid.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-comm-like]');
+    if (!btn) return;
+    e.preventDefault();
+    const id = btn.getAttribute('data-comm-like') || '';
+    const likeKey = `td-like-${id}`;
+    if (localStorage.getItem(likeKey) === '1') {
+      window.__toast?.('您已经为该主题点过赞了');
+      return;
+    }
+    try {
+      const res = await fetch('/api/diy/like.json', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+      // Update count in card
+      const card = btn.closest('.theme-card');
+      const numEl = card.querySelector('.comm-like-num');
+      if (numEl) numEl.textContent = data.likes;
+      btn.classList.add('liked');
+      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 14s-6-3.5-6-7.5a3.5 3.5 0 016-2.2 3.5 3.5 0 016 2.2C14 10.5 8 14 8 14z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> 已赞`;
+      localStorage.setItem(likeKey, '1');
+      // Update in commLoaded too
+      const idx = commLoaded.findIndex((t) => t.id === id);
+      if (idx >= 0) commLoaded[idx].likes = data.likes;
+    } catch {
+      window.__toast?.('点赞暂时不可用，请稍后重试');
+    }
+  });
+
+  // Community apply saves to localStorage
+  communityGrid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.js-apply-btn');
+    if (!btn) return;
+    const preset = btn.dataset.preset;
+    const name = btn.dataset.name;
+    if (preset) {
+      localStorage.setItem('themeDistApplied', JSON.stringify({ preset, name }));
+    }
+  });
+
+  // Community card color dot copy
+  communityGrid.addEventListener('click', (e) => {
+    const dot = e.target.closest('.color-dot');
+    if (!dot) return;
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(dot.dataset.color || '').then(() => {
+      window.__toast?.(`${dot.dataset.color} 已复制`);
+    }).catch(() => {});
+  });
+
+  // Unified Sentinel Observer
+  const ioSingle = new IntersectionObserver((entries) => {
+    if (!entries[0].isIntersecting) return;
+    if (isCommunityMode()) {
+      if (commLoaded.length < commTotal) {
+        commPage++;
+        loadCommunityThemes(commPage);
+      }
+    } else {
+      loadBatch();
+    }
+  }, { rootMargin: '400px' });
+  ioSingle.observe(sentinel);
+
+  // Fetch community count on load
+  fetch('/api/diy/themes.json?size=1')
+    .then(r => r.json())
+    .then(data => {
+      if (data.dbAvailable) {
+        communityChipCount.textContent = String(data.total);
+      } else {
+        communityChipCount.textContent = '离线';
+      }
+    })
+    .catch(() => { communityChipCount.textContent = '离线'; });
+
+  function isLight(hex) {
+    const c = hex.replace('#', '');
+    const r = parseInt(c.slice(0, 2), 16);
+    const g = parseInt(c.slice(2, 4), 16);
+    const b = parseInt(c.slice(4, 6), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) > 150;
+  }
+
+  function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function escapeAttr(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>

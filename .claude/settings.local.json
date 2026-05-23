@@ -41,7 +41,9 @@
       "Bash(awk '/dailyPool:\\\\[/,/^[[:space:]]*\\\\],/' \"E:/GitHub/themeDist/src/api/index_config.js\")",
       "Bash(awk '/holidays:[[:space:]]*\\\\{/,/crazyThursday/' \"E:/GitHub/themeDist/src/api/index_config.js\")",
       "Bash(awk *)",
-      "Bash(perl -ne 'print if /^\\\\x{20}{4,8}\\\\x{27}/' \"E:/GitHub/themeDist/src/api/index_config.js\")"
+      "Bash(perl -ne 'print if /^\\\\x{20}{4,8}\\\\x{27}/' \"E:/GitHub/themeDist/src/api/index_config.js\")",
+      "Bash(ADAPTER=netlify npm run build)",
+      "Bash(curl *)"
     ]
   }
 }

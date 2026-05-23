@@ -1,0 +1,1046 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getAllThemes, getDailyTheme } from '../utils/daily-theme';
+
+const themes = getAllThemes();
+const todayTheme = getDailyTheme();
+const selectedPreset = Astro.url.searchParams.get('theme') || todayTheme.preset;
+const selected = themes.find(t => t.preset === selectedPreset) || themes[0];
+
+const initialVarsJSON = JSON.stringify(selected.cssVars, null, 2);
+const initialCustomCSS = selected.customCss || '';
+const initialThemeData = {
+  cssVars: selected.cssVars,
+  customCss: selected.customCss || null,
+  extensions: selected.extensions || null,
+  presetName: selected.presetName,
+};
+---
+
+<Layout>
+  <section class="section text-center" style="padding-bottom:40px">
+    <p class="t-label">Builder</p>
+    <h1 class="t-heading mt-2">主题构建器</h1>
+    <p class="t-subhead mt-2" style="max-width:560px;margin-inline:auto">
+      选择一个预设主题，或直接编辑 CSS 变量和自定义样式代码，实时预览效果。
+    </p>
+  </section>
+
+  <section style="max-width:1300px;margin:0 auto;padding:0 32px 80px">
+    <div style="display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:start">
+
+      <!-- ===========================================
+           LEFT: Theme List
+           =========================================== -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <p class="t-label" style="margin-bottom:0">预设主题</p>
+          <span style="font-size:11px;color:var(--color-text-muted);font-family:'JetBrains Mono',monospace">{themes.length}</span>
+        </div>
+        <input
+          type="text"
+          id="builder-search"
+          placeholder="筛选…"
+          style="width:100%;height:36px;padding:0 12px;border-radius:10px;border:1.5px solid var(--color-border);background:color-mix(in srgb, var(--color-surface) 30%, transparent);color:var(--color-text);font-size:13px;font-family:inherit;outline:none;margin-bottom:10px;transition:border-color 0.2s"
+        />
+        <div style="display:flex;flex-direction:column;gap:5px;max-height:calc(100vh - 320px);overflow-y:auto;padding-right:4px" id="theme-list">
+          {themes.map((t) => {
+            const isActive = t.preset === selectedPreset;
+            const isToday = t.preset === todayTheme.preset;
+            return (
+              <button
+                class="card card-interact theme-item"
+                data-name={t.presetName.toLowerCase()}
+                data-preset={t.preset}
+                style={`width:100%;text-align:left;padding:11px 14px;cursor:pointer;font-family:inherit;font-size:13px;border-radius:14px;${isActive ? 'border-color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 10%, transparent);box-shadow:0 0 0 1px color-mix(in srgb, var(--color-primary) 30%, transparent);' : ''}`}
+              >
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div style="display:flex;gap:2px;flex-shrink:0">
+                    <span style=`width:14px;height:14px;border-radius:4px;background:${t.cssVars['--color-primary']}`></span>
+                    <span style=`width:14px;height:14px;border-radius:4px;background:${t.cssVars['--color-secondary']}`></span>
+                    <span style=`width:14px;height:14px;border-radius:4px;background:${t.cssVars['--color-accent']}`></span>
+                  </div>
+                  <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:var(--color-text)">{t.presetName}</span>
+                  {isToday ? <span style="font-size:10px;font-weight:600;color:var(--color-primary);flex-shrink:0">今日</span> : ''}
+                  {isActive ? <span style="margin-left:auto;width:7px;height:7px;border-radius:50%;background:var(--color-primary);flex-shrink:0"></span> : ''}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <!-- ===========================================
+           RIGHT: Editor + Preview
+           =========================================== -->
+      <div>
+
+        <!-- Tab bar -->
+        <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--color-border);padding-bottom:0">
+          <button class="editor-tab active" data-tab="preview" id="tab-preview">组件预览</button>
+          <button class="editor-tab" data-tab="vars" id="tab-vars">CSS 变量编辑</button>
+          <button class="editor-tab" data-tab="css" id="tab-css">自定义 CSS</button>
+          <button class="editor-tab" data-tab="image" id="tab-image">图片取色</button>
+          <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+            <span id="edit-status" style="font-size:11px;color:var(--color-text-muted)"></span>
+            <button id="btn-reset" style="font-size:11px;font-weight:600;padding:5px 12px;border-radius:7px;border:1px solid var(--color-border);background:transparent;color:var(--color-text-muted);cursor:pointer;font-family:inherit;transition:all 0.2s;display:none">重置</button>
+          </div>
+        </div>
+
+        <!-- ===== TAB: Preview ===== -->
+        <div class="editor-panel" id="panel-preview">
+          <div class="card card-glass" style="padding:28px">
+            <div style="display:flex;flex-direction:column;gap:18px">
+              <div>
+                <p style="font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);margin-bottom:10px;text-transform:uppercase">Buttons</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button class="btn btn-primary" style="height:40px;padding:0 20px;font-size:13px">主要按钮</button>
+                  <button class="btn btn-outline" style="height:40px;padding:0 20px;font-size:13px">边框按钮</button>
+                  <button class="btn btn-ghost" style="font-size:13px">链接</button>
+                </div>
+              </div>
+
+              <div>
+                <p style="font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);margin-bottom:10px;text-transform:uppercase">Cards &amp; Surface</p>
+                <div style="padding:18px;border-radius:14px;background:var(--color-surface);border:1px solid var(--color-border)">
+                  <div style="font-weight:700;font-size:14px">通知标题</div>
+                  <div style="font-size:13px;color:var(--color-text-muted);margin-top:4px">使用 muted 颜色区分信息层级</div>
+                </div>
+              </div>
+
+              <div>
+                <p style="font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);margin-bottom:10px;text-transform:uppercase">Alert &amp; Typography</p>
+                <div style="padding:12px 18px;border-radius:12px;background:color-mix(in srgb, var(--color-primary) 8%, transparent);border-left:3px solid var(--color-primary);font-size:14px;margin-bottom:10px">
+                  带强调色的提示信息
+                </div>
+                <p style="font-size:14px;line-height:1.7">
+                  正文使用 <code>var(--color-text)</code>，
+                  链接使用 <code>var(--color-primary)</code>，
+                  辅助文字使用 <span style="color:var(--color-text-muted)">muted</span>。
+                </p>
+              </div>
+
+              <div>
+                <p style="font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);margin-bottom:10px;text-transform:uppercase">Color Swatches</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  {['--color-primary','--color-secondary','--color-accent','--color-bg','--color-surface','--color-text','--color-text-muted','--color-border'].map(v => (
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+                      <span style=`width:36px;height:36px;border-radius:10px;background:${selected.cssVars[v]};border:1.5px solid var(--color-border)` title={v}></span>
+                      <span style="font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--color-text-muted)">{v.replace('--color-','')}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== TAB: CSS Vars Editor ===== -->
+        <div class="editor-panel" id="panel-vars" style="display:none">
+          <div style="margin-bottom:8px;display:flex;align-items:center;gap:12px">
+            <span style="font-size:12px;color:var(--color-text-muted)">编辑 JSON 格式的 CSS 变量，修改即时生效。</span>
+            <span id="vars-error" style="font-size:11px;color:#ef4444;font-weight:600;display:none"></span>
+            <span id="vars-ok" style="font-size:11px;color:#22c55e;font-weight:600;display:none">✓ 有效</span>
+          </div>
+          <textarea
+            id="vars-editor"
+            spellcheck="false"
+            style="width:100%;height:420px;padding:20px;border-radius:14px;border:1.5px solid var(--color-border);background:color-mix(in srgb, var(--color-text) 3%, var(--color-bg));color:var(--color-text);font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;line-height:1.65;resize:vertical;outline:none;tab-size:2"
+          >{initialVarsJSON}</textarea>
+        </div>
+
+        <!-- ===== TAB: Custom CSS Editor ===== -->
+        <div class="editor-panel" id="panel-css" style="display:none">
+          <div style="margin-bottom:8px">
+            <span style="font-size:12px;color:var(--color-text-muted)">编写自定义 CSS，即时注入页面。可用于微调样式或添加动画。</span>
+          </div>
+          <textarea
+            id="css-editor"
+            spellcheck="false"
+            placeholder="/* 例如：修改卡片圆角 */&#10;.card { border-radius: 30px; }&#10;&#10;/* 或添加自定义动画 */&#10;@keyframes pulse {&#10;  0%, 100% { opacity: 1; }&#10;  50% { opacity: 0.5; }&#10;}"
+            style="width:100%;height:420px;padding:20px;border-radius:14px;border:1.5px solid var(--color-border);background:color-mix(in srgb, var(--color-text) 3%, var(--color-bg));color:var(--color-text);font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;line-height:1.65;resize:vertical;outline:none;tab-size:2"
+          >{initialCustomCSS}</textarea>
+        </div>
+
+        <!-- ===== TAB: Image to Theme ===== -->
+        <div class="editor-panel" id="panel-image" style="display:none">
+          <div class="card card-glass" style="padding:28px;text-align:center">
+            <p class="text-muted" style="font-size:13px;line-height:1.65;margin-bottom:20px">
+              上传一张图片，自动提取主色调并生成主题 CSS 变量。<br/>
+              也可生成 AI 提示词，让 AI 参考图片设计更精致的主题。
+            </p>
+
+            <!-- Upload zone -->
+            <div id="image-drop-zone" style="border:2px dashed var(--color-border);border-radius:16px;padding:48px 24px;cursor:pointer;transition:all 0.25s;margin-bottom:20px">
+              <div style="font-size:40px;margin-bottom:10px">🖼️</div>
+              <p style="font-weight:600;font-size:14px;margin-bottom:4px">点击上传或拖放图片</p>
+              <p style="font-size:12px;color:var(--color-text-muted)">支持 JPG / PNG / WebP，最大 10MB</p>
+              <input type="file" id="image-input" accept="image/*" style="display:none" />
+            </div>
+
+            <!-- Preview + palette -->
+            <div id="image-result" style="display:none">
+              <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:start;margin-bottom:20px">
+                <div style="flex-shrink:0">
+                  <img id="image-preview" style="max-width:200px;max-height:200px;border-radius:12px;border:1px solid var(--color-border);object-fit:cover" alt="" />
+                </div>
+                <div style="flex:1;min-width:200px;text-align:left">
+                  <p style="font-weight:700;font-size:14px;margin-bottom:10px">提取的调色板</p>
+                  <div id="palette-swatches" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px"></div>
+                  <p style="font-size:11px;color:var(--color-text-muted);margin-bottom:12px">
+                    颜色按面积占比排序，可拖动色块调整顺序和映射。
+                  </p>
+                  <div style="display:flex;flex-wrap:wrap;gap:6px">
+                    <button id="btn-apply-palette" class="btn btn-primary" style="height:34px;padding:0 16px;font-size:12px">应用为主题</button>
+                    <button id="btn-copy-palette-ai" class="btn btn-outline" style="height:34px;padding:0 16px;font-size:12px">
+                      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M4 4h8v8H4zM2 6v6h2V6H2zM12 6v6h2V6h-2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      复制 AI 提示词
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hidden canvas for color extraction -->
+        <canvas id="color-canvas" style="display:none"></canvas>
+
+        <!-- Action bar -->
+        <div style="display:flex;gap:8px;margin-top:14px;align-items:center;flex-wrap:wrap">
+          <button id="btn-apply-site" class="btn btn-primary" style="height:38px;padding:0 18px;font-size:12px">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            应用到本站
+          </button>
+          <button id="btn-copy-diy" class="btn btn-outline" style="height:38px;padding:0 18px;font-size:12px">复制 DIY 主题</button>
+          <button id="btn-copy-ai" class="btn btn-outline" style="height:38px;padding:0 18px;font-size:12px">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4h8v8H4zM2 6v6h2V6H2zM12 6v6h2V6h-2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            复制给 AI
+          </button>
+          <button id="btn-format" class="btn btn-ghost" style="height:38px;padding:0 14px;font-size:12px" title="格式化 JSON (Ctrl+Shift+F)">格式化</button>
+          <span style="font-size:11px;color:var(--color-text-muted);margin-left:8px" id="diy-hint"></span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+</Layout>
+
+<style>
+  #builder-search:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
+  }
+  .theme-item { transition: all 0.2s ease; }
+  .theme-item:hover { border-color: var(--color-primary); }
+
+  .editor-tab {
+    padding: 10px 18px;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    margin-bottom: -1px;
+  }
+  .editor-tab:hover { color: var(--color-text); }
+  .editor-tab.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+  }
+
+  #vars-editor:focus, #css-editor:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 10%, transparent);
+  }
+  #image-drop-zone:hover, #image-drop-zone.drag-over {
+    border-color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 5%, transparent);
+  }
+  .palette-swatch {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    border: 2px solid var(--color-border);
+    cursor: grab;
+    transition: transform 0.15s;
+    position: relative;
+  }
+  .palette-swatch:hover { transform: scale(1.12); border-color: var(--color-primary); }
+  .palette-swatch .swatch-label {
+    position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; font-family: 'JetBrains Mono',monospace; color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 768px) {
+    [style*="grid-template-columns:280px"] {
+      grid-template-columns: 1fr !important;
+    }
+  }
+</style>
+
+<script define:vars={{ initialThemeData, selectedPreset }}>
+  // ── Initial theme data (injected at build time) ──
+  const __INITIAL = initialThemeData;
+
+  // ── State ──
+  let currentVars = {};
+  let originalVars = {};
+  let originalCustomCSS = '';
+  let originalExtensions = [];
+  let hasEdits = false;
+  let diyStyleEl = null;
+  let extensionsContainer = null;
+  let currentPreset = selectedPreset;
+
+  function getDIYStyle() {
+    if (!diyStyleEl) {
+      diyStyleEl = document.createElement('style');
+      diyStyleEl.id = 'td-diy-css';
+      document.head.appendChild(diyStyleEl);
+    }
+    return diyStyleEl;
+  }
+
+  function getExtensionsContainer() {
+    if (!extensionsContainer) {
+      extensionsContainer = document.createElement('div');
+      extensionsContainer.id = 'td-extensions';
+      document.body.insertBefore(extensionsContainer, document.body.firstChild);
+    }
+    return extensionsContainer;
+  }
+
+  function removeExtensions() {
+    if (extensionsContainer) {
+      extensionsContainer.remove();
+      extensionsContainer = null;
+    }
+    // Also clean up any standalone extension elements that might be direct body children
+    document.querySelectorAll('.omni-petal, .omni-stardust, .cinematic-vignette, .yozakura-glow, .summer-bubble, .ice-particle').forEach(el => el.remove());
+  }
+
+  function injectExtensions(exts) {
+    removeExtensions();
+    if (!exts || exts.length === 0) return;
+    const container = getExtensionsContainer();
+    container.innerHTML = exts.map(e => e.content).join('');
+  }
+
+  // ── Tab switching ──
+  const tabs = document.querySelectorAll('.editor-tab');
+  const panels = document.querySelectorAll('.editor-panel');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.tab;
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      panels.forEach(p => p.style.display = 'none');
+      document.getElementById('panel-' + target).style.display = '';
+
+      if (target === 'vars') {
+        // Sync editor content with current vars
+        const editor = document.getElementById('vars-editor');
+        editor.value = JSON.stringify(currentVars, null, 2);
+      }
+    });
+  });
+
+  // ── Theme selection (client-side, no page reload) ──
+  const themeItems = document.querySelectorAll('.theme-item');
+  const varsEditor = document.getElementById('vars-editor');
+  const cssEditor = document.getElementById('css-editor');
+  const varsError = document.getElementById('vars-error');
+  const varsOk = document.getElementById('vars-ok');
+  const editStatus = document.getElementById('edit-status');
+  const btnReset = document.getElementById('btn-reset');
+  const diyHint = document.getElementById('diy-hint');
+
+  function loadTheme(vars, customCSS, exts, _presetName) {
+    originalVars = { ...vars };
+    currentVars = { ...vars };
+    originalCustomCSS = customCSS;
+    originalExtensions = exts;
+    hasEdits = false;
+
+    applyVars(vars);
+    applyCustomCSS(customCSS);
+    injectExtensions(exts);
+    updateEditUI();
+
+    // Update editors if visible
+    varsEditor.value = JSON.stringify(vars, null, 2);
+    cssEditor.value = customCSS;
+    varsError.style.display = 'none';
+    varsOk.style.display = 'none';
+  }
+
+  themeItems.forEach(btn => {
+    btn.addEventListener('click', async () => {
+      // Update active style
+      themeItems.forEach(b => {
+        b.style.borderColor = '';
+        b.style.background = '';
+        b.style.boxShadow = '';
+      });
+      btn.style.borderColor = 'var(--color-primary)';
+      btn.style.background = 'color-mix(in srgb, var(--color-primary) 10%, transparent)';
+      btn.style.boxShadow = '0 0 0 1px color-mix(in srgb, var(--color-primary) 30%, transparent)';
+
+      const preset = btn.getAttribute('data-preset') || '';
+      currentPreset = preset;
+
+      // Update URL
+      const url = new URL(location.href);
+      url.searchParams.set('theme', preset);
+      history.replaceState(null, '', url.toString());
+
+      try {
+        const res = await fetch(`/api/theme/${preset}.json`);
+        if (!res.ok) throw new Error('Failed to load theme');
+        const data = await res.json();
+        loadTheme(data.cssVars, data.customCss || '', data.extensions || [], data.presetName || '');
+      } catch {
+        window.__toast?.('主题加载失败');
+      }
+
+      // Scroll the preview into view on mobile
+      if (window.innerWidth < 769) {
+        document.getElementById('panel-preview')?.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  });
+
+  // ── CSS Vars editor: live preview ──
+  let varsDebounce;
+  varsEditor.addEventListener('input', () => {
+    clearTimeout(varsDebounce);
+    varsDebounce = setTimeout(() => {
+      try {
+        const parsed = JSON.parse(varsEditor.value);
+        if (typeof parsed !== 'object' || !parsed) throw new Error('Invalid format');
+        // Validate all values are strings
+        for (const [k, v] of Object.entries(parsed)) {
+          if (typeof v !== 'string') throw new Error(`Value for "${k}" must be a string`);
+        }
+        currentVars = parsed;
+        applyVars(currentVars);
+        varsError.style.display = 'none';
+        varsOk.style.display = 'inline';
+        markEdited();
+        setTimeout(() => { varsOk.style.display = 'none'; }, 2000);
+      } catch (e) {
+        varsError.textContent = 'JSON 错误: ' + (e.message || '格式无效');
+        varsError.style.display = 'inline';
+        varsOk.style.display = 'none';
+        markEdited();
+      }
+    }, 300);
+  });
+
+  // ── Custom CSS editor: live preview ──
+  let cssDebounce;
+  cssEditor.addEventListener('input', () => {
+    clearTimeout(cssDebounce);
+    cssDebounce = setTimeout(() => {
+      applyCustomCSS(cssEditor.value);
+      markEdited();
+    }, 300);
+  });
+
+  // ── Apply helpers ──
+  function applyVars(vars) {
+    const root = document.documentElement;
+    for (const [k, v] of Object.entries(vars)) {
+      root.style.setProperty(k, v);
+    }
+  }
+
+  function applyCustomCSS(css) {
+    getDIYStyle().textContent = css;
+  }
+
+  function markEdited() {
+    hasEdits = true;
+    updateEditUI();
+  }
+
+  function updateEditUI() {
+    if (hasEdits) {
+      editStatus.textContent = '已修改';
+      editStatus.style.color = '#f59e0b';
+      btnReset.style.display = '';
+      diyHint.textContent = '当前为 DIY 版本，点击"应用到本站"可在全站预览';
+    } else {
+      editStatus.textContent = '';
+      btnReset.style.display = 'none';
+      diyHint.textContent = '';
+    }
+  }
+
+  // ── Reset ──
+  btnReset.addEventListener('click', () => {
+    currentVars = { ...originalVars };
+    applyVars(currentVars);
+    applyCustomCSS(originalCustomCSS);
+    injectExtensions(originalExtensions);
+    varsEditor.value = JSON.stringify(currentVars, null, 2);
+    cssEditor.value = originalCustomCSS;
+    varsError.style.display = 'none';
+    varsOk.style.display = 'none';
+    hasEdits = false;
+    updateEditUI();
+    window.__toast?.('已重置为原始主题');
+  });
+
+  // ── Apply to site ──
+  document.getElementById('btn-apply-site').addEventListener('click', () => {
+    const preset = currentPreset;
+
+    if (hasEdits) {
+      sessionStorage.setItem('td-diy-vars', JSON.stringify(currentVars));
+      sessionStorage.setItem('td-diy-css', cssEditor.value);
+      sessionStorage.setItem('td-diy-exts', JSON.stringify(originalExtensions));
+      sessionStorage.setItem('td-diy-name', 'DIY Theme');
+
+      const url = new URL(location.origin + '/');
+      url.searchParams.set('theme', preset);
+      url.searchParams.set('diy', '1');
+      location.href = url.toString();
+    } else {
+      const url = new URL(location.origin + '/');
+      url.searchParams.set('theme', preset);
+      location.href = url.toString();
+    }
+  });
+
+  // ── Copy DIY theme ──
+  document.getElementById('btn-copy-diy').addEventListener('click', async () => {
+    const diy = {
+      preset: 'custom',
+      presetName: 'DIY Custom Theme',
+      cssVars: currentVars,
+      customCss: cssEditor.value || null,
+    };
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(diy, null, 2));
+      window.__toast?.('DIY 主题已复制到剪贴板');
+    } catch {
+      window.__toast?.('复制失败');
+    }
+  });
+
+  // ── Filter theme list ──
+  const builderSearch = document.getElementById('builder-search');
+  builderSearch.addEventListener('input', () => {
+    const q = builderSearch.value.toLowerCase().trim();
+    themeItems.forEach(item => {
+      const name = item.dataset.name || '';
+      const preset = item.dataset.preset || '';
+      item.style.display = (!q || name.includes(q) || preset.includes(q)) ? '' : 'none';
+    });
+  });
+
+  // ── Scroll active theme into view ──
+  const activeEl = document.querySelector('.theme-item[style*="box-shadow"]');
+  if (activeEl) {
+    activeEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
+  // ── Keyboard: Ctrl+S to apply ──
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      // If in editor, prevent save dialog and apply instead
+      if (document.activeElement === varsEditor || document.activeElement === cssEditor) {
+        e.preventDefault();
+        document.getElementById('btn-apply-site').click();
+      }
+    }
+  });
+
+  // ═══════════════════════════════════════════
+  // Image-to-Theme: Color Extraction & AI Prompt
+  // ═══════════════════════════════════════════
+
+  const imageInput = document.getElementById('image-input');
+  const dropZone = document.getElementById('image-drop-zone');
+  const imageResult = document.getElementById('image-result');
+  const imagePreview = document.getElementById('image-preview');
+  const paletteSwatches = document.getElementById('palette-swatches');
+  const colorCanvas = document.getElementById('color-canvas');
+  let extractedColors = [];
+
+  // Open file picker on click
+  dropZone.addEventListener('click', () => imageInput.click());
+  imageInput.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (file) processImage(file);
+  });
+
+  // Drag & drop
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+  });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer?.files?.[0];
+    if (file && file.type.startsWith('image/')) processImage(file);
+  });
+
+  function processImage(file) {
+    if (file.size > 10 * 1024 * 1024) {
+      window.__toast?.('图片不能超过 10MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        // Draw to canvas for pixel extraction
+        const maxDim = 120;
+        const scale = Math.min(maxDim / img.width, maxDim / img.height);
+        colorCanvas.width = Math.floor(img.width * scale);
+        colorCanvas.height = Math.floor(img.height * scale);
+        const ctx = colorCanvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, colorCanvas.width, colorCanvas.height);
+
+        // Extract dominant colors
+        extractedColors = extractColors(ctx, colorCanvas.width, colorCanvas.height);
+        displayPalette(extractedColors);
+
+        // Show preview
+        imagePreview.src = reader.result;
+        imageResult.style.display = 'block';
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function extractColors(ctx, w, h) {
+    const data = ctx.getImageData(0, 0, w, h).data;
+    const pixels = [];
+
+    // Sample pixels (skip alpha < 128)
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] < 128) continue; // skip transparent
+      pixels.push([data[i], data[i + 1], data[i + 2]]);
+    }
+
+    if (pixels.length < 100) return ['#000000', '#ffffff', '#888888'];
+
+    // K-means clustering (k=8)
+    const k = 8;
+    const centroids = kMeansInit(pixels, k, 10);
+    const clusters = kMeansCluster(pixels, centroids, 15);
+
+    // Get centroid colors, sorted by cluster size (largest first)
+    const palette = clusters
+      .map(c => {
+        const avg = c.centroid;
+        return {
+          color: rgbToHex(Math.round(avg[0]), Math.round(avg[1]), Math.round(avg[2])),
+          size: c.pixels.length,
+        };
+      })
+      .sort((a, b) => b.size - a.size)
+      .map(c => c.color);
+
+    // Remove near-duplicates using CIEDE2000-like simplified distance
+    const unique = [palette[0]];
+    for (let i = 1; i < palette.length; i++) {
+      const [r1, g1, b1] = hexToRgb(palette[i]);
+      let tooClose = false;
+      for (const existing of unique) {
+        const [r2, g2, b2] = hexToRgb(existing);
+        // Weighted RGB distance (human perception weighted)
+        const dr = (r1 - r2) * 0.299;
+        const dg = (g1 - g2) * 0.587;
+        const db = (b1 - b2) * 0.114;
+        const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+        if (dist < 35) { tooClose = true; break; }
+      }
+      if (!tooClose) unique.push(palette[i]);
+      if (unique.length >= 8) break;
+    }
+
+    return unique;
+  }
+
+  // K-means++ initialization
+  function kMeansInit(pixels, k, iters) {
+    const centroids = [pixels[Math.floor(Math.random() * pixels.length)]];
+    for (let c = 1; c < k; c++) {
+      const dists = pixels.map(p => {
+        let minD = Infinity;
+        for (const ct of centroids) {
+          const dr = p[0] - ct[0], dg = p[1] - ct[1], db = p[2] - ct[2];
+          const d = dr * dr + dg * dg + db * db;
+          if (d < minD) minD = d;
+        }
+        return minD;
+      });
+      const total = dists.reduce((a, b) => a + b, 0);
+      let r = Math.random() * total, idx = 0;
+      for (let i = 0; i < dists.length; i++) {
+        r -= dists[i];
+        if (r <= 0) { idx = i; break; }
+      }
+      centroids.push(pixels[Math.min(idx, pixels.length - 1)]);
+    }
+    return centroids;
+  }
+
+  function kMeansCluster(pixels, centroids, maxIters) {
+    const k = centroids.length;
+    const clusters = [];
+
+    for (let iter = 0; iter < maxIters; iter++) {
+      // Reset clusters
+      clusters.length = 0;
+      for (let c = 0; c < k; c++) clusters.push({ centroid: [...centroids[c]], pixels: [] });
+
+      // Assign pixels to nearest centroid
+      for (const p of pixels) {
+        let minD = Infinity, bestC = 0;
+        for (let c = 0; c < k; c++) {
+          const ct = centroids[c];
+          const dr = p[0] - ct[0], dg = p[1] - ct[1], db = p[2] - ct[2];
+          const d = dr * dr + dg * dg + db * db;
+          if (d < minD) { minD = d; bestC = c; }
+        }
+        clusters[bestC].pixels.push(p);
+      }
+
+      // Update centroids
+      let changed = false;
+      for (let c = 0; c < k; c++) {
+        if (clusters[c].pixels.length === 0) continue;
+        let sr = 0, sg = 0, sb = 0;
+        for (const p of clusters[c].pixels) { sr += p[0]; sg += p[1]; sb += p[2]; }
+        const n = clusters[c].pixels.length;
+        const nr = sr / n, ng = sg / n, nb = sb / n;
+        if (Math.abs(centroids[c][0] - nr) > 1 || Math.abs(centroids[c][1] - ng) > 1 || Math.abs(centroids[c][2] - nb) > 1) {
+          changed = true;
+        }
+        centroids[c] = [nr, ng, nb];
+      }
+      if (!changed) break;
+    }
+
+    return clusters;
+  }
+
+  function displayPalette(colors) {
+    // Map to semantic roles
+    const semanticMap = [
+      { label: 'primary', desc: '主色' },
+      { label: 'secondary', desc: '辅色' },
+      { label: 'accent', desc: '强调色' },
+      { label: 'bg', desc: '背景' },
+      { label: 'surface', desc: '表面' },
+      { label: 'text', desc: '文字' },
+    ];
+
+    paletteSwatches.innerHTML = colors.slice(0, 6).map((color, i) => {
+      const s = semanticMap[i] || { label: `c${i}`, desc: '' };
+      return `<div class="palette-swatch" style="background:${color}" title="${color} — ${s.desc}">
+        <span class="swatch-label">${s.label}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function generateThemeFromColors(colors) {
+    // Sort colors by perceived brightness
+    const withLum = colors.map(c => ({ color: c, lum: relativeLuminance(c) }));
+    const sorted = [...withLum].sort((a, b) => a.lum - b.lum); // dark → light
+    const vibrant = [...withLum].sort((a, b) => saturation(b.color) - saturation(a.color)); // dull → vibrant
+
+    const darkest = sorted[0].color;
+    const lightest = sorted[sorted.length - 1].color;
+    const mostVibrant = vibrant[vibrant.length - 1].color;
+    const secondVibrant = vibrant.length > 1 ? vibrant[vibrant.length - 2].color : mostVibrant;
+    const thirdVibrant = vibrant.length > 2 ? vibrant[vibrant.length - 3].color : mostVibrant;
+
+    const surfaceColor = lightenColor(darkest, 0.06);
+    const textColor = isDark(lightest) ? '#ffffff' : lightest;
+    const mutedColor = lightenColor(darkest, 0.45);
+
+    return {
+      '--color-primary': mostVibrant,
+      '--color-secondary': secondVibrant,
+      '--color-accent': thirdVibrant,
+      '--color-bg': darkest,
+      '--color-surface': surfaceColor,
+      '--color-text': textColor,
+      '--color-text-muted': mutedColor,
+      '--color-border': hexToRgba(mostVibrant, 0.18),
+      // Keep defaults for non-color vars
+      '--font-heading': "'Inter', system-ui, sans-serif",
+      '--font-body': "'Inter', system-ui, sans-serif",
+      '--font-mono': "'JetBrains Mono', monospace",
+      '--text-base': 'clamp(1rem, 0.9rem + 0.5vw, 1.125rem)',
+      '--text-lg': 'calc(var(--text-base) * 1.25)',
+      '--text-xl': 'calc(var(--text-lg) * 1.25)',
+      '--text-2xl': 'calc(var(--text-xl) * 1.25)',
+      '--text-sm': 'calc(var(--text-base) / 1.25)',
+      '--space-unit': '0.25rem',
+      '--space-1': '0.25rem', '--space-2': '0.5rem', '--space-3': '0.75rem',
+      '--space-4': '1rem', '--space-6': '1.5rem', '--space-8': '2rem', '--space-12': '3rem',
+      '--radii': '0.75rem',
+      '--content-max': '72rem',
+      '--shadow-sm': '0 1px 2px rgba(0,0,0,0.08)',
+      '--shadow-md': '0 4px 12px rgba(0,0,0,0.12)',
+      '--shadow-lg': '0 12px 32px rgba(0,0,0,0.18)',
+      '--glass-bg': 'color-mix(in srgb, var(--color-bg) 85%, transparent)',
+      '--glass-blur': 'blur(16px)',
+      '--noise-opacity': '0',
+      '--ambient-1': hexToRgba(mostVibrant, 0.15),
+      '--ambient-2': hexToRgba(secondVibrant, 0.1),
+    };
+  }
+
+  // Apply palette as theme
+  document.getElementById('btn-apply-palette').addEventListener('click', () => {
+    if (extractedColors.length < 3) {
+      window.__toast?.('需要至少 3 种颜色');
+      return;
+    }
+    const vars = generateThemeFromColors(extractedColors);
+    currentVars = vars;
+    applyVars(vars);
+    varsEditor.value = JSON.stringify(vars, null, 2);
+    cssEditor.value = '';
+    applyCustomCSS('');
+    removeExtensions();
+    markEdited();
+    hasEdits = true;
+    updateEditUI();
+    window.__toast?.('调色板已应用，可在 CSS 变量面板微调');
+    // Switch to preview tab
+    document.getElementById('tab-preview').click();
+  });
+
+  // Copy AI prompt with palette description
+  document.getElementById('btn-copy-palette-ai').addEventListener('click', async () => {
+    if (extractedColors.length < 3) {
+      window.__toast?.('请先上传图片');
+      return;
+    }
+    const paletteDesc = extractedColors.slice(0, 6).map((c, i) => {
+      const names = ['主色 primary', '辅色 secondary', '强调 accent', '背景 bg', '表面 surface', '文字 text'];
+      return `${names[i] || '颜色' + i}: ${c}`;
+    }).join('\n');
+
+    const vars = generateThemeFromColors(extractedColors);
+    const themeJSON = JSON.stringify({ cssVars: vars }, null, 2);
+
+    const prompt = `I have an image with these dominant colors:
+${paletteDesc}
+
+Please generate a complete theme based on these colors. Here is a starter theme JSON:
+
+\`\`\`json
+${themeJSON}
+\`\`\`
+
+Requirements:
+1. Generate a complete HTML page that uses these CSS custom properties
+2. Create a dark-mode glass-morphism design
+3. Add subtle animations and particle effects that match the color mood
+4. Use the color palette consistently across buttons, cards, typography, backgrounds
+5. Include ambient background orbs using the primary and secondary colors
+6. Inject CSS variables into :root on page load
+
+The design should feel cohesive with the color palette extracted from the image.`;
+
+    try {
+      await navigator.clipboard.writeText(prompt);
+      window.__toast?.('AI 提示词（含调色板描述）已复制');
+    } catch {
+      window.__toast?.('复制失败');
+    }
+  });
+
+  // ── Color utility helpers ──
+  function rgbToHex(r, g, b) {
+    return '#' + [r, g, b].map(n => Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0')).join('');
+  }
+
+  function hexToRgb(hex) {
+    const c = hex.replace('#', '');
+    return [
+      parseInt(c.slice(0, 2), 16),
+      parseInt(c.slice(2, 4), 16),
+      parseInt(c.slice(4, 6), 16),
+    ];
+  }
+
+  function hexToRgba(hex, alpha) {
+    const [r, g, b] = hexToRgb(hex);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  function relativeLuminance(hex) {
+    const [r, g, b] = hexToRgb(hex).map(c => {
+      const s = c / 255;
+      return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+
+  function saturation(hex) {
+    const [r, g, b] = hexToRgb(hex).map(c => c / 255);
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    return max === 0 ? 0 : (max - min) / max;
+  }
+
+  function isDark(hex) {
+    return relativeLuminance(hex) < 0.3;
+  }
+
+  function lightenColor(hex, amount) {
+    const [r, g, b] = hexToRgb(hex);
+    const f = (c) => Math.min(255, Math.max(0, Math.round(c + amount * 255)));
+    return rgbToHex(f(r), f(g), f(b));
+  }
+
+  // ── Handle ?diy=1 for applying DIY theme from other pages ──
+  if (new URLSearchParams(location.search).get('diy') === '1') {
+    const diyVars = sessionStorage.getItem('td-diy-vars');
+    const diyCSS = sessionStorage.getItem('td-diy-css');
+    const diyName = sessionStorage.getItem('td-diy-name');
+    if (diyVars) {
+      try {
+        const vars = JSON.parse(diyVars);
+        applyVars(vars);
+        currentVars = vars;
+        if (diyCSS) applyCustomCSS(diyCSS);
+        varsEditor.value = JSON.stringify(vars, null, 2);
+        cssEditor.value = diyCSS || '';
+        markEdited();
+        if (diyName) diyHint.textContent = '已加载 DIY 主题: ' + diyName;
+      } catch { /* ignore */ }
+    }
+  }
+
+  // ── Init state from server-injected theme data ──
+  (function initState() {
+    currentVars = __INITIAL.cssVars;
+    originalVars = { ...__INITIAL.cssVars };
+    originalCustomCSS = __INITIAL.customCss || '';
+    originalExtensions = __INITIAL.extensions || [];
+    applyVars(currentVars);
+    applyCustomCSS(originalCustomCSS);
+    if (originalExtensions.length > 0) {
+      injectExtensions(originalExtensions);
+    }
+  })();
+
+  // ── Copy for AI: generates a structured prompt + theme data ──
+  document.getElementById('btn-copy-ai').addEventListener('click', async () => {
+    const hasExtensions = originalExtensions.length > 0;
+    const themeJSON = JSON.stringify({
+      cssVars: currentVars,
+      customCss: cssEditor.value || null,
+      extensions: hasExtensions ? originalExtensions : null
+    }, null, 2);
+
+    const extNote = hasExtensions
+      ? `\n7. Renders the "extensions" HTML fragments into the page body for visual effects (particles, decorative elements, glow layers)`
+      : '';
+
+    const prompt = `I need to build a website that uses this exact theme. Here is the theme data in JSON format:
+
+\`\`\`json
+${themeJSON}
+\`\`\`
+
+Please generate a complete HTML page that:
+1. Fetches this theme JSON from an API endpoint (you decide the endpoint path)
+2. Injects all CSS variables from "cssVars" into :root using document.documentElement.style.setProperty()
+3. If "customCss" is not null, creates a <style> tag with that CSS and appends it to <head>
+4. Uses the CSS variables throughout the page (buttons, cards, typography, backgrounds)
+5. Includes localStorage caching so the theme persists across page loads
+6. Has a glass-morphism dark design with ambient background orbs${extNote}
+
+Theme color summary: primary=${currentVars['--color-primary']}, bg=${currentVars['--color-bg']}, text=${currentVars['--color-text']}.`;
+
+    try {
+      await navigator.clipboard.writeText(prompt);
+      window.__toast?.('AI 提示词已复制，可粘贴给 AI 生成站点');
+    } catch {
+      window.__toast?.('复制失败');
+    }
+  });
+
+  // ── Format JSON in editor ──
+  function formatVarsJSON() {
+    try {
+      const parsed = JSON.parse(varsEditor.value);
+      varsEditor.value = JSON.stringify(parsed, null, 2);
+      // Also apply the formatted vars
+      currentVars = parsed;
+      applyVars(currentVars);
+      varsError.style.display = 'none';
+      varsOk.style.display = 'inline';
+      setTimeout(() => { varsOk.style.display = 'none'; }, 1500);
+      return true;
+    } catch (e) {
+      varsError.textContent = '无法格式化: ' + (e.message || 'JSON 无效');
+      varsError.style.display = 'inline';
+      return false;
+    }
+  }
+
+  document.getElementById('btn-format').addEventListener('click', () => {
+    formatVarsJSON();
+    // Also switch to vars tab if not already there
+    document.getElementById('tab-vars').click();
+  });
+
+  // ── File input: import theme JSON ──
+  // (Support drag & drop of .json files onto the vars editor)
+  varsEditor.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    varsEditor.style.borderColor = 'var(--color-primary)';
+  });
+  varsEditor.addEventListener('dragleave', () => {
+    varsEditor.style.borderColor = '';
+  });
+  varsEditor.addEventListener('drop', (e) => {
+    e.preventDefault();
+    varsEditor.style.borderColor = '';
+    const file = e.dataTransfer?.files?.[0];
+    if (!file || !file.name.endsWith('.json')) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        // Accept both raw cssVars and { cssVars: {...} } wrapper
+        const vars = data.cssVars || data;
+        if (typeof vars === 'object' && vars['--color-primary']) {
+          varsEditor.value = JSON.stringify(vars, null, 2);
+          currentVars = vars;
+          applyVars(vars);
+          markEdited();
+          window.__toast?.('主题已导入');
+        } else {
+          window.__toast?.('无效的主题文件格式');
+        }
+      } catch {
+        window.__toast?.('JSON 解析失败');
+      }
+    };
+    reader.readAsText(file);
+  });
+</script>

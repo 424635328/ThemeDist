@@ -1,0 +1,1503 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout>
+  <section class="section text-center" style="padding-bottom:32px">
+    <p class="t-label">Community Pool</p>
+    <h1 class="t-heading mt-2">分享你的创作</h1>
+    <p class="t-subhead mt-2" style="max-width:560px;margin-inline:auto">
+      在构建器中调配好了精美的主题？粘贴变量 JSON，一键提交至社区公共主题商店。<br/>
+      提交后生成分享码，管理员审核通过后将永久收录。24 小时内未审核则自动移除。
+    </p>
+  </section>
+
+  <section class="submit-container">
+    <div class="submit-grid">
+
+      <!-- LEFT: Editor Form -->
+      <div class="form-wrapper">
+        <div class="card card-glass form-card">
+          <div class="form-section-header">
+            <span class="section-badge">Data Editor</span>
+            <h2 class="section-title">主题数据配置</h2>
+          </div>
+
+          <!-- Import Options Group -->
+          <div class="import-group">
+            <button id="btn-import" class="btn btn-outline import-btn" title="从剪贴板读取构建器复制的数据">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6v8a2 2 0 002 2h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              从剪贴板导入
+            </button>
+            <button id="btn-demo" class="btn btn-outline demo-btn" title="加载一组精美动态樱花主题体验">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1v14M1 8h14" stroke-linecap="round"/><circle cx="8" cy="8" r="3" fill="var(--color-surface)"/></svg>
+              加载樱花示例
+            </button>
+          </div>
+
+          <!-- Code Editors Tab Container -->
+          <div class="tabs-container">
+            <button id="tab-btn-vars" class="tab-btn active" type="button">🎨 核心 CSS 变量</button>
+            <button id="tab-btn-css" class="tab-btn" type="button">✨ 自定义 CSS (可选)</button>
+          </div>
+
+          <!-- Tab 1: CSS Variables JSON -->
+          <div id="tab-content-vars" class="tab-content active">
+            <div class="input-block">
+              <div class="block-header">
+                <label for="vars-input" class="input-label">JSON 代码 <span class="required">*</span></label>
+                <button id="btn-format" class="text-btn" title="自动排版美化 JSON 代码">格式化</button>
+              </div>
+              <textarea
+                id="vars-input"
+                spellcheck="false"
+                placeholder='{"--color-primary":"#ff8fa3","--color-bg":"#fff0f3","--font-heading":"Inter, sans-serif","--radii":"12px",...}'
+                class="code-textarea"
+              ></textarea>
+              <div id="vars-error-container" class="validation-error-container">
+                <span id="vars-error" class="validation-error"></span>
+                <button id="btn-autofix" class="text-btn autofix-btn" style="display: none;">尝试自动修复</button>
+              </div>
+
+              <!-- Inline parsed palette helper inside editor card -->
+              <div class="palette-preview-panel">
+                <span class="palette-title">已识别的色彩配置：</span>
+                <div id="editor-swatches" class="editor-swatches-strip"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 2: Custom CSS Area -->
+          <div id="tab-content-css" class="tab-content">
+            <div class="input-block">
+              <label for="css-input" class="input-label">额外的自定义 CSS 样式规则</label>
+              <textarea
+                id="css-input"
+                spellcheck="false"
+                placeholder="/* 可以在这里编写针对当前主题的专属 CSS 动画、粒子效果等 */"
+                class="code-textarea css-textarea"
+              ></textarea>
+            </div>
+          </div>
+
+          <!-- Meta Area -->
+          <div class="meta-row">
+            <div class="input-block">
+              <label for="name-input" class="input-label">主题名称 <span class="required">*</span></label>
+              <div class="input-wrapper">
+                <input id="name-input" type="text" maxlength="40" placeholder="如: 霓虹都市" class="text-input" />
+                <span class="char-counter" id="name-counter">0/40</span>
+              </div>
+            </div>
+            <div class="input-block">
+              <label for="author-input" class="input-label">作者昵称 <span class="required">*</span></label>
+              <div class="input-wrapper">
+                <input id="author-input" type="text" maxlength="20" placeholder="你的署名" class="text-input" />
+                <span class="char-counter" id="author-counter">0/20</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button id="btn-submit" class="btn btn-primary submit-main-btn" disabled>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v10M4 8l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            发布到社区商店
+          </button>
+
+          <!-- Submit result container -->
+          <div id="submit-result" class="result-alert-box"></div>
+        </div>
+
+        <!-- Submitted History (Persist with localstorage) -->
+        <div id="recent-section" class="recent-submissions">
+          <h3 class="recent-title">我的提交记录</h3>
+          <div id="recent-list" class="recent-list"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Interactive Live Sandbox Preview -->
+      <div class="preview-sticky">
+        <div class="preview-header-meta">
+          <span class="section-badge">Interactive Sandbox</span>
+          <div class="badge-live-dot-wrapper" style="display:flex;align-items:center;gap:8px">
+            <span class="badge-live-dot">LIVE SENSING</span>
+            <span id="sensing-detailed-status" class="sensing-details" style="font-size:10px;font-weight:700;letter-spacing:0.04em;color:var(--color-text-muted);opacity:0.85">Idle</span>
+          </div>
+        </div>
+
+        <div id="preview-shell" class="preview-browser">
+          <div class="browser-bar">
+            <div class="browser-dots">
+              <span class="dot-red"></span>
+              <span class="dot-yellow"></span>
+              <span class="dot-green"></span>
+            </div>
+            <span class="browser-url">themedist.preview.local</span>
+          </div>
+
+          <!-- Micro simulated browser progress line indicator -->
+          <div id="browser-loading-bar" class="browser-loading-bar"></div>
+          
+          <!-- Embedded Preview SandBox Iframe -->
+          <div class="iframe-container">
+            <iframe id="preview-iframe" class="sandbox-iframe" title="实时隔离渲染沙箱"></iframe>
+            <div id="preview-placeholder" class="preview-empty-placeholder">
+              <div class="placeholder-icon">🎨</div>
+              <p>粘贴 JSON 变量或点击 “加载精美示例”<br/>在此处实时交互预览您的主题设计</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+</Layout>
+
+<!-- 🌸 启动 is:global 彻底清除 Astro 局部哈希隔离，使 JS 渲染的色块和历史列表得到完美美化 -->
+<style is:global>
+  /* ─── Grid layout & Containers ─── */
+  .submit-container {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+  .submit-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 32px;
+    align-items: start;
+  }
+
+  /* ─── Forms & Typography ─── */
+  .form-card {
+    padding: 28px;
+    border: 1px solid var(--color-border);
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    box-shadow: var(--shadow-md);
+    border-radius: 16px;
+  }
+  .form-section-header {
+    margin-bottom: 20px;
+  }
+  .section-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--color-primary);
+    text-transform: uppercase;
+    display: inline-block;
+    margin-bottom: 4px;
+  }
+  .section-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--color-text);
+  }
+
+  /* ─── Import row ─── */
+  .import-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .import-btn, .demo-btn {
+    height: 42px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+  }
+  .import-btn:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+  }
+  .demo-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 6%, transparent);
+  }
+
+  /* ─── Tabs Switcher UI ─── */
+  .tabs-container {
+    display: flex;
+    border-bottom: 1.5px solid var(--color-border);
+    margin-bottom: 16px;
+    gap: 8px;
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+    border-radius: 6px 6px 0 0;
+  }
+  .tab-btn:hover {
+    color: var(--color-text);
+    background: color-mix(in srgb, var(--color-text) 4%, transparent);
+  }
+  .tab-btn.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+  }
+  .tab-content {
+    display: none;
+  }
+  .tab-content.active {
+    display: block;
+    animation: fadeInTab 0.25s ease;
+  }
+  @keyframes fadeInTab {
+    from { opacity: 0; transform: translateY(2px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── Input Fields ─── */
+  .input-block {
+    margin-bottom: 18px;
+  }
+  .block-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .input-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-text-muted);
+  }
+  .required {
+    color: var(--color-primary);
+    margin-left: 2px;
+  }
+  .text-btn {
+    background: none;
+    border: none;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--color-primary);
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.2s;
+  }
+  .text-btn:hover {
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  }
+
+  /* Textareas */
+  .code-textarea {
+    width: 100%;
+    height: 190px;
+    padding: 14px;
+    border-radius: 12px;
+    border: 1.5px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-text) 2%, var(--color-bg));
+    color: var(--color-text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    resize: vertical;
+    outline: none;
+    transition: all 0.2s ease;
+  }
+  .code-textarea:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 10%, transparent);
+  }
+  .css-textarea {
+    height: 190px;
+  }
+  
+  /* Validation container & Autofix button */
+  .validation-error-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+    min-height: 20px;
+  }
+  .validation-error {
+    font-size: 11px;
+    color: #ef4444;
+    font-weight: 700;
+    display: none;
+  }
+  .autofix-btn {
+    color: #ef4444;
+    border: 1px solid color-mix(in srgb, #ef4444 30%, transparent);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  .autofix-btn:hover {
+    background: color-mix(in srgb, #ef4444 10%, transparent);
+  }
+
+  /* ─── Inline color swatches inside editor card ─── */
+  .palette-preview-panel {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--color-text) 2%, var(--color-bg));
+    border: 1px dashed var(--color-border);
+  }
+  .palette-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    display: block;
+    margin-bottom: 6px;
+  }
+  .editor-swatches-strip {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .palette-group-label {
+    width: 100%;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-muted);
+    opacity: 0.5;
+    margin: 2px 0;
+  }
+  .editor-swatch {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: var(--color-surface);
+    border: 1.5px solid var(--color-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .editor-swatch:hover {
+    border-color: var(--color-primary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .editor-swatch-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1px solid rgba(0,0,0,0.12);
+    flex-shrink: 0;
+  }
+  .editor-swatch-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .editor-swatch-name {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: 1;
+  }
+  .editor-swatch-val {
+    font-size: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--color-text-muted);
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  /* Text Inputs with length counter */
+  .meta-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .text-input {
+    width: 100%;
+    height: 42px;
+    padding: 0 55px 0 12px;
+    border-radius: 10px;
+    border: 1.5px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 30%, transparent);
+    color: var(--color-text);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: all 0.2s ease;
+  }
+  .text-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 10%, transparent);
+  }
+  .char-counter {
+    position: absolute;
+    right: 12px;
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  /* Buttons */
+  .submit-main-btn {
+    width: 100%;
+    height: 48px;
+    font-size: 14px;
+    font-weight: 700;
+    margin-top: 10px;
+    border-radius: 12px;
+    gap: 8px;
+  }
+  .submit-main-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  /* ─── Result Panel ─── */
+  .result-alert-box {
+    display: none;
+    margin-top: 20px;
+    animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+  }
+
+  /* ─── Sandbox Iframe Preview ─── */
+  .preview-sticky {
+    position: sticky;
+    top: 90px;
+  }
+  .preview-header-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .badge-live-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 9px;
+    font-weight: 800;
+    color: var(--color-accent);
+    letter-spacing: 0.04em;
+    transition: color 0.3s;
+    user-select: none;
+  }
+  .badge-live-dot::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    transition: background 0.3s, box-shadow 0.3s;
+    animation: livePulse 1.5s ease-in-out infinite alternate;
+  }
+  @keyframes livePulse {
+    0% { opacity: 0.3; transform: scale(0.9); }
+    100% { opacity: 1; transform: scale(1.15); }
+  }
+  
+  /* ⚡ Micro-interactions states styling */
+  .badge-live-dot.sensing {
+    color: #f59e0b;
+  }
+  .badge-live-dot.sensing::before {
+    background: #f59e0b;
+    animation: sensingPulse 0.6s ease-in-out infinite alternate;
+  }
+  @keyframes sensingPulse {
+    0% { opacity: 0.7; transform: scale(1); box-shadow: 0 0 0 0px rgba(245, 158, 11, 0.4); }
+    100% { opacity: 1; transform: scale(1.3); box-shadow: 0 0 0 4px rgba(245, 158, 11, 0); }
+  }
+  .badge-live-dot.synced {
+    color: #22c55e;
+  }
+  .badge-live-dot.synced::before {
+    background: #22c55e;
+    animation: none;
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .preview-browser {
+    border-radius: 20px;
+    overflow: hidden;
+    border: 2.5px solid var(--color-border);
+    background: var(--color-bg);
+    box-shadow: var(--shadow-lg);
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  
+  /* browser compile state borders */
+  .preview-browser.compiling {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15), var(--shadow-lg);
+  }
+  .preview-browser.error-state {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15), var(--shadow-lg);
+  }
+  .preview-browser.synced-state {
+    border-color: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15), var(--shadow-lg);
+  }
+
+  .browser-bar {
+    padding: 12px 16px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    border-bottom: 1.5px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
+    user-select: none;
+  }
+  
+  /* Browser Loading Indicator Progress Bar */
+  .browser-loading-bar {
+    height: 2px;
+    width: 0%;
+    background: var(--color-primary, #6366f1);
+    transition: width 0.25s ease, opacity 0.2s ease, background-color 0.2s;
+    opacity: 0;
+  }
+
+  .browser-dots {
+    display: flex;
+    gap: 6px;
+  }
+  .browser-dots span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+  .dot-red { background: #ff5f57; }
+  .dot-yellow { background: #ffbd2e; }
+  .dot-green { background: #28ca41; }
+  .browser-url {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--color-text-muted);
+    opacity: 0.8;
+    background: color-mix(in srgb, var(--color-bg) 80%, transparent);
+    padding: 2px 16px;
+    border-radius: 50px;
+    border: 1px solid var(--color-border);
+  }
+
+  /* Sandbox Wrapper */
+  .iframe-container {
+    position: relative;
+    width: 100%;
+    height: 480px;
+    background: var(--color-bg);
+  }
+  .sandbox-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    background: transparent;
+  }
+  .sandbox-iframe.active {
+    opacity: 1;
+  }
+  .preview-empty-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .placeholder-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+    animation: bounceSlow 3s ease-in-out infinite;
+  }
+  @keyframes bounceSlow {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  .preview-empty-placeholder p {
+    color: var(--color-text-muted);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  /* My Submissions List */
+  .recent-submissions {
+    margin-top: 32px;
+    animation: fadeIn 0.4s ease-out;
+  }
+  .recent-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .recent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .recent-item {
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    transition: all 0.2s;
+  }
+  .recent-item:hover {
+    transform: translateY(-1px);
+    border-color: var(--color-primary);
+  }
+
+  @keyframes fadeIn { from { opacity: 0; } }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 840px) {
+    .submit-grid {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+    .preview-sticky {
+      position: static;
+    }
+    .iframe-container {
+      height: 400px;
+    }
+  }
+</style>
+
+<script>
+  // 🌌 默认加载的主题数据（提供良好的首屏呈现感，不让沙箱空置）
+  const DEFAULT_THEME = {
+    name: "深邃暗夜",
+    author: "设计先锋",
+    cssVars: {
+      "--color-primary": "#6366f1",
+      "--color-secondary": "#818cf8",
+      "--color-accent": "#f43f5e",
+      "--color-bg": "#09090b",
+      "--color-surface": "#18181b",
+      "--color-text": "#f4f4f5",
+      "--color-text-muted": "#a1a1aa",
+      "--color-border": "rgba(255, 255, 255, 0.08)",
+      "--font-heading": "'Inter', system-ui, sans-serif",
+      "--font-body": "'Inter', system-ui, sans-serif",
+      "--font-mono": "'JetBrains Mono', monospace",
+      "--text-base": "clamp(1rem, 0.9rem + 0.5vw, 1.125rem)",
+      "--text-lg": "calc(var(--text-base) * 1.25)",
+      "--text-xl": "calc(var(--text-lg) * 1.25)",
+      "--text-2xl": "calc(var(--text-xl) * 1.25)",
+      "--text-sm": "calc(var(--text-base) / 1.25)",
+      "--space-unit": "0.25rem",
+      "--space-1": "0.25rem", "--space-2": "0.5rem", "--space-3": "0.75rem",
+      "--space-4": "1rem", "--space-6": "1.5rem", "--space-8": "2rem", "--space-12": "3rem",
+      "--radii": "12px",
+      "--content-max": "72rem",
+      "--shadow-sm": "0 1px 2px rgba(0,0,0,0.08)",
+      "--shadow-md": "0 4px 12px rgba(0,0,0,0.12)",
+      "--shadow-lg": "0 12px 32px rgba(0,0,0,0.18)",
+      "--glass-bg": "rgba(24, 24, 27, 0.75)",
+      "--glass-blur": "blur(10px)",
+      "--noise-opacity": "0",
+      "--ambient-1": "rgba(99, 102, 241, 0.15)",
+      "--ambient-2": "rgba(129, 140, 248, 0.1)"
+    },
+    customCss: "/* 欢迎自由自定义额外的样式 */"
+  };
+
+  // 🌸 精美示例主题数据
+  const DEMO_THEME = {
+    name: "樱花梦境",
+    author: "花舞少女",
+    cssVars: {
+      "--color-primary": "#ff8fa3",
+      "--color-secondary": "#ffb3c1",
+      "--color-accent": "#ffccd5",
+      "--color-bg": "#fff0f3",
+      "--color-surface": "#ffffff",
+      "--color-text": "#590d22",
+      "--color-text-muted": "#800f2f",
+      "--color-border": "rgba(255, 143, 163, 0.25)",
+      "--font-heading": "'Inter', system-ui, sans-serif",
+      "--font-body": "'Inter', system-ui, sans-serif",
+      "--font-mono": "'JetBrains Mono', monospace",
+      "--text-base": "clamp(1rem, 0.9rem + 0.5vw, 1.125rem)",
+      "--text-lg": "calc(var(--text-base) * 1.25)",
+      "--text-xl": "calc(var(--text-lg) * 1.25)",
+      "--text-2xl": "calc(var(--text-xl) * 1.25)",
+      "--text-sm": "calc(var(--text-base) / 1.25)",
+      "--space-unit": "0.25rem",
+      "--space-1": "0.25rem", "--space-2": "0.5rem", "--space-3": "0.75rem",
+      "--space-4": "1rem", "--space-6": "1.5rem", "--space-8": "2rem", "--space-12": "3rem",
+      "--radii": "14px",
+      "--content-max": "72rem",
+      "--shadow-sm": "0 1px 3px rgba(89, 13, 34, 0.06)",
+      "--shadow-md": "0 4px 14px rgba(89, 13, 34, 0.08)",
+      "--shadow-lg": "0 12px 32px rgba(89, 13, 34, 0.12)",
+      "--glass-bg": "rgba(255, 255, 255, 0.7)",
+      "--glass-blur": "blur(12px)",
+      "--noise-opacity": "0",
+      "--ambient-1": "rgba(255, 143, 163, 0.18)",
+      "--ambient-2": "rgba(255, 179, 193, 0.12)"
+    },
+    customCss: `
+      @keyframes sakuraFall {
+        0% { transform: translateY(-20px) rotate(0deg); opacity: 0; }
+        15% { opacity: 1; }
+        90% { opacity: 1; }
+        100% { transform: translateY(420px) rotate(360deg); opacity: 0; }
+      }
+      .sakura-petal {
+        position: absolute;
+        top: -10px;
+        background: var(--color-primary);
+        border-radius: 150% 0 150% 150%;
+        opacity: 0.7;
+        width: 10px;
+        height: 10px;
+        pointer-events: none;
+        animation: sakuraFall 5s linear infinite;
+        z-index: 10;
+      }
+    `
+  };
+
+  // 🛡️ Web sandbox iframe template (Strictly isolates and renders custom user styles/animations safely)
+  const IFRAME_TEMPLATE = `
+    <!DOCTYPE html>
+    <html lang="zh">
+    <head>
+      <meta charset="UTF-8">
+      <style id="base-style">
+        body {
+          margin: 0;
+          padding: 24px;
+          background: var(--color-bg, #0f0f23);
+          color: var(--color-text, #f4f4f5);
+          font-family: system-ui, -apple-system, sans-serif;
+          transition: background 0.3s, color 0.3s, border-color 0.3s;
+          min-height: 100vh;
+          box-sizing: border-box;
+          overflow-x: hidden;
+          position: relative;
+        }
+        .header-meta {
+          font-size: 11px;
+          font-weight: 700;
+          color: var(--color-text-muted, #71717a);
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+        }
+        .main-title {
+          font-size: 22px;
+          font-weight: 800;
+          margin: 6px 0 12px;
+          color: var(--color-primary, #6366f1);
+        }
+        .body-desc {
+          font-size: 13px;
+          color: var(--color-text-muted, #71717a);
+          line-height: 1.6;
+          margin-bottom: 20px;
+        }
+        .btn-preview-primary {
+          background: var(--color-primary, #6366f1);
+          color: #fff;
+          border: none;
+          padding: 10px 20px;
+          border-radius: var(--radii, 10px);
+          font-weight: 600;
+          cursor: pointer;
+          font-size: 13px;
+          transition: filter 0.2s;
+        }
+        .btn-preview-primary:hover {
+          filter: brightness(1.1);
+        }
+        .btn-preview-secondary {
+          background: transparent;
+          border: 1.5px solid var(--color-border, rgba(255,255,255,0.15));
+          color: var(--color-text, #f4f4f5);
+          padding: 9px 18px;
+          border-radius: var(--radii, 10px);
+          font-weight: 600;
+          cursor: pointer;
+          font-size: 13px;
+        }
+        .btn-row {
+          display: flex;
+          gap: 10px;
+          margin-bottom: 24px;
+        }
+        .preview-card {
+          background: var(--color-surface, #1e1e38);
+          border: 1.5px solid var(--color-border, rgba(255,255,255,0.15));
+          border-radius: var(--radii, 12px);
+          padding: 20px;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+          backdrop-filter: blur(var(--glass-blur, 8px));
+        }
+        .card-heading {
+          font-weight: 700;
+          font-size: 14px;
+        }
+        .card-body-text {
+          font-size: 12px;
+          color: var(--color-text-muted, #71717a);
+          margin: 6px 0 14px;
+          line-height: 1.5;
+        }
+        .swatches {
+          display: flex;
+          gap: 6px;
+          flex-wrap: wrap;
+        }
+        .swatch-item {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+        }
+        .swatch-color {
+          width: 28px;
+          height: 28px;
+          border-radius: 6px;
+          border: 1.5px solid var(--color-border, rgba(255,255,255,0.15));
+        }
+        .swatch-label {
+          font-size: 9px;
+          font-family: monospace;
+          color: var(--color-text-muted, #71717a);
+        }
+      </style>
+      <style id="theme-style"></style>
+    </head>
+    <body>
+      <div id="sakura-container" style="position:absolute; inset:0; pointer-events:none; overflow:hidden;"></div>
+      
+      <div class="header-meta">Theme Demo Sandbox</div>
+      <div class="main-title" id="preview-title">城市黄昏</div>
+      <div class="body-desc">
+        这是沙盒模拟的真实页面，网页背景色（color-bg）、容器色（color-surface）均已实时响应您刚才粘贴的数据变化。
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-preview-primary">主要操作</button>
+        <button class="btn-preview-secondary">次要操作</button>
+      </div>
+
+      <div class="preview-card">
+        <div class="card-heading">信息卡片示例</div>
+        <p class="card-body-text">卡片用于聚合局部业务。请观察 card-surface 与 page-bg 在多层叠加时的对比度是否理想。</p>
+        
+        <div class="swatches" id="swatches-container"></div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  let currentVars = null;
+  let currentCss = '';
+  let submitting = false;
+
+  const $ = (sel) => document.getElementById(sel);
+
+  // ─── Code Editors Tabs Switcher Logics ───
+  const tabBtnVars = $('tab-btn-vars');
+  const tabBtnCss = $('tab-btn-css');
+  const tabContentVars = $('tab-content-vars');
+  const tabContentCss = $('tab-content-css');
+
+  tabBtnVars.addEventListener('click', () => {
+    tabBtnVars.classList.add('active');
+    tabBtnCss.classList.remove('active');
+    tabContentVars.classList.add('active');
+    tabContentCss.classList.remove('active');
+  });
+
+  tabBtnCss.addEventListener('click', () => {
+    tabBtnCss.classList.add('active');
+    tabBtnVars.classList.remove('active');
+    tabContentCss.classList.add('active');
+    tabContentVars.classList.remove('active');
+  });
+
+  // Character limit dynamic counter UI
+  function setupCounter(inputEl, counterEl, max) {
+    inputEl.addEventListener('input', () => {
+      const len = inputEl.value.length;
+      counterEl.textContent = `${len}/${max}`;
+      if (len >= max) {
+        counterEl.style.color = 'var(--color-primary)';
+      } else {
+        counterEl.style.color = '';
+      }
+    });
+  }
+  setupCounter($('name-input'), $('name-counter'), 40);
+  setupCounter($('author-input'), $('author-counter'), 20);
+
+  function showError(msg) {
+    const el = $('vars-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+  function clearError() {
+    $('vars-error').style.display = 'none';
+    $('btn-autofix').style.display = 'none';
+  }
+
+  function validateVars(vars) {
+    if (!vars || typeof vars !== 'object' || Array.isArray(vars)) return false;
+    const keys = Object.keys(vars);
+    if (keys.length < 5) return false;
+    for (const [k, v] of Object.entries(vars)) {
+      if (typeof k !== 'string' || typeof v !== 'string') return false;
+      if (!k.startsWith('--')) return false;
+    }
+    return true;
+  }
+
+  // 🎨 Editor Live parsed swatches renderer
+  function renderEditorSwatches(vars) {
+    const swatchesContainer = $('editor-swatches');
+    if (!vars) {
+      swatchesContainer.innerHTML = '';
+      return;
+    }
+    // Filter all color-like values (hex, rgb, rgba, hsl) — includes color vars + ambient
+    const isColorVal = (v) => typeof v === 'string' && (
+      v.startsWith('#') || v.startsWith('rgb') || v.startsWith('hsl') || v.startsWith('rgba')
+    );
+    const colorSwatches = Object.entries(vars).filter(([k, v]) => isColorVal(v) && k.startsWith('--color-'));
+    const ambientSwatches = Object.entries(vars).filter(([k, v]) => isColorVal(v) && k.startsWith('--ambient-'));
+
+    if (colorSwatches.length === 0 && ambientSwatches.length === 0) {
+      swatchesContainer.innerHTML = '<span style="font-size:11px;color:var(--color-text-muted)">（暂无可识别的颜色变量）</span>';
+      return;
+    }
+
+    const renderChip = ([key, val]) => `
+      <div class="editor-swatch" title="${key}: ${val} — 点击复制" data-swatch-val="${val}">
+        <div class="editor-swatch-color" style="background: ${val}"></div>
+        <div class="editor-swatch-info">
+          <span class="editor-swatch-name">${key.replace('--color-', '').replace('--ambient-', '')}</span>
+          <span class="editor-swatch-val">${val}</span>
+        </div>
+      </div>
+    `;
+
+    let html = '';
+    if (colorSwatches.length > 0) {
+      html += '<span class="palette-group-label">色板</span>' + colorSwatches.map(renderChip).join('');
+    }
+    if (ambientSwatches.length > 0) {
+      html += '<span class="palette-group-label">氛围</span>' + ambientSwatches.map(renderChip).join('');
+    }
+
+    swatchesContainer.innerHTML = html;
+  }
+
+  // ─── Sandboxed Preview Engine (Dynamic inside isolated iframe) ───
+  function initIframe(callback) {
+    const iframe = $('preview-iframe');
+    iframe.onload = () => {
+      if (callback) callback();
+    };
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) return;
+    doc.open();
+    doc.write(IFRAME_TEMPLATE);
+    doc.close();
+  }
+
+  function updatePreview(vars, css, themeName = "主题名称预览") {
+    currentVars = vars;
+    currentCss = css;
+
+    const iframe = $('preview-iframe');
+    const placeholder = $('preview-placeholder');
+
+    if (!vars) {
+      placeholder.style.opacity = '1';
+      iframe.classList.remove('active');
+      updateSubmitBtn();
+      renderEditorSwatches(null);
+      return;
+    }
+
+    placeholder.style.opacity = '0';
+    iframe.classList.add('active');
+
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) return;
+
+    // 1. Render dynamic theme variables & custom css inside iframe head
+    const styleEl = doc.getElementById('theme-style');
+    if (styleEl) {
+      const varsCSS = Object.entries(vars).map(([k, v]) => `${k}:${v}`).join(';');
+      styleEl.textContent = `
+        :root { ${varsCSS} }
+        ${css}
+      `;
+    }
+
+    // 2. Set Theme metadata within sandbox
+    const titleEl = doc.getElementById('preview-title');
+    if (titleEl) titleEl.textContent = themeName;
+
+    // 3. Render theme palettes swatches (all color-type vars) 
+    // 🌸 修复运行时 BUG：原 Object.keys(themeVars) 导致 ReferenceError 崩溃，现修正为 Object.keys(vars)
+    const swatchesContainer = doc.getElementById('swatches-container');
+    if (swatchesContainer) {
+      const colorKeys = Object.keys(vars).filter(k =>
+        k.startsWith('--color-') || k.startsWith('--ambient-')
+      );
+      swatchesContainer.innerHTML = colorKeys.map(k => `
+        <div class="swatch-item">
+          <div class="swatch-color" style="background: var(${k})"></div>
+          <span class="swatch-label">${k.replace('--color-', '').replace('--ambient-', '')}</span>
+        </div>
+      `).join('');
+    }
+
+    // 4. Sakura falling special effect simulator if demo is chosen
+    const sakuraContainer = doc.getElementById('sakura-container');
+    if (sakuraContainer) {
+      sakuraContainer.innerHTML = '';
+      if (themeName === DEMO_THEME.name) {
+        for (let i = 0; i < 8; i++) {
+          const petal = doc.createElement('div');
+          petal.className = 'sakura-petal';
+          petal.style.left = Math.random() * 100 + '%';
+          petal.style.animationDelay = Math.random() * 5 + 's';
+          petal.style.animationDuration = (Math.random() * 3 + 3) + 's';
+          sakuraContainer.appendChild(petal);
+        }
+      }
+    }
+
+    renderEditorSwatches(vars);
+    updateSubmitBtn();
+  }
+
+  function updateSubmitBtn() {
+    const btn = $('btn-submit');
+    const name = $('name-input').value.trim();
+    const author = $('author-input').value.trim();
+    btn.disabled = !currentVars || !name || !author || submitting;
+  }
+
+  // ─── Format JSON helper ───
+  $('btn-format').addEventListener('click', () => {
+    const input = $('vars-input');
+    const raw = input.value.trim();
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      input.value = JSON.stringify(parsed, null, 2);
+      clearError();
+    } catch {
+      showError('无法排版：非有效 JSON 格式');
+      $('btn-autofix').style.display = 'inline-block';
+    }
+  });
+
+  // ─── Autofix typical JSON syntax errors ───
+  $('btn-autofix').addEventListener('click', () => {
+    const input = $('vars-input');
+    let raw = input.value.trim();
+    try {
+      // 1. Try removing trailing commas
+      raw = raw.replace(/,\s*([\]}])/g, '$1');
+      // 2. Try wrapping unquoted keys in quotes (common mistake)
+      raw = raw.replace(/([{,]\s*)([a-zA-Z0-9_\-]+)\s*:/g, '$1"$2":');
+      // Test parsing again
+      const parsed = JSON.parse(raw);
+      input.value = JSON.stringify(parsed, null, 2);
+      clearError();
+      updatePreview(parsed, $('css-input').value, $('name-input').value || undefined);
+    } catch (e) {
+      showError('自动修复失败，请手动修正括号或引号');
+    }
+  });
+
+  // ─── Load Template ───
+  function loadThemeData(themeObj) {
+    $('vars-input').value = JSON.stringify(themeObj.cssVars, null, 2);
+    $('css-input').value = themeObj.customCss || '';
+    $('name-input').value = themeObj.name;
+    $('author-input').value = themeObj.author;
+
+    // Dispatch events to refresh counters
+    $('name-input').dispatchEvent(new Event('input'));
+    $('author-input').dispatchEvent(new Event('input'));
+
+    clearError();
+    updatePreview(themeObj.cssVars, themeObj.customCss || '', themeObj.name);
+    setSynced();
+  }
+
+  // Click-to-copy swatch hex/color value
+  document.getElementById('editor-swatches')?.addEventListener('click', (e) => {
+    const swatch = e.target.closest('[data-swatch-val]');
+    if (!swatch) return;
+    const val = swatch.getAttribute('data-swatch-val');
+    if (val) {
+      navigator.clipboard.writeText(val).then(() => {
+        window.__toast?.(`颜色值 ${val} 已复制`);
+      }).catch(() => {});
+    }
+  });
+
+  $('btn-demo').addEventListener('click', () => {
+    loadThemeData(DEMO_THEME);
+    window.__toast?.('樱花漫舞梦境主题已载入');
+  });
+
+  // ─── Import from clipboard (Gracefully falling back on restricted environments) ───
+  $('btn-import').addEventListener('click', async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      let data;
+      try { data = JSON.parse(text); } catch { showError('未在剪贴板中检测到有效 JSON'); $('btn-autofix').style.display = 'inline-block'; return; }
+
+      let vars = data;
+      let css = '';
+      if (data.cssVars && typeof data.cssVars === 'object') {
+        vars = data.cssVars;
+        css = data.customCss || '';
+      }
+
+      if (!validateVars(vars)) {
+        showError('无效的数据：导入的 JSON 必须包含一系列 CSS 自定义属性变量');
+        return;
+      }
+
+      clearError();
+      $('vars-input').value = JSON.stringify(vars, null, 2);
+      $('css-input').value = css;
+      updatePreview(vars, css, $('name-input').value || undefined);
+      window.__toast?.('配置导入成功！');
+    } catch {
+      showError('由于浏览器安全策略，剪贴板读取失败。请手动复制并粘贴至输入框');
+    }
+  });
+
+  // ─── ⚡ LIVE SENSING badge & progress state controllers ───
+  const liveBadge = document.querySelector('.badge-live-dot');
+  const detailedStatus = $('sensing-detailed-status');
+  const browserShell = $('preview-shell');
+  const loadingBar = $('browser-loading-bar');
+  let syncTimer;
+
+  function setSensing() {
+    if (!liveBadge) return;
+    liveBadge.className = 'badge-live-dot sensing';
+    detailedStatus.textContent = 'DETECTING…';
+    detailedStatus.style.color = '#f59e0b';
+    
+    // Ambient feedback trigger
+    browserShell.className = 'preview-browser compiling';
+    loadingBar.style.width = '65%';
+    loadingBar.style.opacity = '1';
+  }
+
+  function setSynced() {
+    if (!liveBadge) return;
+    liveBadge.className = 'badge-live-dot synced';
+    detailedStatus.textContent = '已同步';
+    detailedStatus.style.color = '#22c55e';
+    
+    browserShell.className = 'preview-browser synced-state';
+    loadingBar.style.width = '100%';
+
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => {
+      liveBadge.className = 'badge-live-dot';
+      detailedStatus.textContent = 'LIVE SENSING';
+      detailedStatus.style.color = '';
+      loadingBar.style.opacity = '0';
+      
+      // Delay reset width
+      setTimeout(() => {
+        loadingBar.style.width = '0%';
+        browserShell.className = 'preview-browser';
+      }, 200);
+    }, 1200);
+  }
+
+  function setLiveError() {
+    if (!liveBadge) return;
+    liveBadge.className = 'badge-live-dot';
+    detailedStatus.textContent = '语法错误';
+    detailedStatus.style.color = '#ef4444';
+    
+    browserShell.className = 'preview-browser error-state';
+    loadingBar.style.opacity = '0';
+    setTimeout(() => {
+      loadingBar.style.width = '0%';
+    }, 200);
+  }
+
+  // ─── Live preview debounce engines ───
+  let varsDebounce;
+  $('vars-input').addEventListener('input', () => {
+    setSensing();
+    clearTimeout(varsDebounce);
+    varsDebounce = window.setTimeout(() => {
+      const raw = $('vars-input').value.trim();
+      if (!raw) {
+        updatePreview(null, '');
+        clearError();
+        setLiveError();
+        return;
+      }
+      try {
+        const vars = JSON.parse(raw);
+        if (!validateVars(vars)) {
+          showError('JSON 中至少需包含 5 个以 --color 开头的主题自定义变量');
+          updatePreview(null, '');
+          setLiveError();
+          return;
+        }
+        clearError();
+        const css = $('css-input').value;
+        updatePreview(vars, css, $('name-input').value || undefined);
+        setSynced();
+      } catch {
+        showError('JSON 语法错误，请检查括号与双引号格式');
+        $('btn-autofix').style.display = 'inline-block';
+        updatePreview(null, '');
+        setLiveError();
+      }
+    }, 250);
+  });
+
+  let cssDebounce;
+  $('css-input').addEventListener('input', () => {
+    setSensing();
+    clearTimeout(cssDebounce);
+    cssDebounce = window.setTimeout(() => {
+      if (currentVars) {
+        updatePreview(currentVars, $('css-input').value, $('name-input').value || undefined);
+        setSynced();
+      }
+    }, 250);
+  });
+
+  $('name-input').addEventListener('input', () => {
+    if (currentVars) {
+      updatePreview(currentVars, currentCss, $('name-input').value.trim());
+    }
+    updateSubmitBtn();
+  });
+  $('author-input').addEventListener('input', updateSubmitBtn);
+
+  // ─── Submissions LocalStorage History CRUD ───
+  const STORAGE_KEY = 'td_submitted_themes';
+
+  function getHistory() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+  }
+
+  function saveToHistory(item) {
+    const history = getHistory();
+    // Prevent duplicated codes
+    if (!history.some(h => h.id === item.id)) {
+      history.unshift(item);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, 10)));
+    }
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const list = getHistory();
+    const section = $('recent-section');
+    const container = $('recent-list');
+    if (!list.length) {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = 'block';
+    container.innerHTML = list.map(h => `
+      <div class="recent-item">
+        <div>
+          <span style="font-weight:700;color:var(--color-text)">${escapeHtml(h.name)}</span>
+          <span style="color:var(--color-text-muted);margin-left:8px;font-family:'JetBrains Mono',monospace;font-size:11px">${h.id}</span>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center">
+          <span style="font-size:11px;color:var(--color-text-muted)">${escapeHtml(h.author)}</span>
+          <a href="/share?id=${h.id}" class="text-btn" style="text-decoration:none;font-size:12px">进入主页</a>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ─── Submit execution ───
+  $('btn-submit').addEventListener('click', async () => {
+    const btn = $('btn-submit');
+    if (btn.disabled || !currentVars || submitting) return;
+
+    const name = $('name-input').value.trim();
+    const author = $('author-input').value.trim();
+    const css = $('css-input').value.trim();
+
+    submitting = true;
+    btn.classList.add('loading');
+    btn.innerHTML = '<span class="spinner"></span> 发布中…';
+    btn.disabled = true;
+
+    try {
+      const res = await fetch('/api/diy/submit.json', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          author,
+          cssVars: currentVars,
+          customCss: css || undefined,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.theme) {
+        // Build success feedback card with animation
+        const resultEl = $('submit-result');
+        resultEl.style.display = 'block';
+        const shareUrl = `${location.origin}/share?id=${data.theme.id}`;
+        resultEl.innerHTML = `
+          <div style="padding:18px;border-radius:14px;background:color-mix(in srgb, #22c55e 10%, transparent);border:1.5px solid rgba(34, 197, 94, 0.3);margin-top:16px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+              <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#22c55e" stroke-width="1.5"/><path d="M5 8l2 2 4-4" stroke="#22c55e" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span style="font-weight:700;font-size:14px;color:#22c55e">主题已成功提交！</span>
+            </div>
+            <div style="font-size:13px;margin-bottom:4px;color:var(--color-text)">
+              分享码: <code style="font-weight:700;font-size:14px;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 12%, transparent);padding:2px 8px;border-radius:4px">${data.theme.id}</code>
+            </div>
+            <div style="font-size:11px;color:var(--color-text-muted);margin-bottom:10px;line-height:1.5">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="vertical-align:-1px;margin-right:3px"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M8 4v5l3 2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              当前处于<strong style="color:#f59e0b">待审核</strong>状态，24 小时内管理员审核通过后将<strong>永久收录</strong>至主题商店。超时未审核将自动移除。
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <input readonly value="${shareUrl}" style="flex:1;min-width:200px;height:34px;padding:0 10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:12px;font-family:'JetBrains Mono',monospace" onclick="this.select()" />
+              <button class="btn btn-outline copy-share-btn" data-url="${shareUrl}" data-code="${data.theme.id}" style="height:34px;padding:0 14px;font-size:12px;white-space:nowrap">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6v8a2 2 0 002 2h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                复制链接
+              </button>
+              <a href="/share?id=${data.theme.id}" class="btn btn-primary" style="height:34px;padding:0 14px;font-size:12px;text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center">前往详情页</a>
+            </div>
+          </div>
+        `;
+
+        // Save metadata to localStorage and refresh history records
+        saveToHistory({
+          id: data.theme.id,
+          name,
+          author,
+          createdAt: new Date().toISOString()
+        });
+
+        // Clear inputs safely
+        $('name-input').value = '';
+        $('author-input').value = '';
+        $('name-counter').textContent = '0/40';
+        $('author-counter').textContent = '0/20';
+        window.__toast?.('发布并登记到本地历史成功！');
+      } else {
+        const resultEl = $('submit-result');
+        resultEl.style.display = 'block';
+        resultEl.innerHTML = `<div style="padding:14px;border-radius:12px;background:color-mix(in srgb, #ef4444 10%, transparent);border:1.5px solid rgba(239, 68, 68, 0.3);color:#ef4444;font-size:13px;font-weight:700">提交失败: ${escapeHtml(data.error || '服务器拒绝了当前提交')}</div>`;
+      }
+    } catch {
+      const resultEl = $('submit-result');
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = `<div style="padding:14px;border-radius:12px;background:color-mix(in srgb, #ef4444 10%, transparent);border:1.5px solid rgba(239, 68, 68, 0.3);color:#ef4444;font-size:13px;font-weight:700">网络传输故障，请稍后检查重试</div>`;
+    } finally {
+      submitting = false;
+      btn.classList.remove('loading');
+      btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v10M4 8l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> 发布到社区商店`;
+      updateSubmitBtn();
+    }
+  });
+
+  // ─── Clipboard Copy Delegation ───
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.copy-share-btn');
+    if (!btn) return;
+    const url = btn.dataset.url || '';
+    navigator.clipboard.writeText(url).then(() => {
+      const orig = btn.innerHTML;
+      btn.innerHTML = '已复制';
+      btn.style.color = '#22c55e';
+      btn.style.borderColor = '#22c55e';
+      setTimeout(() => { 
+        btn.innerHTML = orig; 
+        btn.style.color = ''; 
+        btn.style.borderColor = '';
+      }, 1500);
+    });
+  });
+
+  function escapeHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Injecting Spinner Micro-Stylesheet
+  const spinnerCSS = document.createElement('style');
+  spinnerCSS.textContent = `
+    .spinner {
+      display:inline-block;width:14px;height:14px;
+      border:2.5px solid rgba(255,255,255,0.3);
+      border-top-color:#fff;
+      border-radius:50%;
+      animation:spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  `;
+  document.head.appendChild(spinnerCSS);
+
+  // ─── Initialize Sandboxed browser state on page load ───
+  initIframe(() => {
+    // Iframe就绪后，加载预设的默认暗色主题，使页面瞬间充满表现力
+    loadThemeData(DEFAULT_THEME);
+  });
+  renderHistory();
+</script>
