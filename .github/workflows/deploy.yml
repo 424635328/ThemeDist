@@ -12,7 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write       # 允许向 commit 写入评论
-      deployments: write
+      deployments: write    # 允许更新 GitHub Deployments
+      statuses: write       # 新增：解决 Resource not accessible 报错，允许更新 Commit 部署状态
 
     steps:
       - name: Checkout code
@@ -22,10 +23,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: 'npm'       # 需要确保仓库中有 package-lock.json
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci          # 需要确保仓库中有 package-lock.json
+        run: npm ci
 
       - name: Build with Netlify adapter
         run: ADAPTER=netlify npm run build
