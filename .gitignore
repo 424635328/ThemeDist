@@ -7,10 +7,18 @@ dist/
 # Astro
 .astro/
 
+# Platform build artifacts
+.vercel/
+.netlify/
+
 # Environment
 .env
 .env.*
 !.env.example
+.env*.local
+
+# Claude Code settings (local, user-specific)
+.claude/
 
 # IDE
 .vscode/
@@ -31,6 +39,3 @@ npm-debug.log*
 # Temp
 tmp/
 temp/
-
-.vercel
-.env*.local

@@ -1,5 +1,4 @@
 import { getAllThemes } from '../../../utils/daily-theme';
-import { getCommunityThemes } from '../../../utils/omni-bridge';
 import { get as redisGet } from '../../../lib/redis';
 
 const CORS_HEADERS = {
@@ -7,13 +6,6 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
-
-export async function getStaticPaths() {
-  const themes = getAllThemes();
-  return themes.map((t) => ({
-    params: { preset: t.preset },
-  }));
-}
 
 export async function GET({ params }: { params: { preset: string } }) {
   const presetId = params.preset;
