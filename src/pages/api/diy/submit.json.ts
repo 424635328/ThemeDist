@@ -2,6 +2,7 @@ export const prerender = false;
 
 import { submitTheme } from '../../../lib/themes-db';
 import { isReady } from '../../../lib/redis';
+import { sanitizeText, sanitizeCustomCss } from '../../../utils/sanitize';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -43,7 +44,13 @@ export async function POST({ request }: { request: Request }) {
       });
     }
 
-    const theme = await submitTheme({ name, author, cssVars, customCss, tags });
+    const theme = await submitTheme({
+      name: sanitizeText(name),
+      author: sanitizeText(author),
+      cssVars,
+      customCss: sanitizeCustomCss(customCss),
+      tags,
+    });
 
     if (!theme) {
       return new Response(JSON.stringify({ error: '提交失败，请稍后重试' }), {

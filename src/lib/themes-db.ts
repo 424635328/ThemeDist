@@ -196,16 +196,22 @@ export async function getTotalCount(): Promise<number> {
   return zcard(NEWEST_KEY);
 }
 
-export async function likeTheme(id: string, fingerprint: string): Promise<number> {
-  if (!isReady()) return 0;
+export async function likeTheme(id: string, fingerprint: string): Promise<number | null> {
+  if (!isReady()) return null;
+
+  // Verify the theme exists before allowing a like
+  const existing = await get<CommunityTheme>(themeKey(id));
+  if (!existing) return null;
 
   const setKey = likesSetKey(id);
-  const already = await sismember(setKey, fingerprint);
-  if (already) {
+
+  // Use sadd return value as the atomic dedup check — if it returns 0,
+  // the member already existed and we should NOT increment.
+  const added = await sadd(setKey, fingerprint);
+  if (added === 0) {
     return (await zscore(LIKES_KEY, id)) ?? 0;
   }
 
-  await sadd(setKey, fingerprint);
   const newScore = await zincrby(LIKES_KEY, 1, id);
   return newScore;
 }

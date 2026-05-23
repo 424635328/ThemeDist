@@ -44,6 +44,14 @@ export async function POST({ request }: { request: Request }) {
 
     const fp = getFingerprint(request);
     const likes = await likeTheme(id, fp);
+
+    if (likes === null) {
+      return new Response(JSON.stringify({ error: '主题不存在' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...CORS },
+      });
+    }
+
     const voted = await hasVoted(id, fp);
 
     return new Response(JSON.stringify({ likes, voted }), {
