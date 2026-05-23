@@ -1,9 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { getAllThemes, getDailyTheme } from '../utils/daily-theme';
+import { getDailyCommunityTheme } from '../utils/omni-bridge';
 
+const communityDaily = await getDailyCommunityTheme();
 const themes = getAllThemes();
-const todayTheme = getDailyTheme();
+const todayTheme = communityDaily || getDailyTheme();
 const selectedPreset = Astro.url.searchParams.get('theme') || todayTheme.preset;
 const selected = themes.find(t => t.preset === selectedPreset) || themes[0];
 
@@ -18,15 +20,14 @@ const initialThemeData = {
 ---
 
 <Layout>
-  <section class="section text-center" style="padding-bottom:40px">
-    <p class="t-label">Builder</p>
-    <h1 class="t-heading mt-2">主题构建器</h1>
-    <p class="t-subhead mt-2" style="max-width:560px;margin-inline:auto">
-      选择一个预设主题，或直接编辑 CSS 变量和自定义样式代码，实时预览效果。
-    </p>
-  </section>
-
   <section style="max-width:1300px;margin:0 auto;padding:0 32px 80px">
+    <div class="builder-header">
+      <div class="builder-header-text">
+        <p class="t-label" style="margin:0">Builder</p>
+        <h1 class="t-heading" style="margin:2px 0 0;font-size:1.5rem">主题构建器</h1>
+        <p class="t-subhead" style="margin:2px 0 0;font-size:0.85rem">选择一个预设主题，或直接编辑 CSS 变量和自定义样式代码，实时预览效果。</p>
+      </div>
+    </div>
     <div style="display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:start">
 
       <!-- ===========================================
@@ -227,6 +228,9 @@ const initialThemeData = {
 </Layout>
 
 <style>
+  .builder-header { max-width: 100%; margin-bottom: 20px; }
+  .builder-header-text { flex: 1; min-width: 0; }
+
   #builder-search:focus {
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);

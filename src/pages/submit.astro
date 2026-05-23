@@ -3,15 +3,6 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout>
-  <section class="section text-center" style="padding-bottom:32px">
-    <p class="t-label">Community Pool</p>
-    <h1 class="t-heading mt-2">分享你的创作</h1>
-    <p class="t-subhead mt-2" style="max-width:560px;margin-inline:auto">
-      在构建器中调配好了精美的主题？粘贴变量 JSON，一键提交至社区公共主题商店。<br/>
-      提交后生成分享码，管理员审核通过后将永久收录。24 小时内未审核则自动移除。
-    </p>
-  </section>
-
   <section class="submit-container">
     <div class="submit-grid">
 
@@ -149,6 +140,7 @@ import Layout from '../layouts/Layout.astro';
         <!-- Submitted History -->
         <div id="recent-section" class="recent-submissions" style="display: none;">
           <h3 class="recent-title">我的提交记录</h3>
+          <p class="recent-hint">状态每 10 分钟自动刷新 · <span class="hint-dot hint-active"></span>收录中 <span class="hint-dot hint-expired"></span>已过期</p>
           <div id="recent-list" class="recent-list"></div>
         </div>
       </div>
@@ -156,8 +148,7 @@ import Layout from '../layouts/Layout.astro';
       <!-- RIGHT: Interactive Live Sandbox Preview -->
       <div class="preview-sticky">
         <div class="preview-header-meta">
-          <span class="section-badge">Interactive Sandbox</span>
-          <div class="badge-live-dot-wrapper" style="display:flex;align-items:center;gap:8px">
+          <div class="badge-live-dot-wrapper" style="display:flex;align-items:center;gap:8px;margin-left:auto">
             <span class="badge-live-dot">LIVE SENSING</span>
             <span id="sensing-detailed-status" class="sensing-details" style="font-size:10px;font-weight:700;letter-spacing:0.04em;color:var(--color-text-muted);opacity:0.85">Idle</span>
           </div>
@@ -193,26 +184,26 @@ import Layout from '../layouts/Layout.astro';
 
 <style is:global>
   /* ─── Grid layout & Containers ─── */
-  .submit-container { max-width: 1240px; margin: 0 auto; padding: 0 24px 80px; }
-  .submit-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 32px; align-items: start; }
+  .submit-container { max-width: 100%; margin: 0 auto; padding: 0 16px 40px; }
+  .submit-grid { display: grid; grid-template-columns: 400px 1fr; gap: 24px; align-items: start; }
 
   /* ─── Forms & Typography ─── */
-  .form-card { padding: 28px; border: 1px solid var(--color-border); background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); box-shadow: var(--shadow-md); border-radius: 16px; }
-  .form-section-header { margin-bottom: 20px; }
-  .section-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--color-primary); text-transform: uppercase; display: inline-block; margin-bottom: 4px; }
-  .section-title { font-size: 18px; font-weight: 800; color: var(--color-text); }
+  .form-card { padding: 20px; border: 1px solid var(--color-border); background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); box-shadow: var(--shadow-md); border-radius: 16px; }
+  .form-section-header { margin-bottom: 14px; }
+  .section-badge { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; color: var(--color-primary); text-transform: uppercase; display: inline-block; margin-bottom: 2px; }
+  .section-title { font-size: 15px; font-weight: 800; color: var(--color-text); }
 
   /* ─── Import row ─── */
-  .import-group { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .import-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
 
   /* AI Generation Bar */
-  .ai-gen-bar { margin-bottom: 20px; }
-  .ai-gen-row { display: flex; gap: 8px; align-items: center; }
-  .ai-input { flex: 1; height: 42px; padding: 0 14px; border-radius: 10px; border: 1.5px solid var(--color-border); background: color-mix(in srgb, var(--color-surface) 40%, transparent); color: var(--color-text); font-size: 13px; font-family: inherit; outline: none; transition: border-color 0.25s, box-shadow 0.25s; }
+  .ai-gen-bar { margin-bottom: 12px; }
+  .ai-gen-row { display: flex; gap: 6px; align-items: center; }
+  .ai-input { flex: 1; height: 36px; padding: 0 10px; border-radius: 8px; border: 1.5px solid var(--color-border); background: color-mix(in srgb, var(--color-surface) 40%, transparent); color: var(--color-text); font-size: 12px; font-family: inherit; outline: none; transition: border-color 0.25s, box-shadow 0.25s; }
   .ai-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent); }
-  .ai-gen-btn { white-space: nowrap; height: 42px; padding: 0 20px; font-size: 13px; font-weight: 700; border-radius: 10px; display: inline-flex; align-items: center; gap: 6px; }
+  .ai-gen-btn { white-space: nowrap; height: 36px; padding: 0 14px; font-size: 12px; font-weight: 700; border-radius: 8px; display: inline-flex; align-items: center; gap: 4px; }
   .ai-gen-btn.loading { opacity: 0.7; pointer-events: none; }
-  .ai-status-text { font-size: 11px; color: var(--color-text-muted); margin: 4px 0 0; min-height: 1.2em; }
+  .ai-status-text { font-size: 10px; color: var(--color-text-muted); margin: 2px 0 0; min-height: 1.2em; }
 
   /* AI API Key Management */
   .ai-key-bar { margin-top: 8px; }
@@ -229,13 +220,13 @@ import Layout from '../layouts/Layout.astro';
   .ai-key-feedback { font-size: 10px; margin: 6px 0 0; min-height: 1.2em; color: var(--color-text-muted); }
   .ai-key-feedback.success { color: #10b981; }
   .ai-key-feedback.error { color: #ef4444; }
-  .import-btn, .demo-btn { height: 42px; font-size: 13px; font-weight: 600; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; }
+  .import-btn, .demo-btn { height: 34px; font-size: 12px; font-weight: 600; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 5px; transition: all 0.2s; }
   .import-btn:hover { border-color: var(--color-primary); color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 6%, transparent); }
   .demo-btn:hover { border-color: var(--color-accent); color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 6%, transparent); }
 
   /* ─── Tabs Switcher UI ─── */
-  .tabs-container { display: flex; border-bottom: 1.5px solid var(--color-border); margin-bottom: 16px; gap: 8px; }
-  .tab-btn { background: none; border: none; padding: 10px 16px; font-size: 13px; font-weight: 700; color: var(--color-text-muted); cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s ease; border-radius: 6px 6px 0 0; }
+  .tabs-container { display: flex; border-bottom: 1.5px solid var(--color-border); margin-bottom: 10px; gap: 4px; }
+  .tab-btn { background: none; border: none; padding: 7px 12px; font-size: 12px; font-weight: 700; color: var(--color-text-muted); cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s ease; border-radius: 6px 6px 0 0; }
   .tab-btn:hover { color: var(--color-text); background: color-mix(in srgb, var(--color-text) 4%, transparent); }
   .tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
   .tab-content { display: none; }
@@ -243,24 +234,24 @@ import Layout from '../layouts/Layout.astro';
   @keyframes fadeInTab { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
 
   /* ─── Input Fields ─── */
-  .input-block { margin-bottom: 18px; }
-  .block-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-  .input-label { display: block; font-size: 12px; font-weight: 700; color: var(--color-text-muted); }
+  .input-block { margin-bottom: 12px; }
+  .block-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .input-label { display: block; font-size: 11px; font-weight: 700; color: var(--color-text-muted); }
   .required { color: var(--color-primary); margin-left: 2px; }
-  .text-btn { background: none; border: none; padding: 2px 8px; font-size: 11px; font-weight: 700; color: var(--color-primary); cursor: pointer; border-radius: 4px; transition: background 0.2s; }
+  .text-btn { background: none; border: none; padding: 2px 6px; font-size: 10px; font-weight: 700; color: var(--color-primary); cursor: pointer; border-radius: 4px; transition: background 0.2s; }
   .text-btn:hover { background: color-mix(in srgb, var(--color-primary) 10%, transparent); }
 
-  .code-textarea { width: 100%; height: 220px; padding: 14px; border-radius: 12px; border: 1.5px solid var(--color-border); background: color-mix(in srgb, var(--color-text) 2%, var(--color-bg)); color: var(--color-text); font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; resize: vertical; outline: none; transition: all 0.2s ease; }
+  .code-textarea { width: 100%; height: 180px; padding: 10px; border-radius: 10px; border: 1.5px solid var(--color-border); background: color-mix(in srgb, var(--color-text) 2%, var(--color-bg)); color: var(--color-text); font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.5; resize: vertical; outline: none; transition: all 0.2s ease; }
   .code-textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 10%, transparent); }
-  .css-textarea { height: 220px; }
+  .css-textarea { height: 180px; }
   
-  .validation-error-container { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; min-height: 20px; }
-  .validation-error { font-size: 11px; color: #ef4444; font-weight: 700; display: none; }
-  .autofix-btn { color: #ef4444; border: 1px solid color-mix(in srgb, #ef4444 30%, transparent); padding: 1px 6px; border-radius: 4px; }
+  .validation-error-container { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; min-height: 18px; }
+  .validation-error { font-size: 10px; color: #ef4444; font-weight: 700; display: none; }
+  .autofix-btn { color: #ef4444; border: 1px solid color-mix(in srgb, #ef4444 30%, transparent); padding: 1px 5px; border-radius: 4px; font-size: 10px; }
   .autofix-btn:hover { background: color-mix(in srgb, #ef4444 10%, transparent); }
 
-  .palette-preview-panel { margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: color-mix(in srgb, var(--color-text) 2%, var(--color-bg)); border: 1px dashed var(--color-border); }
-  .palette-title { font-size: 11px; font-weight: 700; color: var(--color-text-muted); display: block; margin-bottom: 6px; }
+  .palette-preview-panel { margin-top: 6px; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--color-text) 2%, var(--color-bg)); border: 1px dashed var(--color-border); }
+  .palette-title { font-size: 10px; font-weight: 700; color: var(--color-text-muted); display: block; margin-bottom: 4px; }
   .editor-swatches-strip { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-start; }
   .palette-group-label { width: 100%; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-muted); opacity: 0.5; margin: 2px 0; }
   .editor-swatch { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: 8px; cursor: pointer; transition: all 0.15s; }
@@ -270,22 +261,22 @@ import Layout from '../layouts/Layout.astro';
   .editor-swatch-name { font-size: 10px; font-weight: 700; color: var(--color-text); line-height: 1; }
   .editor-swatch-val { font-size: 9px; font-family: 'JetBrains Mono', monospace; color: var(--color-text-muted); font-weight: 500; line-height: 1; }
 
-  .meta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 24px; }
+  .meta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
   .input-wrapper { position: relative; display: flex; align-items: center; }
-  .text-input { width: 100%; height: 42px; padding: 0 55px 0 12px; border-radius: 10px; border: 1.5px solid var(--color-border); background: color-mix(in srgb, var(--color-surface) 30%, transparent); color: var(--color-text); font-size: 13px; font-family: inherit; outline: none; transition: all 0.2s ease; }
+  .text-input { width: 100%; height: 36px; padding: 0 50px 0 10px; border-radius: 8px; border: 1.5px solid var(--color-border); background: color-mix(in srgb, var(--color-surface) 30%, transparent); color: var(--color-text); font-size: 12px; font-family: inherit; outline: none; transition: all 0.2s ease; }
   .text-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 10%, transparent); }
-  .char-counter { position: absolute; right: 12px; font-size: 9px; font-weight: 700; color: var(--color-text-muted); opacity: 0.6; pointer-events: none; }
+  .char-counter { position: absolute; right: 10px; font-size: 9px; font-weight: 700; color: var(--color-text-muted); opacity: 0.6; pointer-events: none; }
 
-  .submit-main-btn { width: 100%; height: 48px; font-size: 14px; font-weight: 700; margin-top: 20px; border-radius: 12px; gap: 8px; }
+  .submit-main-btn { width: 100%; height: 42px; font-size: 13px; font-weight: 700; margin-top: 14px; border-radius: 10px; gap: 6px; }
   .submit-main-btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 
-  .result-alert-box { display: none; margin-top: 20px; animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+  .result-alert-box { display: none; margin-top: 14px; animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
   @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } }
 
   /* ─── Sandbox Iframe Preview ─── */
   .preview-sticky { position: sticky; top: 90px; }
-  .preview-header-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-  .badge-live-dot { display: inline-flex; align-items: center; gap: 6px; font-size: 9px; font-weight: 800; color: var(--color-accent); letter-spacing: 0.04em; transition: color 0.3s; user-select: none; }
+  .preview-header-meta { display: flex; justify-content: flex-end; align-items: flex-start; margin-bottom: 12px; gap: 16px; }
+  .badge-live-dot { display: inline-flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 800; color: var(--color-accent); letter-spacing: 0.04em; transition: color 0.3s; user-select: none; }
   .badge-live-dot::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); transition: background 0.3s, box-shadow 0.3s; animation: livePulse 1.5s ease-in-out infinite alternate; }
   @keyframes livePulse { 0% { opacity: 0.3; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1.15); } }
   
@@ -295,20 +286,20 @@ import Layout from '../layouts/Layout.astro';
   .badge-live-dot.synced { color: #22c55e; }
   .badge-live-dot.synced::before { background: #22c55e; animation: none; opacity: 1; transform: scale(1); }
 
-  .preview-browser { border-radius: 20px; overflow: hidden; border: 2.5px solid var(--color-border); background: var(--color-bg); box-shadow: var(--shadow-lg); transition: border-color 0.3s, box-shadow 0.3s; }
+  .preview-browser { border-radius: 14px; overflow: hidden; border: 2px solid var(--color-border); background: var(--color-bg); box-shadow: var(--shadow-lg); transition: border-color 0.3s, box-shadow 0.3s; }
   .preview-browser.compiling { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15), var(--shadow-lg); }
   .preview-browser.error-state { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15), var(--shadow-lg); }
   .preview-browser.synced-state { border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15), var(--shadow-lg); }
 
-  .browser-bar { padding: 12px 16px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-bottom: 1.5px solid var(--color-border); background: color-mix(in srgb, var(--color-surface) 40%, transparent); user-select: none; }
+  .browser-bar { padding: 8px 14px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-bottom: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-surface) 40%, transparent); user-select: none; }
   .browser-loading-bar { height: 2px; width: 0%; background: var(--color-primary, #6366f1); transition: width 0.25s ease, opacity 0.2s ease, background-color 0.2s; opacity: 0; }
   .browser-dots { display: flex; gap: 6px; }
   .browser-dots span { width: 10px; height: 10px; border-radius: 50%; }
   .dot-red { background: #ff5f57; } .dot-yellow { background: #ffbd2e; } .dot-green { background: #28ca41; }
   .browser-url { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--color-text-muted); opacity: 0.8; background: color-mix(in srgb, var(--color-bg) 80%, transparent); padding: 2px 16px; border-radius: 50px; border: 1px solid var(--color-border); }
 
-  /* 使得沙箱拥有更大高度 */
-  .iframe-container { position: relative; width: 100%; height: 640px; background: var(--color-bg); }
+  /* 16:9 沙箱比例，桌面端专属 */
+  .iframe-container { position: relative; width: 100%; aspect-ratio: 16 / 9; background: var(--color-bg); }
   .sandbox-iframe { width: 100%; height: 100%; border: none; opacity: 0; transition: opacity 0.4s ease; background: transparent; }
   .sandbox-iframe.active { opacity: 1; }
   .preview-empty-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; pointer-events: none; transition: opacity 0.3s ease; }
@@ -317,11 +308,26 @@ import Layout from '../layouts/Layout.astro';
   .preview-empty-placeholder p { color: var(--color-text-muted); font-size: 13px; line-height: 1.6; }
 
   /* My Submissions List */
-  .recent-submissions { margin-top: 32px; animation: fadeIn 0.4s ease-out; }
-  .recent-title { font-size: 13px; font-weight: 700; color: var(--color-text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
-  .recent-list { display: flex; flex-direction: column; gap: 8px; }
-  .recent-item { padding: 12px 16px; border-radius: 12px; background: var(--color-surface); border: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; gap: 12px; transition: all 0.2s; }
+  .recent-submissions { margin-top: 20px; animation: fadeIn 0.4s ease-out; }
+  .recent-title { font-size: 11px; font-weight: 700; color: var(--color-text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .recent-hint { font-size: 10px; color: var(--color-text-muted); margin: 0 0 8px; display: flex; align-items: center; gap: 4px; opacity: 0.7; }
+  .hint-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin: 0 2px 0 8px; }
+  .hint-dot.hint-active { background: #16a34a; }
+  .hint-dot.hint-expired { background: #dc2626; }
+  .recent-list { display: flex; flex-direction: column; gap: 6px; }
+  .recent-item { padding: 10px 14px; border-radius: 10px; background: var(--color-surface); border: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; gap: 10px; transition: all 0.2s; }
   .recent-item:hover { transform: translateY(-1px); border-color: var(--color-primary); }
+  .recent-item-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+  .recent-item-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .recent-name { font-weight: 700; color: var(--color-text); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .recent-id { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--color-text-muted); background: color-mix(in srgb, var(--color-text) 5%, transparent); padding: 1px 6px; border-radius: 4px; flex-shrink: 0; }
+  .recent-author { font-size: 11px; color: var(--color-text-muted); }
+  .recent-link { text-decoration: none; font-size: 11px; white-space: nowrap; }
+  .recent-status { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 6px; flex-shrink: 0; }
+  .recent-status.checking { color: var(--color-text-muted); background: color-mix(in srgb, var(--color-text) 4%, transparent); }
+  .recent-status.active { color: #16a34a; background: rgba(22, 163, 74, 0.1); }
+  .recent-status.expired { color: #dc2626; background: rgba(220, 38, 38, 0.08); }
+  .recent-status.unknown { color: #f59e0b; background: rgba(245, 158, 11, 0.08); }
 
   @keyframes fadeIn { from { opacity: 0; } }
 
@@ -329,7 +335,7 @@ import Layout from '../layouts/Layout.astro';
   @media (max-width: 980px) {
     .submit-grid { grid-template-columns: 1fr; gap: 40px; }
     .preview-sticky { position: static; }
-    .iframe-container { height: 500px; }
+    .iframe-container { aspect-ratio: auto; height: 500px; }
   }
 </style>
 
@@ -628,6 +634,7 @@ import Layout from '../layouts/Layout.astro';
   }
 
   function updatePreview(vars, css, themeName = "未命名主题") {
+    if (vars) vars = normalizeCssVarKeys(vars);
     currentVars = vars;
     currentCss = css;
 
@@ -803,19 +810,33 @@ import Layout from '../layouts/Layout.astro';
 
 用户描述: "${description}"
 
+## 强制要求
+- 所有 CSS 变量键名必须以双横线 -- 开头，如 "--color-primary" 而非 "color-primary"
+- --color-primary 和 --color-bg 为必填项，缺一不可
+- 必须返回完整 34 个 CSS 变量，一个不能少
+
 ## 色彩设计法则
 - 主色(primary)定义性格，背景(bg)→表面(surface)→边框(border)→主文字(text) 亮度递增（深色）或递减（浅色）
-- 必须返回全部 34 个 CSS 变量
 
 ## 特效设计要求
 - 必须根据描述生成纯 CSS 特效动画（@keyframes），不可返回空。
 
-返回纯净 JSON 格式（无代码块）：
+返回纯净 JSON 格式（禁止 Markdown 代码块包裹）：
 {
   "name": "主题名称",
   "tags": ["dark"],
-  "cssVars": { 全部 34 个 CSS 变量 },
-  "customCss": "纯 CSS 特效动画"
+  "cssVars": {
+    "--color-primary": "#hex",
+    "--color-secondary": "#hex",
+    "--color-accent": "#hex",
+    "--color-bg": "#hex",
+    "--color-surface": "#hex",
+    "--color-text": "#hex",
+    "--color-text-muted": "#hex",
+    "--color-border": "rgba(...)",
+    ...全部 34 个变量
+  },
+  "customCss": "/* @keyframes 动画 */"
 }`;
   }
 
@@ -827,6 +848,7 @@ import Layout from '../layouts/Layout.astro';
         model: 'deepseek-chat',
         messages: [{ role: 'user', content: buildDeepSeekPrompt(description) }],
         temperature: 0.8,
+        max_tokens: 10000,
       }),
     });
     if (!res.ok) throw new Error(`DeepSeek API 请求失败`);
@@ -880,6 +902,9 @@ body::after {
       }
 
       if (!data.cssVars || typeof data.cssVars !== 'object') throw new Error('AI 返回的 CSS 变量格式异常');
+
+      // Normalize keys: ensure all CSS var keys have -- prefix
+      data.cssVars = normalizeCssVarKeys(data.cssVars);
 
       const STRUCTURAL_DEFAULTS = {
         '--font-heading': "'Inter', system-ui, sans-serif", '--font-body': "'Inter', system-ui, sans-serif", '--font-mono': "'JetBrains Mono', monospace",
@@ -1017,34 +1042,90 @@ body::after {
 
   // ─── Submissions LocalStorage History CRUD ───
   const STORAGE_KEY = 'td_submitted_themes';
+  const STATUS_CACHE_TTL = 10 * 60 * 1000; // 10 min before re-checking
+
   function getHistory() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; } }
+
+  function saveHistory(list) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, 10))); } catch {}
+  }
+
+  function updateCachedStatus(id, status) {
+    const list = getHistory();
+    const entry = list.find(h => h.id === id);
+    if (entry) {
+      entry._status = status;
+      entry._checked = Date.now();
+      saveHistory(list);
+    }
+  }
+
+  function getCachedStatus(h) {
+    if (!h._status || !h._checked) return null;
+    if (Date.now() - h._checked > STATUS_CACHE_TTL) return null;
+    return h._status;
+  }
+
   function saveToHistory(item) {
     const history = getHistory();
     if (!history.some(h => h.id === item.id)) {
       history.unshift(item);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, 10)));
+      saveHistory(history);
     }
     renderHistory();
   }
 
-  function renderHistory() {
+  function renderStatusLabel(status) {
+    if (status === 'active') return '<span class="recent-status active" title="该主题仍在数据库中">收录中</span>';
+    if (status === 'expired') return '<span class="recent-status expired" title="已从数据库移除（24h TTL）">已过期</span>';
+    return '<span class="recent-status checking">检测中…</span>';
+  }
+
+  async function renderHistory() {
     const list = getHistory();
     const section = $('recent-section');
     const container = $('recent-list');
     if (!list.length) { section.style.display = 'none'; return; }
     section.style.display = 'block';
-    container.innerHTML = list.map(h => `
-      <div class="recent-item">
-        <div>
-          <span style="font-weight:700;color:var(--color-text)">${escapeHtml(h.name)}</span>
-          <span style="color:var(--color-text-muted);margin-left:8px;font-family:'JetBrains Mono',monospace;font-size:11px">${h.id}</span>
-        </div>
-        <div style="display:flex;gap:12px;align-items:center">
-          <span style="font-size:11px;color:var(--color-text-muted)">${escapeHtml(h.author)}</span>
-          <a href="/share?id=${h.id}" class="text-btn" style="text-decoration:none;font-size:12px">进入主页</a>
-        </div>
-      </div>
-    `).join('');
+
+    // Render with cached status (or "checking" if no cache)
+    const renderItem = (h) => {
+      const cached = getCachedStatus(h);
+      return `
+        <div class="recent-item" data-rid="${escapeAttr(h.id)}">
+          <div class="recent-item-left">
+            <span class="recent-name">${escapeHtml(h.name)}</span>
+            <code class="recent-id">${h.id}</code>
+            ${renderStatusLabel(cached)}
+          </div>
+          <div class="recent-item-right">
+            <span class="recent-author">${escapeHtml(h.author)}</span>
+            <a href="/share?id=${h.id}" class="text-btn recent-link">进入主页</a>
+          </div>
+        </div>`;
+    };
+    container.innerHTML = list.map(renderItem).join('');
+
+    // Only re-check items without valid cache
+    const toCheck = list.filter(h => !getCachedStatus(h));
+    for (const h of toCheck) {
+      const statusEl = container.querySelector(`[data-rid="${escapeAttr(h.id)}"] .recent-status`);
+      try {
+        const res = await fetch(`/api/diy/theme.json?id=${encodeURIComponent(h.id)}`);
+        const status = res.ok ? 'active' : 'expired';
+        updateCachedStatus(h.id, status);
+        if (statusEl) {
+          statusEl.className = 'recent-status ' + status;
+          statusEl.textContent = status === 'active' ? '收录中' : '已过期';
+          statusEl.title = status === 'active' ? '该主题仍在数据库中' : '已从数据库移除（24h TTL）';
+        }
+      } catch {
+        if (statusEl) {
+          statusEl.className = 'recent-status unknown';
+          statusEl.textContent = '未知';
+        }
+      }
+    }
   }
 
   // ─── Submit execution ───
@@ -1056,6 +1137,15 @@ body::after {
     const author = $('author-input').value.trim();
     const css = $('css-input').value.trim();
 
+    // Client-side pre-flight: normalize & validate required vars
+    const normalizedVars = normalizeCssVarKeys(currentVars);
+    const missing = validateRequiredVars(normalizedVars);
+    if (missing) {
+      window.__toast?.(`缺少必填变量: ${missing.join(', ')}。请检查 JSON 或重新生成。`);
+      showError(`缺少必填变量: ${missing.join(', ')}`);
+      return;
+    }
+
     submitting = true;
     btn.classList.add('loading');
     btn.innerHTML = '<span class="spinner"></span> 发布中…';
@@ -1066,7 +1156,7 @@ body::after {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name, author, cssVars: currentVars, customCss: css || undefined,
+          name, author, cssVars: normalizedVars, customCss: css || undefined,
           tags: (() => { try { return JSON.parse($('name-input').dataset.tags || '[]'); } catch { return undefined; } })(),
         }),
       });
@@ -1128,6 +1218,28 @@ body::after {
   });
 
   function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function escapeAttr(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // Normalize CSS variable keys: ensure -- prefix, trim whitespace
+  function normalizeCssVarKeys(vars) {
+    const out = {};
+    for (const [k, v] of Object.entries(vars)) {
+      let key = k.trim();
+      if (!key.startsWith('--')) key = '--' + key.replace(/^-+/, '');
+      out[key] = typeof v === 'string' ? v.trim() : v;
+    }
+    return out;
+  }
+
+  // Check required vars before submit — returns missing keys or null
+  function validateRequiredVars(vars) {
+    if (!vars || typeof vars !== 'object') return ['cssVars 对象为空'];
+    const keys = Object.keys(vars);
+    const missing = [];
+    if (!keys.some(k => k === '--color-primary')) missing.push('--color-primary');
+    if (!keys.some(k => k === '--color-bg')) missing.push('--color-bg');
+    return missing.length ? missing : null;
+  }
 
   const spinnerCSS = document.createElement('style');
   spinnerCSS.textContent = `.spinner { display:inline-block;width:14px;height:14px; border:2.5px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.6s linear infinite; } @keyframes spin { to { transform:rotate(360deg); } } .spinner-sm { display:inline-block; border-radius:50%; border-top-color:currentColor; animation:spin 0.6s linear infinite; }`;

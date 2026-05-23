@@ -1,7 +1,9 @@
 ---
 import { getDailyTheme } from '../utils/daily-theme';
+import { getDailyCommunityTheme } from '../utils/omni-bridge';
 
-const theme = getDailyTheme();
+const communityDaily = await getDailyCommunityTheme();
+const theme = communityDaily || getDailyTheme();
 const { cssVars, presetName, customCss, extensions, logoText, logoColors } = theme;
 
 const style = Object.entries(cssVars)
@@ -169,13 +171,54 @@ function navClass(path: string) {
     .nav {
       position: sticky; top: 0; z-index: 100;
       padding: 0 32px;
-      height: 60px;
+      height: 64px;
       display: flex; align-items: center; gap: 4px;
-      background: color-mix(in srgb, var(--color-bg) 82%, transparent);
-      backdrop-filter: blur(24px) saturate(1.2);
-      -webkit-backdrop-filter: blur(24px) saturate(1.2);
-      border-bottom: 1px solid var(--color-border);
-      transition: background 0.4s, border-color 0.4s;
+      background: transparent;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      border-bottom: 1px solid transparent;
+      transition: background 0.5s ease, backdrop-filter 0.5s ease, border-color 0.5s ease;
+    }
+    .nav.scrolled, .nav.open {
+      background: color-mix(in srgb, var(--color-bg) 68%, transparent);
+      backdrop-filter: blur(28px) saturate(1.4);
+      -webkit-backdrop-filter: blur(28px) saturate(1.4);
+      border-bottom-color: color-mix(in srgb, var(--color-border) 60%, transparent);
+    }
+
+    .nav-home {
+      display: flex; align-items: center; gap: 10px;
+      text-decoration: none; flex-shrink: 0; margin-right: 20px;
+    }
+
+    .nav-orb {
+      width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+      background: conic-gradient(
+        var(--color-primary) 0deg 120deg,
+        var(--color-secondary) 120deg 240deg,
+        var(--color-accent) 240deg 360deg
+      );
+      box-shadow:
+        0 0 16px color-mix(in srgb, var(--color-primary) 35%, transparent),
+        inset 0 0 6px rgba(255,255,255,0.15);
+      animation: orbBreath 4s ease-in-out infinite;
+      transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  box-shadow 0.4s ease;
+    }
+    .nav-orb:hover {
+      transform: rotate(180deg) scale(1.25);
+      box-shadow:
+        0 0 28px color-mix(in srgb, var(--color-primary) 55%, transparent),
+        inset 0 0 6px rgba(255,255,255,0.15);
+    }
+    .nav-orb:active {
+      transform: rotate(360deg) scale(0.9);
+      transition-duration: 0.15s;
+    }
+
+    @keyframes orbBreath {
+      0%, 100% { transform: scale(1); opacity: 0.85; }
+      50% { transform: scale(1.06); opacity: 1; }
     }
 
     .nav-brand {
@@ -184,7 +227,6 @@ function navClass(path: string) {
       background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
       -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
       text-decoration: none;
-      margin-right: 20px;
       flex-shrink: 0;
     }
 
@@ -231,7 +273,7 @@ function navClass(path: string) {
       display: flex;
       flex-direction: column;
       position: absolute;
-      top: 60px; left: 0; right: 0;
+      top: 64px; left: 0; right: 0;
       background: color-mix(in srgb, var(--color-bg) 95%, transparent);
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
@@ -257,7 +299,7 @@ function navClass(path: string) {
        ============================================ */
     .content {
       position: relative; z-index: 1;
-      min-height: calc(100vh - 60px - 200px);
+      min-height: calc(100vh - 64px - 200px);
     }
 
     .section {
@@ -526,7 +568,10 @@ function navClass(path: string) {
   {extensions && <Fragment set:html={extensionsHTML} />}
 
   <nav class="nav" id="nav">
-    <a href="/" class="nav-brand" style={`background:${brandGradient};-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text`}>ThemeDist</a>
+    <a href="/" class="nav-home" aria-label="首页">
+      <div class="nav-orb"></div>
+      <span class="nav-brand" style={`background:${brandGradient};-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text`}>ThemeDist</span>
+    </a>
     <span class="nav-badge">{logoText || presetName}</span>
     <button class="nav-toggle" id="nav-toggle" aria-label="菜单">☰</button>
     <div class="nav-links" id="nav-links">
@@ -549,7 +594,7 @@ function navClass(path: string) {
     <p style="margin-top:8px;opacity:0.5">Powered by Astro &amp; Netlify</p>
   </footer>
 
-  <div id="preview-bar" style="display:none;position:fixed;top:60px;left:0;right:0;z-index:99;padding:10px 24px;text-align:center;font-size:13px;font-weight:600;background:color-mix(in srgb, var(--color-primary) 15%, var(--color-bg) 90%);border-bottom:1px solid var(--color-primary);color:var(--color-text);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
+  <div id="preview-bar" style="display:none;position:fixed;top:64px;left:0;right:0;z-index:99;padding:10px 24px;text-align:center;font-size:13px;font-weight:600;background:color-mix(in srgb, var(--color-primary) 15%, var(--color-bg) 90%);border-bottom:1px solid var(--color-primary);color:var(--color-text);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
     <span id="preview-bar-name"></span>
     <button onclick="localStorage.removeItem('themeDistApplied');location.search=''" style="margin-left:14px;font-size:12px;font-weight:600;padding:4px 14px;border-radius:8px;border:1px solid var(--color-primary);background:transparent;color:var(--color-primary);cursor:pointer;font-family:inherit">回到今日主题</button>
   </div>
@@ -679,11 +724,17 @@ function navClass(path: string) {
       // No SPA interception needed — clean page navigation is more robust
     })();
 
-    // Back to top
+    // Back to top + nav scroll effect
     const btop = document.getElementById('btop');
+    const navEl = document.getElementById('nav');
     let btopTimer;
+    let navTimer;
     window.addEventListener('scroll', () => {
       clearTimeout(btopTimer);
+      clearTimeout(navTimer);
+      navTimer = setTimeout(() => {
+        navEl.classList.toggle('scrolled', window.scrollY > 20);
+      }, 30);
       btopTimer = setTimeout(() => {
         btop.classList.toggle('visible', window.scrollY > 400);
       }, 50);

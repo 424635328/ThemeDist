@@ -12,9 +12,10 @@ const CORS = {
 function getFingerprint(request: Request): string {
   const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || '0.0.0.0';
   const ua = request.headers.get('user-agent') || '';
+  const clientId = request.headers.get('x-client-id') || '';
   // Simple hash - not crypto-secure, just for dedup
   let hash = 0;
-  const str = ip + '|' + ua.slice(0, 64);
+  const str = ip + '|' + ua.slice(0, 64) + '|' + clientId;
   for (let i = 0; i < str.length; i++) {
     hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
   }

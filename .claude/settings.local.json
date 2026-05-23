@@ -47,7 +47,8 @@
       "Bash(ADAPTER=netlify npx astro dev --port 4322)",
       "Bash(kill %1)",
       "Bash(ADAPTER=netlify KV_REST_API_URL=\"\" KV_REST_API_TOKEN=\"\" npm run build)",
-      "Bash(ADAPTER=netlify npx astro dev --port 4323)"
+      "Bash(ADAPTER=netlify npx astro dev --port 4323)",
+      "Bash(netlify deploy *)"
     ]
   }
 }

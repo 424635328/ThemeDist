@@ -1,6 +1,8 @@
 import { getDailyTheme, getAllThemes } from '../../utils/daily-theme';
 import { getCommunityThemes, getDailyCommunityTheme } from '../../utils/omni-bridge';
 
+export const prerender = true;
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
@@ -8,10 +10,11 @@ const CORS_HEADERS = {
 };
 
 const CACHE_HEADERS = {
-  'Cache-Control': 'public, max-age=3600, s-maxage=86400',
+  'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=3600',
 };
 
 export async function GET() {
+  try {
   // Check if a community theme is selected for today's rotation
   const communityDaily = await getDailyCommunityTheme();
   const theme = communityDaily || getDailyTheme();
@@ -64,6 +67,13 @@ export async function GET() {
       },
     },
   );
+  } catch (err) {
+    console.error('[today.json] Unexpected error:', err);
+    return new Response(JSON.stringify({ error: '内部服务错误' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+    });
+  }
 }
 
 export function OPTIONS() {

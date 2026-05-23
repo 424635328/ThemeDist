@@ -1,9 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { getAllThemes, getDailyTheme } from '../utils/daily-theme';
+import { getDailyCommunityTheme } from '../utils/omni-bridge';
 
+const communityDaily = await getDailyCommunityTheme();
 const allThemes = getAllThemes();
-const today = getDailyTheme();
+const today = communityDaily || getDailyTheme();
 const todayPreset = today.preset;
 
 interface ThemeWithMeta {
@@ -68,15 +70,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
 ---
 
 <Layout>
-  <section class="section text-center">
-    <p class="t-label">Theme Store</p>
-    <h1 class="t-heading mt-2">主题商店</h1>
-    <p class="t-subhead mt-2" style="max-width:560px;margin-inline:auto">
-      {totalCount}+ 套预设主题，包含 {holidayCount} 个节日主题和 {dailyCount} 个日常主题。节日自动优先，其余按日轮换。
-    </p>
-  </section>
-
-  <section class="section-sm" style="padding-top:0">
+  <section class="section-sm">
     <div class="store-controls">
       <!-- Search -->
       <div class="search-wrapper">
@@ -149,7 +143,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
             </button>
           </div>
         </div>
-        <p class="comm-header-desc">用户投稿的原创主题设计，经管理员审核后收录。点击下方卡片即可预览或一键应用。</p>
+        <p class="comm-header-desc">用户投稿的原创主题设计，经管理员审核后收录。点击下方卡片即可预览或一键应用。<span class="comm-cache-hint" id="comm-cache-hint"></span></p>
         <div class="comm-tag-filters" id="comm-tag-filters">
           <button class="comm-tag-chip comm-tag-active" data-comm-tag="">全部</button>
           <button class="comm-tag-chip" data-comm-tag="dark">暗色</button>
@@ -779,6 +773,17 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     margin: 12px 0 0;
     line-height: 1.5;
   }
+  .comm-cache-hint {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    opacity: 0.6;
+    background: color-mix(in srgb, var(--color-text) 4%, transparent);
+    padding: 1px 7px;
+    border-radius: 4px;
+  }
   .comm-tag-filters {
     display: flex;
     gap: 6px;
@@ -1090,6 +1095,16 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     return card.dataset.pending === '1';
   }
 
+  function getClientId() {
+    const key = 'td-client-id';
+    let id = localStorage.getItem(key);
+    if (!id) {
+      id = crypto.randomUUID?.() || Array.from({ length: 12 }, () => Math.random().toString(36)[2]).join('');
+      localStorage.setItem(key, id);
+    }
+    return id;
+  }
+
   function getLoadedCards() {
     return getAllCards().filter(c => !isPending(c));
   }
@@ -1326,6 +1341,40 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
   let commTotal = 0;
   let commLoaded = [];
 
+  // ─── Community cache (sessionStorage, 5 min TTL) ───
+  const COMM_CACHE_KEY = 'td_comm_cache';
+  const COMM_CACHE_TTL = 5 * 60 * 1000;
+
+  function getCommCache(sort, tag) {
+    try {
+      const raw = sessionStorage.getItem(COMM_CACHE_KEY);
+      if (!raw) return null;
+      const c = JSON.parse(raw);
+      if (c.sort !== sort || c.tag !== tag) return null;
+      if (Date.now() - c.ts > COMM_CACHE_TTL) return null;
+      return c;
+    } catch { return null; }
+  }
+
+  function setCommCache(sort, tag, themes, total) {
+    try {
+      sessionStorage.setItem(COMM_CACHE_KEY, JSON.stringify({ sort, tag, themes, total, ts: Date.now() }));
+    } catch {}
+  }
+
+  function updateCacheAgeHint() {
+    const el = document.getElementById('comm-cache-hint');
+    if (!el) return;
+    try {
+      const raw = sessionStorage.getItem(COMM_CACHE_KEY);
+      if (!raw) { el.textContent = ''; return; }
+      const c = JSON.parse(raw);
+      const age = Math.round((Date.now() - c.ts) / 1000);
+      if (age < 60) el.textContent = `缓存 ${age}s 前`;
+      else el.textContent = `缓存 ${Math.round(age / 60)}m 前`;
+    } catch { el.textContent = ''; }
+  }
+
   // ─── Init ───
   let cards = getAllCards();
   loadedCount = cards.filter(c => !isPending(c)).length;
@@ -1450,32 +1499,62 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     `;
   }
 
+  function renderCommunityList(themes, total, append) {
+    if (!append) {
+      commLoaded = themes;
+      communityGrid.innerHTML = '';
+    } else {
+      commLoaded = commLoaded.concat(themes);
+    }
+    commTotal = total;
+
+    const html = themes.map(renderCommunityCard).join('');
+    communityGrid.insertAdjacentHTML('beforeend', html);
+    communityGrid.style.display = '';
+    communityEmpty.hidden = commTotal > 0;
+    sentinel.style.display = commLoaded.length < commTotal ? '' : 'none';
+
+    if (communityHeaderCount) communityHeaderCount.textContent = commTotal + ' 个主题';
+    resultCount.textContent = commTotal > 0 ? '已加载 ' + commLoaded.length + ' / ' + commTotal + ' 个主题' : '';
+    updateCacheAgeHint();
+  }
+
+  async function fetchCommunityThemes(page) {
+    const tagParam = commTag ? `&tag=${commTag}` : '';
+    const res = await fetch(`/api/diy/themes.json?sort=${commSort}&page=${page}&size=20${tagParam}`);
+    if (!res.ok) throw new Error('Fetch failed');
+    return await res.json();
+  }
+
   async function loadCommunityThemes(page) {
     if (!isCommunityMode()) return;
     try {
-      const tagParam = commTag ? `&tag=${commTag}` : '';
-      const res = await fetch(`/api/diy/themes.json?sort=${commSort}&page=${page}&size=20${tagParam}`);
-      const data = await res.json();
-      if (data.themes) {
-        if (page === 1) {
-          commLoaded = data.themes;
-          communityGrid.innerHTML = '';
-        } else {
-          commLoaded = commLoaded.concat(data.themes);
+      // Page 1: check cache first
+      if (page === 1 && !commTag) {
+        const cached = getCommCache(commSort, commTag);
+        if (cached) {
+          renderCommunityList(cached.themes, cached.total, false);
+          // Background refresh
+          try {
+            const data = await fetchCommunityThemes(1);
+            if (data.themes) {
+              renderCommunityList(data.themes, data.total, false);
+              setCommCache(commSort, commTag, data.themes, data.total);
+            }
+          } catch { /* keep cached data */ }
+          return;
         }
-        commTotal = data.total;
+      }
 
-        const html = data.themes.map(renderCommunityCard).join('');
-        communityGrid.insertAdjacentHTML('beforeend', html);
-        communityGrid.style.display = '';
-        communityEmpty.hidden = commTotal > 0 || page > 1;
-        sentinel.style.display = commLoaded.length < commTotal ? '' : 'none';
-
-        if (communityHeaderCount) communityHeaderCount.textContent = commTotal + ' 个主题';
-        resultCount.textContent = commTotal > 0 ? '已加载 ' + commLoaded.length + ' / ' + commTotal + ' 个主题' : '';
+      const data = await fetchCommunityThemes(page);
+      if (data.themes) {
+        renderCommunityList(data.themes, data.total, page > 1);
+        if (page === 1 && !commTag) {
+          setCommCache(commSort, commTag, data.themes, data.total);
+        }
       }
     } catch {
-      communityEmpty.hidden = false;
+      communityEmpty.hidden = commLoaded.length > 0;
     }
   }
 
@@ -1557,7 +1636,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     try {
       const res = await fetch('/api/diy/like.json', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-client-id': getClientId() },
         body: JSON.stringify({ id }),
       });
       if (!res.ok) throw new Error('Failed');

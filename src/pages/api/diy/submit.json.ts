@@ -19,13 +19,21 @@ export async function POST({ request }: { request: Request }) {
 
   try {
     const body = await request.json();
-    const { name, author, cssVars, customCss, tags } = body;
+    const { name, author, cssVars: rawVars, customCss, tags } = body;
 
-    if (!name || !author || !cssVars || typeof cssVars !== 'object') {
+    if (!name || !author || !rawVars || typeof rawVars !== 'object') {
       return new Response(JSON.stringify({ error: '缺少必填字段: name, author, cssVars' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json', ...CORS },
       });
+    }
+
+    // Normalize keys: ensure -- prefix (defense against AI generating unprefixed keys)
+    const cssVars: Record<string, string> = {};
+    for (const [k, v] of Object.entries(rawVars)) {
+      let key = String(k).trim();
+      if (!key.startsWith('--')) key = '--' + key.replace(/^-+/, '');
+      cssVars[key] = typeof v === 'string' ? v.trim() : String(v);
     }
 
     if (!cssVars['--color-primary'] || !cssVars['--color-bg']) {

@@ -51,13 +51,16 @@ export async function submitTheme(input: SubmitInput): Promise<CommunityTheme | 
     likes: 0,
     cssVars: input.cssVars,
     customCss: input.customCss || null,
-    status: 'pending',
+    status: 'approved',
     tags: Array.isArray(input.tags) ? input.tags.filter(Boolean).slice(0, 5) : undefined,
   };
 
-  const ok = await set(themeKey(id), theme, { ex: 86400 });
+  const ok = await set(themeKey(id), theme);
   if (!ok) return null;
 
+  // Auto-approve: add to public indexes + admin review queue
+  await zadd(NEWEST_KEY, theme.createdAt, id);
+  await zadd(LIKES_KEY, 0, id);
   await zadd(PENDING_KEY, theme.createdAt, id);
 
   return theme;
@@ -71,6 +74,10 @@ export async function approveTheme(id: string): Promise<boolean> {
 
   try {
     theme.status = normaliseStatus(theme.status);
+    if (theme.status === 'approved') {
+      await zrem(PENDING_KEY, id); // clean up review queue
+      return true;
+    }
     if (theme.status !== 'pending') return false;
 
     theme.status = 'approved';
@@ -92,7 +99,7 @@ export async function rejectTheme(id: string): Promise<boolean> {
 
   try {
     theme.status = normaliseStatus(theme.status);
-    if (theme.status !== 'pending') return false;
+    if (theme.status !== 'pending' && theme.status !== 'approved') return false;
 
     // Fully delete the theme and all associated data
     await del(themeKey(id));
@@ -171,7 +178,15 @@ export async function listThemes(
   const themes: CommunityTheme[] = [];
   for (const id of ids) {
     const t = await getTheme(id);
-    if (t) themes.push(t);
+    if (!t) {
+      // Stale entry: theme key expired (24h TTL), clean up the index
+      await zrem(key, id);
+      if (key !== LIKES_KEY) await zrem(LIKES_KEY, id);
+      continue;
+    }
+    const likes = await zscore(LIKES_KEY, id);
+    if (likes !== null) t.likes = likes;
+    themes.push(t);
   }
   return themes;
 }

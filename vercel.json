@@ -2,11 +2,8 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "astro",
-  "crons": [
-    {
-      "path": "/api/today.json",
-      "schedule": "0 0 * * *"
-    }
+  "rewrites": [
+    { "source": "/api/today.json", "destination": "/api/today" }
   ],
   "headers": [
     {

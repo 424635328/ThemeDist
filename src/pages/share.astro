@@ -614,7 +614,7 @@ const id = Astro.url.searchParams.get('id') || '';
     const iframe = document.getElementById('preview-iframe');
     
     // 构造注入的样式变量字符串，进行严格转义
-    const varsCSS = Object.entries(t.cssVars).map(([k, v]) => `${escapeHtml(k)}:${escapeHtml(v)}`).join(';');
+    const varsCSS = Object.entries(t.cssVars).map(([k, v]) => `${k}:${v}`).join(';');
     const injectedStyles = `:root { ${varsCSS} }`;
     const customCssRaw = t.customCss || '';
     
@@ -628,7 +628,7 @@ const id = Astro.url.searchParams.get('id') || '';
 
     const finalHtml = SANDBOX_HTML_TEMPLATE
       .replace('{{INJECT_STYLES}}', injectedStyles)
-      .replace('{{INJECT_CUSTOM_CSS}}', escapeHtml(customCssRaw))
+      .replace('{{INJECT_CUSTOM_CSS}}', customCssRaw)
       .replace('{{INJECT_TITLE}}', escapeHtml(t.name))
       .replace('{{INJECT_EFFECTS_HTML}}', effectsHtml); // 避免直接转义HTML，仅做组装
 
@@ -699,6 +699,12 @@ const id = Astro.url.searchParams.get('id') || '';
   const likeBtn = document.getElementById('btn-like');
   const likeCountEl = document.getElementById('like-count');
   const likeKey = `td-like-${themeId}`;
+  const clientIdKey = 'td-client-id';
+  let clientId = localStorage.getItem(clientIdKey);
+  if (!clientId) {
+    clientId = crypto.randomUUID?.() || Array.from({ length: 12 }, () => Math.random().toString(36)[2]).join('');
+    localStorage.setItem(clientIdKey, clientId);
+  }
 
   if (localStorage.getItem(likeKey) === '1') {
     likeBtn.classList.add('liked');
@@ -712,7 +718,7 @@ const id = Astro.url.searchParams.get('id') || '';
     try {
       const res = await fetch('/api/diy/like.json', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-client-id': clientId },
         body: JSON.stringify({ id: themeId }),
       });
       if (!res.ok) throw new Error('Failed');

@@ -1,8 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { getDailyTheme, getAllThemes } from '../utils/daily-theme';
+import { getDailyCommunityTheme } from '../utils/omni-bridge';
 
-const today = getDailyTheme();
+const communityDaily = await getDailyCommunityTheme();
+const today = communityDaily || getDailyTheme();
 const allThemes = getAllThemes();
 
 const primary = today.cssVars['--color-primary'];

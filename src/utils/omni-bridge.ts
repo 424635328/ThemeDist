@@ -165,9 +165,21 @@ export function getOmniDailyTheme(): ComposedTheme {
 
   // Check if a holiday matched (holidays have date keys, dailyPool entries have id/name)
   // If a holiday matched, raw.theme will differ from default
-  const isHoliday = raw.logo && raw.logo.text !== OmniConfig.default.logo.text;
+  const isHoliday = raw.logo && OmniConfig.default?.logo && raw.logo.text !== OmniConfig.default.logo.text;
 
-  const dailyPool = OmniConfig.dailyPool as OmniThemeEntry[];
+  const dailyPool = (OmniConfig.dailyPool || []) as OmniThemeEntry[];
+  if (dailyPool.length === 0) {
+    // Fallback: return a safe default theme
+    return omniToComposed({
+      id: 'fallback',
+      name: 'Default',
+      theme: {
+        bgBase: '#0f0f23', textMain: '#f4f4f5', textMuted: '#a1a1aa',
+        accentRgb: '99,102,241', avatarGrad1: '#6366f1', avatarGrad2: '#818cf8',
+        ambient1: 'rgba(99,102,241,0.15)', ambient2: 'rgba(129,140,248,0.1)',
+      },
+    });
+  }
   const poolTheme = dailyPool[dayOfYear % dailyPool.length];
 
   if (isHoliday) {

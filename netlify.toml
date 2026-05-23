@@ -2,9 +2,10 @@
   command = "ADAPTER=netlify npm run build"
   publish = "dist"
 
-# Daily rebuild at midnight UTC for new daily theme
-[build.schedule]
-  cron = "0 0 * * *"
+# Edge Function: compute daily theme dynamically at the CDN edge
+[[edge_functions]]
+  function = "today"
+  path = "/api/today.json"
 
 # CORS headers for API endpoints
 [[headers]]

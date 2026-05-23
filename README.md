@@ -2,7 +2,7 @@
 
 **每日轮换的主题 CSS 变量分发服务** — 一个 GET 请求，整套网站视觉主题。
 
-ThemeDist 是基于 Astro SSR 的主题分发平台，通过 **OmniConfig 主题数据库**（~6500 行，200+ 预设主题 + 227+ 节日）配合 **5 组可插拔主题部件**（颜色、排版、间距、壁纸、视觉效果），每日自动计算并输出完整的 CSS 自定义属性集。同时提供主题商店、在线构建器、社区投稿与审核、AI 辅助生成、主题标签分类等完整功能。
+ThemeDist 是基于 Astro SSR 的主题分发平台，通过 **OmniConfig 主题数据库**（~6500 行，节日 + 日池主题）配合 **5 组可插拔主题部件**（颜色、排版、间距、壁纸、视觉效果），每日由 CDN 边缘函数实时计算并输出完整的 CSS 自定义属性集。同时提供主题商店、在线构建器、社区投稿与审核、AI 辅助生成、主题标签分类等完整功能。
 
 支持 **Vercel + Netlify** 双平台部署，一份代码，同时运行。
 
@@ -85,11 +85,11 @@ function applyTheme(d) {
 
 ### 核心功能
 
-- **每日自动轮换** — 200+ 预设主题 + 227+ 节日覆盖 + 社区主题轮换（约 30% 天数），通过 Vercel Cron Job / GitHub Actions 定时触发每日 UTC 午夜重建
-- **社区主题纳入每日池** — 审核通过的社区主题有机会被 `/api/today.json` 选中（每 3 天约 1 天），出现在每日分发中
+- **每日自动轮换** — CDN 边缘函数实时计算，无需定时构建。节日优先 + Crazy Thursday + 社区主题轮换（约 30% 天数）+ 日池兜底
+- **社区主题即发即现** — 用户投稿后自动发布至社区商店，立即可见、可点赞、可分享，长期有效
 - **农历节日支持** — 基于 `lunar-javascript` 实现，涵盖春节、中秋、端午、重阳、元宵等中国传统农历节日及公历节日
 - **RESTful API** — `GET /api/today.json` 返回完整主题数据；所有接口支持 CORS 跨域
-- **CDN 友好缓存** — 浏览器 1h / CDN 24h（今日主题），365 天不可变缓存（预设主题端点）
+- **CDN 友好缓存** — 浏览器 1h / CDN 24h（今日主题，含 `stale-while-revalidate=3600` 降级），365 天不可变缓存（预设主题端点）
 - **CSS 变量体系** — 34 个语义化 CSS 自定义属性（颜色 8 + 排版 8 + 间距 10 + 效果 6 + 氛围 2），覆盖完整 UI 语义
 - **双平台部署** — Vercel + Netlify 同时分发，同一份代码自动适配
 - **优雅降级** — Redis 不可用时社区功能自动降级为只读，站点核心功能不受影响
@@ -105,17 +105,17 @@ function applyTheme(d) {
 
 ### 用户端页面
 
-- **主题商店（Theme Store）** — 浏览、搜索、按分类/色温/标签筛选所有主题（预设 + 社区），社区主题支持按暗色/亮色/暖色/冷色/鲜艳/极简/自然/科技标签筛选，高亮今日主题
+- **主题商店（Theme Store）** — 浏览、搜索、按分类/色温/标签筛选所有主题（预设 + 社区），社区主题支持按暗色/亮色/暖色/冷色/鲜艳/极简/自然/科技标签筛选，高亮今日主题。社区列表使用 sessionStorage 缓存（5 分钟 TTL），命中缓存瞬间渲染，后台静默刷新
 - **主题构建器（Theme Builder）** — 实时编辑 CSS 变量 JSON、注入自定义 CSS、在预设间切换，一键复制应用
-- **社区投稿（Submit）** — 粘贴 CSS 变量 JSON，或使用 AI 辅助生成主题，提交自定义主题，管理员审核后进入公共池
-- **AI 主题生成** — 输入文字描述，使用 DeepSeek（用户自带 Key，客户端直接调用）或内置规则引擎生成完整 CSS 变量主题
+- **社区投稿（Submit）** — 左侧紧凑表单（粘贴 JSON / AI 生成 / DeepSeek 直调），右侧 16:9 LIVE SENSING 沙箱实时预览。提交后自动发布，本地历史记录含数据库状态检测（收录中/已过期），状态缓存至 localStorage（10 分钟 TTL）
+- **AI 主题生成** — 输入文字描述，使用 DeepSeek（用户自带 Key，客户端直接调用，max_tokens: 10000）或内置规则引擎生成完整 CSS 变量主题
 - **主题分享页（Share）** — 社区主题详情展示，支持点赞、复制链接、一键应用
 
 ### 管理端
 
 - **Cookie 认证** — 单管理员登录，HttpOnly + SameSite strict
-- **审核面板** — 待审主题列表，支持批量批准/拒绝，实时待审数量
-- **点赞去重** — 基于 IP + User-Agent 哈希，Redis Set 防重复点赞
+- **审核面板**（可选） — 主题默认自动发布，管理后台可用于手动审核或清理过期主题
+- **点赞去重** — 基于 IP + User-Agent + 客户端 UUID 三重哈希，Redis Set 防重复点赞，点赞数实时同步至排行榜
 
 ---
 
@@ -267,6 +267,8 @@ curl -X POST https://your-domain.com/api/diy/submit.json \
 必填字段：`name`, `author`, `cssVars`（必须包含 `--color-primary` 和 `--color-bg`）。
 可选字段：`customCss`, `tags`（最多 5 个标签）。
 
+主题提交后**自动发布**至社区商店，立即可见和可点赞，长期有效。
+
 ### 社区主题列表（带标签筛选）
 
 ```bash
@@ -414,13 +416,13 @@ curl -X POST https://your-domain.com/api/admin/review.json \
 
 ## 主题轮换策略
 
-每天 UTC 午夜，定时任务触发站点重建。主题选择逻辑（由 `src/utils/omni-bridge.ts` + `src/api/index_config.js` 实现）：
+主题由 CDN 边缘函数根据 UTC 日期实时计算，无需定时构建。选择逻辑（由 `netlify/edge-functions/today.ts` / `src/pages/api/today.ts` + `src/api/index-config.json.ts` 实现）：
 
 1. **农历节日优先** 🏮 — 基于 `lunar-javascript` 计算当日农历，匹配春节/中秋/端午/清明/重阳等 20+ 传统节日
-2. **公历节日其次** 📅 — 匹配元旦/情人节/Pi Day/圣诞等 200+ 公历节日
+2. **公历节日其次** 📅 — 匹配元旦/情人节/Pi Day/圣诞等公历节日（来自 OmniConfig 配置）
 3. **Crazy Thursday** 🍗 — 每周四的特殊覆盖主题
-4. **社区主题轮换** 👥 — 以上均不命中时，约 30% 天数（每 3 天）从已审核社区主题池中按 `dayOfYear % count` 选中一个作为今日主题
-5. **每日池兜底** 🎲 — 以上均不命中时，按 `dayOfYear % poolLength` 从 200+ 通用主题池中轮选
+4. **社区主题轮换** 👥 — 约 30% 天数（每 3 天）从已审核社区主题池中按 `dayOfYear % count` 选中一个作为今日主题
+5. **每日池兜底** 🎲 — 按 `dayOfYear % poolLength` 从日池主题中轮选
 
 节日主题可附带 `.customCss`（专属 CSS 动画）和 `.extensions`（HTML 装饰片段，如春节灯笼、中秋月饼等）。
 
@@ -434,8 +436,11 @@ themeDist/
 │   └── workflows/
 │       └── deploy.yml              # GitHub Actions：Netlify 自动构建与部署
 ├── astro.config.mjs                # Astro 配置（SSR + 条件适配器，Vercel/Netlify 自动切换）
-├── vercel.json                     # Vercel 部署 + Cron Job + CORS 头
-├── netlify.toml                    # Netlify 部署配置 + 定时构建 + CORS 头
+├── vercel.json                     # Vercel 部署 + Rewrite（Edge Function 路由）+ CORS 头
+├── netlify.toml                    # Netlify 部署配置 + Edge Function 路由 + CORS 头
+├── netlify/
+│   └── edge-functions/
+│       └── today.ts                # ★ Netlify Edge Function：实时计算每日主题（Deno 运行时）
 ├── package.json                    # 依赖（含双适配器）与脚本
 ├── tsconfig.json                   # TypeScript 配置
 ├── .env.local                      # 本地开发环境变量模板
@@ -463,7 +468,9 @@ themeDist/
     │   ├── admin/
     │   │   └── index.astro         # 管理后台：登录面板 + 审核列表
     │   └── api/
-    │       ├── today.json.ts               # GET 今日主题（核心端点，含社区轮换）
+    │       ├── today.json.ts               # GET 今日主题构建时快照（预渲染静态 fallback）
+    │       ├── today.ts                    # ★ Vercel Edge/Functions：实时计算每日主题（Astro edge runtime）
+    │       ├── index-data.json.ts          # ★ 构建时数据快照（池 ID、节假日、目录），供边缘函数使用
     │       ├── docs.astro                  # API 交互式文档（支持双平台动态域名）
     │       ├── spec.astro                  # 旧文档 → /api/docs 301 转发
     │       ├── theme/[preset].json.ts      # GET 指定预设/社区主题
@@ -474,7 +481,7 @@ themeDist/
     │       │   ├── submit.json.ts          # POST 提交社区主题（含 tags）
     │       │   ├── themes.json.ts          # GET 社区主题列表（分页 + 标签筛选）
     │       │   ├── theme.json.ts           # GET 单个社区主题
-    │       │   └── like.json.ts            # POST 点赞（IP+UA 去重）
+    │       │   └── like.json.ts            # POST 点赞（IP+UA+客户端UUID 三重去重）
     │       └── ai/
     │           └── generate.json.ts        # POST AI 主题生成（规则引擎，DeepSeek Key 由客户端直调）
     ├── themes/
@@ -508,9 +515,9 @@ themeDist/
 | **农历计算** | `lunar-javascript` |
 | **ID 生成** | `nanoid`（8 字符） |
 | **前端交互** | 原生 JavaScript（无前端框架依赖） |
-| **部署目标** | Vercel + Netlify 双平台 |
+| **部署目标** | Vercel + Netlify 双平台（Edge Function 运行时计算） |
 | **CI/CD** | GitHub Actions（Netlify 自动构建）；Vercel Git Integration（自动部署） |
-| **定时任务** | Vercel Cron Job / GitHub Actions Scheduled Workflow（每日 UTC 午夜） |
+| **边缘计算** | Netlify Edge Functions（Deno）/ Vercel Edge Runtime（V8） — 实时计算每日主题 |
 
 ---
 
@@ -579,7 +586,7 @@ const adapter = process.env.ADAPTER === 'netlify' ? netlify() : vercel();
 1. 推送仓库到 GitHub
 2. 在 Vercel 中导入项目（Framework 自动检测为 Astro）
 3. 在 Vercel Dashboard 设置环境变量
-4. 部署后 `vercel.json` 中的 Cron Job 自动生效
+4. Vercel Edge Function（`src/pages/api/today.ts`）自动部署，通过 rewrite 处理 `/api/today.json`
 
 `vercel.json` 关键配置：
 
@@ -588,21 +595,22 @@ const adapter = process.env.ADAPTER === 'netlify' ? netlify() : vercel();
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "astro",
-  "crons": [{ "path": "/api/today.json", "schedule": "0 0 * * *" }]
+  "rewrites": [{ "source": "/api/today.json", "destination": "/api/today" }]
 }
 ```
 
-### Netlify（GitHub Actions）
+### Netlify
 
-采用 **GitHub Actions 自动构建并部署**到 Netlify 的方式。
+采用 **GitHub Actions 自动构建并部署**到 Netlify 的方式。`/api/today.json` 由 Edge Function（`netlify/edge-functions/today.ts`）处理。
 
 **触发方式：**
 
 | 事件 | 说明 |
 |------|------|
 | `push` 到 `main` | 每次提交自动构建部署 |
-| 定时 `0 0 * * *` | 每日 UTC 午夜自动重建（主题轮换） |
 | `workflow_dispatch` | GitHub 页面手动触发 |
+
+> 主题每日轮换由 CDN 边缘函数实时计算，无需定时重建。
 
 **GitHub Secrets 配置：**
 
@@ -649,7 +657,7 @@ Netlify Dashboard → Site settings → Environment variables → 添加（scope
 
 ### 双层主题模型
 
-1. **OmniConfig（配置层）** — `src/api/index_config.js`（~6500 行）是独立的主题数据库，包含全部节日规则、200+ 日池主题和轮换逻辑。源自独立项目 OMNI-MATRIX，以纯数据格式存储，`getThemeConfig(strategy, date)` 为核心入口。
+1. **OmniConfig（配置层）** — `src/api/index_config.js`（~6500 行）是独立的主题数据库，包含全部节日规则、日池主题和轮换逻辑。源自独立项目 OMNI-MATRIX，以纯数据格式存储，`getThemeConfig(strategy, date)` 为核心入口。
 
 2. **ComposedTheme（运行时层）** — TypeScript 类型化的主题表示（`src/themes/types.ts`），通过 `omni-bridge.ts` 从 OmniConfig 原始数据转换为前端可消费的 CSS 变量展开结果。新增 `tags` 和 `ThemeTag` 类型支持分类。
 
@@ -660,13 +668,13 @@ Netlify Dashboard → Site settings → Environment variables → 添加（scope
 ### 社区主题纳入每日轮换
 
 ```
-getDailyCommunityTheme()
-  → 检查 Redis 是否就绪
-  → 获取已审核社区主题数量
-  → dayOfYear % 3 === 2 时（约 30% 天数）选中社区主题
-  → dayOfYear % count 确定具体主题
-  → 从 Redis 加载并转换为 ComposedTheme
-  → 返回作为今日主题 / null（兜底每日池）
+请求 /api/today.json
+  → CDN 边缘函数拦截（Netlify Edge / Vercel Edge）
+  → 获取构建时 index-data.json（池 ID、节假日、目录）
+  → 按 UTC 日期计算今日主题（节日 → Crazy Thu → 社区 → 日池）
+  → 可选：查询 Upstash Redis 获取社区主题数据
+  → 返回完整主题 JSON
+  → 失败时降级为预渲染静态 today.json（context.next / 500）
 ```
 
 ### 标签推断
@@ -683,32 +691,39 @@ getDailyCommunityTheme()
 
 | 端点 | 浏览器 | CDN |
 |------|--------|-----|
-| `/api/today.json` | 1 小时 (`max-age=3600`) | 24 小时 (`s-maxage=86400`) |
+| `/api/today.json` | 1 小时 (`max-age=3600`) | 24 小时 + 1h 降级 (`s-maxage=86400, stale-while-revalidate=3600`) — 由边缘函数处理 |
 | `/api/theme/*.json`（预设） | 24 小时 | 365 天（`immutable`） |
 | `/api/theme/*.json`（社区） | 1 小时 | 不使用 CDN 缓存 |
 | `/api/diy/*` | 1 分钟或不缓存 | 不使用 CDN 缓存 |
 | `/api/ai/generate.json` | 不缓存 | 不使用 CDN 缓存 |
 | `/api/admin/*` | 不缓存 | 不使用 CDN 缓存 |
 
+### 客户端缓存策略
+
+| 数据 | 存储 | TTL | 说明 |
+|------|------|-----|------|
+| 社区主题列表 | sessionStorage | 5 分钟 | 命中缓存时瞬间渲染，后台静默拉取最新数据 |
+| 提交记录状态 | localStorage | 10 分钟 | 缓存 DB 状态（收录中/已过期），避免每次查询 |
+| 今日主题 | localStorage | 至次日 | 集成方推荐实现，含降级回退 |
+| 点赞状态 | localStorage | 永久 | 客户端防重复点击，服务端 IP+UA+客户端UUID 指纹三重去重 |
+
 ### 优雅降级
 
-- **Redis 不可用时** — 所有社区功能（投稿、点赞、审核、列表）返回空数据或 503，`dbAvailable` 标记为 `false`。页面显示相应降级提示，不会崩溃。
-- **每日主题分发与 Redis 完全解耦** — 每日主题纯靠 OmniConfig 静态数据，Redis 故障不影响 `/api/today.json` 和首页渲染。
+- **Redis 不可用时** — 所有社区功能（投稿、点赞、审核、列表）返回空数据或 503，`dbAvailable` 标记为 `false`。客户端缓存确保已加载数据仍可见。
+- **每日主题分发** — 边缘函数中 Redis 查询失败时自动降级为纯日池轮换 + 节假日逻辑，不影响 `/api/today.json` 输出。极端情况下边缘函数降级为预渲染静态文件。
 - **AI 生成降级** — DeepSeek Key 未设置时自动降级为内置规则引擎，无需任何外部依赖。
-- **客户端降级** — 推荐实现 localStorage 缓存 + fetch 失败回退策略，确保网络问题不阻塞页面渲染。
+- **客户端降级** — 所有列表页优先展示缓存数据，请求失败时缓存内容持续可见，确保网络问题不阻塞页面渲染。
 
 ### 社区主题生命周期
 
 ```
-用户投稿 → status: pending (存入 Redis, 24h TTL, 含 tags)
-  → 管理员审核
-    → approve → 进入公共池（by_newest + by_likes 有序集合）
-    → reject  → 删除主题及关联数据（点赞集、索引）
-  → 24h 自动过期（TTL），待审索引自动清理
-  → 已审核社区主题可被每日轮换选中（约 30% 天数）
+用户投稿 → status: approved (存入 Redis，长期有效，含 tags)
+  → 直接进入公共池（by_newest + by_likes 有序集合）立即可见
+  → 点赞数据实时同步至排行榜
+  → 社区主题可被每日轮换选中（约 30% 天数）
 ```
 
-点赞去重：基于 IP + User-Agent 前 64 字符的哈希，存储于 Redis Set，确保同一用户对同一主题只计一次。
+点赞去重：基于 IP + User-Agent 前 64 字符 + 客户端 UUID（`localStorage` 持久化，首次访问生成）的三重哈希，存储于 Redis Set，确保同一用户对同一主题只计一次。NAT 环境下共享 IP 的用户因持有不同客户端 UUID，不会互相阻塞。点赞数通过 Redis Sorted Set 独立存储，列表和详情页实时读取准确计数。
 
 ---
 
@@ -716,9 +731,12 @@ getDailyCommunityTheme()
 
 | 功能 | 说明 | 状态 |
 |------|------|------|
-| **社区主题纳入每日轮换池** | 审核通过的社区主题有机会被 `/api/today.json` 选中，出现在每日分发中 | ✅ 已完成 |
+| **社区主题纳入每日轮换池** | 社区主题有机会被 `/api/today.json` 选中，出现在每日分发中（约 30% 天数） | ✅ 已完成 |
+| **社区主题即发即现** | 投稿后自动发布至社区商店，立即可见可点赞，长期有效 | ✅ 已完成 |
 | **主题分类与标签** | 支持为主题添加标签（暗色/亮色/节日/极简等），按分类浏览 | ✅ 已完成 |
-| **AI 辅助主题生成** | 根据文字描述，通过 DeepSeek（用户自带 Key，客户端直调）或规则引擎生成 CSS 变量主题 | ✅ 已完成 |
+| **AI 辅助主题生成** | 根据文字描述，通过 DeepSeek（用户自带 Key，客户端直调，max_tokens: 10000）或规则引擎生成 CSS 变量主题 | ✅ 已完成 |
+| **客户端缓存优化** | 社区列表 sessionStorage 缓存（5min TTL），提交记录状态 localStorage 缓存（10min TTL），减少重复请求 | ✅ 已完成 |
+| **LIVE SENSING 沙箱** | 提交页 16:9 比例全屏沙箱实时预览，桌面端沉浸式编辑体验 | ✅ 已完成 |
 | **RSS / Webhook 通知** | 每日主题更新后推送通知，便于自动化工作流集成 | 待规划 |
 | **多管理员支持** | 审核权限分离，支持多个管理员账号协同操作 | 待规划 |
 | **主题使用统计** | 各主题被 API 请求的次数、点赞趋势等可视化数据 | 待规划 |
