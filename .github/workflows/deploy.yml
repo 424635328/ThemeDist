@@ -4,9 +4,6 @@ on:
   # 每月一号 UTC 午夜自动重建（主题轮换）
   schedule:
     - cron: '0 0 1 * *'
-  # 推送到 main 时自动构建并部署
-  push:
-    branches: [main]
   # 手动触发
   workflow_dispatch:
 
