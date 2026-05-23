@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 
+// 服务端/构建时获取 ID
 const id = Astro.url.searchParams.get('id') || '';
 ---
 
@@ -11,8 +12,8 @@ const id = Astro.url.searchParams.get('id') || '';
     data-theme-id={id} 
     class="share-layout-container"
   >
-    <section class="section text-center" style="padding-bottom:24px">
-      <p class="t-label">Community Showcase</p>
+    <section class="section text-center" style="padding-bottom:16px">
+      <p class="t-label">Interactive Theme Preview</p>
       <h1 class="t-heading mt-2" id="theme-title">加载主题中…</h1>
       <p class="t-subhead mt-2 share-code-badge" id="share-code-wrapper" style="display:none">
         分享码: <code id="share-code" class="code-badge">{id}</code>
@@ -22,7 +23,7 @@ const id = Astro.url.searchParams.get('id') || '';
     <section class="showcase-section">
       <!-- 1. No ID state -->
       <div id="no-id-state" class="empty-state-card" style="display:none">
-        <div class="empty-icon">🔗</div>
+        <div class="empty-icon" aria-hidden="true">🔗</div>
         <h2 class="empty-title">缺少有效的主题分享码</h2>
         <p class="empty-desc">请通过主题商店、或是附带 <code>?id=分享码</code> 参数的链接进行访问</p>
         <div class="empty-actions">
@@ -34,12 +35,12 @@ const id = Astro.url.searchParams.get('id') || '';
       <!-- 2. Loading State Skeleton -->
       <div id="loading-state" class="loading-wrapper">
         <div class="spinner-core"></div>
-        <p class="loading-text">正在从云端检索主题资产，请稍后…</p>
+        <p class="loading-text">正在从云端检索并构建沙箱，请稍后…</p>
       </div>
 
       <!-- 3. Error state -->
       <div id="error-state" class="empty-state-card" style="display:none">
-        <div class="empty-icon">🔍</div>
+        <div class="empty-icon" aria-hidden="true">🔍</div>
         <h2 class="empty-title">未能检索到该主题</h2>
         <p class="empty-desc">该分享码可能已经过期、或输入了错误的字符，请核对后再试</p>
         <div class="empty-actions">
@@ -48,79 +49,66 @@ const id = Astro.url.searchParams.get('id') || '';
         </div>
       </div>
 
-      <!-- 4. Real Theme Content Display -->
-      <div id="theme-content" class="theme-content-grid" style="display:none">
+      <!-- 4. Real Theme Content Display (Full Width Layout) -->
+      <div id="theme-content" class="theme-preview-layout" style="display:none">
         
-        <!-- LEFT PANEL: Metadata & Palette & Variables Table -->
-        <div class="content-left">
-          <!-- Author & Controls Meta bar -->
-          <div class="meta-action-bar">
-            <div class="author-info">
-              <div class="author-avatar" id="author-avatar"></div>
-              <div class="author-details">
-                <span class="author-name" id="author-name">-</span>
-                <span class="theme-date" id="theme-date">-</span>
-              </div>
-            </div>
-
-            <div class="control-buttons">
-              <button id="btn-like" class="like-btn-detail" title="觉得好看就点个赞吧">
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" id="heart-icon"><path d="M8 14s-6-3.5-6-7.5a3.5 3.5 0 016-2.2 3.5 3.5 0 016 2.2C14 10.5 8 14 8 14z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                <span id="like-count">0</span>
-              </button>
-              <button id="btn-share-url" class="btn btn-outline share-copy-btn">
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="6" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/><circle cx="13" cy="5" r="2" stroke="currentColor" stroke-width="1.5"/><circle cx="13" cy="11" r="2" stroke="currentColor" stroke-width="1.5"/><line x1="8" y1="7" x2="11" y2="5.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="8" y1="9" x2="11" y2="10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-                复制链接
-              </button>
-              <button id="btn-apply" class="btn btn-primary apply-main-btn">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                应用此主题
-              </button>
+        <!-- Top Toolbar: Metadata & Controls -->
+        <div class="preview-toolbar card-glass">
+          <div class="author-info">
+            <div class="author-avatar" id="author-avatar"></div>
+            <div class="author-details">
+              <span class="author-name" id="author-name">-</span>
+              <span class="theme-date" id="theme-date">-</span>
             </div>
           </div>
 
-          <!-- Color Palette section -->
-          <div class="card card-glass section-card">
-            <h3 class="card-section-title">Color Palette / 核心色盘</h3>
-            <p class="card-section-desc">点击下方任意圆形色卡，可一键复制该颜色的十六进制 Hex 值。</p>
-            <div id="swatches" class="palette-grid"></div>
+          <!-- Viewport Size Toggles -->
+          <div class="viewport-controls" aria-label="切换预览设备">
+            <button class="viewport-btn active" data-view="desktop" title="桌面端预览">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+            </button>
+            <button class="viewport-btn" data-view="tablet" title="平板端预览">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+            </button>
+            <button class="viewport-btn" data-view="mobile" title="移动端预览">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+            </button>
           </div>
 
-          <!-- CSS Variables Table -->
-          <div class="card card-glass section-card variables-card">
-            <div class="table-header">
-              <h3 class="card-section-title">CSS Variables / 主题自定义属性</h3>
-            </div>
-            <div class="table-wrapper">
-              <table class="variables-table" id="vars-table">
-                <thead>
-                  <tr>
-                    <th>CSS 变量名称</th>
-                    <th>对应色值</th>
-                    <th style="width: 50px; text-align: center;">色块</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
+          <div class="control-buttons">
+            <button id="btn-like" class="btn btn-icon btn-outline" title="觉得好看就点个赞吧" aria-label="点赞主题">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" id="heart-icon"><path d="M8 14s-6-3.5-6-7.5a3.5 3.5 0 016-2.2 3.5 3.5 0 016 2.2C14 10.5 8 14 8 14z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span id="like-count" style="margin-left:4px;font-weight:600">0</span>
+            </button>
+            <button id="btn-share-url" class="btn btn-outline share-copy-btn" aria-label="复制分享链接">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="margin-right:6px"><circle cx="6" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/><circle cx="13" cy="5" r="2" stroke="currentColor" stroke-width="1.5"/><circle cx="13" cy="11" r="2" stroke="currentColor" stroke-width="1.5"/><line x1="8" y1="7" x2="11" y2="5.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="8" y1="9" x2="11" y2="10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              分享
+            </button>
+            <button id="btn-apply" class="btn btn-primary apply-main-btn" aria-label="应用此主题">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="margin-right:6px"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              应用主题
+            </button>
           </div>
         </div>
 
-        <!-- RIGHT PANEL: Safe Isolated Iframe Interactive Sandbox -->
-        <div class="content-right">
-          <div class="preview-browser-shell">
-            <div class="browser-bar">
-              <div class="browser-dots">
-                <span class="dot-red"></span>
-                <span class="dot-yellow"></span>
-                <span class="dot-green"></span>
-              </div>
-              <span class="browser-url">sandbox-viewer.local</span>
+        <!-- Main Sandbox Showcase -->
+        <div class="preview-browser-shell view-desktop" id="browser-shell">
+          <div class="browser-bar">
+            <div class="browser-dots" aria-hidden="true">
+              <span class="dot-red"></span>
+              <span class="dot-yellow"></span>
+              <span class="dot-green"></span>
             </div>
+            <div class="browser-url-wrapper">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              <span class="browser-url">preview.themedist.app</span>
+            </div>
+            <div class="browser-actions"></div>
+          </div>
 
-            <div class="iframe-box">
-              <iframe id="preview-iframe" class="preview-sandbox-iframe" title="隔离样式渲染沙箱"></iframe>
-            </div>
+          <div class="iframe-box">
+            <!-- Sandbox 增加 allow-scripts 以允许内部执行交互逻辑 -->
+            <iframe id="preview-iframe" class="preview-sandbox-iframe" title="交互式样式渲染沙箱" sandbox="allow-same-origin allow-scripts"></iframe>
           </div>
         </div>
 
@@ -131,536 +119,474 @@ const id = Astro.url.searchParams.get('id') || '';
 
 <style>
   /* ─── Layout containers ─── */
-  .share-layout-container {
-    max-width: 1120px;
-    margin: 0 auto;
-    padding: 0 24px 80px;
-  }
-  .code-badge {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: var(--color-primary);
-    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
-    padding: 2px 10px;
-    border-radius: 6px;
-    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
-  }
+  .share-layout-container { max-width: 1280px; margin: 0 auto; padding: 0 24px 80px; }
+  .code-badge { font-size: 1.05rem; font-weight: 700; color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 12%, transparent); padding: 2px 10px; border-radius: 6px; border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent); }
 
   /* ─── Skeleton Loading ─── */
-  .loading-wrapper {
-    text-align: center;
-    padding: 80px 20px;
-    animation: pulseGhost 1.8s ease-in-out infinite alternate;
-  }
-  .spinner-core {
-    width: 40px;
-    height: 40px;
-    border: 3px solid var(--color-border);
-    border-top-color: var(--color-primary);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    margin: 0 auto 16px;
-  }
-  .loading-text {
-    font-size: 13px;
-    color: var(--color-text-muted);
-    font-weight: 500;
-  }
-  @keyframes pulseGhost {
-    0% { opacity: 0.6; }
-    100% { opacity: 1; }
-  }
-
-  /* ─── Empty/Error State Cards ─── */
-  .empty-state-card {
-    background: var(--glass-bg);
-    border: 1px solid var(--color-border);
-    border-radius: 16px;
-    padding: 60px 24px;
-    text-align: center;
-    max-width: 500px;
-    margin: 0 auto;
-    box-shadow: var(--shadow-md);
-  }
-  .empty-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-  }
-  .empty-title {
-    font-size: 18px;
-    font-weight: 800;
-    color: var(--color-text);
-    margin-bottom: 8px;
-  }
-  .empty-desc {
-    font-size: 13px;
-    color: var(--color-text-muted);
-    margin-bottom: 24px;
-    line-height: 1.6;
-  }
-  .empty-actions {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-  }
-
-  /* ─── Core Showcase Grid ─── */
-  .theme-content-grid {
-    display: grid;
-    grid-template-columns: 1.15fr 0.85fr;
-    gap: 32px;
-    align-items: start;
-    animation: fadeInContainer 0.4s ease-out forwards;
-  }
-  @keyframes fadeInContainer {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  /* ─── Left Panels Styles ─── */
-  .meta-action-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 16px;
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--color-border);
-  }
-  .author-info {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .author-avatar {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    background: var(--color-primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    font-weight: 800;
-    color: #fff;
-    box-shadow: 0 4px 10px color-mix(in srgb, var(--color-primary) 30%, transparent);
-    border: 1.5px solid var(--color-border);
-  }
-  .author-details {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .author-name {
-    font-weight: 700;
-    font-size: 14px;
-    color: var(--color-text);
-  }
-  .theme-date {
-    font-size: 11px;
-    color: var(--color-text-muted);
-  }
-
-  /* Buttons */
-  .control-buttons {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .like-btn-detail {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 40px;
-    padding: 0 16px;
-    border-radius: 10px;
-    border: 1.5px solid var(--color-border);
-    background: transparent;
-    color: var(--color-text);
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.2s;
-  }
-  .like-btn-detail:hover {
-    border-color: #ef4444;
-    color: #ef4444;
-  }
-  .like-btn-detail.liked {
-    background: color-mix(in srgb, #ef4444 8%, transparent);
-    border-color: #ef4444;
-    color: #ef4444;
-  }
-  .like-btn-detail.liked svg path {
-    fill: #ef4444;
-    stroke: #ef4444;
-  }
-  .share-copy-btn {
-    height: 40px;
-    padding: 0 16px;
-    font-size: 12px;
-    border-radius: 10px;
-    gap: 6px;
-  }
-  .apply-main-btn {
-    height: 40px;
-    padding: 0 18px;
-    font-size: 12px;
-    border-radius: 10px;
-    font-weight: 700;
-    gap: 6px;
-  }
-
-  /* Section cards */
-  .section-card {
-    padding: 24px;
-    margin-bottom: 24px;
-    border: 1px solid var(--color-border);
-    box-shadow: var(--shadow-sm);
-  }
-  .card-section-title {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    color: var(--color-primary);
-    text-transform: uppercase;
-    margin-bottom: 4px;
-  }
-  .card-section-desc {
-    font-size: 12px;
-    color: var(--color-text-muted);
-    margin-bottom: 16px;
-    line-height: 1.5;
-  }
-
-  /* Circular swatches layout */
-  .palette-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  .palette-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-  }
-  .swatch-circle {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    border: 1.5px solid var(--color-border);
-    cursor: pointer;
-    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    position: relative;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-  }
-  .swatch-circle:hover {
-    transform: scale(1.15);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
-    z-index: 5;
-  }
-  .swatch-circle:active {
-    transform: scale(0.95);
-  }
-  .swatch-label {
-    font-size: 9px;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--color-text-muted);
-  }
-
-  /* Variables Table Section */
-  .variables-card {
-    padding: 0;
-    overflow: hidden;
-  }
-  .table-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--color-border);
-  }
-  .table-wrapper {
-    max-height: 380px;
-    overflow-y: auto;
-  }
-  .variables-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-    text-align: left;
-  }
-  .variables-table th {
-    background: color-mix(in srgb, var(--color-surface) 20%, transparent);
-    padding: 10px 16px;
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    border-bottom: 1.5px solid var(--color-border);
-    position: sticky;
-    top: 0;
-    z-index: 10;
-  }
-  .variables-table td {
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--color-border);
-  }
-  .table-row-clickable {
-    transition: background 0.15s;
-  }
-  .table-row-clickable:hover {
-    background: color-mix(in srgb, var(--color-primary) 4%, transparent);
-  }
-  .var-name {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--color-text);
-  }
-  .var-value {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    color: var(--color-text-muted);
-  }
-  .table-swatch {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border-radius: 6px;
-    border: 1px solid var(--color-border);
-    cursor: pointer;
-    transition: transform 0.15s;
-    vertical-align: middle;
-  }
-  .table-swatch:hover {
-    transform: scale(1.25);
-  }
-
-  /* ─── Right Sandbox Preview Panel ─── */
-  .content-right {
-    position: sticky;
-    top: 90px;
-  }
-  .preview-browser-shell {
-    border-radius: 20px;
-    overflow: hidden;
-    border: 2.5px solid var(--color-border);
-    background: var(--color-bg);
-    box-shadow: var(--shadow-lg);
-  }
-  .browser-bar {
-    padding: 12px 16px;
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-    border-bottom: 1.5px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
-    user-select: none;
-  }
-  .browser-dots {
-    display: flex;
-    gap: 6px;
-  }
-  .browser-dots span {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-  }
-  .dot-red { background: #ff5f57; }
-  .dot-yellow { background: #ffbd2e; }
-  .dot-green { background: #28ca41; }
-  .browser-url {
-    font-size: 11px;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--color-text-muted);
-    opacity: 0.8;
-    background: color-mix(in srgb, var(--color-bg) 80%, transparent);
-    padding: 2px 16px;
-    border-radius: 50px;
-    border: 1px solid var(--color-border);
-  }
-  .iframe-box {
-    width: 100%;
-    height: 480px;
-    background: var(--color-bg);
-  }
-  .preview-sandbox-iframe {
-    width: 100%;
-    height: 100%;
-    border: none;
-    background: transparent;
-  }
-
+  .loading-wrapper { text-align: center; padding: 100px 20px; animation: pulseGhost 1.8s ease-in-out infinite alternate; }
+  .spinner-core { width: 40px; height: 40px; border: 3px solid var(--color-border); border-top-color: var(--color-primary); border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 16px; }
+  .loading-text { font-size: 13px; color: var(--color-text-muted); font-weight: 500; }
+  @keyframes pulseGhost { 0% { opacity: 0.6; } 100% { opacity: 1; } }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* ─── Responsive ─── */
+  /* ─── Empty/Error State Cards ─── */
+  .empty-state-card { background: color-mix(in srgb, var(--color-surface) 60%, transparent); backdrop-filter: blur(12px); border: 1px solid var(--color-border); border-radius: 16px; padding: 60px 24px; text-align: center; max-width: 500px; margin: 40px auto; box-shadow: var(--shadow-md); }
+  .empty-icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-title { font-size: 18px; font-weight: 800; color: var(--color-text); margin-bottom: 8px; }
+  .empty-desc { font-size: 13px; color: var(--color-text-muted); margin-bottom: 24px; line-height: 1.6; }
+  .empty-actions { display: flex; justify-content: center; gap: 12px; }
+
+  /* ─── Theme Preview Layout ─── */
+  .theme-preview-layout { display: flex; flex-direction: column; gap: 24px; animation: fadeInContainer 0.5s ease-out forwards; }
+  @keyframes fadeInContainer { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ─── Top Toolbar ─── */
+  .preview-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-radius: 16px; background: color-mix(in srgb, var(--color-surface) 60%, transparent); backdrop-filter: blur(20px); border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent); box-shadow: 0 4px 20px rgba(0,0,0,0.05); flex-wrap: wrap; gap: 16px; position: sticky; top: 20px; z-index: 50; }
+  .author-info { display: flex; align-items: center; gap: 12px; min-width: 200px; }
+  .author-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--color-primary); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: #fff; box-shadow: 0 4px 10px color-mix(in srgb, var(--color-primary) 30%, transparent); border: 2px solid color-mix(in srgb, var(--color-surface) 80%, transparent); }
+  .author-details { display: flex; flex-direction: column; }
+  .author-name { font-weight: 700; font-size: 14px; color: var(--color-text); }
+  .theme-date { font-size: 11px; color: var(--color-text-muted); }
+
+  /* Viewport Toggles */
+  .viewport-controls { display: flex; align-items: center; background: color-mix(in srgb, var(--color-bg) 50%, transparent); border: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent); padding: 4px; border-radius: 10px; gap: 4px; }
+  .viewport-btn { width: 36px; height: 32px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-radius: 6px; color: var(--color-text-muted); cursor: pointer; transition: all 0.2s; }
+  .viewport-btn:hover { color: var(--color-text); background: color-mix(in srgb, var(--color-surface) 80%, transparent); }
+  .viewport-btn.active { background: var(--color-surface); color: var(--color-primary); box-shadow: var(--shadow-sm); border: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent); }
+
+  /* Right Buttons */
+  .control-buttons { display: flex; align-items: center; gap: 10px; min-width: 200px; justify-content: flex-end; }
+  button { outline: none; }
+  button:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 40%, transparent); }
+  .btn-icon { padding: 0 12px; height: 38px; border-radius: 10px; }
+  .btn-icon.liked { background: color-mix(in srgb, #ef4444 8%, transparent); border-color: #ef4444; color: #ef4444; }
+  .btn-icon.liked svg path { fill: #ef4444; stroke: #ef4444; }
+  .share-copy-btn, .apply-main-btn { height: 38px; padding: 0 16px; font-size: 13px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .apply-main-btn { box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary) 30%, transparent); }
+  .apply-main-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px color-mix(in srgb, var(--color-primary) 40%, transparent); }
+
+  /* ─── Browser Shell (Dynamic Width) ─── */
+  .preview-browser-shell { margin: 0 auto; border-radius: 16px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent); background: var(--color-bg); box-shadow: 0 20px 40px rgba(0,0,0,0.1), 0 0 0 4px color-mix(in srgb, var(--color-surface) 30%, transparent); transition: max-width 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); width: 100%; display: flex; flex-direction: column; }
+  .preview-browser-shell.view-desktop { max-width: 1200px; height: 760px; }
+  .preview-browser-shell.view-tablet { max-width: 768px; height: 900px; }
+  .preview-browser-shell.view-mobile { max-width: 375px; height: 812px; }
+
+  /* 假浏览器头部 */
+  .browser-bar { padding: 12px 16px; display: grid; grid-template-columns: 80px 1fr 80px; align-items: center; border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent); background: color-mix(in srgb, var(--color-surface) 60%, transparent); backdrop-filter: blur(10px); user-select: none; flex-shrink: 0; }
+  .browser-dots { display: flex; gap: 8px; }
+  .browser-dots span { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.1); }
+  .dot-red { background: #ff5f57; } .dot-yellow { background: #ffbd2e; } .dot-green { background: #28ca41; }
+  .browser-url-wrapper { justify-self: center; display: flex; align-items: center; gap: 6px; background: color-mix(in srgb, var(--color-bg) 60%, transparent); padding: 4px 20px; border-radius: 6px; border: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent); color: var(--color-text-muted); }
+  .browser-url { font-size: 11px; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; opacity: 0.8; }
+
+  .iframe-box { width: 100%; flex: 1; background: var(--color-bg); position: relative; }
+  .preview-sandbox-iframe { width: 100%; height: 100%; border: none; background: transparent; transition: opacity 0.3s; }
+
   @media (max-width: 880px) {
-    .theme-content-grid {
-      grid-template-columns: 1fr;
-      gap: 32px;
-    }
-    .content-right {
-      position: static;
-    }
-    .iframe-box {
-      height: 380px;
-    }
-    .meta-action-bar {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-    .control-buttons {
-      width: 100%;
-      justify-content: flex-start;
-      flex-wrap: wrap;
-    }
-    .apply-main-btn {
-      flex: 1;
-      min-width: 120px;
-    }
+    .preview-toolbar { flex-direction: column; justify-content: center; }
+    .author-info, .control-buttons, .viewport-controls { width: 100%; justify-content: center; }
+    .preview-browser-shell.view-desktop { height: 600px; }
   }
 </style>
 
 <script>
-  // 🛡️ Web sandbox iframe template (Strictly isolates and renders custom user styles/animations safely)
+  // 🛡️ XSS 防御: 严格转义 HTML 实体
+  function escapeHtml(unsafe) {
+    return (unsafe || '').toString()
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  // 🏛️ Web Sandbox Iframe Template: 多页面路由 & 深度结合主题参数
   const SANDBOX_HTML_TEMPLATE = `
     <!DOCTYPE html>
     <html lang="zh">
     <head>
       <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style id="base-style">
+        :root {
+          --ui-transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        /* 深度结合主题参数构建根布局 */
         body {
-          margin: 0;
-          padding: 24px;
-          background: var(--color-bg, #0f0f23);
-          color: var(--color-text, #f4f4f5);
-          font-family: system-ui, -apple-system, sans-serif;
-          transition: background 0.3s, color 0.3s, border-color 0.3s;
+          font-family: var(--font-body, system-ui, -apple-system, sans-serif);
+          background-color: var(--color-bg);
+          color: var(--color-text);
           min-height: 100vh;
-          box-sizing: border-box;
           overflow-x: hidden;
-          position: relative;
+          font-size: var(--text-base);
+          background-image: 
+            radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--ambient-1, var(--color-primary)) 12%, transparent) 0%, transparent 40%),
+            radial-gradient(circle at 0% 100%, color-mix(in srgb, var(--ambient-2, var(--color-secondary)) 12%, transparent) 0%, transparent 40%);
         }
-        .header-meta {
-          font-size: 11px;
-          font-weight: 700;
-          color: var(--color-text-muted, #71717a);
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
+        
+        /* Layout Structure */
+        .app-layout { display: flex; height: 100vh; }
+        
+        /* Sidebar (使用主题的玻璃态和边距) */
+        .sidebar {
+          width: 260px;
+          background: var(--glass-bg, color-mix(in srgb, var(--color-surface) 80%, transparent));
+          border-right: 1px solid var(--color-border);
+          padding: var(--space-6) var(--space-4);
+          display: flex; flex-direction: column; gap: var(--space-2);
+          backdrop-filter: var(--glass-blur, blur(12px));
+          -webkit-backdrop-filter: var(--glass-blur, blur(12px));
+          z-index: 10;
         }
-        .main-title {
-          font-size: 22px;
+        .sidebar-brand {
+          font-family: var(--font-heading);
+          font-size: var(--text-lg);
           font-weight: 800;
-          margin: 6px 0 12px;
-          color: var(--color-primary, #6366f1);
+          color: var(--color-primary);
+          padding: 0 var(--space-4) var(--space-6);
+          display: flex; align-items: center; gap: 8px;
         }
-        .body-desc {
-          font-size: 13px;
-          color: var(--color-text-muted, #71717a);
-          line-height: 1.6;
-          margin-bottom: 20px;
+        .nav-item {
+          padding: 10px 16px; border-radius: var(--radii);
+          color: var(--color-text-muted); font-size: var(--text-sm); font-weight: 600;
+          cursor: pointer; transition: var(--ui-transition);
+          display: flex; align-items: center; gap: 12px;
         }
-        .btn-preview-primary {
-          background: var(--color-primary, #6366f1);
-          color: #fff;
-          border: none;
-          padding: 10px 20px;
-          border-radius: var(--radii, 10px);
-          font-weight: 600;
-          cursor: pointer;
-          font-size: 13px;
-          transition: filter 0.2s;
-        }
-        .btn-preview-primary:hover {
-          filter: brightness(1.1);
-        }
-        .btn-preview-secondary {
-          background: transparent;
-          border: 1.5px solid var(--color-border, rgba(255,255,255,0.15));
-          color: var(--color-text, #f4f4f5);
-          padding: 9px 18px;
-          border-radius: var(--radii, 10px);
-          font-weight: 600;
-          cursor: pointer;
-          font-size: 13px;
-        }
-        .btn-row {
-          display: flex;
-          gap: 10px;
-          margin-bottom: 24px;
-        }
-        .preview-card {
-          background: var(--color-surface, #1e1e38);
-          border: 1.5px solid var(--color-border, rgba(255,255,255,0.15));
-          border-radius: var(--radii, 12px);
-          padding: 20px;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-          backdrop-filter: blur(var(--glass-blur, 8px));
-        }
-        .card-heading {
+        .nav-item:hover { color: var(--color-text); background: color-mix(in srgb, var(--color-text) 5%, transparent); }
+        .nav-item.active {
+          color: var(--color-primary);
+          background: color-mix(in srgb, var(--color-primary) 12%, transparent);
           font-weight: 700;
-          font-size: 14px;
         }
-        .card-body-text {
-          font-size: 12px;
-          color: var(--color-text-muted, #71717a);
-          margin: 6px 0 14px;
-          line-height: 1.5;
+
+        .main-content { 
+          flex: 1; padding: var(--space-8); overflow-y: auto; position: relative; 
+          max-width: var(--content-max); margin: 0 auto;
         }
-        .swatches {
-          display: flex;
-          gap: 6px;
-          flex-wrap: wrap;
+        
+        /* Views SPA Routing */
+        .view-section { display: none; animation: fadeIn 0.4s ease forwards; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Typography */
+        .page-header { margin-bottom: var(--space-8); }
+        .page-title { font-family: var(--font-heading); font-size: var(--text-2xl); font-weight: 800; color: var(--color-text); letter-spacing: -0.02em; }
+        .page-subtitle { font-size: var(--text-sm); color: var(--color-text-muted); margin-top: var(--space-2); }
+
+        /* Cards (深度结合主题投影和圆角) */
+        .grid-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-6); margin-bottom: var(--space-6); }
+        .card {
+          background: var(--color-surface);
+          border: 1px solid var(--color-border);
+          border-radius: var(--radii);
+          padding: var(--space-6);
+          box-shadow: var(--shadow-sm);
+          transition: var(--ui-transition);
         }
-        .swatch-item {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 4px;
+        .card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); border-color: color-mix(in srgb, var(--color-border) 100%, var(--color-text) 20%); }
+        .card-header { font-size: var(--text-base); font-weight: 700; margin-bottom: var(--space-4); display: flex; align-items: center; justify-content: space-between; }
+        
+        /* Forms & Buttons */
+        .form-group { margin-bottom: var(--space-4); }
+        .label { display: block; font-size: calc(var(--text-sm) * 0.9); font-weight: 700; color: var(--color-text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .input, .textarea {
+          width: 100%; padding: 12px 16px;
+          background: color-mix(in srgb, var(--color-bg) 50%, transparent);
+          border: 1.5px solid var(--color-border);
+          border-radius: calc(var(--radii) - 2px);
+          color: var(--color-text); font-size: var(--text-sm); font-family: var(--font-body);
+          transition: var(--ui-transition); outline: none;
         }
-        .swatch-color {
-          width: 28px;
-          height: 28px;
-          border-radius: 6px;
-          border: 1.5px solid var(--color-border, rgba(255,255,255,0.15));
+        .input:focus, .textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent); background: var(--color-surface); }
+        .textarea { resize: vertical; min-height: 80px; }
+        
+        .btn-group { display: flex; gap: var(--space-3); flex-wrap: wrap; margin-top: var(--space-4);}
+        .btn {
+          padding: 10px 20px; font-size: var(--text-sm); font-weight: 600; cursor: pointer;
+          border-radius: calc(var(--radii) - 2px); transition: var(--ui-transition);
+          display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--font-body);
         }
-        .swatch-label {
-          font-size: 9px;
-          font-family: monospace;
-          color: var(--color-text-muted, #71717a);
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-primary { background: var(--color-primary); color: #ffffff; border: none; box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary) 30%, transparent); }
+        .btn-primary:not(:disabled):hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .btn-secondary { background: color-mix(in srgb, var(--color-secondary, var(--color-primary)) 15%, transparent); color: var(--color-secondary, var(--color-text)); border: none; }
+        .btn-secondary:not(:disabled):hover { background: color-mix(in srgb, var(--color-secondary, var(--color-primary)) 25%, transparent); }
+        .btn-outline { background: transparent; border: 1.5px solid var(--color-border); color: var(--color-text); }
+        .btn-outline:not(:disabled):hover { background: color-mix(in srgb, var(--color-text) 5%, transparent); border-color: var(--color-text-muted); }
+
+        /* Toggles Switch */
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); }
+        .toggle-row:last-child { border-bottom: none; }
+        .toggle-info strong { display: block; font-size: var(--text-sm); color: var(--color-text); }
+        .toggle-info span { font-size: calc(var(--text-sm) * 0.9); color: var(--color-text-muted); }
+        .toggle { width: 44px; height: 24px; background: color-mix(in srgb, var(--color-border) 80%, transparent); border-radius: 20px; position: relative; cursor: pointer; transition: var(--ui-transition); }
+        .toggle::after { content:''; position:absolute; top:3px; left:3px; width:18px; height:18px; background:var(--color-surface); border-radius:50%; transition: var(--ui-transition); box-shadow: var(--shadow-sm); }
+        .toggle.on { background: var(--color-primary); }
+        .toggle.on::after { transform: translateX(20px); }
+
+        /* Profile Layout */
+        .profile-header { display: flex; align-items: center; gap: var(--space-6); margin-bottom: var(--space-6); }
+        .avatar-lg { width: 80px; height: 80px; border-radius: 50%; background: var(--color-secondary); border: 2px solid var(--color-surface); box-shadow: var(--shadow-md); display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--color-text); font-weight: 800; font-family: var(--font-heading); }
+
+        /* Status Badge */
+        .badge {
+          padding: 4px 10px; border-radius: 20px; font-size: calc(var(--text-sm) * 0.85); font-weight: 700;
+          background: color-mix(in srgb, var(--color-accent) 20%, transparent);
+          color: var(--color-text); border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent);
+        }
+
+        /* Toast Notifications */
+        .toast-container { position: fixed; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 10px; z-index: 9999; }
+        .toast {
+          background: var(--glass-bg, var(--color-surface)); backdrop-filter: var(--glass-blur, blur(10px));
+          color: var(--color-text); border: 1px solid var(--color-border);
+          padding: 12px 20px; border-radius: var(--radii); box-shadow: var(--shadow-lg);
+          font-size: var(--text-sm); font-weight: 600; display: flex; align-items: center; gap: 10px;
+          animation: slideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+        .toast.success { border-left: 4px solid var(--color-primary); }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideOut { to { transform: translateY(10px); opacity: 0; } }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+          .app-layout { flex-direction: column; }
+          .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--color-border); flex-direction: row; padding: 12px 16px; overflow-x: auto; align-items: center;}
+          .sidebar-brand { padding: 0 16px 0 0; margin-right: 16px; border-right: 1px solid var(--color-border); }
+          .nav-item { white-space: nowrap; }
+          .main-content { padding: var(--space-4); }
+          .toast-container { bottom: 20px; right: 20px; left: 20px; align-items: center; }
         }
       </style>
-      <style id="theme-style"></style>
+      <style id="theme-style">{{INJECT_STYLES}}</style>
+      <style id="custom-effects-style">{{INJECT_CUSTOM_CSS}}</style>
     </head>
     <body>
-      <div id="sakura-container" style="position:absolute; inset:0; pointer-events:none; overflow:hidden;"></div>
+      <div id="effects-container">{{INJECT_EFFECTS_HTML}}</div>
+      <div class="toast-container" id="toast-container"></div>
       
-      <div class="header-meta">Community Sandboxed Sandbox</div>
-      <div class="main-title" id="preview-title">-</div>
-      <div class="body-desc" id="preview-desc">
-        隔离预览区域已经实时呈现了该作者分享的主题设计，文字、容器色均已同步。
+      <div class="app-layout">
+        <aside class="sidebar" id="sidebar-nav">
+          <div class="sidebar-brand">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            ThemeDist
+          </div>
+          <div class="nav-item active" data-target="dashboard">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            Dashboard
+          </div>
+          <div class="nav-item" data-target="profile">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            Profile
+          </div>
+          <div class="nav-item" data-target="settings">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            Settings
+          </div>
+        </aside>
+
+        <main class="main-content">
+          
+          <!-- VIEW 1: Dashboard -->
+          <div id="view-dashboard" class="view-section active">
+            <header class="page-header">
+              <h1 class="page-title">{{INJECT_TITLE}}</h1>
+              <p class="page-subtitle">沉浸式主题预览 · 观察容器背景与层级边框的交织表现</p>
+            </header>
+
+            <div class="grid-row">
+              <div class="card">
+                <div class="card-header">
+                  <span>Total Revenue</span>
+                  <span class="badge">+14.5%</span>
+                </div>
+                <div style="font-size: var(--text-2xl); font-weight: 800; color: var(--color-primary); font-family: var(--font-mono);">45,231</div>
+                <p style="font-size: calc(var(--text-sm)*0.9); color: var(--color-text-muted); margin-top: 8px;">Compared to last month</p>
+              </div>
+              
+              <div class="card">
+                <div class="card-header">
+                  <span>Active Users</span>
+                  <span class="badge" style="background: color-mix(in srgb, var(--color-secondary) 15%, transparent); color: var(--color-text); border-color: color-mix(in srgb, var(--color-secondary) 30%, transparent);">Active</span>
+                </div>
+                <div style="font-size: var(--text-2xl); font-weight: 800; color: var(--color-text); font-family: var(--font-mono);">2,845</div>
+                <p style="font-size: calc(var(--text-sm)*0.9); color: var(--color-text-muted); margin-top: 8px;">Currently on your website</p>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">Form Controls Interface</div>
+              <div class="form-group">
+                <label class="label">Email Address</label>
+                <input type="email" class="input" id="demo-input-email" placeholder="you@example.com" value="user@themedist.app">
+              </div>
+              <div class="form-group">
+                <label class="label">Project Description</label>
+                <input type="text" class="input" id="demo-input-desc" placeholder="Enter details...">
+              </div>
+              <div class="btn-group">
+                <button class="btn btn-primary" id="btn-save">Save Changes</button>
+                <button class="btn btn-secondary" id="btn-discard">Discard</button>
+                <button class="btn btn-outline" id="btn-cancel">Clear Form</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- VIEW 2: Profile -->
+          <div id="view-profile" class="view-section">
+            <header class="page-header">
+              <h1 class="page-title">User Profile</h1>
+              <p class="page-subtitle">Manage your personal information and biography.</p>
+            </header>
+            
+            <div class="card">
+              <div class="profile-header">
+                <div class="avatar-lg">TD</div>
+                <div>
+                  <h2 style="font-family: var(--font-heading); font-size: var(--text-xl); font-weight: 800;">Theme Designer</h2>
+                  <p style="color: var(--color-text-muted); font-size: var(--text-sm); margin-top:4px;">designer@themedist.app</p>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="label">Display Name</label>
+                <input type="text" class="input" value="Theme Designer">
+              </div>
+              <div class="form-group">
+                <label class="label">Biography</label>
+                <textarea class="textarea" placeholder="Tell us about yourself...">Crafting beautiful digital experiences with colors and shadows.</textarea>
+              </div>
+              <div class="btn-group">
+                <button class="btn btn-primary" onclick="window.showToast('Profile updated!', 'success')">Update Profile</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- VIEW 3: Settings -->
+          <div id="view-settings" class="view-section">
+            <header class="page-header">
+              <h1 class="page-title">Preferences</h1>
+              <p class="page-subtitle">Customize your application experience.</p>
+            </header>
+
+            <div class="card">
+              <div class="card-header">General Settings</div>
+              
+              <div class="toggle-row">
+                <div class="toggle-info">
+                  <strong>Enable Notifications</strong>
+                  <span>Receive alerts for important updates.</span>
+                </div>
+                <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+              </div>
+
+              <div class="toggle-row">
+                <div class="toggle-info">
+                  <strong>Use Glassmorphism</strong>
+                  <span>Apply blur effects to sidebars and cards.</span>
+                </div>
+                <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+              </div>
+
+              <div class="toggle-row">
+                <div class="toggle-info">
+                  <strong>Auto-play Animations</strong>
+                  <span>Allow decorative effects (like falling petals) to play.</span>
+                </div>
+                <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+              </div>
+            </div>
+          </div>
+
+        </main>
       </div>
 
-      <div class="btn-row">
-        <button class="btn-preview-primary">主要操作</button>
-        <button class="btn-preview-secondary">次要操作</button>
-      </div>
+      <!-- 交互逻辑脚本 (Iframe 内部隔离执行) -->
+      <script>
+        document.addEventListener('DOMContentLoaded', () => {
+          // Toast 弹窗系统暴露给全局
+          const toastContainer = document.getElementById('toast-container');
+          window.showToast = function(message, type = 'default') {
+            const toast = document.createElement('div');
+            toast.className = 'toast ' + (type === 'success' ? 'success' : '');
+            
+            const icon = type === 'success' 
+              ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>'
+              : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
+            
+            toast.innerHTML = icon + '<span>' + message + '</span>';
+            toastContainer.appendChild(toast);
 
-      <div class="preview-card">
-        <div class="card-heading">信息卡片示例</div>
-        <p class="card-body-text">卡片用于聚合局部业务。请观察 card-surface 与 page-bg 在多层叠加时的对比度是否理想。</p>
-        
-        <div class="swatches" id="swatches-container"></div>
-      </div>
+            setTimeout(() => {
+              toast.style.animation = 'slideOut 0.3s ease forwards';
+              setTimeout(() => toast.remove(), 300);
+            }, 3000);
+          };
+
+          // Sidebar Tab 切换逻辑 (SPA Routing)
+          const navItems = document.querySelectorAll('.nav-item');
+          const views = document.querySelectorAll('.view-section');
+          
+          navItems.forEach(item => {
+            item.addEventListener('click', () => {
+              // 1. 更新侧边栏 active 状态
+              navItems.forEach(n => n.classList.remove('active'));
+              item.classList.add('active');
+              
+              // 2. 切换主视图区域
+              const target = item.dataset.target;
+              views.forEach(v => {
+                v.classList.remove('active');
+                if (v.id === 'view-' + target) {
+                  v.classList.add('active');
+                }
+              });
+            });
+          });
+
+          // Dashboard 按钮操作模拟
+          const btnSave = document.getElementById('btn-save');
+          const btnDiscard = document.getElementById('btn-discard');
+          const btnCancel = document.getElementById('btn-cancel');
+          const inputs = document.querySelectorAll('.input');
+
+          if(btnSave) {
+            btnSave.addEventListener('click', () => {
+              const originalText = btnSave.innerHTML;
+              btnSave.disabled = true;
+              btnSave.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg> Saving...';
+              
+              if(!document.getElementById('spin-style')) {
+                const style = document.createElement('style');
+                style.id = 'spin-style';
+                style.innerHTML = '@keyframes spinner { to { transform: rotate(360deg); } } .spin { animation: spinner 1s linear infinite; }';
+                document.head.appendChild(style);
+              }
+
+              setTimeout(() => {
+                btnSave.disabled = false;
+                btnSave.innerHTML = originalText;
+                window.showToast('Changes applied and saved to cloud!', 'success');
+              }, 1200);
+            });
+          }
+
+          if(btnDiscard) btnDiscard.addEventListener('click', () => window.showToast('Changes discarded.', 'default'));
+          if(btnCancel) btnCancel.addEventListener('click', () => {
+            inputs.forEach(input => input.value = '');
+            window.showToast('Form fields have been cleared.', 'default');
+          });
+        });
+      <\/script>
     </body>
     </html>
   `;
 
-  // Standard safe data bridge from HTML
   const bridge = document.getElementById('share-page-container');
-  const themeId = bridge?.dataset.themeId || '';
+  const themeId = bridge?.dataset.themeId || new URLSearchParams(window.location.search).get('id') || '';
 
   if (!themeId) {
     document.getElementById('loading-state').style.display = 'none';
@@ -672,117 +598,86 @@ const id = Astro.url.searchParams.get('id') || '';
   async function loadTheme() {
     if (!themeId) return;
     try {
+      // 真实请求主题数据
       const res = await fetch(`/api/diy/theme.json?id=${encodeURIComponent(themeId)}`);
       if (!res.ok) throw new Error('Not found');
       themeData = await res.json();
       renderTheme(themeData);
-    } catch {
+    } catch (e) {
       document.getElementById('loading-state').style.display = 'none';
       document.getElementById('error-state').style.display = 'block';
+      console.error("Theme Load Error:", e);
     }
   }
 
-  // Init sandboxed Iframe structure
   function initIframe(t) {
     const iframe = document.getElementById('preview-iframe');
-    const doc = iframe.contentDocument || iframe.contentWindow?.document;
-    if (!doc) return;
     
-    doc.open();
-    doc.write(SANDBOX_HTML_TEMPLATE);
-    doc.close();
-
-    // After document is populated, inject CSS variables, names, and swatches
-    const styleEl = doc.getElementById('theme-style');
-    if (styleEl) {
-      const varsCSS = Object.entries(t.cssVars).map(([k, v]) => `${k}:${v}`).join(';');
-      styleEl.textContent = `
-        :root { ${varsCSS} }
-        ${t.customCss || ''}
-      `;
-    }
-
-    const titleEl = doc.getElementById('preview-title');
-    if (titleEl) titleEl.textContent = t.name;
-
-    const swatchesContainer = doc.getElementById('swatches-container');
-    if (swatchesContainer) {
-      const colors = ['--color-primary', '--color-secondary', '--color-accent', '--color-bg', '--color-surface'];
-      swatchesContainer.innerHTML = colors.map(k => `
-        <div class="swatch-item">
-          <div class="swatch-color" style="background: var(${k})"></div>
-          <span class="swatch-label">${k.replace('--color-', '')}</span>
-        </div>
-      `).join('');
-    }
-
-    // Trigger flower simulator if sakura is inside demo name
-    const sakuraContainer = doc.getElementById('sakura-container');
-    if (sakuraContainer && t.name === "樱花梦境") {
-      sakuraContainer.innerHTML = '';
-      for (let i = 0; i < 8; i++) {
-        const petal = doc.createElement('div');
-        petal.className = 'sakura-petal';
-        petal.style.left = Math.random() * 100 + '%';
-        petal.style.animationDelay = Math.random() * 5 + 's';
-        petal.style.animationDuration = (Math.random() * 3 + 3) + 's';
-        sakuraContainer.appendChild(petal);
+    // 构造注入的样式变量字符串，进行严格转义
+    const varsCSS = Object.entries(t.cssVars).map(([k, v]) => `${escapeHtml(k)}:${escapeHtml(v)}`).join(';');
+    const injectedStyles = `:root { ${varsCSS} }`;
+    const customCssRaw = t.customCss || '';
+    
+    // 如果主题包含 sakura 樱花特效（利用名字或CSS中是否包含 .sakura-petal 探测）
+    let effectsHtml = '';
+    if (t.name === "樱花梦境" || customCssRaw.includes('.sakura-petal')) {
+      for (let i = 0; i < 15; i++) {
+        effectsHtml += `<div class="sakura-petal" style="left:${Math.random() * 100}%; animation-delay:${Math.random() * 5}s; animation-duration:${Math.random() * 4 + 4}s"></div>`;
       }
     }
+
+    const finalHtml = SANDBOX_HTML_TEMPLATE
+      .replace('{{INJECT_STYLES}}', injectedStyles)
+      .replace('{{INJECT_CUSTOM_CSS}}', escapeHtml(customCssRaw))
+      .replace('{{INJECT_TITLE}}', escapeHtml(t.name))
+      .replace('{{INJECT_EFFECTS_HTML}}', effectsHtml); // 避免直接转义HTML，仅做组装
+
+    iframe.srcdoc = finalHtml;
   }
 
   function renderTheme(t) {
     document.getElementById('loading-state').style.display = 'none';
-    document.getElementById('theme-content').style.display = 'grid';
+    document.getElementById('theme-content').style.display = 'flex';
 
     document.getElementById('theme-title').textContent = t.name;
-    document.title = `${t.name} — ThemeDist Community`;
+    document.title = `${t.name} — Theme Preview`;
 
     const shareCodeWrapper = document.getElementById('share-code-wrapper');
     if (shareCodeWrapper) shareCodeWrapper.style.display = 'block';
 
+    const safeAuthor = escapeHtml(t.author) || 'Anonymous';
     const avatar = document.getElementById('author-avatar');
-    avatar.textContent = t.author.charAt(0).toUpperCase();
-    document.getElementById('author-name').textContent = t.author;
+    avatar.textContent = safeAuthor.charAt(0).toUpperCase();
+    document.getElementById('author-name').textContent = safeAuthor;
 
     const d = new Date(t.createdAt);
     document.getElementById('theme-date').textContent = d.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    document.getElementById('like-count').textContent = t.likes;
+    document.getElementById('like-count').textContent = parseInt(t.likes) || 0;
     document.getElementById('share-code').textContent = themeId;
 
-    const vars = t.cssVars;
-    const colorKeys = ['--color-primary','--color-secondary','--color-accent','--color-bg','--color-surface','--color-text','--color-text-muted','--color-border'];
-    
-    // Render color swatches card with explicit dataset bindings
-    document.getElementById('swatches').innerHTML = colorKeys.filter(k => vars[k]).map(k => `
-      <div class="palette-item">
-        <div 
-          class="swatch-circle" 
-          data-color="${vars[k]}" 
-          style="background:${vars[k]}" 
-          title="${k}: ${vars[k]} — 点击复制"
-        ></div>
-        <span class="swatch-label">${k.replace('--color-','')}</span>
-      </div>
-    `).join('');
-
-    // Populate standard variables dictionary table
-    document.querySelector('#vars-table tbody').innerHTML = Object.entries(vars).map(([k, v]) => `
-      <tr class="table-row-clickable">
-        <td class="var-name" data-copy="${k}">${k}</td>
-        <td class="var-value" data-copy="${v}">${v}</td>
-        <td style="text-align: center;">
-          <div class="table-swatch" data-copy="${v}" style="background:${v};" title="点击复制 Hex 值"></div>
-        </td>
-      </tr>
-    `).join('');
-
-    // Sync Isolated Preview SandBox
+    // 初始化独立的 iframe 预览环境
     initIframe(t);
   }
 
-  // Apply action flow
+  // Viewport Toggles (视口大小切换)
+  const browserShell = document.getElementById('browser-shell');
+  const viewportBtns = document.querySelectorAll('.viewport-btn');
+  
+  viewportBtns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      // 移除旧的 view class 和激活状态
+      viewportBtns.forEach(b => b.classList.remove('active'));
+      browserShell.classList.remove('view-desktop', 'view-tablet', 'view-mobile');
+      
+      // 添加新的
+      const view = btn.dataset.view;
+      btn.classList.add('active');
+      browserShell.classList.add(`view-${view}`);
+    });
+  });
+
+  // 应用主题动作
   document.getElementById('btn-apply').addEventListener('click', () => {
     if (!themeData) return;
     const preset = 'community-' + themeId;
@@ -790,7 +685,7 @@ const id = Astro.url.searchParams.get('id') || '';
     location.href = '/?theme=' + encodeURIComponent(preset);
   });
 
-  // Share action flow
+  // 分享动作
   document.getElementById('btn-share-url').addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(location.href);
@@ -800,31 +695,7 @@ const id = Astro.url.searchParams.get('id') || '';
     }
   });
 
-  // Delegated Copy events from Palette Swatches and Variables Table Rows
-  document.addEventListener('click', (e) => {
-    const target = e.target;
-    
-    // 1. From swatches circle
-    const swatch = target.closest('.swatch-circle');
-    if (swatch) {
-      const color = swatch.dataset.color || '';
-      navigator.clipboard.writeText(color).then(() => {
-        window.__toast?.(`${color} 色值复制成功`);
-      });
-      return;
-    }
-
-    // 2. From table row items
-    const clickable = target.closest('[data-copy]');
-    if (clickable) {
-      const content = clickable.dataset.copy || '';
-      navigator.clipboard.writeText(content).then(() => {
-        window.__toast?.(`已复制: ${content}`);
-      });
-    }
-  });
-
-  // Likes interactive system
+  // 点赞动作
   const likeBtn = document.getElementById('btn-like');
   const likeCountEl = document.getElementById('like-count');
   const likeKey = `td-like-${themeId}`;
@@ -846,7 +717,7 @@ const id = Astro.url.searchParams.get('id') || '';
       });
       if (!res.ok) throw new Error('Failed');
       const data = await res.json();
-      likeCountEl.textContent = data.likes;
+      likeCountEl.textContent = parseInt(data.likes) || 0;
       likeBtn.classList.add('liked');
       localStorage.setItem(likeKey, '1');
       window.__toast?.('感谢点赞！');
@@ -855,6 +726,6 @@ const id = Astro.url.searchParams.get('id') || '';
     }
   });
 
-  // Render trigger
+  // 触发主流程
   loadTheme();
 </script>

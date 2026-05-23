@@ -56,7 +56,11 @@ import Layout from '../layouts/Layout.astro';
                 </div>
                 <div class="ai-key-notice">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2l6 11H2L8 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6v3.5M8 11.5h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-                  <span><strong>隐私声明：</strong>你的 API Key <strong>仅存储在当前浏览器 localStorage 中</strong>，生成请求由浏览器<strong>直接发送至 DeepSeek API</strong>（api.deepseek.com），<strong>不会经过本服务器</strong>。未设置时使用服务端规则引擎生成基础配色。</span>
+                  <span><strong>隐私声明：</strong>你的 API Key <strong>仅存储在当前浏览器 localStorage 中</strong>，生成请求由浏览器<strong>直接发送至 DeepSeek API</strong>，<strong>不会经过本服务器</strong>。</span>
+                </div>
+                <div class="ai-key-tip">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 1v14M1 8h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                  <span><strong>建议：</strong>填入 DeepSeek API Key 后使用大模型生成，配色质量和特效创意远超规则引擎。免费申请 Key 请访问 <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener" style="color:var(--color-primary);text-decoration:underline">platform.deepseek.com</a>。</span>
                 </div>
                 <div class="ai-key-input-row">
                   <input id="ai-apikey" type="password" class="text-input" placeholder="sk-..." autocomplete="off" spellcheck="false" />
@@ -85,7 +89,7 @@ import Layout from '../layouts/Layout.astro';
               <textarea
                 id="vars-input"
                 spellcheck="false"
-                placeholder='{"--color-primary":"#ff8fa3","--color-bg":"#fff0f3","--font-heading":"Inter, sans-serif","--radii":"12px",...}'
+                placeholder='{"--color-primary":"#ff8fa3","--color-bg":"#fff0f3",...}'
                 class="code-textarea"
               ></textarea>
               <div id="vars-error-container" class="validation-error-container">
@@ -93,7 +97,7 @@ import Layout from '../layouts/Layout.astro';
                 <button id="btn-autofix" class="text-btn autofix-btn" style="display: none;">尝试自动修复</button>
               </div>
 
-              <!-- Inline parsed palette helper inside editor card -->
+              <!-- Inline parsed palette helper -->
               <div class="palette-preview-panel">
                 <span class="palette-title">已识别的色彩配置：</span>
                 <div id="editor-swatches" class="editor-swatches-strip"></div>
@@ -142,8 +146,8 @@ import Layout from '../layouts/Layout.astro';
           <div id="submit-result" class="result-alert-box"></div>
         </div>
 
-        <!-- Submitted History (Persist with localstorage) -->
-        <div id="recent-section" class="recent-submissions">
+        <!-- Submitted History -->
+        <div id="recent-section" class="recent-submissions" style="display: none;">
           <h3 class="recent-title">我的提交记录</h3>
           <div id="recent-list" class="recent-list"></div>
         </div>
@@ -169,13 +173,13 @@ import Layout from '../layouts/Layout.astro';
             <span class="browser-url">themedist.preview.local</span>
           </div>
 
-          <!-- Micro simulated browser progress line indicator -->
+          <!-- Loading Indicator -->
           <div id="browser-loading-bar" class="browser-loading-bar"></div>
           
-          <!-- Embedded Preview SandBox Iframe -->
+          <!-- SandBox Iframe -->
           <div class="iframe-container">
-            <iframe id="preview-iframe" class="sandbox-iframe" title="实时隔离渲染沙箱"></iframe>
-            <div id="preview-placeholder" class="preview-empty-placeholder">
+            <iframe id="preview-iframe" class="sandbox-iframe" title="实时隔离渲染沙箱" sandbox="allow-same-origin allow-scripts"></iframe>
+            <div id="preview-placeholder" class="preview-empty-placeholder" style="opacity: 0;">
               <div class="placeholder-icon">🎨</div>
               <p>粘贴 JSON 变量或点击 “加载精美示例”<br/>在此处实时交互预览您的主题设计</p>
             </div>
@@ -187,719 +191,162 @@ import Layout from '../layouts/Layout.astro';
   </section>
 </Layout>
 
-<!-- 🌸 启动 is:global 彻底清除 Astro 局部哈希隔离，使 JS 渲染的色块和历史列表得到完美美化 -->
 <style is:global>
   /* ─── Grid layout & Containers ─── */
-  .submit-container {
-    max-width: 1040px;
-    margin: 0 auto;
-    padding: 0 24px 80px;
-  }
-  .submit-grid {
-    display: grid;
-    grid-template-columns: 1.15fr 0.85fr;
-    gap: 32px;
-    align-items: start;
-  }
+  .submit-container { max-width: 1240px; margin: 0 auto; padding: 0 24px 80px; }
+  .submit-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 32px; align-items: start; }
 
   /* ─── Forms & Typography ─── */
-  .form-card {
-    padding: 28px;
-    border: 1px solid var(--color-border);
-    background: var(--glass-bg);
-    backdrop-filter: blur(var(--glass-blur));
-    box-shadow: var(--shadow-md);
-    border-radius: 16px;
-  }
-  .form-section-header {
-    margin-bottom: 20px;
-  }
-  .section-badge {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    color: var(--color-primary);
-    text-transform: uppercase;
-    display: inline-block;
-    margin-bottom: 4px;
-  }
-  .section-title {
-    font-size: 18px;
-    font-weight: 800;
-    color: var(--color-text);
-  }
+  .form-card { padding: 28px; border: 1px solid var(--color-border); background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); box-shadow: var(--shadow-md); border-radius: 16px; }
+  .form-section-header { margin-bottom: 20px; }
+  .section-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--color-primary); text-transform: uppercase; display: inline-block; margin-bottom: 4px; }
+  .section-title { font-size: 18px; font-weight: 800; color: var(--color-text); }
 
   /* ─── Import row ─── */
-  .import-group {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 20px;
-  }
+  .import-group { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
 
   /* AI Generation Bar */
-  .ai-gen-bar {
-    margin-bottom: 20px;
-  }
-  .ai-gen-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-  .ai-input {
-    flex: 1;
-    height: 42px;
-    padding: 0 14px;
-    border-radius: 10px;
-    border: 1.5px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
-    color: var(--color-text);
-    font-size: 13px;
-    font-family: inherit;
-    outline: none;
-    transition: border-color 0.25s, box-shadow 0.25s;
-  }
-  .ai-input:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
-  }
-  .ai-gen-btn {
-    white-space: nowrap;
-    height: 42px;
-    padding: 0 20px;
-    font-size: 13px;
-    font-weight: 700;
-    border-radius: 10px;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .ai-gen-btn.loading {
-    opacity: 0.7;
-    pointer-events: none;
-  }
-  .ai-status-text {
-    font-size: 11px;
-    color: var(--color-text-muted);
-    margin: 4px 0 0;
-    min-height: 1.2em;
-  }
+  .ai-gen-bar { margin-bottom: 20px; }
+  .ai-gen-row { display: flex; gap: 8px; align-items: center; }
+  .ai-input { flex: 1; height: 42px; padding: 0 14px; border-radius: 10px; border: 1.5px solid var(--color-border); background: color-mix(in srgb, var(--color-surface) 40%, transparent); color: var(--color-text); font-size: 13px; font-family: inherit; outline: none; transition: border-color 0.25s, box-shadow 0.25s; }
+  .ai-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent); }
+  .ai-gen-btn { white-space: nowrap; height: 42px; padding: 0 20px; font-size: 13px; font-weight: 700; border-radius: 10px; display: inline-flex; align-items: center; gap: 6px; }
+  .ai-gen-btn.loading { opacity: 0.7; pointer-events: none; }
+  .ai-status-text { font-size: 11px; color: var(--color-text-muted); margin: 4px 0 0; min-height: 1.2em; }
 
   /* AI API Key Management */
-  .ai-key-bar {
-    margin-top: 8px;
-  }
-  .ai-key-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: 6px;
-    border: 1px solid var(--color-border);
-    background: transparent;
-    color: var(--color-text-muted);
-    font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.2s;
-  }
-  .ai-key-toggle:hover {
-    border-color: var(--color-primary);
-    color: var(--color-text);
-  }
-  .ai-key-toggle.key-set {
-    border-color: #10b981;
-    color: #10b981;
-  }
-  .ai-key-panel {
-    margin-top: 8px;
-    padding: 14px;
-    border-radius: 10px;
-    border: 1.5px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-surface) 30%, transparent);
-  }
-  .ai-key-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--color-text);
-    margin-bottom: 8px;
-  }
-  .ai-key-notice {
-    display: flex;
-    gap: 6px;
-    font-size: 11px;
-    line-height: 1.5;
-    color: var(--color-text-muted);
-    padding: 8px 10px;
-    border-radius: 8px;
-    background: color-mix(in srgb, #f59e0b 6%, transparent);
-    border: 1px solid color-mix(in srgb, #f59e0b 15%, transparent);
-    margin-bottom: 10px;
-  }
-  .ai-key-notice svg {
-    flex-shrink: 0;
-    margin-top: 2px;
-    color: #f59e0b;
-  }
-  .ai-key-input-row {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-  }
-  .ai-key-input-row input {
-    flex: 1;
-    height: 36px;
-    padding: 0 10px;
-    font-size: 12px;
-    font-family: 'JetBrains Mono', monospace;
-  }
-  .ai-key-feedback {
-    font-size: 10px;
-    margin: 6px 0 0;
-    min-height: 1.2em;
-    color: var(--color-text-muted);
-  }
+  .ai-key-bar { margin-top: 8px; }
+  .ai-key-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--color-border); background: transparent; color: var(--color-text-muted); font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+  .ai-key-toggle:hover { border-color: var(--color-primary); color: var(--color-text); }
+  .ai-key-toggle.key-set { border-color: #10b981; color: #10b981; }
+  .ai-key-panel { margin-top: 8px; padding: 14px; border-radius: 10px; border: 1.5px solid var(--color-border); background: color-mix(in srgb, var(--color-surface) 30%, transparent); }
+  .ai-key-header { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--color-text); margin-bottom: 8px; }
+  .ai-key-notice, .ai-key-tip { display: flex; gap: 6px; font-size: 11px; line-height: 1.5; padding: 8px 10px; border-radius: 8px; margin-bottom: 10px; }
+  .ai-key-notice { color: var(--color-text-muted); background: color-mix(in srgb, #f59e0b 6%, transparent); border: 1px solid color-mix(in srgb, #f59e0b 15%, transparent); }
+  .ai-key-tip { color: var(--color-text-muted); background: color-mix(in srgb, var(--color-primary) 5%, transparent); border: 1px solid color-mix(in srgb, var(--color-primary) 14%, transparent); }
+  .ai-key-input-row { display: flex; gap: 6px; align-items: center; }
+  .ai-key-input-row input { flex: 1; height: 36px; padding: 0 10px; font-size: 12px; font-family: 'JetBrains Mono', monospace; }
+  .ai-key-feedback { font-size: 10px; margin: 6px 0 0; min-height: 1.2em; color: var(--color-text-muted); }
   .ai-key-feedback.success { color: #10b981; }
   .ai-key-feedback.error { color: #ef4444; }
-  .import-btn, .demo-btn {
-    height: 42px;
-    font-size: 13px;
-    font-weight: 600;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: all 0.2s;
-  }
-  .import-btn:hover {
-    border-color: var(--color-primary);
-    color: var(--color-primary);
-    background: color-mix(in srgb, var(--color-primary) 6%, transparent);
-  }
-  .demo-btn:hover {
-    border-color: var(--color-accent);
-    color: var(--color-accent);
-    background: color-mix(in srgb, var(--color-accent) 6%, transparent);
-  }
+  .import-btn, .demo-btn { height: 42px; font-size: 13px; font-weight: 600; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; }
+  .import-btn:hover { border-color: var(--color-primary); color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 6%, transparent); }
+  .demo-btn:hover { border-color: var(--color-accent); color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 6%, transparent); }
 
   /* ─── Tabs Switcher UI ─── */
-  .tabs-container {
-    display: flex;
-    border-bottom: 1.5px solid var(--color-border);
-    margin-bottom: 16px;
-    gap: 8px;
-  }
-  .tab-btn {
-    background: none;
-    border: none;
-    padding: 10px 16px;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    border-bottom: 3px solid transparent;
-    transition: all 0.2s ease;
-    border-radius: 6px 6px 0 0;
-  }
-  .tab-btn:hover {
-    color: var(--color-text);
-    background: color-mix(in srgb, var(--color-text) 4%, transparent);
-  }
-  .tab-btn.active {
-    color: var(--color-primary);
-    border-bottom-color: var(--color-primary);
-  }
-  .tab-content {
-    display: none;
-  }
-  .tab-content.active {
-    display: block;
-    animation: fadeInTab 0.25s ease;
-  }
-  @keyframes fadeInTab {
-    from { opacity: 0; transform: translateY(2px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+  .tabs-container { display: flex; border-bottom: 1.5px solid var(--color-border); margin-bottom: 16px; gap: 8px; }
+  .tab-btn { background: none; border: none; padding: 10px 16px; font-size: 13px; font-weight: 700; color: var(--color-text-muted); cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s ease; border-radius: 6px 6px 0 0; }
+  .tab-btn:hover { color: var(--color-text); background: color-mix(in srgb, var(--color-text) 4%, transparent); }
+  .tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; animation: fadeInTab 0.25s ease; }
+  @keyframes fadeInTab { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
 
   /* ─── Input Fields ─── */
-  .input-block {
-    margin-bottom: 18px;
-  }
-  .block-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 6px;
-  }
-  .input-label {
-    display: block;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--color-text-muted);
-  }
-  .required {
-    color: var(--color-primary);
-    margin-left: 2px;
-  }
-  .text-btn {
-    background: none;
-    border: none;
-    padding: 2px 8px;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--color-primary);
-    cursor: pointer;
-    border-radius: 4px;
-    transition: background 0.2s;
-  }
-  .text-btn:hover {
-    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-  }
+  .input-block { margin-bottom: 18px; }
+  .block-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .input-label { display: block; font-size: 12px; font-weight: 700; color: var(--color-text-muted); }
+  .required { color: var(--color-primary); margin-left: 2px; }
+  .text-btn { background: none; border: none; padding: 2px 8px; font-size: 11px; font-weight: 700; color: var(--color-primary); cursor: pointer; border-radius: 4px; transition: background 0.2s; }
+  .text-btn:hover { background: color-mix(in srgb, var(--color-primary) 10%, transparent); }
 
-  /* Textareas */
-  .code-textarea {
-    width: 100%;
-    height: 190px;
-    padding: 14px;
-    border-radius: 12px;
-    border: 1.5px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-text) 2%, var(--color-bg));
-    color: var(--color-text);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    line-height: 1.6;
-    resize: vertical;
-    outline: none;
-    transition: all 0.2s ease;
-  }
-  .code-textarea:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 10%, transparent);
-  }
-  .css-textarea {
-    height: 190px;
-  }
+  .code-textarea { width: 100%; height: 220px; padding: 14px; border-radius: 12px; border: 1.5px solid var(--color-border); background: color-mix(in srgb, var(--color-text) 2%, var(--color-bg)); color: var(--color-text); font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; resize: vertical; outline: none; transition: all 0.2s ease; }
+  .code-textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 10%, transparent); }
+  .css-textarea { height: 220px; }
   
-  /* Validation container & Autofix button */
-  .validation-error-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 6px;
-    min-height: 20px;
-  }
-  .validation-error {
-    font-size: 11px;
-    color: #ef4444;
-    font-weight: 700;
-    display: none;
-  }
-  .autofix-btn {
-    color: #ef4444;
-    border: 1px solid color-mix(in srgb, #ef4444 30%, transparent);
-    padding: 1px 6px;
-    border-radius: 4px;
-  }
-  .autofix-btn:hover {
-    background: color-mix(in srgb, #ef4444 10%, transparent);
-  }
+  .validation-error-container { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; min-height: 20px; }
+  .validation-error { font-size: 11px; color: #ef4444; font-weight: 700; display: none; }
+  .autofix-btn { color: #ef4444; border: 1px solid color-mix(in srgb, #ef4444 30%, transparent); padding: 1px 6px; border-radius: 4px; }
+  .autofix-btn:hover { background: color-mix(in srgb, #ef4444 10%, transparent); }
 
-  /* ─── Inline color swatches inside editor card ─── */
-  .palette-preview-panel {
-    margin-top: 10px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--color-text) 2%, var(--color-bg));
-    border: 1px dashed var(--color-border);
-  }
-  .palette-title {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--color-text-muted);
-    display: block;
-    margin-bottom: 6px;
-  }
-  .editor-swatches-strip {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    align-items: flex-start;
-  }
-  .palette-group-label {
-    width: 100%;
-    font-size: 9px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--color-text-muted);
-    opacity: 0.5;
-    margin: 2px 0;
-  }
-  .editor-swatch {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 8px;
-    background: var(--color-surface);
-    border: 1.5px solid var(--color-border);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .editor-swatch:hover {
-    border-color: var(--color-primary);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  }
-  .editor-swatch-color {
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-    border: 1px solid rgba(0,0,0,0.12);
-    flex-shrink: 0;
-  }
-  .editor-swatch-info {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-  .editor-swatch-name {
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--color-text);
-    line-height: 1;
-  }
-  .editor-swatch-val {
-    font-size: 9px;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--color-text-muted);
-    font-weight: 500;
-    line-height: 1;
-  }
+  .palette-preview-panel { margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: color-mix(in srgb, var(--color-text) 2%, var(--color-bg)); border: 1px dashed var(--color-border); }
+  .palette-title { font-size: 11px; font-weight: 700; color: var(--color-text-muted); display: block; margin-bottom: 6px; }
+  .editor-swatches-strip { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-start; }
+  .palette-group-label { width: 100%; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-muted); opacity: 0.5; margin: 2px 0; }
+  .editor-swatch { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: var(--color-surface); border: 1.5px solid var(--color-border); border-radius: 8px; cursor: pointer; transition: all 0.15s; }
+  .editor-swatch:hover { border-color: var(--color-primary); transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  .editor-swatch-color { width: 16px; height: 16px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.12); flex-shrink: 0; }
+  .editor-swatch-info { display: flex; flex-direction: column; gap: 1px; }
+  .editor-swatch-name { font-size: 10px; font-weight: 700; color: var(--color-text); line-height: 1; }
+  .editor-swatch-val { font-size: 9px; font-family: 'JetBrains Mono', monospace; color: var(--color-text-muted); font-weight: 500; line-height: 1; }
 
-  /* Text Inputs with length counter */
-  .meta-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-  }
-  .input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
-  .text-input {
-    width: 100%;
-    height: 42px;
-    padding: 0 55px 0 12px;
-    border-radius: 10px;
-    border: 1.5px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-surface) 30%, transparent);
-    color: var(--color-text);
-    font-size: 13px;
-    font-family: inherit;
-    outline: none;
-    transition: all 0.2s ease;
-  }
-  .text-input:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 10%, transparent);
-  }
-  .char-counter {
-    position: absolute;
-    right: 12px;
-    font-size: 9px;
-    font-weight: 700;
-    color: var(--color-text-muted);
-    opacity: 0.6;
-    pointer-events: none;
-  }
+  .meta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 24px; }
+  .input-wrapper { position: relative; display: flex; align-items: center; }
+  .text-input { width: 100%; height: 42px; padding: 0 55px 0 12px; border-radius: 10px; border: 1.5px solid var(--color-border); background: color-mix(in srgb, var(--color-surface) 30%, transparent); color: var(--color-text); font-size: 13px; font-family: inherit; outline: none; transition: all 0.2s ease; }
+  .text-input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 10%, transparent); }
+  .char-counter { position: absolute; right: 12px; font-size: 9px; font-weight: 700; color: var(--color-text-muted); opacity: 0.6; pointer-events: none; }
 
-  /* Buttons */
-  .submit-main-btn {
-    width: 100%;
-    height: 48px;
-    font-size: 14px;
-    font-weight: 700;
-    margin-top: 10px;
-    border-radius: 12px;
-    gap: 8px;
-  }
-  .submit-main-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    pointer-events: none;
-  }
+  .submit-main-btn { width: 100%; height: 48px; font-size: 14px; font-weight: 700; margin-top: 20px; border-radius: 12px; gap: 8px; }
+  .submit-main-btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 
-  /* ─── Result Panel ─── */
-  .result-alert-box {
-    display: none;
-    margin-top: 20px;
-    animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateY(10px); }
-  }
+  .result-alert-box { display: none; margin-top: 20px; animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } }
 
   /* ─── Sandbox Iframe Preview ─── */
-  .preview-sticky {
-    position: sticky;
-    top: 90px;
-  }
-  .preview-header-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-  }
-  .badge-live-dot {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 9px;
-    font-weight: 800;
-    color: var(--color-accent);
-    letter-spacing: 0.04em;
-    transition: color 0.3s;
-    user-select: none;
-  }
-  .badge-live-dot::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--color-accent);
-    transition: background 0.3s, box-shadow 0.3s;
-    animation: livePulse 1.5s ease-in-out infinite alternate;
-  }
-  @keyframes livePulse {
-    0% { opacity: 0.3; transform: scale(0.9); }
-    100% { opacity: 1; transform: scale(1.15); }
-  }
+  .preview-sticky { position: sticky; top: 90px; }
+  .preview-header-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .badge-live-dot { display: inline-flex; align-items: center; gap: 6px; font-size: 9px; font-weight: 800; color: var(--color-accent); letter-spacing: 0.04em; transition: color 0.3s; user-select: none; }
+  .badge-live-dot::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); transition: background 0.3s, box-shadow 0.3s; animation: livePulse 1.5s ease-in-out infinite alternate; }
+  @keyframes livePulse { 0% { opacity: 0.3; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1.15); } }
   
-  /* ⚡ Micro-interactions states styling */
-  .badge-live-dot.sensing {
-    color: #f59e0b;
-  }
-  .badge-live-dot.sensing::before {
-    background: #f59e0b;
-    animation: sensingPulse 0.6s ease-in-out infinite alternate;
-  }
-  @keyframes sensingPulse {
-    0% { opacity: 0.7; transform: scale(1); box-shadow: 0 0 0 0px rgba(245, 158, 11, 0.4); }
-    100% { opacity: 1; transform: scale(1.3); box-shadow: 0 0 0 4px rgba(245, 158, 11, 0); }
-  }
-  .badge-live-dot.synced {
-    color: #22c55e;
-  }
-  .badge-live-dot.synced::before {
-    background: #22c55e;
-    animation: none;
-    opacity: 1;
-    transform: scale(1);
-  }
+  .badge-live-dot.sensing { color: #f59e0b; }
+  .badge-live-dot.sensing::before { background: #f59e0b; animation: sensingPulse 0.6s ease-in-out infinite alternate; }
+  @keyframes sensingPulse { 0% { opacity: 0.7; transform: scale(1); box-shadow: 0 0 0 0px rgba(245, 158, 11, 0.4); } 100% { opacity: 1; transform: scale(1.3); box-shadow: 0 0 0 4px rgba(245, 158, 11, 0); } }
+  .badge-live-dot.synced { color: #22c55e; }
+  .badge-live-dot.synced::before { background: #22c55e; animation: none; opacity: 1; transform: scale(1); }
 
-  .preview-browser {
-    border-radius: 20px;
-    overflow: hidden;
-    border: 2.5px solid var(--color-border);
-    background: var(--color-bg);
-    box-shadow: var(--shadow-lg);
-    transition: border-color 0.3s, box-shadow 0.3s;
-  }
-  
-  /* browser compile state borders */
-  .preview-browser.compiling {
-    border-color: #f59e0b;
-    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15), var(--shadow-lg);
-  }
-  .preview-browser.error-state {
-    border-color: #ef4444;
-    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15), var(--shadow-lg);
-  }
-  .preview-browser.synced-state {
-    border-color: #22c55e;
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15), var(--shadow-lg);
-  }
+  .preview-browser { border-radius: 20px; overflow: hidden; border: 2.5px solid var(--color-border); background: var(--color-bg); box-shadow: var(--shadow-lg); transition: border-color 0.3s, box-shadow 0.3s; }
+  .preview-browser.compiling { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15), var(--shadow-lg); }
+  .preview-browser.error-state { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15), var(--shadow-lg); }
+  .preview-browser.synced-state { border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15), var(--shadow-lg); }
 
-  .browser-bar {
-    padding: 12px 16px;
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    align-items: center;
-    border-bottom: 1.5px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
-    user-select: none;
-  }
-  
-  /* Browser Loading Indicator Progress Bar */
-  .browser-loading-bar {
-    height: 2px;
-    width: 0%;
-    background: var(--color-primary, #6366f1);
-    transition: width 0.25s ease, opacity 0.2s ease, background-color 0.2s;
-    opacity: 0;
-  }
+  .browser-bar { padding: 12px 16px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-bottom: 1.5px solid var(--color-border); background: color-mix(in srgb, var(--color-surface) 40%, transparent); user-select: none; }
+  .browser-loading-bar { height: 2px; width: 0%; background: var(--color-primary, #6366f1); transition: width 0.25s ease, opacity 0.2s ease, background-color 0.2s; opacity: 0; }
+  .browser-dots { display: flex; gap: 6px; }
+  .browser-dots span { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-red { background: #ff5f57; } .dot-yellow { background: #ffbd2e; } .dot-green { background: #28ca41; }
+  .browser-url { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--color-text-muted); opacity: 0.8; background: color-mix(in srgb, var(--color-bg) 80%, transparent); padding: 2px 16px; border-radius: 50px; border: 1px solid var(--color-border); }
 
-  .browser-dots {
-    display: flex;
-    gap: 6px;
-  }
-  .browser-dots span {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-  }
-  .dot-red { background: #ff5f57; }
-  .dot-yellow { background: #ffbd2e; }
-  .dot-green { background: #28ca41; }
-  .browser-url {
-    font-size: 11px;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--color-text-muted);
-    opacity: 0.8;
-    background: color-mix(in srgb, var(--color-bg) 80%, transparent);
-    padding: 2px 16px;
-    border-radius: 50px;
-    border: 1px solid var(--color-border);
-  }
-
-  /* Sandbox Wrapper */
-  .iframe-container {
-    position: relative;
-    width: 100%;
-    height: 480px;
-    background: var(--color-bg);
-  }
-  .sandbox-iframe {
-    width: 100%;
-    height: 100%;
-    border: none;
-    opacity: 0;
-    transition: opacity 0.4s ease;
-    background: transparent;
-  }
-  .sandbox-iframe.active {
-    opacity: 1;
-  }
-  .preview-empty-placeholder {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 20px;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-  }
-  .placeholder-icon {
-    font-size: 32px;
-    margin-bottom: 12px;
-    animation: bounceSlow 3s ease-in-out infinite;
-  }
-  @keyframes bounceSlow {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-  }
-  .preview-empty-placeholder p {
-    color: var(--color-text-muted);
-    font-size: 13px;
-    line-height: 1.6;
-  }
+  /* 使得沙箱拥有更大高度 */
+  .iframe-container { position: relative; width: 100%; height: 640px; background: var(--color-bg); }
+  .sandbox-iframe { width: 100%; height: 100%; border: none; opacity: 0; transition: opacity 0.4s ease; background: transparent; }
+  .sandbox-iframe.active { opacity: 1; }
+  .preview-empty-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; pointer-events: none; transition: opacity 0.3s ease; }
+  .placeholder-icon { font-size: 32px; margin-bottom: 12px; animation: bounceSlow 3s ease-in-out infinite; }
+  @keyframes bounceSlow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  .preview-empty-placeholder p { color: var(--color-text-muted); font-size: 13px; line-height: 1.6; }
 
   /* My Submissions List */
-  .recent-submissions {
-    margin-top: 32px;
-    animation: fadeIn 0.4s ease-out;
-  }
-  .recent-title {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--color-text-muted);
-    margin-bottom: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .recent-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .recent-item {
-    padding: 12px 16px;
-    border-radius: 12px;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    transition: all 0.2s;
-  }
-  .recent-item:hover {
-    transform: translateY(-1px);
-    border-color: var(--color-primary);
-  }
+  .recent-submissions { margin-top: 32px; animation: fadeIn 0.4s ease-out; }
+  .recent-title { font-size: 13px; font-weight: 700; color: var(--color-text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .recent-list { display: flex; flex-direction: column; gap: 8px; }
+  .recent-item { padding: 12px 16px; border-radius: 12px; background: var(--color-surface); border: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; gap: 12px; transition: all 0.2s; }
+  .recent-item:hover { transform: translateY(-1px); border-color: var(--color-primary); }
 
   @keyframes fadeIn { from { opacity: 0; } }
 
   /* ─── Responsive ─── */
-  @media (max-width: 840px) {
-    .submit-grid {
-      grid-template-columns: 1fr;
-      gap: 40px;
-    }
-    .preview-sticky {
-      position: static;
-    }
-    .iframe-container {
-      height: 400px;
-    }
+  @media (max-width: 980px) {
+    .submit-grid { grid-template-columns: 1fr; gap: 40px; }
+    .preview-sticky { position: static; }
+    .iframe-container { height: 500px; }
   }
 </style>
 
 <script>
-  // 🌌 默认加载的主题数据（提供良好的首屏呈现感，不让沙箱空置）
+  // 🌌 默认加载的主题数据
   const DEFAULT_THEME = {
     name: "深邃暗夜",
     author: "设计先锋",
     cssVars: {
-      "--color-primary": "#6366f1",
-      "--color-secondary": "#818cf8",
-      "--color-accent": "#f43f5e",
-      "--color-bg": "#09090b",
-      "--color-surface": "#18181b",
-      "--color-text": "#f4f4f5",
-      "--color-text-muted": "#a1a1aa",
-      "--color-border": "rgba(255, 255, 255, 0.08)",
-      "--font-heading": "'Inter', system-ui, sans-serif",
-      "--font-body": "'Inter', system-ui, sans-serif",
-      "--font-mono": "'JetBrains Mono', monospace",
-      "--text-base": "clamp(1rem, 0.9rem + 0.5vw, 1.125rem)",
-      "--text-lg": "calc(var(--text-base) * 1.25)",
-      "--text-xl": "calc(var(--text-lg) * 1.25)",
-      "--text-2xl": "calc(var(--text-xl) * 1.25)",
-      "--text-sm": "calc(var(--text-base) / 1.25)",
-      "--space-unit": "0.25rem",
-      "--space-1": "0.25rem", "--space-2": "0.5rem", "--space-3": "0.75rem",
-      "--space-4": "1rem", "--space-6": "1.5rem", "--space-8": "2rem", "--space-12": "3rem",
-      "--radii": "12px",
-      "--content-max": "72rem",
-      "--shadow-sm": "0 1px 2px rgba(0,0,0,0.08)",
-      "--shadow-md": "0 4px 12px rgba(0,0,0,0.12)",
-      "--shadow-lg": "0 12px 32px rgba(0,0,0,0.18)",
-      "--glass-bg": "rgba(24, 24, 27, 0.75)",
-      "--glass-blur": "blur(10px)",
-      "--noise-opacity": "0",
-      "--ambient-1": "rgba(99, 102, 241, 0.15)",
-      "--ambient-2": "rgba(129, 140, 248, 0.1)"
+      "--color-primary": "#6366f1", "--color-secondary": "#818cf8", "--color-accent": "#f43f5e", "--color-bg": "#09090b", "--color-surface": "#18181b", "--color-text": "#f4f4f5", "--color-text-muted": "#a1a1aa", "--color-border": "rgba(255, 255, 255, 0.08)",
+      "--font-heading": "'Inter', system-ui, sans-serif", "--font-body": "'Inter', system-ui, sans-serif", "--font-mono": "'JetBrains Mono', monospace",
+      "--text-base": "clamp(1rem, 0.9rem + 0.5vw, 1.125rem)", "--text-lg": "calc(var(--text-base) * 1.25)", "--text-xl": "calc(var(--text-lg) * 1.25)", "--text-2xl": "calc(var(--text-xl) * 1.25)", "--text-sm": "calc(var(--text-base) / 1.25)",
+      "--space-unit": "0.25rem", "--space-1": "0.25rem", "--space-2": "0.5rem", "--space-3": "0.75rem", "--space-4": "1rem", "--space-6": "1.5rem", "--space-8": "2rem", "--space-12": "3rem",
+      "--radii": "12px", "--content-max": "72rem",
+      "--shadow-sm": "0 1px 2px rgba(0,0,0,0.08)", "--shadow-md": "0 4px 12px rgba(0,0,0,0.12)", "--shadow-lg": "0 12px 32px rgba(0,0,0,0.18)",
+      "--glass-bg": "rgba(24, 24, 27, 0.75)", "--glass-blur": "blur(10px)", "--noise-opacity": "0",
+      "--ambient-1": "rgba(99, 102, 241, 0.15)", "--ambient-2": "rgba(129, 140, 248, 0.1)"
     },
     customCss: "/* 欢迎自由自定义额外的样式 */"
   };
@@ -909,35 +356,14 @@ import Layout from '../layouts/Layout.astro';
     name: "樱花梦境",
     author: "花舞少女",
     cssVars: {
-      "--color-primary": "#ff8fa3",
-      "--color-secondary": "#ffb3c1",
-      "--color-accent": "#ffccd5",
-      "--color-bg": "#fff0f3",
-      "--color-surface": "#ffffff",
-      "--color-text": "#590d22",
-      "--color-text-muted": "#800f2f",
-      "--color-border": "rgba(255, 143, 163, 0.25)",
-      "--font-heading": "'Inter', system-ui, sans-serif",
-      "--font-body": "'Inter', system-ui, sans-serif",
-      "--font-mono": "'JetBrains Mono', monospace",
-      "--text-base": "clamp(1rem, 0.9rem + 0.5vw, 1.125rem)",
-      "--text-lg": "calc(var(--text-base) * 1.25)",
-      "--text-xl": "calc(var(--text-lg) * 1.25)",
-      "--text-2xl": "calc(var(--text-xl) * 1.25)",
-      "--text-sm": "calc(var(--text-base) / 1.25)",
-      "--space-unit": "0.25rem",
-      "--space-1": "0.25rem", "--space-2": "0.5rem", "--space-3": "0.75rem",
-      "--space-4": "1rem", "--space-6": "1.5rem", "--space-8": "2rem", "--space-12": "3rem",
-      "--radii": "14px",
-      "--content-max": "72rem",
-      "--shadow-sm": "0 1px 3px rgba(89, 13, 34, 0.06)",
-      "--shadow-md": "0 4px 14px rgba(89, 13, 34, 0.08)",
-      "--shadow-lg": "0 12px 32px rgba(89, 13, 34, 0.12)",
-      "--glass-bg": "rgba(255, 255, 255, 0.7)",
-      "--glass-blur": "blur(12px)",
-      "--noise-opacity": "0",
-      "--ambient-1": "rgba(255, 143, 163, 0.18)",
-      "--ambient-2": "rgba(255, 179, 193, 0.12)"
+      "--color-primary": "#ff8fa3", "--color-secondary": "#ffb3c1", "--color-accent": "#ffccd5", "--color-bg": "#fff0f3", "--color-surface": "#ffffff", "--color-text": "#590d22", "--color-text-muted": "#800f2f", "--color-border": "rgba(255, 143, 163, 0.25)",
+      "--font-heading": "'Inter', system-ui, sans-serif", "--font-body": "'Inter', system-ui, sans-serif", "--font-mono": "'JetBrains Mono', monospace",
+      "--text-base": "clamp(1rem, 0.9rem + 0.5vw, 1.125rem)", "--text-lg": "calc(var(--text-base) * 1.25)", "--text-xl": "calc(var(--text-lg) * 1.25)", "--text-2xl": "calc(var(--text-xl) * 1.25)", "--text-sm": "calc(var(--text-base) / 1.25)",
+      "--space-unit": "0.25rem", "--space-1": "0.25rem", "--space-2": "0.5rem", "--space-3": "0.75rem", "--space-4": "1rem", "--space-6": "1.5rem", "--space-8": "2rem", "--space-12": "3rem",
+      "--radii": "14px", "--content-max": "72rem",
+      "--shadow-sm": "0 1px 3px rgba(89, 13, 34, 0.06)", "--shadow-md": "0 4px 14px rgba(89, 13, 34, 0.08)", "--shadow-lg": "0 12px 32px rgba(89, 13, 34, 0.12)",
+      "--glass-bg": "rgba(255, 255, 255, 0.7)", "--glass-blur": "blur(12px)", "--noise-opacity": "0",
+      "--ambient-1": "rgba(255, 143, 163, 0.18)", "--ambient-2": "rgba(255, 179, 193, 0.12)"
     },
     customCss: `
       @keyframes sakuraFall {
@@ -947,150 +373,179 @@ import Layout from '../layouts/Layout.astro';
         100% { transform: translateY(420px) rotate(360deg); opacity: 0; }
       }
       .sakura-petal {
-        position: absolute;
-        top: -10px;
-        background: var(--color-primary);
-        border-radius: 150% 0 150% 150%;
-        opacity: 0.7;
-        width: 10px;
-        height: 10px;
-        pointer-events: none;
-        animation: sakuraFall 5s linear infinite;
-        z-index: 10;
+        position: absolute; top: -10px; background: var(--color-primary); border-radius: 150% 0 150% 150%;
+        opacity: 0.7; width: 10px; height: 10px; pointer-events: none; animation: sakuraFall 5s linear infinite; z-index: 10;
       }
     `
   };
 
-  // 🛡️ Web sandbox iframe template (Strictly isolates and renders custom user styles/animations safely)
+  // 🛡️ Web sandbox SPA iframe template
   const IFRAME_TEMPLATE = `
     <!DOCTYPE html>
     <html lang="zh">
     <head>
       <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style id="base-style">
+        :root { --ui-transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-          margin: 0;
-          padding: 24px;
-          background: var(--color-bg, #0f0f23);
-          color: var(--color-text, #f4f4f5);
-          font-family: system-ui, -apple-system, sans-serif;
-          transition: background 0.3s, color 0.3s, border-color 0.3s;
-          min-height: 100vh;
-          box-sizing: border-box;
-          overflow-x: hidden;
-          position: relative;
+          font-family: var(--font-body, system-ui, -apple-system, sans-serif);
+          background-color: var(--color-bg); color: var(--color-text); min-height: 100vh; overflow-x: hidden; font-size: var(--text-base);
+          background-image: 
+            radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--ambient-1, var(--color-primary)) 12%, transparent) 0%, transparent 40%),
+            radial-gradient(circle at 0% 100%, color-mix(in srgb, var(--ambient-2, var(--color-secondary)) 12%, transparent) 0%, transparent 40%);
         }
-        .header-meta {
-          font-size: 11px;
-          font-weight: 700;
-          color: var(--color-text-muted, #71717a);
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
+        .app-layout { display: flex; height: 100vh; }
+        .sidebar {
+          width: 240px; background: var(--glass-bg, color-mix(in srgb, var(--color-surface) 80%, transparent)); border-right: 1px solid var(--color-border);
+          padding: var(--space-6) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2);
+          backdrop-filter: var(--glass-blur, blur(12px)); -webkit-backdrop-filter: var(--glass-blur, blur(12px)); z-index: 10;
         }
-        .main-title {
-          font-size: 22px;
-          font-weight: 800;
-          margin: 6px 0 12px;
-          color: var(--color-primary, #6366f1);
-        }
-        .body-desc {
-          font-size: 13px;
-          color: var(--color-text-muted, #71717a);
-          line-height: 1.6;
-          margin-bottom: 20px;
-        }
-        .btn-preview-primary {
-          background: var(--color-primary, #6366f1);
-          color: #fff;
-          border: none;
-          padding: 10px 20px;
-          border-radius: var(--radii, 10px);
-          font-weight: 600;
-          cursor: pointer;
-          font-size: 13px;
-          transition: filter 0.2s;
-        }
-        .btn-preview-primary:hover {
-          filter: brightness(1.1);
-        }
-        .btn-preview-secondary {
-          background: transparent;
-          border: 1.5px solid var(--color-border, rgba(255,255,255,0.15));
-          color: var(--color-text, #f4f4f5);
-          padding: 9px 18px;
-          border-radius: var(--radii, 10px);
-          font-weight: 600;
-          cursor: pointer;
-          font-size: 13px;
-        }
-        .btn-row {
-          display: flex;
-          gap: 10px;
-          margin-bottom: 24px;
-        }
-        .preview-card {
-          background: var(--color-surface, #1e1e38);
-          border: 1.5px solid var(--color-border, rgba(255,255,255,0.15));
-          border-radius: var(--radii, 12px);
-          padding: 20px;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-          backdrop-filter: blur(var(--glass-blur, 8px));
-        }
-        .card-heading {
-          font-weight: 700;
-          font-size: 14px;
-        }
-        .card-body-text {
-          font-size: 12px;
-          color: var(--color-text-muted, #71717a);
-          margin: 6px 0 14px;
-          line-height: 1.5;
-        }
-        .swatches {
-          display: flex;
-          gap: 6px;
-          flex-wrap: wrap;
-        }
-        .swatch-item {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 4px;
-        }
-        .swatch-color {
-          width: 28px;
-          height: 28px;
-          border-radius: 6px;
-          border: 1.5px solid var(--color-border, rgba(255,255,255,0.15));
-        }
-        .swatch-label {
-          font-size: 9px;
-          font-family: monospace;
-          color: var(--color-text-muted, #71717a);
-        }
+        .sidebar-brand { font-family: var(--font-heading); font-size: var(--text-lg); font-weight: 800; color: var(--color-primary); padding: 0 var(--space-4) var(--space-6); display: flex; align-items: center; gap: 8px; }
+        .nav-item { padding: 10px 16px; border-radius: var(--radii); color: var(--color-text-muted); font-size: var(--text-sm); font-weight: 600; cursor: pointer; transition: var(--ui-transition); display: flex; align-items: center; gap: 12px; }
+        .nav-item:hover { color: var(--color-text); background: color-mix(in srgb, var(--color-text) 5%, transparent); }
+        .nav-item.active { color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 12%, transparent); font-weight: 700; }
+        .main-content { flex: 1; padding: var(--space-8); overflow-y: auto; position: relative; max-width: var(--content-max); margin: 0 auto; }
+        .view-section { display: none; animation: fadeIn 0.4s ease forwards; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .page-header { margin-bottom: var(--space-8); }
+        .page-title { font-family: var(--font-heading); font-size: var(--text-2xl); font-weight: 800; color: var(--color-text); letter-spacing: -0.02em; }
+        .page-subtitle { font-size: var(--text-sm); color: var(--color-text-muted); margin-top: var(--space-2); }
+        .grid-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-6); margin-bottom: var(--space-6); }
+        .card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radii); padding: var(--space-6); box-shadow: var(--shadow-sm); transition: var(--ui-transition); }
+        .card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); border-color: color-mix(in srgb, var(--color-border) 100%, var(--color-text) 20%); }
+        .card-header { font-size: var(--text-base); font-weight: 700; margin-bottom: var(--space-4); display: flex; align-items: center; justify-content: space-between; }
+        .form-group { margin-bottom: var(--space-4); }
+        .label { display: block; font-size: calc(var(--text-sm) * 0.9); font-weight: 700; color: var(--color-text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .input, .textarea { width: 100%; padding: 12px 16px; background: color-mix(in srgb, var(--color-bg) 50%, transparent); border: 1.5px solid var(--color-border); border-radius: calc(var(--radii) - 2px); color: var(--color-text); font-size: var(--text-sm); font-family: var(--font-body); transition: var(--ui-transition); outline: none; }
+        .input:focus, .textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent); background: var(--color-surface); }
+        .textarea { resize: vertical; min-height: 80px; }
+        .btn-group { display: flex; gap: var(--space-3); flex-wrap: wrap; margin-top: var(--space-4);}
+        .btn { padding: 10px 20px; font-size: var(--text-sm); font-weight: 600; cursor: pointer; border-radius: calc(var(--radii) - 2px); transition: var(--ui-transition); display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: var(--font-body); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-primary { background: var(--color-primary); color: #ffffff; border: none; box-shadow: 0 4px 12px color-mix(in srgb, var(--color-primary) 30%, transparent); }
+        .btn-primary:not(:disabled):hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .btn-secondary { background: color-mix(in srgb, var(--color-secondary, var(--color-primary)) 15%, transparent); color: var(--color-secondary, var(--color-text)); border: none; }
+        .btn-secondary:not(:disabled):hover { background: color-mix(in srgb, var(--color-secondary, var(--color-primary)) 25%, transparent); }
+        .btn-outline { background: transparent; border: 1.5px solid var(--color-border); color: var(--color-text); }
+        .btn-outline:not(:disabled):hover { background: color-mix(in srgb, var(--color-text) 5%, transparent); border-color: var(--color-text-muted); }
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); }
+        .toggle-row:last-child { border-bottom: none; }
+        .toggle-info strong { display: block; font-size: var(--text-sm); color: var(--color-text); }
+        .toggle-info span { font-size: calc(var(--text-sm) * 0.9); color: var(--color-text-muted); }
+        .toggle { width: 44px; height: 24px; background: color-mix(in srgb, var(--color-border) 80%, transparent); border-radius: 20px; position: relative; cursor: pointer; transition: var(--ui-transition); }
+        .toggle::after { content:''; position:absolute; top:3px; left:3px; width:18px; height:18px; background:var(--color-surface); border-radius:50%; transition: var(--ui-transition); box-shadow: var(--shadow-sm); }
+        .toggle.on { background: var(--color-primary); }
+        .toggle.on::after { transform: translateX(20px); }
+        .profile-header { display: flex; align-items: center; gap: var(--space-6); margin-bottom: var(--space-6); }
+        .avatar-lg { width: 80px; height: 80px; border-radius: 50%; background: var(--color-secondary); border: 2px solid var(--color-surface); box-shadow: var(--shadow-md); display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--color-text); font-weight: 800; font-family: var(--font-heading); }
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: calc(var(--text-sm) * 0.85); font-weight: 700; background: color-mix(in srgb, var(--color-accent) 20%, transparent); color: var(--color-text); border: 1px solid color-mix(in srgb, var(--color-accent) 40%, transparent); }
+        .toast-container { position: fixed; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 10px; z-index: 9999; }
+        .toast { background: var(--glass-bg, var(--color-surface)); backdrop-filter: var(--glass-blur, blur(10px)); color: var(--color-text); border: 1px solid var(--color-border); padding: 12px 20px; border-radius: var(--radii); box-shadow: var(--shadow-lg); font-size: var(--text-sm); font-weight: 600; display: flex; align-items: center; gap: 10px; animation: slideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+        .toast.success { border-left: 4px solid var(--color-primary); }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideOut { to { transform: translateY(10px); opacity: 0; } }
+        @media (max-width: 768px) { .app-layout { flex-direction: column; } .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--color-border); flex-direction: row; padding: 12px 16px; overflow-x: auto; align-items: center;} .sidebar-brand { padding: 0 16px 0 0; margin-right: 16px; border-right: 1px solid var(--color-border); } .nav-item { white-space: nowrap; } .main-content { padding: var(--space-4); } .toast-container { bottom: 20px; right: 20px; left: 20px; align-items: center; } }
       </style>
       <style id="theme-style"></style>
     </head>
     <body>
-      <div id="sakura-container" style="position:absolute; inset:0; pointer-events:none; overflow:hidden;"></div>
-      
-      <div class="header-meta">Theme Demo Sandbox</div>
-      <div class="main-title" id="preview-title">城市黄昏</div>
-      <div class="body-desc">
-        这是沙盒模拟的真实页面，网页背景色（color-bg）、容器色（color-surface）均已实时响应您刚才粘贴的数据变化。
+      <div id="effects-container"></div>
+      <div class="toast-container" id="toast-container"></div>
+      <div class="app-layout">
+        <aside class="sidebar" id="sidebar-nav">
+          <div class="sidebar-brand">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            ThemeDist
+          </div>
+          <div class="nav-item active" data-target="dashboard">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            Dashboard
+          </div>
+          <div class="nav-item" data-target="profile">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            Profile
+          </div>
+          <div class="nav-item" data-target="settings">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            Settings
+          </div>
+        </aside>
+        <main class="main-content">
+          <div id="view-dashboard" class="view-section active">
+            <header class="page-header"><h1 class="page-title" id="preview-title">主题预览</h1><p class="page-subtitle">沉浸式多页面环境 · 实时反馈您当前输入的样式表变化</p></header>
+            <div class="grid-row">
+              <div class="card"><div class="card-header"><span>Total Revenue</span><span class="badge">+14.5%</span></div><div style="font-size: var(--text-2xl); font-weight: 800; color: var(--color-primary); font-family: var(--font-mono);">45,231</div><p style="font-size: calc(var(--text-sm)*0.9); color: var(--color-text-muted); margin-top: 8px;">Compared to last month</p></div>
+              <div class="card"><div class="card-header"><span>Active Users</span><span class="badge" style="background: color-mix(in srgb, var(--color-secondary) 15%, transparent); color: var(--color-text); border-color: color-mix(in srgb, var(--color-secondary) 30%, transparent);">Active</span></div><div style="font-size: var(--text-2xl); font-weight: 800; color: var(--color-text); font-family: var(--font-mono);">2,845</div><p style="font-size: calc(var(--text-sm)*0.9); color: var(--color-text-muted); margin-top: 8px;">Currently on your website</p></div>
+            </div>
+            <div class="card">
+              <div class="card-header">Form Controls Interface</div>
+              <div class="form-group"><label class="label">Email Address</label><input type="email" class="input" placeholder="you@example.com" value="user@themedist.app"></div>
+              <div class="form-group"><label class="label">Project Description</label><input type="text" class="input" placeholder="Enter details..."></div>
+              <div class="btn-group"><button class="btn btn-primary" id="btn-save">Save Changes</button><button class="btn btn-secondary" onclick="window.showToast('Changes discarded.', 'default')">Discard</button></div>
+            </div>
+          </div>
+          <div id="view-profile" class="view-section">
+            <header class="page-header"><h1 class="page-title">User Profile</h1><p class="page-subtitle">Manage your personal information and biography.</p></header>
+            <div class="card">
+              <div class="profile-header"><div class="avatar-lg">TD</div><div><h2 style="font-family: var(--font-heading); font-size: var(--text-xl); font-weight: 800;">Theme Designer</h2><p style="color: var(--color-text-muted); font-size: var(--text-sm); margin-top:4px;">designer@themedist.app</p></div></div>
+              <div class="form-group"><label class="label">Biography</label><textarea class="textarea" placeholder="Tell us about yourself...">Crafting beautiful digital experiences with colors and shadows.</textarea></div>
+              <div class="btn-group"><button class="btn btn-primary" onclick="window.showToast('Profile updated!', 'success')">Update Profile</button></div>
+            </div>
+          </div>
+          <div id="view-settings" class="view-section">
+            <header class="page-header"><h1 class="page-title">Preferences</h1><p class="page-subtitle">Customize your application experience.</p></header>
+            <div class="card">
+              <div class="card-header">General Settings</div>
+              <div class="toggle-row"><div class="toggle-info"><strong>Enable Notifications</strong><span>Receive alerts for important updates.</span></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+              <div class="toggle-row"><div class="toggle-info"><strong>Use Glassmorphism</strong><span>Apply blur effects to sidebars and cards.</span></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+            </div>
+          </div>
+        </main>
       </div>
+      <script>
+        document.addEventListener('DOMContentLoaded', () => {
+          const toastContainer = document.getElementById('toast-container');
+          window.showToast = function(message, type = 'default') {
+            const toast = document.createElement('div');
+            toast.className = 'toast ' + (type === 'success' ? 'success' : '');
+            const icon = type === 'success' 
+              ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>'
+              : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
+            toast.innerHTML = icon + '<span>' + message + '</span>';
+            toastContainer.appendChild(toast);
+            setTimeout(() => { toast.style.animation = 'slideOut 0.3s ease forwards'; setTimeout(() => toast.remove(), 300); }, 3000);
+          };
 
-      <div class="btn-row">
-        <button class="btn-preview-primary">主要操作</button>
-        <button class="btn-preview-secondary">次要操作</button>
-      </div>
+          const navItems = document.querySelectorAll('.nav-item');
+          const views = document.querySelectorAll('.view-section');
+          navItems.forEach(item => {
+            item.addEventListener('click', () => {
+              navItems.forEach(n => n.classList.remove('active'));
+              item.classList.add('active');
+              const target = item.dataset.target;
+              views.forEach(v => { v.classList.remove('active'); if (v.id === 'view-' + target) v.classList.add('active'); });
+            });
+          });
 
-      <div class="preview-card">
-        <div class="card-heading">信息卡片示例</div>
-        <p class="card-body-text">卡片用于聚合局部业务。请观察 card-surface 与 page-bg 在多层叠加时的对比度是否理想。</p>
-        
-        <div class="swatches" id="swatches-container"></div>
-      </div>
+          const btnSave = document.getElementById('btn-save');
+          if(btnSave) {
+            btnSave.addEventListener('click', () => {
+              const originalText = btnSave.innerHTML;
+              btnSave.disabled = true;
+              btnSave.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg> Saving...';
+              if(!document.getElementById('spin-style')) {
+                const style = document.createElement('style'); style.id = 'spin-style';
+                style.innerHTML = '@keyframes spinner { to { transform: rotate(360deg); } } .spin { animation: spinner 1s linear infinite; }';
+                document.head.appendChild(style);
+              }
+              setTimeout(() => { btnSave.disabled = false; btnSave.innerHTML = originalText; window.showToast('Changes applied successfully!', 'success'); }, 1200);
+            });
+          }
+        });
+      <\/script>
     </body>
     </html>
   `;
@@ -1108,51 +563,34 @@ import Layout from '../layouts/Layout.astro';
   const tabContentCss = $('tab-content-css');
 
   tabBtnVars.addEventListener('click', () => {
-    tabBtnVars.classList.add('active');
-    tabBtnCss.classList.remove('active');
-    tabContentVars.classList.add('active');
-    tabContentCss.classList.remove('active');
+    tabBtnVars.classList.add('active'); tabBtnCss.classList.remove('active');
+    tabContentVars.classList.add('active'); tabContentCss.classList.remove('active');
   });
 
   tabBtnCss.addEventListener('click', () => {
-    tabBtnCss.classList.add('active');
-    tabBtnVars.classList.remove('active');
-    tabContentCss.classList.add('active');
-    tabContentVars.classList.remove('active');
+    tabBtnCss.classList.add('active'); tabBtnVars.classList.remove('active');
+    tabContentCss.classList.add('active'); tabContentVars.classList.remove('active');
   });
 
-  // Character limit dynamic counter UI
   function setupCounter(inputEl, counterEl, max) {
     inputEl.addEventListener('input', () => {
       const len = inputEl.value.length;
       counterEl.textContent = `${len}/${max}`;
-      if (len >= max) {
-        counterEl.style.color = 'var(--color-primary)';
-      } else {
-        counterEl.style.color = '';
-      }
+      counterEl.style.color = len >= max ? 'var(--color-primary)' : '';
     });
   }
   setupCounter($('name-input'), $('name-counter'), 40);
   setupCounter($('author-input'), $('author-counter'), 20);
 
-  function showError(msg) {
-    const el = $('vars-error');
-    el.textContent = msg;
-    el.style.display = 'block';
-  }
-  function clearError() {
-    $('vars-error').style.display = 'none';
-    $('btn-autofix').style.display = 'none';
-  }
+  function showError(msg) { $('vars-error').textContent = msg; $('vars-error').style.display = 'block'; }
+  function clearError() { $('vars-error').style.display = 'none'; $('btn-autofix').style.display = 'none'; }
 
   function validateVars(vars) {
     if (!vars || typeof vars !== 'object' || Array.isArray(vars)) return false;
     const keys = Object.keys(vars);
     if (keys.length < 5) return false;
     for (const [k, v] of Object.entries(vars)) {
-      if (typeof k !== 'string' || typeof v !== 'string') return false;
-      if (!k.startsWith('--')) return false;
+      if (typeof k !== 'string' || typeof v !== 'string' || !k.startsWith('--')) return false;
     }
     return true;
   }
@@ -1160,14 +598,8 @@ import Layout from '../layouts/Layout.astro';
   // 🎨 Editor Live parsed swatches renderer
   function renderEditorSwatches(vars) {
     const swatchesContainer = $('editor-swatches');
-    if (!vars) {
-      swatchesContainer.innerHTML = '';
-      return;
-    }
-    // Filter all color-like values (hex, rgb, rgba, hsl) — includes color vars + ambient
-    const isColorVal = (v) => typeof v === 'string' && (
-      v.startsWith('#') || v.startsWith('rgb') || v.startsWith('hsl') || v.startsWith('rgba')
-    );
+    if (!vars) { swatchesContainer.innerHTML = ''; return; }
+    const isColorVal = (v) => typeof v === 'string' && (v.startsWith('#') || v.startsWith('rgb') || v.startsWith('hsl') || v.startsWith('rgba'));
     const colorSwatches = Object.entries(vars).filter(([k, v]) => isColorVal(v) && k.startsWith('--color-'));
     const ambientSwatches = Object.entries(vars).filter(([k, v]) => isColorVal(v) && k.startsWith('--ambient-'));
 
@@ -1179,38 +611,23 @@ import Layout from '../layouts/Layout.astro';
     const renderChip = ([key, val]) => `
       <div class="editor-swatch" title="${key}: ${val} — 点击复制" data-swatch-val="${val}">
         <div class="editor-swatch-color" style="background: ${val}"></div>
-        <div class="editor-swatch-info">
-          <span class="editor-swatch-name">${key.replace('--color-', '').replace('--ambient-', '')}</span>
-          <span class="editor-swatch-val">${val}</span>
-        </div>
-      </div>
-    `;
+        <div class="editor-swatch-info"><span class="editor-swatch-name">${key.replace('--color-', '').replace('--ambient-', '')}</span><span class="editor-swatch-val">${val}</span></div>
+      </div>`;
 
     let html = '';
-    if (colorSwatches.length > 0) {
-      html += '<span class="palette-group-label">色板</span>' + colorSwatches.map(renderChip).join('');
-    }
-    if (ambientSwatches.length > 0) {
-      html += '<span class="palette-group-label">氛围</span>' + ambientSwatches.map(renderChip).join('');
-    }
-
+    if (colorSwatches.length > 0) html += '<span class="palette-group-label">色板</span>' + colorSwatches.map(renderChip).join('');
+    if (ambientSwatches.length > 0) html += '<span class="palette-group-label">氛围</span>' + ambientSwatches.map(renderChip).join('');
     swatchesContainer.innerHTML = html;
   }
 
   // ─── Sandboxed Preview Engine (Dynamic inside isolated iframe) ───
   function initIframe(callback) {
     const iframe = $('preview-iframe');
-    iframe.onload = () => {
-      if (callback) callback();
-    };
-    const doc = iframe.contentDocument || iframe.contentWindow?.document;
-    if (!doc) return;
-    doc.open();
-    doc.write(IFRAME_TEMPLATE);
-    doc.close();
+    iframe.onload = () => { if (callback) callback(); };
+    iframe.srcdoc = IFRAME_TEMPLATE;
   }
 
-  function updatePreview(vars, css, themeName = "主题名称预览") {
+  function updatePreview(vars, css, themeName = "未命名主题") {
     currentVars = vars;
     currentCss = css;
 
@@ -1231,48 +648,28 @@ import Layout from '../layouts/Layout.astro';
     const doc = iframe.contentDocument || iframe.contentWindow?.document;
     if (!doc) return;
 
-    // 1. Render dynamic theme variables & custom css inside iframe head
+    // 1. Live injection of CSS Variables & Custom CSS via DOM
     const styleEl = doc.getElementById('theme-style');
     if (styleEl) {
       const varsCSS = Object.entries(vars).map(([k, v]) => `${k}:${v}`).join(';');
-      styleEl.textContent = `
-        :root { ${varsCSS} }
-        ${css}
-      `;
+      // 使用 textContent 自动防范跨站注入，保障安全
+      styleEl.textContent = `:root { ${varsCSS} }\n${css || ''}`;
     }
 
     // 2. Set Theme metadata within sandbox
     const titleEl = doc.getElementById('preview-title');
     if (titleEl) titleEl.textContent = themeName;
 
-    // 3. Render theme palettes swatches (all color-type vars) 
-    // 🌸 修复运行时 BUG：原 Object.keys(themeVars) 导致 ReferenceError 崩溃，现修正为 Object.keys(vars)
-    const swatchesContainer = doc.getElementById('swatches-container');
-    if (swatchesContainer) {
-      const colorKeys = Object.keys(vars).filter(k =>
-        k.startsWith('--color-') || k.startsWith('--ambient-')
-      );
-      swatchesContainer.innerHTML = colorKeys.map(k => `
-        <div class="swatch-item">
-          <div class="swatch-color" style="background: var(${k})"></div>
-          <span class="swatch-label">${k.replace('--color-', '').replace('--ambient-', '')}</span>
-        </div>
-      `).join('');
-    }
-
-    // 4. Sakura falling special effect simulator if demo is chosen
-    const sakuraContainer = doc.getElementById('sakura-container');
-    if (sakuraContainer) {
-      sakuraContainer.innerHTML = '';
-      if (themeName === DEMO_THEME.name) {
-        for (let i = 0; i < 8; i++) {
-          const petal = doc.createElement('div');
-          petal.className = 'sakura-petal';
-          petal.style.left = Math.random() * 100 + '%';
-          petal.style.animationDelay = Math.random() * 5 + 's';
-          petal.style.animationDuration = (Math.random() * 3 + 3) + 's';
-          sakuraContainer.appendChild(petal);
+    // 3. Render Effects (e.g. Sakura)
+    const effectsContainer = doc.getElementById('effects-container');
+    if (effectsContainer) {
+      effectsContainer.innerHTML = ''; // 清除旧特效
+      if (themeName === "樱花梦境" || (css && css.includes('.sakura-petal'))) {
+        let effectsHtml = '';
+        for (let i = 0; i < 15; i++) {
+          effectsHtml += `<div class="sakura-petal" style="left:${Math.random() * 100}%; animation-delay:${Math.random() * 5}s; animation-duration:${Math.random() * 4 + 4}s"></div>`;
         }
+        effectsContainer.innerHTML = effectsHtml;
       }
     }
 
@@ -1307,11 +704,8 @@ import Layout from '../layouts/Layout.astro';
     const input = $('vars-input');
     let raw = input.value.trim();
     try {
-      // 1. Try removing trailing commas
       raw = raw.replace(/,\s*([\]}])/g, '$1');
-      // 2. Try wrapping unquoted keys in quotes (common mistake)
       raw = raw.replace(/([{,]\s*)([a-zA-Z0-9_\-]+)\s*:/g, '$1"$2":');
-      // Test parsing again
       const parsed = JSON.parse(raw);
       input.value = JSON.stringify(parsed, null, 2);
       clearError();
@@ -1321,14 +715,12 @@ import Layout from '../layouts/Layout.astro';
     }
   });
 
-  // ─── Load Template ───
   function loadThemeData(themeObj) {
     $('vars-input').value = JSON.stringify(themeObj.cssVars, null, 2);
     $('css-input').value = themeObj.customCss || '';
     $('name-input').value = themeObj.name;
     $('author-input').value = themeObj.author;
 
-    // Dispatch events to refresh counters
     $('name-input').dispatchEvent(new Event('input'));
     $('author-input').dispatchEvent(new Event('input'));
 
@@ -1337,15 +729,12 @@ import Layout from '../layouts/Layout.astro';
     setSynced();
   }
 
-  // Click-to-copy swatch hex/color value
   document.getElementById('editor-swatches')?.addEventListener('click', (e) => {
     const swatch = e.target.closest('[data-swatch-val]');
     if (!swatch) return;
     const val = swatch.getAttribute('data-swatch-val');
     if (val) {
-      navigator.clipboard.writeText(val).then(() => {
-        window.__toast?.(`颜色值 ${val} 已复制`);
-      }).catch(() => {});
+      navigator.clipboard.writeText(val).then(() => { window.__toast?.(`颜色值 ${val} 已复制`); }).catch(() => {});
     }
   });
 
@@ -1357,13 +746,8 @@ import Layout from '../layouts/Layout.astro';
   // ══════════════════════════════════════════
   // AI Theme Generation — Client-side DeepSeek
   // ══════════════════════════════════════════
-
   const AI_KEY_STORAGE = 'td_deepseek_key';
-
-  function getStoredApiKey() {
-    try { return localStorage.getItem(AI_KEY_STORAGE) || ''; } catch { return ''; }
-  }
-
+  function getStoredApiKey() { try { return localStorage.getItem(AI_KEY_STORAGE) || ''; } catch { return ''; } }
   function updateKeyIndicator() {
     const key = getStoredApiKey();
     const toggle = $('btn-toggle-apikey');
@@ -1378,45 +762,33 @@ import Layout from '../layouts/Layout.astro';
     }
   }
 
-  // Restore saved key on load
   const savedKey = getStoredApiKey();
-  if (savedKey) {
-    $('ai-apikey').value = savedKey;
-    updateKeyIndicator();
-  }
+  if (savedKey) { $('ai-apikey').value = savedKey; updateKeyIndicator(); }
 
-  // Toggle key panel
   $('btn-toggle-apikey').addEventListener('click', () => {
     const panel = $('ai-key-panel');
     panel.hidden = !panel.hidden;
   });
 
-  // Save API key (localStorage only — never sent to server)
   $('btn-save-apikey').addEventListener('click', () => {
     const key = $('ai-apikey').value.trim();
     const fb = $('ai-key-feedback');
-    if (!key) {
-      fb.textContent = '请输入有效的 API Key';
-      fb.className = 'ai-key-feedback error';
-      return;
-    }
-    if (!key.startsWith('sk-')) {
-      fb.textContent = 'DeepSeek API Key 以 sk- 开头，请检查';
+    if (!key || !key.startsWith('sk-')) {
+      fb.textContent = 'DeepSeek API Key 格式有误 (需以 sk- 开头)';
       fb.className = 'ai-key-feedback error';
       return;
     }
     try {
       localStorage.setItem(AI_KEY_STORAGE, key);
       updateKeyIndicator();
-      fb.textContent = '✓ API Key 已安全存入本地浏览器，仅用于直接请求 DeepSeek';
+      fb.textContent = '✓ API Key 已安全存入本地浏览器';
       fb.className = 'ai-key-feedback success';
     } catch {
-      fb.textContent = 'localStorage 写入失败，请检查浏览器隐私设置';
+      fb.textContent = '写入失败，请检查浏览器隐私设置';
       fb.className = 'ai-key-feedback error';
     }
   });
 
-  // Clear API key
   $('btn-clear-apikey').addEventListener('click', () => {
     try { localStorage.removeItem(AI_KEY_STORAGE); } catch {}
     $('ai-apikey').value = '';
@@ -1426,119 +798,78 @@ import Layout from '../layouts/Layout.astro';
     fb.className = 'ai-key-feedback success';
   });
 
-  // DeepSeek prompt for theme generation
   function buildDeepSeekPrompt(description) {
     return `你是一位专业的主题配色设计师。根据用户的文字描述，生成一套完整的 CSS 变量主题配色方案。
 
 用户描述: "${description}"
 
 ## 色彩设计法则
-- 主色(primary)定义主题性格，辅色(secondary)作邻近过渡，强调色(accent)用对比色/补色制造视觉焦点
-- 背景(bg)→表面(surface)→边框(border)→弱化文字(text-muted)→主文字(text) 亮度逐层递增（深色主题）或递减（浅色主题）
-- 主文字与背景对比度 ≥ 7:1，弱化文字 ≥ 4.5:1
-- ambient 氛围色从主色/辅色派生，降低饱和度融入背景
-- 阴影使用带色彩倾向的半透明色而非纯黑
+- 主色(primary)定义性格，背景(bg)→表面(surface)→边框(border)→主文字(text) 亮度递增（深色）或递减（浅色）
+- 必须返回全部 34 个 CSS 变量
 
-## 特效设计要求（customCss 必须实现）
-- 必须根据用户描述生成主题相关的纯 CSS 特效动画，**禁止返回空字符串**
-- 只能使用纯 CSS（@keyframes 动画、伪元素 ::before/::after、渐变、滤镜、box-shadow 等），禁止 JavaScript
-- 特效方向参考：
-  · 赛博朋克 → 霓虹发光边框、扫描线 overlay、故障闪烁 glitch、数字雨粒子（伪元素）
-  · 自然/森林 → 飘落叶片、浮动光点、柔和呼吸光晕
-  · 海洋 → 波浪动画、浮动气泡
-  · 暗黑/星空 → 闪烁星光、流星划过
-  · 樱花/甜美 → 飘落花瓣、渐变柔光
-  · 节日 → 飘落雪花、闪烁彩灯
-  · 复古 → 胶片颗粒噪点、扫描线、暖色辉光
-- @keyframes 动画名使用语义化命名，避免与现有样式冲突
+## 特效设计要求
+- 必须根据描述生成纯 CSS 特效动画（@keyframes），不可返回空。
 
-## 必须返回完整的 cssVars（全部 34 项）
-
-### 颜色
---color-primary / --color-secondary / --color-accent / --color-bg / --color-surface / --color-text / --color-text-muted / --color-border
-
-### 氛围
---ambient-1 / --ambient-2
-
-### 阴影
---shadow-sm / --shadow-md / --shadow-lg
-
-### 毛玻璃
---glass-bg / --glass-blur
-
-### 布局
---radii / --content-max
-
-### 字体
---font-heading / --font-body / --font-mono
-
-### 字号
---text-base / --text-lg / --text-xl / --text-2xl / --text-sm
-
-### 间距
---space-unit / --space-1 / --space-2 / --space-3 / --space-4 / --space-6 / --space-8 / --space-12
-
-### 其他
---noise-opacity
-
-返回**纯净 JSON**（不要 markdown 包裹、不要代码块标记、不要额外文字），格式：
+返回纯净 JSON 格式（无代码块）：
 {
-  "name": "主题名称（中文，2-8字，有诗意）",
-  "tags": ["dark或light", "vibrant或minimal", "warm或cool", "可选的: nature, tech, retro, holiday"],
-  "cssVars": { 全部 34 个 CSS 变量，每个值量身定制 },
-  "customCss": "必须：与主题描述匹配的纯 CSS 特效动画（@keyframes + 伪元素实现粒子掉落、霓虹发光、扫描线等）。禁止返回空字符串"
+  "name": "主题名称",
+  "tags": ["dark"],
+  "cssVars": { 全部 34 个 CSS 变量 },
+  "customCss": "纯 CSS 特效动画"
 }`;
   }
 
-  // Call DeepSeek directly from the browser
   async function callDeepSeek(apiKey, description) {
     const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages: [{ role: 'user', content: buildDeepSeekPrompt(description) }],
         temperature: 0.8,
-        max_tokens: 4000,
       }),
     });
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '');
-      throw new Error(`DeepSeek API ${res.status}: ${errBody.slice(0, 100)}`);
-    }
+    if (!res.ok) throw new Error(`DeepSeek API 请求失败`);
     const data = await res.json();
-    const content = data.choices?.[0]?.message?.content || '';
-    const cleanJson = content.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+    const cleanJson = (data.choices?.[0]?.message?.content || '').replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
     return JSON.parse(cleanJson);
   }
 
-  // Generate button handler
+  function sanitizeCustomCSS(css) {
+    if (!css || typeof css !== 'string') return '';
+    let s = css.trim().replace(/^```(?:css)?\s*/i, '').replace(/\s*```$/i, '').replace(/^["']|["']$/g, '').trim();
+    if (/^(none|null|无|没有|空|n\/a|\s*)$/i.test(s)) return '';
+    return s;
+  }
+
+  function generateFallbackCSS(text) {
+    return `/* 通用氛围粒子特效 */
+body::after {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+  background-image: radial-gradient(1.5px 1.5px at 20% 30%, color-mix(in srgb, var(--color-primary) 25%, transparent) 50%, transparent 50%),
+    radial-gradient(1px 1px at 55% 65%, color-mix(in srgb, var(--color-primary) 20%, transparent) 50%, transparent 50%);
+  animation: ambientDrift 6s ease-in-out infinite alternate;
+}
+@keyframes ambientDrift { 0%{opacity:0.3;transform:translateY(0)} 100%{opacity:0.8;transform:translateY(-10px)} }`;
+  }
+
   $('btn-ai-generate').addEventListener('click', async () => {
     const desc = $('ai-description').value.trim();
-    if (!desc) {
-      $('ai-status').textContent = '请先输入主题描述';
-      return;
-    }
+    if (!desc) { $('ai-status').textContent = '请先输入主题描述'; return; }
 
     const btn = $('btn-ai-generate');
     const apiKey = getStoredApiKey();
     const useDeepSeek = !!apiKey;
     btn.classList.add('loading');
     btn.innerHTML = '<span class="spinner-sm" style="width:14px;height:14px;border-width:2px;display:inline-block;margin-right:4px"></span> 生成中…';
-    $('ai-status').textContent = useDeepSeek ? '正在调用 DeepSeek 生成主题…' : '正在生成主题配色…';
+    $('ai-status').textContent = useDeepSeek ? '正在调用 DeepSeek v4 Flash 生成主题…' : '正在生成主题配色…';
 
     try {
       let data;
-
       if (useDeepSeek) {
-        // Client-side: call DeepSeek API directly — key never touches our server
         data = await callDeepSeek(apiKey, desc);
         data.generatedBy = 'deepseek';
       } else {
-        // Server-side fallback: rule engine
         const res = await fetch('/api/ai/generate.json', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1548,54 +879,30 @@ import Layout from '../layouts/Layout.astro';
         data = await res.json();
       }
 
-      // Validate the response
-      if (!data.cssVars || typeof data.cssVars !== 'object') {
-        throw new Error('AI 返回的 CSS 变量格式异常');
-      }
+      if (!data.cssVars || typeof data.cssVars !== 'object') throw new Error('AI 返回的 CSS 变量格式异常');
 
-      // Merge structural defaults for any missing cssVars fields
       const STRUCTURAL_DEFAULTS = {
-        '--font-heading': "'Inter', system-ui, sans-serif",
-        '--font-body': "'Inter', system-ui, sans-serif",
-        '--font-mono': "'JetBrains Mono', monospace",
-        '--text-base': 'clamp(1rem, 0.9rem + 0.5vw, 1.125rem)',
-        '--text-lg': 'calc(var(--text-base) * 1.25)',
-        '--text-xl': 'calc(var(--text-lg) * 1.25)',
-        '--text-2xl': 'calc(var(--text-xl) * 1.25)',
-        '--text-sm': 'calc(var(--text-base) / 1.25)',
-        '--space-unit': '0.25rem',
-        '--space-1': 'calc(0.25rem * 1)',
-        '--space-2': 'calc(0.25rem * 2)',
-        '--space-3': 'calc(0.25rem * 3)',
-        '--space-4': 'calc(0.25rem * 4)',
-        '--space-6': 'calc(0.25rem * 6)',
-        '--space-8': 'calc(0.25rem * 8)',
-        '--space-12': 'calc(0.25rem * 12)',
-        '--content-max': '72rem',
-        '--noise-opacity': '0',
+        '--font-heading': "'Inter', system-ui, sans-serif", '--font-body': "'Inter', system-ui, sans-serif", '--font-mono': "'JetBrains Mono', monospace",
+        '--text-base': 'clamp(1rem, 0.9rem + 0.5vw, 1.125rem)', '--text-lg': 'calc(var(--text-base) * 1.25)', '--text-xl': 'calc(var(--text-lg) * 1.25)', '--text-2xl': 'calc(var(--text-xl) * 1.25)', '--text-sm': 'calc(var(--text-base) / 1.25)',
+        '--space-unit': '0.25rem', '--space-1': 'calc(0.25rem * 1)', '--space-2': 'calc(0.25rem * 2)', '--space-3': 'calc(0.25rem * 3)', '--space-4': 'calc(0.25rem * 4)', '--space-6': 'calc(0.25rem * 6)', '--space-8': 'calc(0.25rem * 8)', '--space-12': 'calc(0.25rem * 12)',
+        '--content-max': '72rem', '--noise-opacity': '0',
       };
-      for (const [k, v] of Object.entries(STRUCTURAL_DEFAULTS)) {
-        if (!(k in data.cssVars)) data.cssVars[k] = v;
-      }
+      for (const [k, v] of Object.entries(STRUCTURAL_DEFAULTS)) { if (!(k in data.cssVars)) data.cssVars[k] = v; }
 
-      // Populate the form
+      const rawCss = data.customCss || '';
+      const cleanedCss = sanitizeCustomCSS(rawCss);
+      const isValidCss = cleanedCss.length >= 20 && (cleanedCss.includes('{') || cleanedCss.includes('@keyframes') || cleanedCss.includes('@media'));
+      const finalCss = isValidCss ? cleanedCss : generateFallbackCSS(desc);
+
       $('vars-input').value = JSON.stringify(data.cssVars, null, 2);
       $('name-input').value = (data.name || '').slice(0, 40);
-      if (data.customCss) {
-        $('css-input').value = data.customCss;
-      }
-      if (data.tags?.length) {
-        $('name-input').dataset.tags = JSON.stringify(data.tags);
-      } else {
-        delete $('name-input').dataset.tags;
-      }
+      $('css-input').value = finalCss;
+      if (data.tags?.length) $('name-input').dataset.tags = JSON.stringify(data.tags);
+      else delete $('name-input').dataset.tags;
 
-      // Trigger preview and validation
       $('vars-input').dispatchEvent(new Event('input'));
       window.__toast?.(`主题「${data.name || '未命名'}」已生成`);
-      $('ai-status').textContent = useDeepSeek
-        ? `由 DeepSeek AI 生成 — ${data.name || ''}`
-        : `由规则引擎生成 — ${data.name || ''}`;
+      $('ai-status').textContent = useDeepSeek ? `由 DeepSeek V4 Flash 生成 — ${data.name || ''}` : `由规则引擎生成 — ${data.name || ''}`;
     } catch (err) {
       $('ai-status').textContent = '生成失败：' + (err.message || '请稍后重试');
       window.__toast?.(err.message || 'AI 生成暂时不可用');
@@ -1605,7 +912,7 @@ import Layout from '../layouts/Layout.astro';
     }
   });
 
-  // ─── Import from clipboard (Gracefully falling back on restricted environments) ───
+  // ─── Import from clipboard ───
   $('btn-import').addEventListener('click', async () => {
     try {
       const text = await navigator.clipboard.readText();
@@ -1619,10 +926,7 @@ import Layout from '../layouts/Layout.astro';
         css = data.customCss || '';
       }
 
-      if (!validateVars(vars)) {
-        showError('无效的数据：导入的 JSON 必须包含一系列 CSS 自定义属性变量');
-        return;
-      }
+      if (!validateVars(vars)) { showError('无效的数据：导入的 JSON 必须包含一系列 CSS 自定义属性变量'); return; }
 
       clearError();
       $('vars-input').value = JSON.stringify(vars, null, 2);
@@ -1630,7 +934,7 @@ import Layout from '../layouts/Layout.astro';
       updatePreview(vars, css, $('name-input').value || undefined);
       window.__toast?.('配置导入成功！');
     } catch {
-      showError('由于浏览器安全策略，剪贴板读取失败。请手动复制并粘贴至输入框');
+      showError('由于浏览器安全策略，剪贴板读取失败。请手动粘贴');
     }
   });
 
@@ -1644,76 +948,48 @@ import Layout from '../layouts/Layout.astro';
   function setSensing() {
     if (!liveBadge) return;
     liveBadge.className = 'badge-live-dot sensing';
-    detailedStatus.textContent = 'DETECTING…';
-    detailedStatus.style.color = '#f59e0b';
-    
-    // Ambient feedback trigger
+    detailedStatus.textContent = 'DETECTING…'; detailedStatus.style.color = '#f59e0b';
     browserShell.className = 'preview-browser compiling';
-    loadingBar.style.width = '65%';
-    loadingBar.style.opacity = '1';
+    loadingBar.style.width = '65%'; loadingBar.style.opacity = '1';
   }
 
   function setSynced() {
     if (!liveBadge) return;
     liveBadge.className = 'badge-live-dot synced';
-    detailedStatus.textContent = '已同步';
-    detailedStatus.style.color = '#22c55e';
-    
+    detailedStatus.textContent = '已同步'; detailedStatus.style.color = '#22c55e';
     browserShell.className = 'preview-browser synced-state';
     loadingBar.style.width = '100%';
 
     clearTimeout(syncTimer);
     syncTimer = setTimeout(() => {
       liveBadge.className = 'badge-live-dot';
-      detailedStatus.textContent = 'LIVE SENSING';
-      detailedStatus.style.color = '';
+      detailedStatus.textContent = 'LIVE SENSING'; detailedStatus.style.color = '';
       loadingBar.style.opacity = '0';
-      
-      // Delay reset width
-      setTimeout(() => {
-        loadingBar.style.width = '0%';
-        browserShell.className = 'preview-browser';
-      }, 200);
+      setTimeout(() => { loadingBar.style.width = '0%'; browserShell.className = 'preview-browser'; }, 200);
     }, 1200);
   }
 
   function setLiveError() {
     if (!liveBadge) return;
     liveBadge.className = 'badge-live-dot';
-    detailedStatus.textContent = '语法错误';
-    detailedStatus.style.color = '#ef4444';
-    
+    detailedStatus.textContent = '语法错误'; detailedStatus.style.color = '#ef4444';
     browserShell.className = 'preview-browser error-state';
     loadingBar.style.opacity = '0';
-    setTimeout(() => {
-      loadingBar.style.width = '0%';
-    }, 200);
+    setTimeout(() => { loadingBar.style.width = '0%'; }, 200);
   }
 
-  // ─── Live preview debounce engines ───
   let varsDebounce;
   $('vars-input').addEventListener('input', () => {
     setSensing();
     clearTimeout(varsDebounce);
     varsDebounce = window.setTimeout(() => {
       const raw = $('vars-input').value.trim();
-      if (!raw) {
-        updatePreview(null, '');
-        clearError();
-        setLiveError();
-        return;
-      }
+      if (!raw) { updatePreview(null, ''); clearError(); setLiveError(); return; }
       try {
         const vars = JSON.parse(raw);
-        if (!validateVars(vars)) {
-          showError('JSON 中至少需包含 5 个以 --color 开头的主题自定义变量');
-          updatePreview(null, '');
-          setLiveError();
-          return;
-        }
+        if (!validateVars(vars)) { showError('JSON 中至少需包含 5 个以 --color 开头的主题变量'); updatePreview(null, ''); setLiveError(); return; }
         clearError();
-        const css = $('css-input').value;
-        updatePreview(vars, css, $('name-input').value || undefined);
+        updatePreview(vars, $('css-input').value, $('name-input').value || undefined);
         setSynced();
       } catch {
         showError('JSON 语法错误，请检查括号与双引号格式');
@@ -1729,31 +1005,21 @@ import Layout from '../layouts/Layout.astro';
     setSensing();
     clearTimeout(cssDebounce);
     cssDebounce = window.setTimeout(() => {
-      if (currentVars) {
-        updatePreview(currentVars, $('css-input').value, $('name-input').value || undefined);
-        setSynced();
-      }
+      if (currentVars) { updatePreview(currentVars, $('css-input').value, $('name-input').value || undefined); setSynced(); }
     }, 250);
   });
 
   $('name-input').addEventListener('input', () => {
-    if (currentVars) {
-      updatePreview(currentVars, currentCss, $('name-input').value.trim());
-    }
+    if (currentVars) updatePreview(currentVars, currentCss, $('name-input').value.trim());
     updateSubmitBtn();
   });
   $('author-input').addEventListener('input', updateSubmitBtn);
 
   // ─── Submissions LocalStorage History CRUD ───
   const STORAGE_KEY = 'td_submitted_themes';
-
-  function getHistory() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
-  }
-
+  function getHistory() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; } }
   function saveToHistory(item) {
     const history = getHistory();
-    // Prevent duplicated codes
     if (!history.some(h => h.id === item.id)) {
       history.unshift(item);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, 10)));
@@ -1765,10 +1031,7 @@ import Layout from '../layouts/Layout.astro';
     const list = getHistory();
     const section = $('recent-section');
     const container = $('recent-list');
-    if (!list.length) {
-      section.style.display = 'none';
-      return;
-    }
+    if (!list.length) { section.style.display = 'none'; return; }
     section.style.display = 'block';
     container.innerHTML = list.map(h => `
       <div class="recent-item">
@@ -1803,10 +1066,7 @@ import Layout from '../layouts/Layout.astro';
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name,
-          author,
-          cssVars: currentVars,
-          customCss: css || undefined,
+          name, author, cssVars: currentVars, customCss: css || undefined,
           tags: (() => { try { return JSON.parse($('name-input').dataset.tags || '[]'); } catch { return undefined; } })(),
         }),
       });
@@ -1814,7 +1074,6 @@ import Layout from '../layouts/Layout.astro';
       const data = await res.json();
 
       if (res.ok && data.theme) {
-        // Build success feedback card with animation
         const resultEl = $('submit-result');
         resultEl.style.display = 'block';
         const shareUrl = `${location.origin}/share?id=${data.theme.id}`;
@@ -1828,13 +1087,11 @@ import Layout from '../layouts/Layout.astro';
               分享码: <code style="font-weight:700;font-size:14px;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 12%, transparent);padding:2px 8px;border-radius:4px">${data.theme.id}</code>
             </div>
             <div style="font-size:11px;color:var(--color-text-muted);margin-bottom:10px;line-height:1.5">
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="vertical-align:-1px;margin-right:3px"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M8 4v5l3 2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
-              当前处于<strong style="color:#f59e0b">待审核</strong>状态，24 小时内管理员审核通过后将<strong>永久收录</strong>至主题商店。超时未审核将自动移除。
+              当前处于<strong style="color:#f59e0b">待审核</strong>状态，24 小时内管理员审核通过后将<strong>永久收录</strong>至主题商店。
             </div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <input readonly value="${shareUrl}" style="flex:1;min-width:200px;height:34px;padding:0 10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text);font-size:12px;font-family:'JetBrains Mono',monospace" onclick="this.select()" />
               <button class="btn btn-outline copy-share-btn" data-url="${shareUrl}" data-code="${data.theme.id}" style="height:34px;padding:0 14px;font-size:12px;white-space:nowrap">
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6v8a2 2 0 002 2h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
                 复制链接
               </button>
               <a href="/share?id=${data.theme.id}" class="btn btn-primary" style="height:34px;padding:0 14px;font-size:12px;text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center">前往详情页</a>
@@ -1842,77 +1099,40 @@ import Layout from '../layouts/Layout.astro';
           </div>
         `;
 
-        // Save metadata to localStorage and refresh history records
-        saveToHistory({
-          id: data.theme.id,
-          name,
-          author,
-          createdAt: new Date().toISOString()
-        });
+        saveToHistory({ id: data.theme.id, name, author, createdAt: new Date().toISOString() });
 
-        // Clear inputs safely
-        $('name-input').value = '';
-        $('author-input').value = '';
-        $('name-counter').textContent = '0/40';
-        $('author-counter').textContent = '0/20';
+        $('name-input').value = ''; $('author-input').value = '';
+        $('name-counter').textContent = '0/40'; $('author-counter').textContent = '0/20';
         window.__toast?.('发布并登记到本地历史成功！');
       } else {
-        const resultEl = $('submit-result');
-        resultEl.style.display = 'block';
+        const resultEl = $('submit-result'); resultEl.style.display = 'block';
         resultEl.innerHTML = `<div style="padding:14px;border-radius:12px;background:color-mix(in srgb, #ef4444 10%, transparent);border:1.5px solid rgba(239, 68, 68, 0.3);color:#ef4444;font-size:13px;font-weight:700">提交失败: ${escapeHtml(data.error || '服务器拒绝了当前提交')}</div>`;
       }
     } catch {
-      const resultEl = $('submit-result');
-      resultEl.style.display = 'block';
+      const resultEl = $('submit-result'); resultEl.style.display = 'block';
       resultEl.innerHTML = `<div style="padding:14px;border-radius:12px;background:color-mix(in srgb, #ef4444 10%, transparent);border:1.5px solid rgba(239, 68, 68, 0.3);color:#ef4444;font-size:13px;font-weight:700">网络传输故障，请稍后检查重试</div>`;
     } finally {
-      submitting = false;
-      btn.classList.remove('loading');
+      submitting = false; btn.classList.remove('loading');
       btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v10M4 8l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> 发布到社区商店`;
       updateSubmitBtn();
     }
   });
 
-  // ─── Clipboard Copy Delegation ───
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('.copy-share-btn');
     if (!btn) return;
-    const url = btn.dataset.url || '';
-    navigator.clipboard.writeText(url).then(() => {
-      const orig = btn.innerHTML;
-      btn.innerHTML = '已复制';
-      btn.style.color = '#22c55e';
-      btn.style.borderColor = '#22c55e';
-      setTimeout(() => { 
-        btn.innerHTML = orig; 
-        btn.style.color = ''; 
-        btn.style.borderColor = '';
-      }, 1500);
+    navigator.clipboard.writeText(btn.dataset.url || '').then(() => {
+      const orig = btn.innerHTML; btn.innerHTML = '已复制'; btn.style.color = '#22c55e'; btn.style.borderColor = '#22c55e';
+      setTimeout(() => { btn.innerHTML = orig; btn.style.color = ''; btn.style.borderColor = ''; }, 1500);
     });
   });
 
-  function escapeHtml(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
+  function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-  // Injecting Spinner Micro-Stylesheet
   const spinnerCSS = document.createElement('style');
-  spinnerCSS.textContent = `
-    .spinner {
-      display:inline-block;width:14px;height:14px;
-      border:2.5px solid rgba(255,255,255,0.3);
-      border-top-color:#fff;
-      border-radius:50%;
-      animation:spin 0.6s linear infinite;
-    }
-    @keyframes spin { to { transform:rotate(360deg); } }
-  `;
+  spinnerCSS.textContent = `.spinner { display:inline-block;width:14px;height:14px; border:2.5px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin 0.6s linear infinite; } @keyframes spin { to { transform:rotate(360deg); } } .spinner-sm { display:inline-block; border-radius:50%; border-top-color:currentColor; animation:spin 0.6s linear infinite; }`;
   document.head.appendChild(spinnerCSS);
 
-  // ─── Initialize Sandboxed browser state on page load ───
-  initIframe(() => {
-    // Iframe就绪后，加载预设的默认暗色主题，使页面瞬间充满表现力
-    loadThemeData(DEFAULT_THEME);
-  });
+  initIframe(() => { loadThemeData(DEFAULT_THEME); });
   renderHistory();
 </script>
