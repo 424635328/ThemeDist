@@ -52,7 +52,7 @@ export async function GET() {
         extensions: theme.extensions || null,
         logoText: theme.logoText || null,
         logoColors: theme.logoColors || null,
-        available: directory.length,
+        available: staticDir.length + communityDir.length,
         directory,
         dailyIsCommunity: !!communityDaily,
       },

@@ -50,6 +50,7 @@ export async function GET() {
   return new Response(JSON.stringify({
     pool,
     poolLength: pool.length,
+    totalThemes: themes.length,
     gregorianHolidays,
     lunarHolidays,
     directory,

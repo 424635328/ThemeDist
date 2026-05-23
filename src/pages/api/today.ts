@@ -136,29 +136,36 @@ export async function GET({ request }: { request: Request }) {
       preset = idx.pool[dayOfYear % idx.poolLength] || idx.pool[0];
     }
 
+    // Community themes count — fetched once for both daily rotation and response
+    let communityCount = 0;
+    const url = upstashUrl();
+    const token = upstashToken();
+    if (url && token) {
+      try {
+        communityCount = await redisZcard('td:themes:by_newest');
+      } catch { /* skip */ }
+    }
+
     // Community daily theme — every 3rd day
     let dailyIsCommunity = false;
     let communityTheme: any = null;
 
-    if (dayOfYear % 3 === 2) {
-      const count = await redisZcard('td:themes:by_newest');
-      if (count > 0) {
-        const idx2 = dayOfYear % count;
-        const ids = await redisZrevrange('td:themes:by_newest', idx2, idx2);
-        if (ids.length > 0) {
-          const ct = await redisGet(`td:theme:${ids[0]}`);
-          if (ct) {
-            communityTheme = {
-              preset: `community-${ct.id}`,
-              presetName: ct.name,
-              cssVars: ct.cssVars,
-              customCss: ct.customCss || null,
-              extensions: null,
-              logoText: null,
-              logoColors: null,
-            };
-            dailyIsCommunity = true;
-          }
+    if (dayOfYear % 3 === 2 && communityCount > 0) {
+      const idx2 = dayOfYear % communityCount;
+      const ids = await redisZrevrange('td:themes:by_newest', idx2, idx2);
+      if (ids.length > 0) {
+        const ct = await redisGet(`td:theme:${ids[0]}`);
+        if (ct) {
+          communityTheme = {
+            preset: `community-${ct.id}`,
+            presetName: ct.name,
+            cssVars: ct.cssVars,
+            customCss: ct.customCss || null,
+            extensions: null,
+            logoText: null,
+            logoColors: null,
+          };
+          dailyIsCommunity = true;
         }
       }
     }
@@ -168,8 +175,6 @@ export async function GET({ request }: { request: Request }) {
 
     // Community directory entries
     let communityDir: DirEntry[] = [];
-    const url = upstashUrl();
-    const token = upstashToken();
     if (url && token) {
       try {
         const ids = await redisZrevrange('td:themes:by_newest', 0, 9);
@@ -189,6 +194,8 @@ export async function GET({ request }: { request: Request }) {
       } catch { /* skip */ }
     }
 
+    const presetTotal = (idx as any).totalThemes || idx.poolLength + Object.keys(idx.gregorianHolidays).length + Object.keys(idx.lunarHolidays).length;
+
     const response = {
       date: today.toISOString().slice(0, 10),
       generatedAt: new Date().toISOString(),
@@ -199,7 +206,7 @@ export async function GET({ request }: { request: Request }) {
       extensions: themeData.extensions || null,
       logoText: themeData.logoText || null,
       logoColors: themeData.logoColors || null,
-      available: idx.directory.length + communityDir.length,
+      available: presetTotal + communityCount,
       directory: [...idx.directory, ...communityDir],
       dailyIsCommunity,
     };
