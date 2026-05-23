@@ -34,7 +34,14 @@
       "Bash(curl -s http://localhost:4322/theme-store/)",
       "Bash(curl -s http://localhost:4322/api/diy/themes.json)",
       "Bash(curl -s http://localhost:4322/share)",
-      "Bash(pkill -f \"astro dev\")"
+      "Bash(pkill -f \"astro dev\")",
+      "Bash(node -e ' *)",
+      "Bash(sed -n '210,225p' src/pages/index.astro)",
+      "Bash(sed -n '286,300p' src/pages/theme-builder.astro)",
+      "Bash(awk '/dailyPool:\\\\[/,/^[[:space:]]*\\\\],/' \"E:/GitHub/themeDist/src/api/index_config.js\")",
+      "Bash(awk '/holidays:[[:space:]]*\\\\{/,/crazyThursday/' \"E:/GitHub/themeDist/src/api/index_config.js\")",
+      "Bash(awk *)",
+      "Bash(perl -ne 'print if /^\\\\x{20}{4,8}\\\\x{27}/' \"E:/GitHub/themeDist/src/api/index_config.js\")"
     ]
   }
 }

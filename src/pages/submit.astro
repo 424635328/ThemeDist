@@ -118,15 +118,15 @@ import Layout from '../layouts/Layout.astro';
   }
 </style>
 
-<script>
-  let currentVars: Record<string, string> | null = null;
+<script lang="ts">
+  let currentVars = null;
   let currentCss = '';
-  let previewStyle: HTMLStyleElement | null = null;
+  let previewStyle = null;
   let submitting = false;
 
-  const $ = (sel: string) => document.getElementById(sel);
+  const $ = (sel) => document.getElementById(sel);
 
-  function showError(msg: string) {
+  function showError(msg) {
     const el = $('vars-error');
     el.textContent = msg;
     el.style.display = 'block';
@@ -135,7 +135,7 @@ import Layout from '../layouts/Layout.astro';
     $('vars-error').style.display = 'none';
   }
 
-  function validateVars(vars: any): vars is Record<string, string> {
+  function validateVars(vars) {
     if (!vars || typeof vars !== 'object' || Array.isArray(vars)) return false;
     const keys = Object.keys(vars);
     if (keys.length < 5) return false;
@@ -146,7 +146,7 @@ import Layout from '../layouts/Layout.astro';
     return true;
   }
 
-  function updatePreview(vars: Record<string, string> | null, css: string) {
+  function updatePreview(vars, css) {
     currentVars = vars;
     currentCss = css;
 
@@ -216,9 +216,9 @@ import Layout from '../layouts/Layout.astro';
   }
 
   function updateSubmitBtn() {
-    const btn = $('btn-submit') as HTMLButtonElement;
-    const name = ($('name-input') as HTMLInputElement).value.trim();
-    const author = ($('author-input') as HTMLInputElement).value.trim();
+    const btn = $('btn-submit');
+    const name = ($('name-input')).value.trim();
+    const author = ($('author-input')).value.trim();
     btn.disabled = !currentVars || !name || !author || submitting;
   }
 
@@ -226,7 +226,7 @@ import Layout from '../layouts/Layout.astro';
   $('btn-import').addEventListener('click', async () => {
     try {
       const text = await navigator.clipboard.readText();
-      let data: any;
+      let data;
       try { data = JSON.parse(text); } catch { showError('剪贴板内容不是有效 JSON'); return; }
 
       // Accept { cssVars: {...}, customCss: "..." } wrapper OR raw cssVars
@@ -243,21 +243,21 @@ import Layout from '../layouts/Layout.astro';
       }
 
       clearError();
-      ($('vars-input') as HTMLTextAreaElement).value = JSON.stringify(vars, null, 2);
-      ($('css-input') as HTMLTextAreaElement).value = css;
+      ($('vars-input')).value = JSON.stringify(vars, null, 2);
+      ($('css-input')).value = css;
       updatePreview(vars, css);
-      (window as any).__toast?.('主题已导入');
+      window.__toast?.('主题已导入');
     } catch {
       showError('无法读取剪贴板，请手动粘贴');
     }
   });
 
   // ─── Live preview on input ───
-  let varsDebounce: number;
+  let varsDebounce;
   $('vars-input').addEventListener('input', () => {
     clearTimeout(varsDebounce);
     varsDebounce = window.setTimeout(() => {
-      const raw = ($('vars-input') as HTMLTextAreaElement).value.trim();
+      const raw = ($('vars-input')).value.trim();
       if (!raw) {
         updatePreview(null, '');
         clearError();
@@ -271,7 +271,7 @@ import Layout from '../layouts/Layout.astro';
           return;
         }
         clearError();
-        const css = ($('css-input') as HTMLTextAreaElement).value;
+        const css = ($('css-input')).value;
         updatePreview(vars, css);
       } catch {
         showError('JSON 解析错误');
@@ -280,12 +280,12 @@ import Layout from '../layouts/Layout.astro';
     }, 350);
   });
 
-  let cssDebounce: number;
+  let cssDebounce;
   $('css-input').addEventListener('input', () => {
     clearTimeout(cssDebounce);
     cssDebounce = window.setTimeout(() => {
       if (currentVars) {
-        updatePreview(currentVars, ($('css-input') as HTMLTextAreaElement).value);
+        updatePreview(currentVars, ($('css-input')).value);
       }
     }, 350);
   });
@@ -295,12 +295,12 @@ import Layout from '../layouts/Layout.astro';
 
   // ─── Submit ───
   $('btn-submit').addEventListener('click', async () => {
-    const btn = $('btn-submit') as HTMLButtonElement;
+    const btn = $('btn-submit');
     if (btn.disabled || !currentVars || submitting) return;
 
-    const name = ($('name-input') as HTMLInputElement).value.trim();
-    const author = ($('author-input') as HTMLInputElement).value.trim();
-    const css = ($('css-input') as HTMLTextAreaElement).value.trim();
+    const name = ($('name-input')).value.trim();
+    const author = ($('author-input')).value.trim();
+    const css = ($('css-input')).value.trim();
 
     submitting = true;
     btn.classList.add('loading');
@@ -366,8 +366,8 @@ import Layout from '../layouts/Layout.astro';
         recentList.insertBefore(item, recentList.firstChild);
 
         // Reset form
-        ($('name-input') as HTMLInputElement).value = '';
-        ($('author-input') as HTMLInputElement).value = '';
+        ($('name-input')).value = '';
+        ($('author-input')).value = '';
       } else {
         const resultEl = $('submit-result');
         resultEl.style.display = 'block';
@@ -387,7 +387,7 @@ import Layout from '../layouts/Layout.astro';
 
   // ─── Copy share button (delegated) ───
   document.addEventListener('click', (e) => {
-    const btn = (e.target as HTMLElement).closest('.copy-share-btn') as HTMLElement | null;
+    const btn = (e.target).closest('.copy-share-btn');
     if (!btn) return;
     const url = btn.dataset.url || '';
     navigator.clipboard.writeText(url).then(() => {
@@ -398,7 +398,7 @@ import Layout from '../layouts/Layout.astro';
     });
   });
 
-  function escapeHtml(s: string) {
+  function escapeHtml(s) {
     return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 

@@ -103,7 +103,7 @@ const siteUrl = Astro.url.origin;
   }
 </style>
 
-<script define:vars={{ id, siteUrl }}>
+<script lang="ts" define:vars={{ id, siteUrl }}>
   const themeId = id;
 
   if (!themeId) {
@@ -111,7 +111,7 @@ const siteUrl = Astro.url.origin;
     document.getElementById('no-id-state').style.display = 'block';
   }
 
-  let themeData: any = null;
+  let themeData = null;
 
   async function loadTheme() {
     if (!themeId) return;
@@ -126,7 +126,7 @@ const siteUrl = Astro.url.origin;
     }
   }
 
-  function renderTheme(t: any) {
+  function renderTheme(t) {
     document.getElementById('loading-state').style.display = 'none';
     document.getElementById('theme-content').style.display = 'block';
 
@@ -185,7 +185,7 @@ const siteUrl = Astro.url.origin;
         <td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">${k}</td>
         <td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">${v}</td>
         <td style="padding:8px 16px;width:40px">
-          <span style="display:inline-block;width:22px;height:22px;border-radius:6px;background:${v};border:1px solid var(--color-border);cursor:pointer;transition:transform 0.15s" title="点击复制" onclick="navigator.clipboard.writeText('${(v as string).replace(/'/g, "\\'")}')" onmouseover="this.style.transform='scale(1.3)'" onmouseout="this.style.transform=''"></span>
+          <span style="display:inline-block;width:22px;height:22px;border-radius:6px;background:${v};border:1px solid var(--color-border);cursor:pointer;transition:transform 0.15s" title="点击复制" onclick="navigator.clipboard.writeText('${v.replace(/'/g, "\\'")}')" onmouseover="this.style.transform='scale(1.3)'" onmouseout="this.style.transform=''"></span>
         </td>
       </tr>
     `).join('');
@@ -207,8 +207,8 @@ const siteUrl = Astro.url.origin;
   document.getElementById('btn-share-url').addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(location.href);
-      (window as any).__toast?.('分享链接已复制');
-    } catch { (window as any).__toast?.('复制失败'); }
+      window.__toast?.('分享链接已复制');
+    } catch { window.__toast?.('复制失败'); }
   });
 
   const likeBtn = document.getElementById('btn-like');
@@ -221,7 +221,7 @@ const siteUrl = Astro.url.origin;
 
   likeBtn.addEventListener('click', async () => {
     if (likeBtn.classList.contains('liked')) {
-      (window as any).__toast?.('你已经点过赞了');
+      window.__toast?.('你已经点过赞了');
       return;
     }
     try {
@@ -236,7 +236,7 @@ const siteUrl = Astro.url.origin;
       likeBtn.classList.add('liked');
       localStorage.setItem(likeKey, '1');
     } catch {
-      (window as any).__toast?.('点赞失败，请稍后重试');
+      window.__toast?.('点赞失败，请稍后重试');
     }
   });
 

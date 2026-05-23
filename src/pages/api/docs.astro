@@ -15,7 +15,7 @@ const directory = allThemes.map((t) => ({
 }));
 
 const minimalResponse = JSON.stringify({
-  date: today.date || new Date().toISOString().slice(0, 10),
+  date: new Date().toISOString().slice(0, 10),
   preset: today.preset,
   presetName: today.presetName,
   generatedAt: new Date().toISOString(),
@@ -482,11 +482,11 @@ function applyTheme(d) {
     }
   </style>
 
-  <script>
+  <script lang="ts">
     // Copy button handler — all elements with .cmd-copy-btn
     document.querySelectorAll('.cmd-copy-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const cmd = (btn as HTMLElement).dataset.cmd || '';
+        const cmd = (btn).dataset.cmd || '';
         try {
           await navigator.clipboard.writeText(cmd);
           btn.classList.add('copied');
@@ -496,21 +496,21 @@ function applyTheme(d) {
             btn.classList.remove('copied');
             btn.innerHTML = origHTML;
           }, 1800);
-        } catch { (window as any).__toast?.('复制失败'); }
+        } catch { window.__toast?.('复制失败'); }
       });
     });
 
     const tocFab = document.getElementById('toc-fab');
-    const tocTrigger = document.getElementById('toc-trigger') as HTMLButtonElement;
+    const tocTrigger = document.getElementById('toc-trigger');
     const tocMenu = document.getElementById('toc-menu');
-    const dots = Array.from(document.querySelectorAll('.toc-link')) as HTMLElement[];
+    const dots = Array.from(document.querySelectorAll('.toc-link'));
     const headings = Array.from(document.querySelectorAll('h2[id]'));
 
     function openToc() { tocFab.classList.add('open'); tocTrigger.setAttribute('aria-expanded', 'true'); dots[0]?.focus(); }
     function closeToc() { tocFab.classList.remove('open'); tocTrigger.setAttribute('aria-expanded', 'false'); tocTrigger.focus(); }
 
     tocTrigger.addEventListener('click', () => tocFab.classList.contains('open') ? closeToc() : openToc());
-    document.addEventListener('click', (e) => { if (!tocFab.contains(e.target as Node)) closeToc(); });
+    document.addEventListener('click', (e) => { if (!tocFab.contains(e.target)) closeToc(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeToc(); });
 
     // Dot click → scroll to section
@@ -525,7 +525,7 @@ function applyTheme(d) {
 
     // Keyboard nav: arrow keys between dots, Home/End
     tocMenu.addEventListener('keydown', (e) => {
-      const idx = dots.indexOf(document.activeElement as HTMLElement);
+      const idx = dots.indexOf(document.activeElement);
       if (idx === -1) return;
       if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); dots[(idx + 1) % dots.length].focus(); }
       if (e.key === 'ArrowUp'   || e.key === 'ArrowLeft')  { e.preventDefault(); dots[(idx - 1 + dots.length) % dots.length].focus(); }
@@ -535,7 +535,7 @@ function applyTheme(d) {
 
     // IntersectionObserver scroll spy
     let activeId = '';
-    let hashTimer: number;
+    let hashTimer;
     const observer = new IntersectionObserver((entries) => {
       // Find the topmost heading that's crossed the top threshold
       let bestId = '';
@@ -573,13 +573,13 @@ function applyTheme(d) {
     const copyAll = document.getElementById('copy-all');
     copyAll.addEventListener('click', async () => {
       const sections = document.querySelectorAll('h2[id]');
-      const lines: string[] = ['# ThemeDist API Reference', '', `> Base: ${location.origin}/api/today.json`, ''];
+      const lines = ['# ThemeDist API Reference', '', `> Base: ${location.origin}/api/today.json`, ''];
       sections.forEach(h => {
         const text = h.textContent?.trim() || '';
         lines.push(`## ${text}`, '');
         let el = h.nextElementSibling;
         while (el && el.tagName !== 'H2') {
-          const txt = (el as HTMLElement).textContent?.trim();
+          const txt = (el).textContent?.trim();
           if (txt) lines.push(txt, '');
           el = el.nextElementSibling;
         }
@@ -593,7 +593,7 @@ function applyTheme(d) {
           copyAll.classList.remove('copied');
           copyAll.innerHTML = '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6v8a2 2 0 002 2h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
         }, 1800);
-      } catch { (window as any).__toast?.('复制失败'); }
+      } catch { window.__toast?.('复制失败'); }
     });
   </script>
 </Layout>

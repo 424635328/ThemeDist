@@ -14,7 +14,7 @@ const CACHE_HEADERS = {
 export async function GET() {
   const theme = getDailyTheme();
   const allThemes = getAllThemes();
-  const communityThemes = await getCommunityThemes(0);
+  const communityThemes = await getCommunityThemes(50);
   const totalAvailable = allThemes.length + communityThemes.length;
 
   const staticDir = allThemes.map((t) => ({

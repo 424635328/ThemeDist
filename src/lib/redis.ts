@@ -88,3 +88,15 @@ export async function zcard(key: string): Promise<number> {
   if (!c) return 0;
   try { return await c.zcard(key); } catch { return 0; }
 }
+
+export async function zrem(key: string, member: string): Promise<boolean> {
+  const c = getClient();
+  if (!c) return false;
+  try { await c.zrem(key, member); return true; } catch { return false; }
+}
+
+export async function del(key: string): Promise<boolean> {
+  const c = getClient();
+  if (!c) return false;
+  try { await c.del(key); return true; } catch { return false; }
+}

@@ -1,5 +1,7 @@
 import { nanoid } from 'nanoid';
-import { get, set, zadd, zincrby, zrevrange, zscore, zcard, sadd, sismember, isReady } from './redis';
+import { get, set, zadd, zincrby, zrevrange, zscore, zcard, zrem, del, sadd, sismember, isReady } from './redis';
+
+export type ThemeStatus = 'pending' | 'approved' | 'rejected';
 
 export interface CommunityTheme {
   id: string;
@@ -9,6 +11,7 @@ export interface CommunityTheme {
   likes: number;
   cssVars: Record<string, string>;
   customCss: string | null;
+  status: ThemeStatus;
 }
 
 interface SubmitInput {
@@ -25,7 +28,13 @@ function makeId(): string {
 function themeKey(id: string) { return `td:theme:${id}`; }
 const NEWEST_KEY = 'td:themes:by_newest';
 const LIKES_KEY = 'td:themes:by_likes';
+const PENDING_KEY = 'td:themes:pending';
 function likesSetKey(id: string) { return `td:likes:${id}`; }
+
+function normaliseStatus(raw: any): ThemeStatus {
+  if (raw === 'pending' || raw === 'approved' || raw === 'rejected') return raw;
+  return 'approved'; // back-compat: themes submitted before status field existed
+}
 
 export async function submitTheme(input: SubmitInput): Promise<CommunityTheme | null> {
   if (!isReady()) return null;
@@ -39,22 +48,106 @@ export async function submitTheme(input: SubmitInput): Promise<CommunityTheme | 
     likes: 0,
     cssVars: input.cssVars,
     customCss: input.customCss || null,
+    status: 'pending',
   };
 
   const ok = await set(themeKey(id), JSON.stringify(theme));
   if (!ok) return null;
 
-  await zadd(NEWEST_KEY, theme.createdAt, id);
-  await zadd(LIKES_KEY, 0, id);
+  await zadd(PENDING_KEY, theme.createdAt, id);
 
   return theme;
+}
+
+export async function approveTheme(id: string): Promise<boolean> {
+  if (!isReady()) return false;
+
+  const raw = await get(themeKey(id));
+  if (!raw) return false;
+
+  try {
+    const theme: CommunityTheme = JSON.parse(raw);
+    theme.status = normaliseStatus(theme.status);
+    if (theme.status !== 'pending') return false;
+
+    theme.status = 'approved';
+    await set(themeKey(id), JSON.stringify(theme));
+    await zrem(PENDING_KEY, id);
+    await zadd(NEWEST_KEY, theme.createdAt, id);
+    await zadd(LIKES_KEY, theme.likes, id);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function rejectTheme(id: string): Promise<boolean> {
+  if (!isReady()) return false;
+
+  const raw = await get(themeKey(id));
+  if (!raw) return false;
+
+  try {
+    const theme: CommunityTheme = JSON.parse(raw);
+    theme.status = normaliseStatus(theme.status);
+    if (theme.status !== 'pending') return false;
+
+    // Fully delete the theme and all associated data
+    await del(themeKey(id));
+    await zrem(PENDING_KEY, id);
+    await zrem(NEWEST_KEY, id);
+    await zrem(LIKES_KEY, id);
+    await del(likesSetKey(id));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function batchApproveThemes(ids: string[]): Promise<{ done: number; failed: number }> {
+  let done = 0, failed = 0;
+  for (const id of ids) {
+    if (await approveTheme(id)) done++; else failed++;
+  }
+  return { done, failed };
+}
+
+export async function batchRejectThemes(ids: string[]): Promise<{ done: number; failed: number }> {
+  let done = 0, failed = 0;
+  for (const id of ids) {
+    if (await rejectTheme(id)) done++; else failed++;
+  }
+  return { done, failed };
+}
+
+export async function getPendingThemes(): Promise<CommunityTheme[]> {
+  if (!isReady()) return [];
+
+  const ids = await zrevrange(PENDING_KEY, 0, -1) as string[];
+  if (!ids || ids.length === 0) return [];
+
+  const themes: CommunityTheme[] = [];
+  for (const id of ids) {
+    const t = await getTheme(id);
+    if (t) themes.push(t);
+  }
+  return themes;
+}
+
+export async function getPendingCount(): Promise<number> {
+  if (!isReady()) return 0;
+  return zcard(PENDING_KEY);
 }
 
 export async function getTheme(id: string): Promise<CommunityTheme | null> {
   if (!isReady()) return null;
   const raw = await get(themeKey(id));
   if (!raw) return null;
-  try { return JSON.parse(raw); } catch { return null; }
+  try {
+    const t: CommunityTheme = JSON.parse(raw);
+    t.status = normaliseStatus(t.status);
+    return t;
+  } catch { return null; }
 }
 
 export async function listThemes(
@@ -90,8 +183,6 @@ export async function likeTheme(id: string, fingerprint: string): Promise<number
   const setKey = likesSetKey(id);
   const already = await sismember(setKey, fingerprint);
   if (already) {
-    // Unlike
-    await sadd(setKey, fingerprint); // noop
     return (await zscore(LIKES_KEY, id)) ?? 0;
   }
 

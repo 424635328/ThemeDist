@@ -1,0 +1,398 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { isAdmin } from '../../lib/auth';
+
+const authed = isAdmin(Astro.cookies);
+const siteUrl = Astro.url.origin;
+---
+
+<Layout>
+  {!authed ? (
+    <section class="section text-center" style="max-width:420px;margin:0 auto">
+      <p class="t-label">Admin</p>
+      <h1 class="t-heading mt-2">管理员登录</h1>
+
+      <div class="card card-glass" style="padding:32px;margin-top:32px;text-align:left">
+        <form id="login-form">
+          <div style="margin-bottom:18px">
+            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--color-text)">账号</label>
+            <input
+              type="text"
+              name="account"
+              id="login-account"
+              autocomplete="username"
+              placeholder="输入管理员账号"
+              style="width:100%;height:44px;padding:0 14px;border-radius:12px;border:1.5px solid var(--color-border);background:color-mix(in srgb, var(--color-surface) 40%, transparent);color:var(--color-text);font-size:14px;font-family:inherit;outline:none;transition:border-color 0.2s"
+            />
+          </div>
+          <div style="margin-bottom:24px">
+            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--color-text)">密码</label>
+            <input
+              type="password"
+              name="password"
+              id="login-password"
+              autocomplete="current-password"
+              placeholder="输入管理员密码"
+              style="width:100%;height:44px;padding:0 14px;border-radius:12px;border:1.5px solid var(--color-border);background:color-mix(in srgb, var(--color-surface) 40%, transparent);color:var(--color-text);font-size:14px;font-family:inherit;outline:none;transition:border-color 0.2s"
+            />
+          </div>
+          <p id="login-error" style="color:#ef4444;font-size:13px;font-weight:600;margin-bottom:12px;display:none"></p>
+          <button type="submit" class="btn btn-primary" style="width:100%;height:46px;font-size:14px;font-family:inherit">
+            登录
+          </button>
+        </form>
+      </div>
+    </section>
+  ) : (
+    <section class="section-sm">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:24px">
+        <div>
+          <p class="t-label">Admin Dashboard</p>
+          <h1 class="t-heading mt-2" style="font-size:26px">审核社区主题</h1>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span id="pending-count-badge" style="font-size:13px;font-weight:600;padding:6px 14px;border-radius:8px;background:color-mix(in srgb, var(--color-primary) 12%, transparent);color:var(--color-primary)">加载中…</span>
+          <button id="btn-logout" class="btn btn-outline" style="height:38px;padding:0 16px;font-size:12px;font-family:inherit">退出登录</button>
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div id="toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--color-text);cursor:pointer;user-select:none">
+          <input type="checkbox" id="select-all" style="width:16px;height:16px;accent-color:var(--color-primary);cursor:pointer" />
+          全选
+        </label>
+        <span id="selected-count" style="font-size:12px;color:var(--color-text-muted)">已选 0</span>
+        <div style="flex:1"></div>
+        <button id="btn-approve" class="btn btn-primary" style="height:38px;padding:0 18px;font-size:12px;font-family:inherit" disabled>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          审核通过
+        </button>
+        <button id="btn-reject" class="btn btn-outline" style="height:38px;padding:0 18px;font-size:12px;font-family:inherit;color:#ef4444;border-color:#ef444455" disabled>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          驳回删除
+        </button>
+        <button id="btn-refresh" class="btn btn-ghost" style="height:38px;padding:0 14px;font-size:12px;font-family:inherit">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 0110.47-4M14 8a6 6 0 01-10.47 4M2 2v4h4M14 14v-4h-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          刷新
+        </button>
+      </div>
+
+      <!-- Loading -->
+      <div id="loading-state-admin" style="text-align:center;padding:60px 20px">
+        <div class="spinner-lg" style="width:36px;height:36px;border:3px solid var(--color-border);border-top-color:var(--color-primary);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 16px"></div>
+        <p class="text-muted" style="font-size:14px">加载待审核主题…</p>
+      </div>
+
+      <!-- Empty state -->
+      <div id="empty-state" style="display:none;text-align:center;padding:60px 20px">
+        <div style="font-size:48px;margin-bottom:12px">🎉</div>
+        <h2 style="font-size:20px;margin-bottom:6px">没有待审核主题</h2>
+        <p class="text-muted" style="font-size:14px">所有社区主题已处理完毕</p>
+      </div>
+
+      <!-- Theme list -->
+      <div id="theme-list-admin" style="display:flex;flex-direction:column;gap:12px;max-width:960px;margin:0 auto"></div>
+
+      <!-- Error -->
+      <div id="error-state-admin" style="display:none;text-align:center;padding:60px 20px">
+        <div style="font-size:48px;margin-bottom:12px">⚠️</div>
+        <h2 style="font-size:20px;margin-bottom:6px">加载失败</h2>
+        <p class="text-muted" style="font-size:14px;margin-bottom:16px">可能是数据库连接问题</p>
+        <button id="btn-retry" class="btn btn-primary" style="height:38px;padding:0 18px;font-size:12px;font-family:inherit">重试</button>
+      </div>
+    </section>
+  )
+}
+
+<style>
+  #login-form input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .review-card {
+    transition: border-color 0.25s, box-shadow 0.25s;
+  }
+  .review-card.selected {
+    border-color: var(--color-primary) !important;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 30%, transparent);
+  }
+  #btn-approve:disabled, #btn-reject:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+</style>
+
+<script lang="ts" define:vars={{ authed, siteUrl }}>
+  // ── Login ──
+  const loginForm = document.getElementById('login-form');
+  if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const accountEl = document.getElementById('login-account');
+      const passwordEl = document.getElementById('login-password');
+      const account = accountEl ? accountEl.value.trim() : '';
+      const password = passwordEl ? passwordEl.value.trim() : '';
+      const errorEl = document.getElementById('login-error');
+
+      if (!account || !password) {
+        (errorEl).textContent = '请填写账号和密码';
+        (errorEl).style.display = 'block';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/admin/login.json', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ account, password }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          location.reload();
+        } else {
+          (errorEl).textContent = data.error || '登录失败';
+          (errorEl).style.display = 'block';
+        }
+      } catch {
+        (errorEl).textContent = '网络错误，请稍后重试';
+        (errorEl).style.display = 'block';
+      }
+    });
+  }
+
+  // ── Logout ──
+  const btnLogout = document.getElementById('btn-logout');
+  if (btnLogout) {
+    btnLogout.addEventListener('click', async () => {
+      await fetch('/api/admin/login.json', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'logout' }),
+      });
+      location.reload();
+    });
+  }
+
+  // ── Admin dashboard ──
+  if (!loginForm) {
+    const loadingEl = document.getElementById('loading-state-admin');
+    const emptyEl = document.getElementById('empty-state');
+    const errorEl = document.getElementById('error-state-admin');
+    const listEl = document.getElementById('theme-list-admin');
+    const selectAll = document.getElementById('select-all');
+    const selectedCount = document.getElementById('selected-count');
+    const btnApprove = document.getElementById('btn-approve');
+    const btnReject = document.getElementById('btn-reject');
+    const btnRefresh = document.getElementById('btn-refresh');
+    const btnRetry = document.getElementById('btn-retry');
+    const countBadge = document.getElementById('pending-count-badge');
+    const toolbar = document.getElementById('toolbar');
+
+    let themes = [];
+    let selected = new Set();
+
+    function updateSelection() {
+      const cards = listEl?.querySelectorAll('.review-card') || [];
+      cards.forEach(card => {
+        const id = (card).dataset.id || '';
+        card.classList.toggle('selected', selected.has(id));
+        const cb = card.querySelector('.review-checkbox');
+        if (cb) cb.checked = selected.has(id);
+      });
+      if (selectedCount) {
+        selectedCount.textContent = `已选 ${selected.size}`;
+      }
+      const hasSelection = selected.size > 0;
+      btnApprove.disabled = !hasSelection;
+      btnReject.disabled = !hasSelection;
+      if (selectAll) {
+        selectAll.checked = themes.length > 0 && selected.size === themes.length;
+        selectAll.indeterminate = selected.size > 0 && selected.size < themes.length;
+      }
+    }
+
+    function toggleTheme(id) {
+      if (selected.has(id)) selected.delete(id);
+      else selected.add(id);
+      updateSelection();
+    }
+
+    function renderCard(t) {
+      const v = t.cssVars || {};
+      const p = v['--color-primary'] || '#6366f1';
+      const s = v['--color-secondary'] || '#8b5cf6';
+      const a = v['--color-accent'] || '#06b6d4';
+      const bg = v['--color-bg'] || '#0f0f23';
+      const tx = v['--color-text'] || '#f4f4f5';
+      const d = new Date(t.createdAt);
+      const dateStr = d.getTime() ? d.toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+      const cssPreview = t.customCss ? `<pre style="margin:6px 0 0;padding:10px;border-radius:8px;background:${bg};color:${tx};font-size:10px;max-height:120px;overflow-y:auto;font-family:'JetBrains Mono',monospace;line-height:1.5;white-space:pre-wrap;word-break:break-all">${escapeHtml(t.customCss.slice(0, 500))}${t.customCss.length > 500 ? '…' : ''}</pre>` : '';
+
+      return `
+        <div class="card card-interact review-card" data-id="${escapeAttr(t.id)}" style="padding:20px 24px;cursor:pointer">
+          <div style="display:flex;align-items:flex-start;gap:14px">
+            <input type="checkbox" class="review-checkbox" style="margin-top:4px;width:16px;height:16px;accent-color:var(--color-primary);cursor:pointer;flex-shrink:0" />
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+                <span style="font-weight:700;font-size:15px">${escapeHtml(t.name)}</span>
+                <span style="font-size:12px;color:var(--color-text-muted)">by ${escapeHtml(t.author)}</span>
+                <span style="font-size:11px;color:var(--color-text-muted)">${dateStr}</span>
+                <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:5px;background:#f59e0b22;color:#f59e0b">待审核</span>
+              </div>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                ${[
+                  { v: '--color-primary', l: 'P', c: p },
+                  { v: '--color-secondary', l: 'S', c: s },
+                  { v: '--color-accent', l: 'A', c: a },
+                  { v: '--color-bg', l: 'Bg', c: bg },
+                  { v: '--color-text', l: 'Tx', c: tx },
+                ].map(({ l, c }) =>
+                  `<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;background:${c};font-size:8px;font-weight:700;color:${l === 'Bg' ? tx : '#fff'};border:${l === 'Bg' ? '1.5px solid var(--color-border)' : 'none'};flex-shrink:0;text-shadow:0 0 2px ${bg}" title="${l}">${l}</span>`
+                ).join('')}
+                <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--color-text-muted)">${p}</span>
+                <a href="/share?id=${escapeAttr(t.id)}" target="_blank" style="font-size:11px;color:var(--color-primary);margin-left:8px;text-decoration:none;font-weight:600" onclick="event.stopPropagation()">预览 →</a>
+              </div>
+              ${cssPreview}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function loadThemes() {
+      if (!loadingEl || !listEl) return;
+      loadingEl.style.display = 'block';
+      if (emptyEl) emptyEl.style.display = 'none';
+      if (errorEl) errorEl.style.display = 'none';
+      listEl.innerHTML = '';
+      if (toolbar) toolbar.style.display = 'none';
+      selected.clear();
+      updateSelection();
+
+      try {
+        const res = await fetch('/api/admin/review.json');
+        if (!res.ok) throw new Error('Failed');
+        const data = await res.json();
+        themes = data.themes || [];
+
+        if (countBadge) {
+          countBadge.textContent = `待审核: ${data.pending || 0}`;
+        }
+
+        loadingEl.style.display = 'none';
+
+        if (themes.length === 0) {
+          if (emptyEl) emptyEl.style.display = 'block';
+          return;
+        }
+
+        if (toolbar) toolbar.style.display = 'flex';
+        listEl.innerHTML = themes.map(t => {
+          try { return renderCard(t); } catch { return ''; }
+        }).join('');
+
+        // Bind events
+        listEl.querySelectorAll('.review-card').forEach(card => {
+          const el = card;
+          el.addEventListener('click', (e) => {
+            const target = e.target;
+            if (target.tagName === 'A' || target.closest('a')) return; // don't intercept links
+            const cb = el.querySelector('.review-checkbox');
+            if (cb) {
+              // Toggle the checkbox
+              cb.checked = !cb.checked;
+              toggleTheme(el.dataset.id || '');
+            }
+          });
+        });
+
+        listEl.querySelectorAll('.review-checkbox').forEach(cb => {
+          cb.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const card = (e.target).closest('.review-card');
+            if (card) {
+              toggleTheme(card.dataset.id || '');
+            }
+          });
+        });
+
+        updateSelection();
+      } catch {
+        loadingEl.style.display = 'none';
+        if (errorEl) errorEl.style.display = 'block';
+      }
+    }
+
+    // Select all
+    selectAll?.addEventListener('change', () => {
+      if (selectAll.checked) {
+        themes.forEach(t => selected.add(t.id));
+      } else {
+        selected.clear();
+      }
+      updateSelection();
+    });
+
+    // Approve
+    btnApprove?.addEventListener('click', async () => {
+      if (selected.size === 0) return;
+      btnApprove.disabled = true;
+      btnReject.disabled = true;
+      try {
+        const res = await fetch('/api/admin/review.json', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'approve', ids: Array.from(selected) }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.__toast?.(`已通过 ${data.done} 个主题`);
+          loadThemes();
+        } else {
+          window.__toast?.(data.error || '操作失败');
+        }
+      } catch {
+        window.__toast?.('操作失败，请稍后重试');
+      }
+      btnApprove.disabled = true;
+      btnReject.disabled = true;
+    });
+
+    // Reject
+    btnReject?.addEventListener('click', async () => {
+      if (selected.size === 0) return;
+      if (!confirm(`确定驳回并删除选中的 ${selected.size} 个主题吗？此操作不可撤销。`)) return;
+      btnApprove.disabled = true;
+      btnReject.disabled = true;
+      try {
+        const res = await fetch('/api/admin/review.json', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'reject', ids: Array.from(selected) }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          window.__toast?.(`已驳回删除 ${data.done} 个主题`);
+          loadThemes();
+        } else {
+          window.__toast?.(data.error || '操作失败');
+        }
+      } catch {
+        window.__toast?.('操作失败，请稍后重试');
+      }
+      btnApprove.disabled = true;
+      btnReject.disabled = true;
+    });
+
+    btnRefresh?.addEventListener('click', loadThemes);
+    btnRetry?.addEventListener('click', loadThemes);
+
+    loadThemes();
+  }
+
+  function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function escapeAttr(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</Layout>

@@ -556,7 +556,7 @@ function navClass(path: string) {
   <button class="btop" id="btop" aria-label="返回顶部" title="返回顶部">↑</button>
   <div class="toast" id="toast"></div>
 
-  <script>
+  <script lang="ts">
     // ── Theme preview via ?theme= or localStorage ──
     (function() {
       var APPLY_STORAGE_KEY = 'themeDistApplied';
@@ -575,7 +575,7 @@ function navClass(path: string) {
         }
       }
 
-      function loadPreview(t: string) {
+      function loadPreview(t) {
         var bar = document.getElementById('preview-bar');
         var nameEl = document.getElementById('preview-bar-name');
 
@@ -590,7 +590,7 @@ function navClass(path: string) {
           try {
             var vars = JSON.parse(diyVars);
             var root = document.documentElement;
-            Object.entries(vars).forEach(function(e: any) { root.style.setProperty(e[0], e[1]); });
+            Object.entries(vars).forEach(function(e) { root.style.setProperty(e[0], e[1]); });
             if (diyCSS) {
               var style = document.getElementById('preview-custom-css') || document.createElement('style');
               style.id = 'preview-custom-css';
@@ -604,7 +604,7 @@ function navClass(path: string) {
               if (exts && exts.length) {
                 var container = document.createElement('div');
                 container.id = 'preview-extensions';
-                container.innerHTML = exts.map(function(e: any) { return e.content; }).join('');
+                container.innerHTML = exts.map(function(e) { return e.content; }).join('');
                 document.body.insertBefore(container, document.body.firstChild);
               }
             }
@@ -646,7 +646,7 @@ function navClass(path: string) {
             if (data.extensions && data.extensions.length) {
               var container = document.createElement('div');
               container.id = 'preview-extensions';
-              container.innerHTML = data.extensions.map(function(e: any) { return e.content; }).join('');
+              container.innerHTML = data.extensions.map(function(e) { return e.content; }).join('');
               document.body.insertBefore(container, document.body.firstChild);
             }
 
@@ -680,7 +680,7 @@ function navClass(path: string) {
 
     // Back to top
     const btop = document.getElementById('btop');
-    let btopTimer: number;
+    let btopTimer;
     window.addEventListener('scroll', () => {
       clearTimeout(btopTimer);
       btopTimer = setTimeout(() => {
@@ -705,7 +705,7 @@ function navClass(path: string) {
     });
 
     document.addEventListener('click', (e) => {
-      if (!nav.contains(e.target as Node)) closeNav();
+      if (!nav.contains(e.target)) closeNav();
     });
 
     // Close nav on scroll
@@ -717,15 +717,15 @@ function navClass(path: string) {
     }, { passive: true });
 
     // Toast
-    let toastTimer: number;
-    function toast(msg: string) {
+    let toastTimer;
+    function toast(msg) {
       const el = document.getElementById('toast');
       el.textContent = msg;
       el.classList.add('show');
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => el.classList.remove('show'), 2000);
     }
-    (window as any).__toast = toast;
+    window.__toast = toast;
 
     // Copy button for all pre blocks
     document.querySelectorAll('pre').forEach(pre => {
