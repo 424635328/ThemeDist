@@ -1,10 +1,10 @@
 name: Build and Deploy to Netlify
 
 on:
-  # 每日 UTC 午夜自动重建（主题轮换）
+  # 每月一号 UTC 午夜自动重建（主题轮换）
   schedule:
-    - cron: '0 0 * * *'
-  # 推送到 main 时自动部署
+    - cron: '0 0 1 * *'
+  # 推送到 main 时自动构建并部署
   push:
     branches: [main]
   # 手动触发
@@ -14,7 +14,7 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write       # 允许向 commit 写入评论
       deployments: write
 
     steps:
@@ -24,11 +24,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: 22
+          cache: 'npm'       # 需要确保仓库中有 package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci          # 需要确保仓库中有 package-lock.json
 
       - name: Build with Netlify adapter
         run: ADAPTER=netlify npm run build
