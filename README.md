@@ -4,6 +4,8 @@
 
 ThemeDist 是基于 Astro SSR 的主题分发平台，通过 **OmniConfig 主题数据库**（~6500 行，200+ 预设主题 + 227+ 节日）配合 **5 组可插拔主题部件**（颜色、排版、间距、壁纸、视觉效果），每日自动计算并输出完整的 CSS 自定义属性集。同时提供主题商店、在线构建器、社区投稿与审核等完整功能。
 
+支持 **Vercel + Netlify** 双平台部署，一份代码，同时运行。
+
 ---
 
 ## 目录
@@ -17,8 +19,11 @@ ThemeDist 是基于 Astro SSR 的主题分发平台，通过 **OmniConfig 主题
 - [技术栈](#技术栈)
 - [本地开发](#本地开发)
 - [部署](#部署)
-- [环境变量](#环境变量)
+  - [Vercel](#vercel)
+  - [Netlify（GitHub Actions）](#netlifygithub-actions)
+  - [环境变量对照](#环境变量对照)
 - [架构说明](#架构说明)
+- [未来计划](#未来计划)
 - [许可证](#许可证)
 
 ---
@@ -78,11 +83,12 @@ function applyTheme(d) {
 
 ### 核心功能
 
-- **每日自动轮换** — 200+ 预设主题 + 227+ 节日覆盖，通过 Vercel Cron Job / Netlify Build Hook 触发每日 UTC 午夜重建
-- **农历节日支持** — 基于 `lunar-javascript` 实现，涵盖春节、中秋、端午、重阳、元宵等中国传统农历节日，以及公历节日
+- **每日自动轮换** — 200+ 预设主题 + 227+ 节日覆盖，通过 Vercel Cron Job / GitHub Actions 定时触发每日 UTC 午夜重建
+- **农历节日支持** — 基于 `lunar-javascript` 实现，涵盖春节、中秋、端午、重阳、元宵等中国传统农历节日及公历节日
 - **RESTful API** — `GET /api/today.json` 返回完整主题数据；所有接口支持 CORS 跨域
 - **CDN 友好缓存** — 浏览器 1h / CDN 24h（今日主题），365 天不可变缓存（预设主题端点）
-- **CSS 变量体系** — 34 个语义化 CSS 自定义属性（颜色 8 + 排版 8 + 间距 10 + 效果 6 + 氛围 2），覆盖完整的 UI 语义
+- **CSS 变量体系** — 34 个语义化 CSS 自定义属性（颜色 8 + 排版 8 + 间距 10 + 效果 6 + 氛围 2），覆盖完整 UI 语义
+- **双平台部署** — Vercel + Netlify 同时分发，同一份代码自动适配
 - **优雅降级** — Redis 不可用时社区功能自动降级为只读，站点核心功能不受影响
 
 ### 主题系统
@@ -297,7 +303,7 @@ curl -X POST https://your-domain.com/api/admin/review.json \
 
 ## 主题轮换策略
 
-每天 UTC 午夜，Cron Job 触发站点重建。主题选择逻辑（由 `src/utils/omni-bridge.ts` + `src/api/index_config.js` 实现）：
+每天 UTC 午夜，定时任务触发站点重建。主题选择逻辑（由 `src/utils/omni-bridge.ts` + `src/api/index_config.js` 实现）：
 
 1. **农历节日优先** 🏮 — 基于 `lunar-javascript` 计算当日农历，匹配春节/中秋/端午/清明/重阳等 20+ 传统节日
 2. **公历节日其次** 📅 — 匹配元旦/情人节/Pi Day/圣诞等 200+ 公历节日
@@ -312,61 +318,65 @@ curl -X POST https://your-domain.com/api/admin/review.json \
 
 ```
 themeDist/
-├── astro.config.mjs            # Astro 配置（SSR + Vercel 适配器）
-├── vercel.json                 # Vercel 部署 + Cron Job + CORS 头
-├── netlify.toml                # Netlify 备用部署 + 定时构建
-├── package.json                # 依赖与脚本
-├── tsconfig.json               # TypeScript 配置
+├── .github/
+│   └── workflows/
+│       └── deploy.yml            # GitHub Actions：Netlify 自动构建与部署
+├── astro.config.mjs              # Astro 配置（SSR + 条件适配器，Vercel/Netlify 自动切换）
+├── vercel.json                   # Vercel 部署 + Cron Job + CORS 头
+├── netlify.toml                  # Netlify 部署配置 + 定时构建 + CORS 头
+├── package.json                  # 依赖（含双适配器）与脚本
+├── tsconfig.json                 # TypeScript 配置
+├── .env.local                    # 本地开发环境变量模板
 ├── public/
-│   └── wallpapers/             # 壁纸图片（可扩展）
+│   └── wallpapers/               # 壁纸图片（可扩展）
 ├── docs/
-│   └── agents/                 # 领域文档与工作流定义
+│   └── agents/                   # 领域文档与工作流定义
 └── src/
     ├── api/
-    │   ├── index_config.js     # ★ 核心主题数据库：6500+ 行，包含全部节日规则、日池主题与轮换逻辑（源自 OMNI-MATRIX）
-    │   ├── theme.js            # GET /api/theme 主题列表（旧端点）
-    │   └── theme/config.js     # GET /api/theme/config 主题配置（旧端点）
+    │   ├── index_config.js       # ★ 核心主题数据库：6500+ 行，全部节日规则、日池主题、轮换逻辑（源自 OMNI-MATRIX）
+    │   ├── theme.js              # 遗留 Vercel handler（未使用）
+    │   └── theme/config.js       # 遗留 Vercel handler（未使用）
     ├── layouts/
-    │   └── Layout.astro        # 全局布局：导航、氛围背景、主题注入、字体加载
+    │   └── Layout.astro          # 全局布局：导航、氛围背景、主题注入、字体加载
     ├── lib/
-    │   ├── redis.ts            # Upstash Redis 封装（set/get/zadd/zrevrange 等，带优雅降级）
-    │   ├── auth.ts             # 管理员认证（Cookie 会话，HttpOnly）
-    │   └── themes-db.ts        # 社区主题 CRUD（提交/审核/点赞/列表，Redis 持久化）
+    │   ├── redis.ts              # Upstash Redis 封装（set/get/zadd/zrevrange 等，带优雅降级）
+    │   ├── auth.ts               # 管理员认证（Cookie 会话，HttpOnly）
+    │   └── themes-db.ts          # 社区主题 CRUD（提交/审核/点赞/列表，Redis 持久化）
     ├── pages/
-    │   ├── index.astro         # 首页：Hero、三步接入、功能展示、代码示例
-    │   ├── theme-builder.astro # 主题构建器：实时编辑 CSS 变量、预设切换、预览
-    │   ├── theme-store.astro   # 主题商店：浏览/搜索/按色温筛选
-    │   ├── submit.astro        # 社区投稿：JSON 编辑器、导入/导出
-    │   ├── share.astro         # 主题分享页：详情、点赞、复制链接
+    │   ├── index.astro           # 首页：Hero、三步接入、功能展示、代码示例
+    │   ├── theme-builder.astro   # 主题构建器：实时编辑 CSS 变量、预设切换、预览
+    │   ├── theme-store.astro     # 主题商店：浏览/搜索/按色温筛选
+    │   ├── submit.astro          # 社区投稿：JSON 编辑器、导入/导出
+    │   ├── share.astro           # 主题分享页：详情、点赞、复制链接
     │   ├── admin/
-    │   │   └── index.astro     # 管理后台：登录面板 + 审核列表
+    │   │   └── index.astro       # 管理后台：登录面板 + 审核列表
     │   └── api/
-    │       ├── today.json.ts           # GET 今日主题（核心端点）
-    │       ├── docs.astro              # API 交互式文档
-    │       ├── spec.astro              # 旧文档 → /api/docs 301 转发
-    │       ├── theme/[preset].json.ts  # GET 指定预设/社区主题
+    │       ├── today.json.ts             # GET 今日主题（核心端点）
+    │       ├── docs.astro                # API 交互式文档（支持双平台动态域名）
+    │       ├── spec.astro                # 旧文档 → /api/docs 301 转发
+    │       ├── theme/[preset].json.ts    # GET 指定预设/社区主题
     │       ├── admin/
-    │       │   ├── login.json.ts       # POST 登录/登出
-    │       │   └── review.json.ts      # GET 待审列表 / POST 批量审核
+    │       │   ├── login.json.ts         # POST 登录/登出
+    │       │   └── review.json.ts        # GET 待审列表 / POST 批量审核
     │       └── diy/
-    │           ├── submit.json.ts      # POST 提交社区主题
-    │           ├── themes.json.ts      # GET 社区主题列表（分页）
-    │           ├── theme.json.ts       # GET 单个社区主题
-    │           └── like.json.ts        # POST 点赞（IP+UA 去重）
+    │           ├── submit.json.ts        # POST 提交社区主题
+    │           ├── themes.json.ts        # GET 社区主题列表（分页）
+    │           ├── theme.json.ts         # GET 单个社区主题
+    │           └── like.json.ts          # POST 点赞（IP+UA 去重）
     ├── themes/
-    │   ├── types.ts            # 核心类型定义（ThemePart, ThemePreset, ComposedTheme）
-    │   ├── registry.ts         # 主题部件注册中心
-    │   ├── presets/index.ts    # 5 套季节预设定义
+    │   ├── types.ts              # 核心类型定义（ThemePart, ThemePreset, ComposedTheme）
+    │   ├── registry.ts           # 主题部件注册中心
+    │   ├── presets/index.ts      # 5 套季节预设定义
     │   └── parts/
-    │       ├── colors.ts       # 颜色部件（8 个 CSS 变量）
-    │       ├── typography.ts   # 排版部件（Modular Scale）
-    │       ├── spacing.ts      # 间距部件（基准 + 梯度）
-    │       ├── wallpaper.ts    # 壁纸部件（URL + blend + opacity）
-    │       └── effects.ts      # 视觉效果部件（阴影/毛玻璃/噪点）
+    │       ├── colors.ts         # 颜色部件（8 个 CSS 变量）
+    │       ├── typography.ts     # 排版部件（Modular Scale）
+    │       ├── spacing.ts        # 间距部件（基准 + 梯度）
+    │       ├── wallpaper.ts      # 壁纸部件（URL + blend + opacity）
+    │       └── effects.ts        # 视觉效果部件（阴影/毛玻璃/噪点）
     └── utils/
-        ├── daily-theme.ts      # 统一导出入口（转发 omni-bridge 方法）
-        ├── omni-bridge.ts      # ★ 核心桥接：OmniConfig → ComposedTheme 转换（含社区主题查询）
-        └── theme-composer.ts   # 主题合成器：部件 + 预设 → 完整 ComposedTheme
+        ├── daily-theme.ts        # 统一导出入口（转发 omni-bridge 方法）
+        ├── omni-bridge.ts        # ★ 核心桥接：OmniConfig → ComposedTheme 转换（含社区主题查询）
+        └── theme-composer.ts     # 主题合成器：部件 + 预设 → 完整 ComposedTheme
 ```
 
 ---
@@ -376,15 +386,16 @@ themeDist/
 | 层级 | 技术 |
 |------|------|
 | **框架** | [Astro](https://astro.build/) 6.x（SSR 模式） |
-| **部署适配器** | `@astrojs/vercel`（Serverless Functions） |
+| **部署适配器** | `@astrojs/vercel` + `@astrojs/netlify`（通过 `ADAPTER` 环境变量切换） |
 | **运行时** | Node.js（ES Modules） |
 | **样式方案** | CSS 自定义属性（完全主题驱动，零 CSS 框架依赖） |
-| **数据库** | [Upstash Redis](https://upstash.com/)（Serverless Redis，支持 KV 命名空间） |
+| **数据库** | [Upstash Redis](https://upstash.com/)（Serverless Redis，HTTPS REST API） |
 | **农历计算** | `lunar-javascript` |
 | **ID 生成** | `nanoid`（8 字符） |
 | **前端交互** | 原生 JavaScript（无前端框架依赖） |
-| **部署目标** | Vercel（主） + Netlify（备用） |
-| **定时任务** | Vercel Cron Job / Netlify Build Hook（每日 UTC 午夜） |
+| **部署目标** | Vercel + Netlify 双平台 |
+| **CI/CD** | GitHub Actions（Netlify 自动构建）；Vercel Git Integration（自动部署） |
+| **定时任务** | Vercel Cron Job / GitHub Actions Scheduled Workflow（每日 UTC 午夜） |
 
 ---
 
@@ -405,24 +416,25 @@ cd themeDist
 npm install
 npm run dev
 # 访问 http://localhost:4321
-
-npm run build    # 生产构建
-npm run preview  # 预览生产构建
 ```
 
-### 环境变量
+构建命令：
+
+```bash
+npm run build            # 默认 Vercel 适配器
+ADAPTER=netlify npm run build   # Netlify 适配器
+
+npm run preview          # 预览生产构建
+```
+
+### 本地环境变量
 
 创建 `.env.local` 文件：
 
 ```env
-# 站点 URL
-URL=https://your-domain.com
-
-# 管理员账号密码
+URL=http://localhost:4321
 ADMIN_ACCOUNT=admin
 ADMIN_PASSWORD=your-secure-password
-
-# Upstash Redis（可选，不配置时社区功能只读）
 UPSTASH_REDIS_REST_URL=https://xxx.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your-token
 ```
@@ -431,12 +443,25 @@ UPSTASH_REDIS_REST_TOKEN=your-token
 
 ## 部署
 
-### Vercel（推荐）
+项目支持 **Vercel** 和 **Netlify** 双平台同时部署，同一份 `main` 分支代码自动适配两个平台。
+
+### 双平台适配原理
+
+`astro.config.mjs` 通过环境变量 `ADAPTER` 在构建时切换适配器：
+
+```js
+const adapter = process.env.ADAPTER === 'netlify' ? netlify() : vercel();
+```
+
+- **Vercel**：默认（不设 `ADAPTER`），使用 `@astrojs/vercel`
+- **Netlify**：构建时注入 `ADAPTER=netlify`，使用 `@astrojs/netlify`
+
+### Vercel
 
 1. 推送仓库到 GitHub
-2. 在 Vercel 中导入项目
-3. 设置环境变量（同上）
-4. 部署后 Vercel 自动根据 `vercel.json` 配置 Cron Job
+2. 在 Vercel 中导入项目（Framework 自动检测为 Astro）
+3. 在 Vercel Dashboard 设置环境变量
+4. 部署后 `vercel.json` 中的 Cron Job 自动生效
 
 `vercel.json` 关键配置：
 
@@ -445,37 +470,57 @@ UPSTASH_REDIS_REST_TOKEN=your-token
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "astro",
-  "crons": [{ "path": "/api/today.json", "schedule": "0 0 * * *" }],
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
-      ]
-    }
-  ]
+  "crons": [{ "path": "/api/today.json", "schedule": "0 0 * * *" }]
 }
 ```
 
-### Netlify（备用）
+### Netlify（GitHub Actions）
 
-构建配置及 CORS 头见 `netlify.toml`。
+采用 **GitHub Actions 自动构建并部署**到 Netlify 的方式。
 
----
+**触发方式：**
 
-## 环境变量
+| 事件 | 说明 |
+|------|------|
+| `push` 到 `main` | 每次提交自动构建部署 |
+| 定时 `0 0 * * *` | 每日 UTC 午夜自动重建（主题轮换） |
+| `workflow_dispatch` | GitHub 页面手动触发 |
+
+**GitHub Secrets 配置：**
+
+前往 GitHub 仓库 → Settings → Secrets and variables → Actions → 添加：
+
+| Secret | 说明 | 获取位置 |
+|--------|------|---------|
+| `NETLIFY_AUTH_TOKEN` | Netlify 个人访问令牌 | Netlify User settings → Personal access tokens |
+| `NETLIFY_SITE_ID` | Netlify 站点 ID | Netlify Site settings → General → Site ID |
+| `URL` | 站点公开 URL | `https://your-site.netlify.app` |
+
+**Netlify Runtime 环境变量：**
+
+Netlify Dashboard → Site settings → Environment variables → 添加（scope 选择 **All scopes** 或至少 **Functions**）：
 
 | 变量 | 必填 | 说明 |
 |------|------|------|
-| `URL` | 是 | 站点公开 URL（用于 Astro `site` 配置） |
+| `UPSTASH_REDIS_REST_URL` | 是 | Upstash Redis REST URL |
+| `UPSTASH_REDIS_REST_TOKEN` | 是 | Upstash Redis 访问令牌 |
 | `ADMIN_ACCOUNT` | 是 | 管理员用户名 |
-| `ADMIN_PASSWORD` | 是 | 管理员密码（也用于会话令牌签名） |
-| `UPSTASH_REDIS_REST_URL` | 否 | Upstash Redis REST URL |
-| `UPSTASH_REDIS_REST_TOKEN` | 否 | Upstash Redis 访问令牌 |
-| `KV_REST_API_URL` | 否 | Vercel KV 别名（与 UPSTASH 二选一） |
-| `KV_REST_API_TOKEN` | 否 | Vercel KV 别名 |
+| `ADMIN_PASSWORD` | 是 | 管理员密码 |
+| `URL` | 是 | 站点公开 URL |
+
+### 环境变量对照
+
+| 变量 | Vercel | Netlify | 本地开发 |
+|------|--------|---------|---------|
+| `URL` | 手动设置 | 手动设置 | `.env.local` |
+| `ADMIN_ACCOUNT` | 手动设置 | 手动设置 | `.env.local` |
+| `ADMIN_PASSWORD` | 手动设置 | 手动设置 | `.env.local` |
+| `UPSTASH_REDIS_REST_URL` | 手动设置（或使用 Vercel KV） | 手动设置 | `.env.local` |
+| `UPSTASH_REDIS_REST_TOKEN` | 手动设置（或使用 Vercel KV） | 手动设置 | `.env.local` |
+| `KV_REST_API_URL` | Vercel KV 自动注入 | 不适用 | 不适用 |
+| `KV_REST_API_TOKEN` | Vercel KV 自动注入 | 不适用 | 不适用 |
+
+> **注意**：Vercel KV 本质是 Upstash Redis。Netlify 上需设置 `UPSTASH_REDIS_REST_URL` 和 `UPSTASH_REDIS_REST_TOKEN`，值与 Vercel KV 的 `KV_REST_API_URL` / `KV_REST_API_TOKEN` 一致。
 
 ---
 
@@ -489,7 +534,7 @@ UPSTASH_REDIS_REST_TOKEN=your-token
 
 ### 部件系统
 
-除了 OmniConfig 数据源，项目还维护一套独立的**可插拔主题部件系统**（`src/themes/parts/`），支持通过 5 组部件 + 5 套预设定义主题，由 `theme-composer.ts` 合成。这套系统与 OmniConfig 并行存在，目前主要用于首页/主题商店/构建器的界面展示。
+除了 OmniConfig 数据源，项目还维护一套独立的**可插拔主题部件系统**（`src/themes/parts/`），支持通过 5 组部件 + 5 套预设定义主题，由 `theme-composer.ts` 合成。这套系统与 OmniConfig 并行存在，主要用于首页/主题商店/构建器的界面展示。
 
 ### 缓存策略
 
@@ -503,8 +548,8 @@ UPSTASH_REDIS_REST_TOKEN=your-token
 
 ### 优雅降级
 
-- **Redis 不可用时** — 所有社区功能（投稿、点赞、审核、列表）返回空数据或 503，`dbAvailable` 标记为 `false`。页面会显示相应降级提示，不会崩溃。
-- **API 兼容** — 所有 SSR 页面在 Redis 不可用时仍可正常渲染静态主题内容。
+- **Redis 不可用时** — 所有社区功能（投稿、点赞、审核、列表）返回空数据或 503，`dbAvailable` 标记为 `false`。页面显示相应降级提示，不会崩溃。
+- **每日主题分发与 Redis 完全解耦** — 每日主题纯靠 OmniConfig 静态数据，Redis 故障不影响 `/api/today.json` 和首页渲染。
 - **客户端降级** — 推荐实现 localStorage 缓存 + fetch 失败回退策略，确保网络问题不阻塞页面渲染。
 
 ### 社区主题生命周期
@@ -523,8 +568,6 @@ UPSTASH_REDIS_REST_TOKEN=your-token
 
 ## 未来计划
 
-### 🚧 规划中的功能
-
 | 功能 | 说明 | 状态 |
 |------|------|------|
 | **社区主题纳入每日轮换池** | 审核通过的社区主题有机会被 `/api/today.json` 选中，出现在每日分发中 | 设计中 |
@@ -535,7 +578,7 @@ UPSTASH_REDIS_REST_TOKEN=your-token
 | **主题使用统计** | 各主题被 API 请求的次数、点赞趋势等可视化数据 | 待规划 |
 | **API 速率限制** | 可选的分级限流策略，保障服务稳定性 | 待规划 |
 | **主题导出 / 导入** | 标准化 JSON 格式导出，一键迁移到其他自建实例 | 待规划 |
-| **多平台适配** | 同步支持 Vercel + Netlify 双平台部署 | ✅ 已完成 |
+| **双平台同步部署** | 一套代码自动部署 Vercel + Netlify 双平台 | ✅ 已完成 |
 | **Theme Preview 截图** | 为主题自动生成可视化预览图，便于商店和分享页展示 | 待规划 |
 
 ---
