@@ -7,117 +7,146 @@ const siteUrl = Astro.url.origin;
 ---
 
 <Layout>
-  <!-- Data Bridge Container (彻底弃用 define:vars 注入，采用标准 DOM data-* 传递，杜绝 inline script 崩溃) -->
+  <!-- Data Bridge Container -->
   <div 
     id="admin-dashboard-container"
     data-authed={authed ? 'true' : 'false'}
     data-site-url={siteUrl}
   >
     {!authed ? (
-      <section class="section text-center" style="max-width:420px;margin:0 auto">
-        <p class="t-label">Admin</p>
-        <h1 class="t-heading mt-2">管理员登录</h1>
+      <section class="section text-center login-section">
+        <div class="login-container">
+          <div class="login-brand">
+            <div class="login-logo-shield">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </div>
+            <p class="t-label">Security Gate</p>
+            <h1 class="t-heading mt-2">管理员鉴权</h1>
+          </div>
 
-        <div class="card card-glass" style="padding:32px;margin-top:32px;text-align:left">
-          <form id="login-form">
-            <div style="margin-bottom:18px">
-              <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--color-text)">账号</label>
-              <input
-                type="text"
-                name="account"
-                id="login-account"
-                autocomplete="username"
-                placeholder="输入管理员账号"
-                style="width:100%;height:44px;padding:0 14px;border-radius:12px;border:1.5px solid var(--color-border);background:color-mix(in srgb, var(--color-surface) 40%, transparent);color:var(--color-text);font-size:14px;font-family:inherit;outline:none;transition:border-color 0.2s"
-              />
-            </div>
-            <div style="margin-bottom:24px">
-              <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--color-text)">密码</label>
-              <input
-                type="password"
-                name="password"
-                id="login-password"
-                autocomplete="current-password"
-                placeholder="输入管理员密码"
-                style="width:100%;height:44px;padding:0 14px;border-radius:12px;border:1.5px solid var(--color-border);background:color-mix(in srgb, var(--color-surface) 40%, transparent);color:var(--color-text);font-size:14px;font-family:inherit;outline:none;transition:border-color 0.2s"
-              />
-            </div>
-            <p id="login-error" style="color:#ef4444;font-size:13px;font-weight:600;margin-bottom:12px;display:none"></p>
-            <button type="submit" class="btn btn-primary" style="width:100%;height:46px;font-size:14px;font-family:inherit">
-              登录
-            </button>
-          </form>
+          <div class="card card-glass login-card">
+            <form id="login-form">
+              <div class="form-group">
+                <label class="form-label">账号</label>
+                <div class="input-wrapper">
+                  <span class="input-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  </span>
+                  <input
+                    type="text"
+                    name="account"
+                    id="login-account"
+                    autocomplete="username"
+                    placeholder="请输入管理员账号"
+                    class="dashboard-input"
+                  />
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">密码</label>
+                <div class="input-wrapper">
+                  <span class="input-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  </span>
+                  <input
+                    type="password"
+                    name="password"
+                    id="login-password"
+                    autocomplete="current-password"
+                    placeholder="请输入密码"
+                    class="dashboard-input"
+                  />
+                </div>
+              </div>
+              <p id="login-error" class="login-error-text"></p>
+              <button type="submit" class="btn btn-primary login-btn">
+                <span>验证登录</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </button>
+            </form>
+          </div>
         </div>
       </section>
     ) : (
-      <section class="section-sm">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:24px">
+      <section class="section-sm admin-section">
+        <div class="admin-header-row">
           <div>
-            <p class="t-label">Admin Dashboard</p>
-            <h1 class="t-heading mt-2" style="font-size:26px">审核社区主题</h1>
+            <p class="t-label admin-label">
+              <span class="pulse-icon-green"></span>
+              Admin Control Center
+            </p>
+            <h1 class="t-heading mt-1" style="font-size:28px">审核社区主题</h1>
           </div>
-          <div style="display:flex;align-items:center;gap:12px">
-            <span id="pending-count-badge" style="font-size:13px;font-weight:600;padding:6px 14px;border-radius:8px;background:color-mix(in srgb, var(--color-primary) 12%, transparent);color:var(--color-primary)">加载中…</span>
-            <button id="btn-logout" class="btn btn-outline" style="height:38px;padding:0 16px;font-size:12px;font-family:inherit">退出登录</button>
+          <div class="admin-meta-controls">
+            <span id="pending-count-badge" class="badge-pending-pill">加载中…</span>
+            <button id="btn-logout" class="btn btn-outline logout-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              退出登录
+            </button>
           </div>
         </div>
 
-        <!-- System Dangling Keys Warn Box (脏数据异常诊断面板，自动感知数据不一致) -->
-        <div id="dangling-keys-warning" class="card" style="display:none;padding:18px 24px;border:1.5px solid rgba(245, 158, 11, 0.4);background:color-mix(in srgb, #f59e0b 8%, transparent);margin-bottom:20px;border-radius:12px">
-          <div style="display:flex;align-items:center;gap:10px;color:#f59e0b;font-weight:700;font-size:14px;margin-bottom:6px">
+        <!-- System Dangling Keys Warn Box -->
+        <div id="dangling-keys-warning" class="card dangling-warning-box">
+          <div class="warning-title-row">
             <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M8 2l6 11H2L8 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6v3.5M8 11.5h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-            ⚠️ 检测到系统脏数据不一致异常
+            待审索引可能失效 (Dangling Residual)
           </div>
-          <p style="font-size:13px;color:var(--color-text-muted);line-height:1.5;margin:0">
-            当前数据库反馈待审核总数为 <strong id="dangling-badge-count" style="color:var(--color-primary)">0</strong> 个，但未获取到任何有效的主题详情内容。<br/>
-            这通常是由于以前直接抹除或不规范重置 Redis 导致**索引残留（悬空键）**。您可以点击右侧“刷新”重试，或联系系统管理员清空 Redis 中 <code>themes:pending</code> 集合的多余 ID。
+          <p class="warning-text">
+            Redis 待审核总数显示为 <strong id="dangling-badge-count">0</strong>，但并没有获取到对应数据详情。
+            这往往是因为直接清理数据库造成的<strong>空悬索引残留</strong>。请点击「刷新」或让系统管理员在 Redis 中移去多余的 <code>themes:pending</code> 集合元素。
           </p>
         </div>
 
-        <!-- Toolbar -->
-        <div id="toolbar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">
-          <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--color-text);cursor:pointer;user-select:none">
-            <input type="checkbox" id="select-all" style="width:16px;height:16px;accent-color:var(--color-primary);cursor:pointer" />
-            全选
-          </label>
-          <span id="selected-count" style="font-size:12px;color:var(--color-text-muted)">已选 0</span>
-          <div style="flex:1"></div>
-          <button id="btn-approve" class="btn btn-primary" style="height:38px;padding:0 18px;font-size:12px;font-family:inherit" disabled>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            审核通过
-          </button>
-          <button id="btn-reject" class="btn btn-outline" style="height:38px;padding:0 18px;font-size:12px;font-family:inherit;color:#ef4444;border-color:#ef444455" disabled>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-            驳回删除
-          </button>
-          <button id="btn-refresh" class="btn btn-ghost" style="height:38px;padding:0 14px;font-size:12px;font-family:inherit">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 0110.47-4M14 8a6 6 0 01-10.47 4M2 2v4h4M14 14v-4h-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            刷新
-          </button>
+        <!-- Toolbar (Sticky floating control bar) -->
+        <div id="toolbar" class="admin-toolbar">
+          <div class="toolbar-left">
+            <label class="select-all-label">
+              <input type="checkbox" id="select-all" class="custom-checkbox" />
+              <span>全选</span>
+            </label>
+            <span id="selected-count" class="selected-counter">已选 0 个</span>
+          </div>
+          <div class="toolbar-actions">
+            <button id="btn-approve" class="btn btn-primary action-btn-green" disabled>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>通过选中</span>
+            </button>
+            <button id="btn-reject" class="btn btn-outline action-btn-red" disabled>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              <span>批量驳回</span>
+            </button>
+            <button id="btn-refresh" class="btn btn-ghost action-btn-refresh">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 0110.47-4M14 8a6 6 0 01-10.47 4M2 2v4h4M14 14v-4h-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>刷新</span>
+            </button>
+          </div>
         </div>
 
-        <!-- Loading -->
-        <div id="loading-state-admin" style="text-align:center;padding:60px 20px">
-          <div class="spinner-lg" style="width:36px;height:36px;border:3px solid var(--color-border);border-top-color:var(--color-primary);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 16px"></div>
-          <p class="text-muted" style="font-size:14px">加载待审核主题…</p>
+        <!-- Loading state -->
+        <div id="loading-state-admin" class="loading-state-container">
+          <div class="spinner-lg"></div>
+          <p class="text-muted">正在获取主题快照，请稍后…</p>
         </div>
 
         <!-- Empty state -->
-        <div id="empty-state" style="display:none;text-align:center;padding:60px 20px">
-          <div style="font-size:48px;margin-bottom:12px">🎉</div>
-          <h2 style="font-size:20px;margin-bottom:6px">没有待审核主题</h2>
-          <p class="text-muted" style="font-size:14px">所有社区主题已处理完毕</p>
+        <div id="empty-state" class="empty-state-container">
+          <div class="empty-icon">🎉</div>
+          <h2>没有积压待审的主题</h2>
+          <p class="text-muted">当前社区公共主题商店运行秩序井然，无残留任务。</p>
         </div>
 
-        <!-- Theme list -->
-        <div id="theme-list-admin" style="display:flex;flex-direction:column;gap:12px;max-width:960px;margin:0 auto"></div>
+        <!-- Theme list container -->
+        <div id="theme-list-admin" class="theme-grid-admin"></div>
 
-        <!-- Error -->
-        <div id="error-state-admin" style="display:none;text-align:center;padding:60px 20px">
-          <div style="font-size:48px;margin-bottom:12px">⚠️</div>
-          <h2 style="font-size:20px;margin-bottom:6px">加载失败</h2>
-          <p class="text-muted" style="font-size:14px;margin-bottom:16px">可能是数据库连接问题</p>
-          <button id="btn-retry" class="btn btn-primary" style="height:38px;padding:0 18px;font-size:12px;font-family:inherit">重试</button>
+        <!-- Error state -->
+        <div id="error-state-admin" class="error-state-container">
+          <div class="error-icon">⚠️</div>
+          <h2>状态拉取失败</h2>
+          <p class="text-muted">可能是网络会话过期或 Redis 服务断开连接。</p>
+          <button id="btn-retry" class="btn btn-primary" style="margin-top:12px">重新连接</button>
         </div>
       </section>
     )}
@@ -125,326 +154,614 @@ const siteUrl = Astro.url.origin;
 </Layout>
 
 <style>
-  #login-form input:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  @keyframes pulse-dot {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.5; transform: scale(0.7); }
+  /* ─── Variables & Global Reset for Dashboard ─── */
+  :root {
+    --dash-transition: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  #btn-approve:disabled, #btn-reject:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-
-  /* ─── Review Card ─── */
-  .review-card {
-    padding: 0;
-    overflow: hidden;
-    cursor: pointer;
-    transition: border-color 0.25s, box-shadow 0.25s, transform 0.2s;
-  }
-  .review-card:hover {
-    transform: translateY(-1px);
-  }
-  .review-card.selected {
-    border-color: var(--rv-primary, var(--color-primary)) !important;
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--rv-primary, var(--color-primary)) 30%, transparent),
-                0 8px 32px -8px rgba(0,0,0,0.2);
-  }
-
-  .review-card-top-bar {
-    height: 4px;
-    transition: height 0.25s;
-  }
-  .review-card:hover .review-card-top-bar {
-    height: 6px;
-  }
-
-  .review-card-body {
+  /* ─── Login Screen Design ─── */
+  .login-section {
     display: flex;
-    gap: 0;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 200px);
     padding: 20px;
   }
-
-  .review-left {
-    padding-right: 14px;
-    padding-top: 2px;
-    flex-shrink: 0;
+  .login-container {
+    width: 100%;
+    max-width: 420px;
+    animation: zoomInDash 0.4s var(--dash-transition);
   }
-  .review-checkbox {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--rv-primary, var(--color-primary));
+  @keyframes zoomInDash {
+    from { opacity: 0; transform: scale(0.97) translateY(10px); }
+  }
+  .login-brand {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .login-logo-shield {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    color: var(--color-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 12px;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+  }
+  .login-card {
+    padding: 32px;
+    border-radius: 20px;
+    border: 1px solid var(--color-border);
+  }
+  .form-group {
+    margin-bottom: 18px;
+    text-align: left;
+  }
+  .form-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .input-icon {
+    position: absolute;
+    left: 14px;
+    color: var(--color-text-muted);
+    opacity: 0.6;
+    display: flex;
+    align-items: center;
+  }
+  .dashboard-input {
+    width: 100%;
+    height: 46px;
+    padding: 0 14px 0 40px;
+    border-radius: 12px;
+    border: 1.5px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 35%, transparent);
+    color: var(--color-text);
+    font-size: 14px;
+    outline: none;
+    transition: all 0.25s var(--dash-transition);
+  }
+  .dashboard-input:focus {
+    border-color: var(--color-primary);
+    background: var(--color-surface);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 12%, transparent);
+  }
+  .login-error-text {
+    color: #ef4444;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    text-align: left;
+    display: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+  }
+  .login-btn {
+    width: 100%;
+    height: 48px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  /* ─── Admin Dashboard Layout ─── */
+  .admin-section {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 16px 80px;
+  }
+  .admin-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .admin-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pulse-icon-green {
+    width: 8px;
+    height: 8px;
+    background: #10b981;
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+    animation: livePulse 2s infinite;
+  }
+  @keyframes livePulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0px rgba(16, 185, 129, 0.4); }
+    50% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  }
+  .admin-meta-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .badge-pending-pill {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 50px;
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    color: var(--color-primary);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+  }
+  .logout-btn {
+    height: 38px;
+    padding: 0 14px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 10px;
+  }
+
+  /* ─── Dangling Warning Box ─── */
+  .dangling-warning-box {
+    display: none;
+    padding: 16px 20px;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    background: color-mix(in srgb, #f59e0b 6%, transparent);
+    margin-bottom: 24px;
+    border-radius: 12px;
+    animation: slideDownWarn 0.3s var(--dash-transition);
+  }
+  @keyframes slideDownWarn {
+    from { opacity: 0; transform: translateY(-8px); }
+  }
+  .warning-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #f59e0b;
+    font-weight: 800;
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+  .warning-text {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    line-height: 1.6;
+    margin: 0;
+  }
+  .warning-text strong {
+    color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  /* ─── Sticky Toolbar Center ─── */
+  .admin-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding: 12px 18px;
+    border-radius: 14px;
+    border: 1px solid var(--color-border);
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur, 12px));
+    box-shadow: var(--shadow-sm);
+    position: sticky;
+    top: 75px;
+    z-index: 100;
+    transition: all 0.3s;
+  }
+  .toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .select-all-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-text);
     cursor: pointer;
-    border-radius: 5px;
+    user-select: none;
+  }
+  .custom-checkbox {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--color-primary);
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  .selected-counter {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    background: color-mix(in srgb, var(--color-text) 6%, transparent);
+    padding: 2px 8px;
+    border-radius: 6px;
+  }
+  .toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .action-btn-green {
+    height: 36px;
+    padding: 0 16px;
+    font-size: 12px;
+    gap: 6px;
+    border-radius: 10px;
+  }
+  .action-btn-green:disabled, .action-btn-red:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+  .action-btn-red {
+    height: 36px;
+    padding: 0 16px;
+    font-size: 12px;
+    gap: 6px;
+    border-radius: 10px;
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+  .action-btn-red:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: #ef4444;
+  }
+  .action-btn-refresh {
+    height: 36px;
+    padding: 0 12px;
+    font-size: 12px;
+    border-radius: 10px;
+    gap: 4px;
   }
 
+  /* ─── System States ─── */
+  .loading-state-container, .empty-state-container, .error-state-container {
+    text-align: center;
+    padding: 80px 20px;
+    animation: fadeInDash 0.3s ease-out;
+  }
+  .spinner-lg {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 0.65s linear infinite;
+    margin: 0 auto 16px;
+  }
+  .empty-icon, .error-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+  }
+  .empty-state-container h2, .error-state-container h2 {
+    font-size: 18px;
+    font-weight: 800;
+    margin-bottom: 6px;
+    color: var(--color-text);
+  }
+  .text-muted {
+    font-size: 13px;
+    color: var(--color-text-muted);
+  }
+
+  /* ─── Grid Theme container ─── */
+  .theme-grid-admin {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* ─── Dynamic Card Custom CSS Injecting ─── */
+  .review-card {
+    border-radius: 16px !important;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.25s var(--dash-transition) !important;
+  }
+  .review-card:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--rv-primary) 40%, var(--color-border));
+    box-shadow: 0 12px 30px -10px rgba(0,0,0,0.3);
+  }
+  .review-card.selected {
+    border-color: var(--rv-primary) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--rv-primary) 15%, transparent), var(--shadow-md) !important;
+  }
+  .review-card-top-bar {
+    height: 5px;
+  }
+  .review-card-body {
+    padding: 24px;
+    display: flex;
+    gap: 16px;
+  }
+  .review-left {
+    display: flex;
+    align-items: flex-start;
+    padding-top: 4px;
+  }
   .review-main {
     flex: 1;
     min-width: 0;
   }
 
-  /* ─── Header ─── */
+  /* ─── Card Header Meta ─── */
   .review-header {
     display: flex;
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
   .review-title {
-    font-size: 16px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--color-text);
+    margin: 0;
   }
   .review-badge-pending {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
+    font-size: 9px;
+    font-weight: 800;
     text-transform: uppercase;
-    padding: 3px 10px;
+    padding: 2px 8px;
     border-radius: 6px;
-    background: rgba(245, 158, 11, 0.1);
+    background: rgba(245, 158, 11, 0.08);
     color: #f59e0b;
-    border: 1px solid rgba(245, 158, 11, 0.2);
+    border: 1px solid rgba(245, 158, 11, 0.15);
   }
   .review-badge-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
     background: #f59e0b;
-    animation: pulse-dot 2s ease-in-out infinite;
+    animation: flashDot 1.5s ease-in-out infinite alternate;
+  }
+  @keyframes flashDot {
+    0% { opacity: 0.4; }
+    100% { opacity: 1; }
   }
   .review-ttl {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--color-text-muted);
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--color-text-muted);
-    margin-left: auto;
-    font-variant-numeric: tabular-nums;
   }
   .review-ttl.ttl-warn { color: #f59e0b; }
-  .review-ttl.ttl-urgent { color: #ef4444; font-weight: 600; }
+  .review-ttl.ttl-urgent { color: #ef4444; }
 
-  /* ─── Meta ─── */
+  /* ─── Card Author Metas ─── */
   .review-meta {
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 14px;
+    gap: 8px;
+    margin-bottom: 16px;
     font-size: 12px;
+    color: var(--color-text-muted);
+    flex-wrap: wrap;
   }
   .review-author-avatar {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     border-radius: 6px;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     justify-content: center;
+    font-weight: 800;
     font-size: 10px;
-    font-weight: 700;
-    flex-shrink: 0;
   }
   .review-author-name {
-    font-weight: 600;
-    color: var(--color-text);
-  }
-  .review-meta-sep {
-    color: var(--color-text-muted);
-    opacity: 0.35;
     font-weight: 700;
-  }
-  .review-meta-date {
-    color: var(--color-text-muted);
-  }
-  .review-meta-extra {
-    color: var(--color-text-muted);
+    color: var(--color-text);
   }
   .review-meta-tag {
     font-size: 10px;
-    font-weight: 600;
+    font-weight: 700;
     padding: 1px 7px;
     border-radius: 4px;
-    background: color-mix(in srgb, var(--rv-primary, var(--color-primary)) 12%, transparent);
-    color: var(--rv-primary, var(--color-primary));
+    background: color-mix(in srgb, var(--rv-primary) 10%, transparent);
+    color: var(--rv-primary);
+    border: 1.5px solid color-mix(in srgb, var(--rv-primary) 15%, transparent);
   }
 
-  /* ─── Swatches ─── */
+  /* ─── Color Swatches row ─── */
   .review-swatches {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
-    margin-bottom: 14px;
+    margin-bottom: 16px;
   }
   .review-swatch {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 5px 10px 5px 5px;
-    border-radius: 9px;
-    background: color-mix(in srgb, var(--rv-surface, var(--color-surface)) 40%, transparent);
+    padding: 4px 10px 4px 4px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--rv-surface) 60%, transparent);
     border: 1px solid var(--color-border);
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition: all 0.2s;
   }
   .review-swatch:hover {
     transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    border-color: var(--rv-primary);
+    box-shadow: var(--shadow-sm);
   }
   .review-swatch-color {
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
-    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 5px;
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
   }
   .review-swatch-letter {
     font-size: 9px;
-    font-weight: 700;
-    line-height: 1;
+    font-weight: 800;
   }
   .review-swatch-hex {
     font-size: 11px;
     font-family: 'JetBrains Mono', monospace;
-    color: var(--color-text-muted);
-    font-weight: 500;
+    font-weight: 600;
   }
 
-  /* ─── Preview Chip ─── */
+  /* ─── Micro Preview Component ─── */
   .review-preview-chip {
-    padding: 14px;
-    margin-bottom: 14px;
+    padding: 16px;
+    margin-bottom: 16px;
     position: relative;
     overflow: hidden;
+    background: var(--rv-bg);
+    border: 1.5px solid color-mix(in srgb, var(--rv-primary) 15%, transparent);
   }
-  .review-preview-chip::after {
+  .review-preview-chip::before {
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(ellipse 60% 50% at 100% 0%, var(--rv-primary, var(--color-primary)) 0%, transparent 70%);
-    opacity: 0.04;
+    background: radial-gradient(circle at 85% 15%, color-mix(in srgb, var(--rv-primary) 8%, transparent) 0%, transparent 60%);
     pointer-events: none;
-  }
-  .preview-chip-inner {
-    position: relative;
-    z-index: 1;
   }
   .preview-chip-header {
     margin-bottom: 10px;
   }
   .preview-chip-muted {
     font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
+    font-weight: 800;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
   }
   .preview-chip-buttons {
     display: flex;
-    gap: 8px;
-    margin-bottom: 10px;
+    gap: 6px;
+    margin-bottom: 12px;
   }
   .preview-chip-btn-primary {
-    display: inline-block;
-    padding: 5px 14px;
     font-size: 10px;
-    font-weight: 600;
-    color: #fff;
+    font-weight: 700;
+    padding: 4px 12px;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--rv-primary) 20%, transparent);
   }
   .preview-chip-btn-ghost {
-    display: inline-block;
-    padding: 5px 14px;
     font-size: 10px;
-    font-weight: 600;
-    background: transparent;
+    font-weight: 700;
+    padding: 4px 12px;
   }
   .preview-chip-card {
-    padding: 10px 12px;
+    padding: 12px;
+    border: 1.5px solid color-mix(in srgb, var(--rv-primary) 8%, transparent);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   }
   .preview-chip-card-title {
     display: block;
-    font-size: 11px;
-    font-weight: 700;
-    margin-bottom: 3px;
+    font-size: 12px;
+    font-weight: 800;
+    margin-bottom: 2px;
   }
   .preview-chip-card-desc {
     font-size: 10px;
     line-height: 1.4;
   }
 
-  /* ─── Actions ─── */
+  /* ─── Review Card Buttons Row ─── */
   .review-actions {
     display: flex;
-    gap: 8px;
     align-items: center;
+    gap: 10px;
     flex-wrap: wrap;
   }
   .review-action-link {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
     font-size: 12px;
-    font-weight: 600;
-    color: var(--rv-primary, var(--color-primary));
+    font-weight: 700;
+    color: var(--rv-primary);
     text-decoration: none;
-    padding: 6px 12px;
+    padding: 6px 14px;
     border-radius: 8px;
-    transition: background 0.2s;
+    border: 1px solid color-mix(in srgb, var(--rv-primary) 15%, transparent);
+    background: color-mix(in srgb, var(--rv-primary) 4%, transparent);
+    transition: all 0.2s;
   }
   .review-action-link:hover {
-    background: color-mix(in srgb, var(--rv-primary, var(--color-primary)) 8%, transparent);
+    background: color-mix(in srgb, var(--rv-primary) 10%, transparent);
+    border-color: var(--rv-primary);
+    transform: translateY(-0.5px);
   }
   .review-action-copy {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
     font-size: 11px;
-    font-weight: 500;
+    font-weight: 600;
     color: var(--color-text-muted);
     background: none;
     border: 1px solid var(--color-border);
-    padding: 5px 10px;
+    padding: 6px 12px;
     border-radius: 8px;
     cursor: pointer;
     font-family: inherit;
     transition: all 0.2s;
   }
   .review-action-copy:hover {
-    border-color: var(--rv-primary, var(--color-primary));
-    color: var(--rv-primary, var(--color-primary));
-    background: color-mix(in srgb, var(--rv-primary, var(--color-primary)) 6%, transparent);
+    border-color: var(--rv-primary);
+    color: var(--rv-primary);
+    background: color-mix(in srgb, var(--rv-primary) 6%, transparent);
   }
 
-  /* ─── Responsive ─── */
+  /* ─── Responsive Media ─── */
   @media (max-width: 640px) {
     .review-card-body {
-      padding: 14px;
+      padding: 16px;
     }
     .review-header {
       gap: 6px;
     }
     .review-title {
-      font-size: 14px;
+      font-size: 15px;
       width: 100%;
     }
     .review-ttl {
       margin-left: 0;
+      margin-top: 4px;
     }
     .review-swatches {
-      gap: 6px;
+      gap: 4px;
     }
     .review-swatch {
-      padding: 4px 7px 4px 4px;
+      padding: 3px 6px 3px 3px;
     }
     .review-swatch-hex {
       font-size: 10px;
@@ -452,6 +769,10 @@ const siteUrl = Astro.url.origin;
     .preview-chip-buttons {
       flex-direction: column;
       gap: 4px;
+    }
+    .admin-toolbar {
+      position: static;
+      backdrop-filter: none;
     }
   }
 </style>
@@ -469,7 +790,7 @@ const siteUrl = Astro.url.origin;
       const errorEl = document.getElementById('login-error');
 
       if (!account || !password) {
-        errorEl.textContent = '请填写账号和密码';
+        errorEl.textContent = '请完整填写管理员账号和密码';
         errorEl.style.display = 'block';
         return;
       }
@@ -484,11 +805,11 @@ const siteUrl = Astro.url.origin;
         if (res.ok && data.success) {
           location.reload();
         } else {
-          errorEl.textContent = data.error || '登录失败';
+          errorEl.textContent = data.error || '登录失败，凭证不匹配';
           errorEl.style.display = 'block';
         }
       } catch {
-        errorEl.textContent = '网络错误，请稍后重试';
+        errorEl.textContent = '网络层发生传输故障，请稍后检查重试';
         errorEl.style.display = 'block';
       }
     });
@@ -507,7 +828,7 @@ const siteUrl = Astro.url.origin;
     });
   }
 
-  // ─── Admin dashboard ───
+  // ─── Admin Dashboard Logics ───
   if (!loginForm) {
     const loadingEl = document.getElementById('loading-state-admin');
     const emptyEl = document.getElementById('empty-state');
@@ -536,7 +857,7 @@ const siteUrl = Astro.url.origin;
         if (cb) cb.checked = selected.has(id);
       });
       if (selectedCount) {
-        selectedCount.textContent = `已选 ${selected.size}`;
+        selectedCount.textContent = `已选 ${selected.size} 个主题`;
       }
       const hasSelection = selected.size > 0;
       if (btnApprove) btnApprove.disabled = !hasSelection;
@@ -588,11 +909,11 @@ const siteUrl = Astro.url.origin;
       const chipMuted = muted;
 
       return `
-        <div class="card card-interact review-card" data-id="${escapeAttr(t.id)}" style="--rv-primary:${p};--rv-bg:${bg};--rv-text:${tx};--rv-surface:${surface};--rv-muted:${muted};--rv-radii:${radii}">
+        <div class="card review-card" data-id="${escapeAttr(t.id)}" style="--rv-primary:${p};--rv-bg:${bg};--rv-text:${tx};--rv-surface:${surface};--rv-muted:${muted};--rv-radii:${radii}">
           <div class="review-card-top-bar" style="background:linear-gradient(90deg, ${p} 0%, ${s} 50%, ${a} 100%)"></div>
           <div class="review-card-body">
             <div class="review-left">
-              <input type="checkbox" class="review-checkbox" />
+              <input type="checkbox" class="review-checkbox custom-checkbox" />
             </div>
             <div class="review-main">
               <div class="review-header">
@@ -612,19 +933,19 @@ const siteUrl = Astro.url.origin;
                 <span class="review-meta-sep">·</span>
                 <span class="review-meta-date">${dateStr}</span>
                 <span class="review-meta-sep">·</span>
-                <span class="review-meta-extra">${varCount} CSS 变量</span>
-                ${hasCustomCSS ? '<span class="review-meta-sep">·</span><span class="review-meta-tag">含自定义 CSS</span>' : ''}
+                <span class="review-meta-extra">${varCount} 核心 CSS 变量</span>
+                ${hasCustomCSS ? '<span class="review-meta-tag">含外部动画/粒子 CSS</span>' : ''}
               </div>
 
               <div class="review-swatches">
                 ${[
                   { l: 'P', c: p, key: '--color-primary', desc: '主色' },
                   { l: 'S', c: s, key: '--color-secondary', desc: '辅色' },
-                  { l: 'A', c: a, key: '--color-accent', desc: '强调' },
-                  { l: 'Bg', c: bg, key: '--color-bg', desc: '背景' },
-                  { l: 'Tx', c: tx, key: '--color-text', desc: '文字' },
+                  { l: 'A', c: a, key: '--color-accent', desc: '强调色' },
+                  { l: 'Bg', c: bg, key: '--color-bg', desc: '画布背景' },
+                  { l: 'Tx', c: tx, key: '--color-text', desc: '正文字体' },
                 ].map(({ l, c, key, desc }) => `
-                  <div class="review-swatch" title="${key}: ${c} (${desc})">
+                  <div class="review-swatch" title="点击可复制该 Hex 码\n${key}: ${c} (${desc})" data-swatch-hex="${c}">
                     <span class="review-swatch-color" style="background:${c};border:${key === '--color-bg' ? '1.5px solid var(--color-border)' : 'none'}">
                       <span class="review-swatch-letter" style="color:${key === '--color-text' ? bg : tx};text-shadow:0 0 2px ${bg}">${l}</span>
                     </span>
@@ -633,30 +954,30 @@ const siteUrl = Astro.url.origin;
                 `).join('')}
               </div>
 
-              <div class="review-preview-chip" style="background:${chipBg};border-radius:${radii};border:1px solid ${hexToRgbaReview(p, 0.15)}">
+              <div class="review-preview-chip" style="border-radius:${radii}">
                 <div class="preview-chip-inner">
                   <div class="preview-chip-header">
-                    <span class="preview-chip-muted" style="color:${chipMuted}">Preview</span>
+                    <span class="preview-chip-muted" style="color:${chipMuted}">Preview SandBox</span>
                   </div>
                   <div class="preview-chip-buttons">
-                    <span class="preview-chip-btn-primary" style="background:${p};border-radius:calc(${radii} / 2)">主要按钮</span>
-                    <span class="preview-chip-btn-ghost" style="border:1.5px solid ${hexToRgbaReview(p, 0.3)};color:${p};border-radius:calc(${radii} / 2)">次要按钮</span>
+                    <span class="preview-chip-btn-primary" style="background:${p};color:${isLightReview(p) ? '#0f0f23' : '#fff'};border-radius:calc(${radii} / 2)">主要行为</span>
+                    <span class="preview-chip-btn-ghost" style="border:1.5px solid ${hexToRgbaReview(p, 0.3)};color:${p};border-radius:calc(${radii} / 2)">次要操作</span>
                   </div>
-                  <div class="preview-chip-card" style="background:${chipSurface};border-radius:calc(${radii} / 1.5);border:1.5px solid ${hexToRgbaReview(p, 0.12)}">
-                    <span class="preview-chip-card-title" style="color:${chipText}">卡片标题</span>
-                    <span class="preview-chip-card-desc" style="color:${chipMuted}">正文示例文本，展示字色对比度</span>
+                  <div class="preview-chip-card" style="background:${chipSurface};border-radius:calc(${radii} / 1.5)">
+                    <span class="preview-chip-card-title" style="color:${chipText}">局部卡片组件</span>
+                    <span class="preview-chip-card-desc" style="color:${chipMuted}">示例文本，展示当前主题色调配下的字色与面色融合对比度。</span>
                   </div>
                 </div>
               </div>
 
               <div class="review-actions">
                 <a href="/share?id=${escapeAttr(t.id)}" target="_blank" class="review-action-link" onclick="event.stopPropagation()">
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/></svg>
-                  在新标签页预览
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  预览详情页
                 </a>
-                <button class="review-action-copy" data-copy-vars="${escapeAttr(JSON.stringify(v))}" title="复制 CSS 变量 JSON">
+                <button class="review-action-copy" data-copy-vars="${escapeAttr(JSON.stringify(v))}" title="复制整个 CSS 变量 JSON">
                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6v8a2 2 0 002 2h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-                  复制 CSS 变量
+                  复制 JSON 配置
                 </button>
               </div>
             </div>
@@ -681,26 +1002,22 @@ const siteUrl = Astro.url.origin;
         if (!res.ok) throw new Error('Failed');
         const data = await res.json();
         
-        // 🛡️ 调试哨兵：如果遇到 Bug，在 F12 控制台一秒即可发现数据结构长什么样
         console.log('[ThemeDist Admin Monitor] Raw response data:', data);
 
-        // 防御性映射：兼容后端 API 返回 themes、list 或 data 等不同命名可能
         themes = data.themes || data.list || data.data || [];
         const pendingCount = data.pending || 0;
 
         if (countBadge) {
-          countBadge.textContent = `待审核: ${pendingCount}`;
+          countBadge.textContent = `待审核任务数: ${pendingCount}`;
         }
 
         loadingEl.style.display = 'none';
 
-        // ⚠️ 核心脏数据捕获：待审核数量 > 0，但实际拉取到的具体内容却为空（表明 Redis themes:pending 有悬空索引）
         if (pendingCount > 0 && themes.length === 0) {
           if (warningBox) {
             if (warningBadgeCount) warningBadgeCount.textContent = String(pendingCount);
             warningBox.style.display = 'block';
           }
-          // Keep toolbar visible so the refresh button is accessible
           if (toolbar) toolbar.style.display = 'flex';
           return;
         }
@@ -715,12 +1032,12 @@ const siteUrl = Astro.url.origin;
           try { return renderCard(t); } catch(e) { console.error('Render card error:', e); return ''; }
         }).join('');
 
-        // Bind events
+        // Bind card events
         listEl.querySelectorAll('.review-card').forEach(card => {
           const el = card;
           el.addEventListener('click', (e) => {
             const target = e.target;
-            if (target.tagName === 'A' || target.closest('a') || target.closest('button')) return;
+            if (target.tagName === 'A' || target.closest('a') || target.closest('button') || target.closest('.review-swatch')) return;
             const cb = el.querySelector('.review-checkbox');
             if (cb) {
               cb.checked = !cb.checked;
@@ -770,13 +1087,13 @@ const siteUrl = Astro.url.origin;
         });
         const data = await res.json();
         if (data.success) {
-          window.__toast?.(`已通过 ${data.done} 个主题`);
+          window.__toast?.(`成功批准 ${data.done} 个社区主题`);
           loadThemes();
         } else {
           window.__toast?.(data.error || '操作失败');
         }
       } catch {
-        window.__toast?.('操作失败，请稍后重试');
+        window.__toast?.('服务端发生错误，批准失败');
       }
       btnApprove.disabled = true;
       btnReject.disabled = true;
@@ -785,7 +1102,7 @@ const siteUrl = Astro.url.origin;
     // Reject
     btnReject?.addEventListener('click', async () => {
       if (selected.size === 0) return;
-      if (!confirm(`确定驳回并删除选中的 ${selected.size} 个主题吗？此操作不可撤销。`)) return;
+      if (!confirm(`确定要彻底驳回并抹除这 ${selected.size} 个主题设计吗？本操作无法后撤。`)) return;
       btnApprove.disabled = true;
       btnReject.disabled = true;
       try {
@@ -796,13 +1113,13 @@ const siteUrl = Astro.url.origin;
         });
         const data = await res.json();
         if (data.success) {
-          window.__toast?.(`已驳回删除 ${data.done} 个主题`);
+          window.__toast?.(`已抹除并回退 ${data.done} 个不合规主题`);
           loadThemes();
         } else {
-          window.__toast?.(data.error || '操作失败');
+          window.__toast?.(data.error || '驳回操作失败');
         }
       } catch {
-        window.__toast?.('操作失败，请稍后重试');
+        window.__toast?.('服务端响应异常');
       }
       btnApprove.disabled = true;
       btnReject.disabled = true;
@@ -811,18 +1128,32 @@ const siteUrl = Astro.url.origin;
     btnRefresh?.addEventListener('click', loadThemes);
     btnRetry?.addEventListener('click', loadThemes);
 
-    // Copy CSS variables delegation
+    // Dynamic Swatch click copies hex value directly
     listEl?.addEventListener('click', (e) => {
+      const swatch = e.target.closest('[data-swatch-hex]');
+      if (swatch) {
+        e.stopPropagation();
+        const hex = swatch.getAttribute('data-swatch-hex');
+        if (hex) {
+          navigator.clipboard.writeText(hex).then(() => {
+            window.__toast?.(`颜色值 ${hex} 已单独复制`);
+          });
+        }
+        return;
+      }
+
+      // Copy whole CSS variables JSON delegation
       const btn = e.target.closest('[data-copy-vars]');
-      if (!btn) return;
-      e.stopPropagation();
-      const vars = btn.getAttribute('data-copy-vars');
-      if (vars) {
-        navigator.clipboard.writeText(vars).then(() => {
-          window.__toast?.('CSS 变量已复制到剪贴板');
-        }).catch(() => {
-          window.__toast?.('复制失败');
-        });
+      if (btn) {
+        e.stopPropagation();
+        const vars = btn.getAttribute('data-copy-vars');
+        if (vars) {
+          navigator.clipboard.writeText(vars).then(() => {
+            window.__toast?.('CSS 主题 JSON 变量已全部复制');
+          }).catch(() => {
+            window.__toast?.('复制失败');
+          });
+        }
       }
     });
 
