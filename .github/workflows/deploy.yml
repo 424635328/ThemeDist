@@ -4,16 +4,15 @@ on:
   # 每月一号 UTC 午夜自动重建（主题轮换）
   schedule:
     - cron: '0 0 1 * *'
+  push:
+    branches:
+      - main
   # 手动触发
   workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write       # 允许向 commit 写入评论
-      deployments: write    # 允许更新 GitHub Deployments
-      statuses: write       # 新增：解决 Resource not accessible 报错，允许更新 Commit 部署状态
 
     steps:
       - name: Checkout code
@@ -33,15 +32,6 @@ jobs:
         env:
           URL: ${{ secrets.URL }}
 
-      - name: Deploy to Netlify
-        uses: nwtgck/actions-netlify@v3
-        with:
-          publish-dir: 'dist'
-          functions-dir: '.netlify/v1/functions'
-          production-deploy: true
-          production-branch: main
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          enable-commit-comment: true
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      - name: Deploy to Netlify using Official CLI
+        # 使用 npx 运行官方 netlify-cli 进行部署，它会自动读取 netlify.toml 里的 publish 目录并打包关联的 Serverless 函数
+        run: npx netlify-cli deploy --prod --site ${{ secrets.NETLIFY_SITE_ID }} --auth ${{ secrets.NETLIFY_AUTH_TOKEN }}
