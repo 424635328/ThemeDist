@@ -317,6 +317,8 @@ const siteUrl = Astro.url.origin;
             if (warningBadgeCount) warningBadgeCount.textContent = String(pendingCount);
             warningBox.style.display = 'block';
           }
+          // Keep toolbar visible so the refresh button is accessible
+          if (toolbar) toolbar.style.display = 'flex';
           return;
         }
 
@@ -347,7 +349,7 @@ const siteUrl = Astro.url.origin;
         listEl.querySelectorAll('.review-checkbox').forEach(cb => {
           cb.addEventListener('click', (e) => {
             e.stopPropagation();
-            const card = (e.target).closest('.review-card');
+            const card = e.target.closest('.review-card');
             if (card) {
               toggleTheme(card.dataset.id || '');
             }

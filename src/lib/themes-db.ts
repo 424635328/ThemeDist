@@ -51,7 +51,7 @@ export async function submitTheme(input: SubmitInput): Promise<CommunityTheme | 
     status: 'pending',
   };
 
-  const ok = await set(themeKey(id), JSON.stringify(theme));
+  const ok = await set(themeKey(id), theme, { ex: 86400 });
   if (!ok) return null;
 
   await zadd(PENDING_KEY, theme.createdAt, id);
@@ -62,16 +62,15 @@ export async function submitTheme(input: SubmitInput): Promise<CommunityTheme | 
 export async function approveTheme(id: string): Promise<boolean> {
   if (!isReady()) return false;
 
-  const raw = await get(themeKey(id));
-  if (!raw) return false;
+  const theme = await get<CommunityTheme>(themeKey(id));
+  if (!theme) return false;
 
   try {
-    const theme: CommunityTheme = JSON.parse(raw);
     theme.status = normaliseStatus(theme.status);
     if (theme.status !== 'pending') return false;
 
     theme.status = 'approved';
-    await set(themeKey(id), JSON.stringify(theme));
+    await set(themeKey(id), theme);
     await zrem(PENDING_KEY, id);
     await zadd(NEWEST_KEY, theme.createdAt, id);
     await zadd(LIKES_KEY, theme.likes, id);
@@ -84,11 +83,10 @@ export async function approveTheme(id: string): Promise<boolean> {
 export async function rejectTheme(id: string): Promise<boolean> {
   if (!isReady()) return false;
 
-  const raw = await get(themeKey(id));
-  if (!raw) return false;
+  const theme = await get<CommunityTheme>(themeKey(id));
+  if (!theme) return false;
 
   try {
-    const theme: CommunityTheme = JSON.parse(raw);
     theme.status = normaliseStatus(theme.status);
     if (theme.status !== 'pending') return false;
 
@@ -129,7 +127,12 @@ export async function getPendingThemes(): Promise<CommunityTheme[]> {
   const themes: CommunityTheme[] = [];
   for (const id of ids) {
     const t = await getTheme(id);
-    if (t) themes.push(t);
+    if (t) {
+      themes.push(t);
+    } else {
+      // Stale entry: theme key expired (24h TTL), clean up the pending index
+      await zrem(PENDING_KEY, id);
+    }
   }
   return themes;
 }
@@ -141,13 +144,10 @@ export async function getPendingCount(): Promise<number> {
 
 export async function getTheme(id: string): Promise<CommunityTheme | null> {
   if (!isReady()) return null;
-  const raw = await get(themeKey(id));
-  if (!raw) return null;
-  try {
-    const t: CommunityTheme = JSON.parse(raw);
-    t.status = normaliseStatus(t.status);
-    return t;
-  } catch { return null; }
+  const t = await get<CommunityTheme>(themeKey(id));
+  if (!t) return null;
+  t.status = normaliseStatus(t.status);
+  return t;
 }
 
 export async function listThemes(

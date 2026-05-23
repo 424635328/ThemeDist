@@ -215,9 +215,8 @@ export async function getCommunityThemes(limit: number = 50): Promise<ComposedTh
     const themes: ComposedTheme[] = [];
     for (const id of ids) {
       try {
-        const raw = await get(`td:theme:${id}`);
-        if (raw) {
-          const ct: CommunityThemeRaw = JSON.parse(raw);
+        const ct = await get<CommunityThemeRaw>(`td:theme:${id}`);
+        if (ct) {
           themes.push(communityToComposed(ct));
         }
       } catch { /* skip broken entries */ }

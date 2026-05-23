@@ -7,18 +7,18 @@ function getClient(): Redis | null {
   if (disabled) return null;
   if (client) return client;
 
-  const url = import.meta.env.KV_REST_API_URL;
-  const token = import.meta.env.KV_REST_API_TOKEN;
+  const url = import.meta.env.UPSTASH_REDIS_REST_URL || import.meta.env.KV_REST_API_URL || import.meta.env.KV_URL;
+  const token = import.meta.env.UPSTASH_REDIS_REST_TOKEN || import.meta.env.KV_REST_API_TOKEN;
 
   if (!url || !token) {
-    console.warn('[redis] 环境变量 KV_REST_API_URL 或 KV_REST_API_TOKEN 未设置，Redis 功能已禁用');
+    console.warn('[redis] 环境变量 UPSTASH_REDIS_REST_URL 或 KV_REST_API_URL 未设置，Redis 功能已禁用。本地开发请检查 .env.local');
     disabled = true;
     return null;
   }
 
   try {
     client = new Redis({ url, token });
-    console.log('[redis] Upstash Redis 客户端已创建');
+    console.log('[redis] Upstash Redis 客户端初始化成功');
   } catch (err) {
     console.error('[redis] 创建 Redis 客户端失败:', err);
     disabled = true;
@@ -29,6 +29,8 @@ function getClient(): Redis | null {
 export function isReady(): boolean {
   return getClient() !== null;
 }
+
+// ─── Set (集合) 操作 ───
 
 export async function sadd(key: string, ...members: string[]): Promise<number> {
   const c = getClient();
@@ -41,21 +43,44 @@ export async function sismember(key: string, member: string): Promise<boolean> {
   if (!c) return false;
   try {
     const r = await c.sismember(key, member);
-    return r === 1;
+    return r === 1 || r === true;
   } catch { return false; }
 }
 
-export async function get(key: string): Promise<string | null> {
+export async function smembers(key: string): Promise<string[]> {
   const c = getClient();
-  if (!c) return null;
-  try { return await c.get<string>(key); } catch { return null; }
+  if (!c) return [];
+  try { return await c.smembers(key); } catch { return []; }
 }
 
-export async function set(key: string, value: string): Promise<boolean> {
+export async function srem(key: string, ...members: string[]): Promise<number> {
+  const c = getClient();
+  if (!c) return 0;
+  try { return await c.srem(key, ...members); } catch { return 0; }
+}
+
+// ─── Key Value (键值对) 操作 ───
+
+export async function get<T = any>(key: string): Promise<T | null> {
+  const c = getClient();
+  if (!c) return null;
+  try { return await c.get<T>(key); } catch { return null; }
+}
+
+export async function set(key: string, value: any, options?: { ex?: number }): Promise<boolean> {
   const c = getClient();
   if (!c) return false;
-  try { await c.set(key, value); return true; } catch { return false; }
+  try {
+    if (options?.ex) {
+      await c.set(key, value, { ex: options.ex });
+    } else {
+      await c.set(key, value);
+    }
+    return true;
+  } catch { return false; }
 }
+
+// ─── Sorted Set (有序集合) 操作 ───
 
 export async function zadd(key: string, score: number, member: string): Promise<boolean> {
   const c = getClient();
@@ -70,14 +95,37 @@ export async function zincrby(key: string, increment: number, member: string): P
 }
 
 export async function zrevrange(
+  key: string, start: number, stop: number, withScores: true
+): Promise<{ member: string; score: number }[]>;
+export async function zrevrange(
+  key: string, start: number, stop: number, withScores?: false
+): Promise<string[]>;
+export async function zrevrange(
   key: string, start: number, stop: number, withScores?: boolean
-): Promise<string[] | { member: string; score: number }[]> {
+): Promise<any[]> {
   const c = getClient();
   if (!c) return [];
   try {
     const opts = withScores ? { withScores: true } : {};
-    return await c.zrange(key, start, stop, { rev: true, ...opts });
-  } catch { return []; }
+    const rawResult = await c.zrange<any[]>(key, start, stop, { rev: true, ...opts });
+
+    if (withScores && Array.isArray(rawResult)) {
+      const formatted: { member: string; score: number }[] = [];
+      for (let i = 0; i < rawResult.length; i += 2) {
+        if (rawResult[i] !== undefined) {
+          formatted.push({
+            member: String(rawResult[i]),
+            score: Number(rawResult[i + 1] || 0)
+          });
+        }
+      }
+      return formatted;
+    }
+    return rawResult || [];
+  } catch (err) {
+    console.error('[redis] zrevrange error:', err);
+    return [];
+  }
 }
 
 export async function zscore(key: string, member: string): Promise<number | null> {
@@ -96,6 +144,28 @@ export async function zrem(key: string, member: string): Promise<boolean> {
   const c = getClient();
   if (!c) return false;
   try { await c.zrem(key, member); return true; } catch { return false; }
+}
+
+// ─── Hash (哈希) 操作 ───
+
+export async function hgetall<T = any>(key: string): Promise<T | null> {
+  const c = getClient();
+  if (!c) return null;
+  try { return await c.hgetall<T>(key); } catch { return null; }
+}
+
+export async function hset(key: string, data: Record<string, any>): Promise<number> {
+  const c = getClient();
+  if (!c) return 0;
+  try { return await c.hset(key, data); } catch { return 0; }
+}
+
+// ─── Generic (通用) 操作 ───
+
+export async function expire(key: string, seconds: number): Promise<boolean> {
+  const c = getClient();
+  if (!c) return false;
+  try { await c.expire(key, seconds); return true; } catch { return false; }
 }
 
 export async function del(key: string): Promise<boolean> {

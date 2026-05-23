@@ -978,6 +978,18 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     }
   });
 
+  // ══════════════════════════════════════
+  // Community themes — declared BEFORE init so switchToCommunity() can access them
+  // ══════════════════════════════════════
+  const communityGrid = document.getElementById('community-grid');
+  const communityEmpty = document.getElementById('community-empty');
+  const communitySort = document.getElementById('community-sort');
+  const communityChipCount = document.getElementById('community-chip-count');
+  let commSort = 'new';
+  let commPage = 1;
+  let commTotal = 0;
+  let commLoaded = [];
+
   // ─── Init ───
   let cards = getAllCards();
   loadedCount = cards.filter(c => !isPending(c)).length;
@@ -1021,18 +1033,6 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
       b.style.display = 'none';
     });
   }
-
-  // ══════════════════════════════════════
-  // Community themes
-  // ══════════════════════════════════════
-  const communityGrid = document.getElementById('community-grid');
-  const communityEmpty = document.getElementById('community-empty');
-  const communitySort = document.getElementById('community-sort');
-  const communityChipCount = document.getElementById('community-chip-count');
-  let commSort = 'new';
-  let commPage = 1;
-  let commTotal = 0;
-  let commLoaded = [];
 
   function isCommunityMode() {
     return activeFilter === 'community';

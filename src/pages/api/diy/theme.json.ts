@@ -28,6 +28,7 @@ export async function GET({ url }: { url: URL }) {
   const theme = await getThemeWithLikes(id);
 
   if (!theme) {
+    console.error(`[theme.json] 主题不存在: id=${id}, isReady=${isReady()}`);
     return new Response(JSON.stringify({ error: '主题不存在' }), {
       status: 404,
       headers: { 'Content-Type': 'application/json', ...CORS },

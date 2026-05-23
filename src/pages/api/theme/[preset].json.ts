@@ -22,9 +22,8 @@ export async function GET({ params }: { params: { preset: string } }) {
   if (presetId.startsWith('community-')) {
     const redisId = presetId.slice('community-'.length);
     try {
-      const raw = await redisGet(`td:theme:${redisId}`);
-      if (raw) {
-        const ct = JSON.parse(raw);
+      const ct = await redisGet<any>(`td:theme:${redisId}`);
+      if (ct) {
         return new Response(
           JSON.stringify({
             preset: presetId,
