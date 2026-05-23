@@ -272,7 +272,8 @@ function applyTheme(d) {
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:10px 16px;font-weight:700;color:var(--color-primary)">1</td><td style="padding:10px 16px;font-weight:600">🌙 农历节日</td><td style="padding:10px 16px;line-height:1.55">20+ 个中国传统节日（春节/元宵/端午/七夕/中秋等），每个有专属特效主题</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:10px 16px;font-weight:700;color:var(--color-primary)">2</td><td style="padding:10px 16px;font-weight:600">📅 公历节日</td><td style="padding:10px 16px;line-height:1.55">元旦/情人节/Pi Day/圣帕特里克节/愚人节等</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:10px 16px;font-weight:700;color:var(--color-primary)">3</td><td style="padding:10px 16px;font-weight:600">🍗 Crazy Thu</td><td style="padding:10px 16px;line-height:1.55">每周四特殊覆盖</td></tr>
-            <tr><td style="padding:10px 16px;font-weight:700;color:var(--color-primary)">4</td><td style="padding:10px 16px;font-weight:600">🎲 DailyPool</td><td style="padding:10px 16px;line-height:1.55">{totalAvailable} 预设按 dayOfYear % poolLength 轮换，全年无空档</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:10px 16px;font-weight:700;color:var(--color-primary)">4</td><td style="padding:10px 16px;font-weight:600">👥 社区池</td><td style="padding:10px 16px;line-height:1.55">用户投稿主题每 3 天轮入一次（约 30% 天数），固定频率不受投稿量影响</td></tr>
+            <tr><td style="padding:10px 16px;font-weight:700;color:var(--color-primary)">5</td><td style="padding:10px 16px;font-weight:600">🎲 DailyPool</td><td style="padding:10px 16px;line-height:1.55">{totalAvailable} 预设按 dayOfYear % poolLength 轮换，全年无空档</td></tr>
           </tbody>
         </table>
       </div>
@@ -507,7 +508,8 @@ export function useThemeDist() {
 
   <!-- Copy all button -->
   <button class="copy-all-fab" id="copy-all" title="复制全部文档">
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6v8a2 2 0 002 2h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <svg class="copy-all-icon" width="20" height="20" viewBox="0 0 18 18" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6v8a2 2 0 002 2h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <span>复制全部</span>
   </button>
 
   <style>
@@ -614,16 +616,17 @@ export function useThemeDist() {
     }
 
     .copy-all-fab {
-      position:fixed;bottom:32px;right:32px;z-index:240;
-      width:44px;height:44px;border-radius:50%;
+      position:fixed;bottom:88px;right:32px;z-index:240;
+      height:44px;padding:0 20px;border-radius:22px;
       border:1.5px solid var(--color-border);
       background:color-mix(in srgb, var(--color-surface) 90%, transparent);
       backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
       color:var(--color-text-muted);cursor:pointer;
-      display:flex;align-items:center;justify-content:center;
+      display:flex;align-items:center;gap:8px;
+      font-size:13px;font-weight:600;font-family:inherit;
+      white-space:nowrap;
       transition:all 0.25s;
       box-shadow:0 6px 24px rgba(0,0,0,0.15);
-      font-family:inherit;
     }
     .copy-all-fab:hover {border-color:var(--color-primary);color:var(--color-primary);transform:scale(1.06);}
     .copy-all-fab.copied {border-color:var(--color-primary);color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 12%, transparent);}
@@ -632,7 +635,7 @@ export function useThemeDist() {
       .toc-fab {bottom:180px;right:16px;}
       .toc-menu {min-width:130px;}
       .toc-link {font-size:12px;padding:7px 12px;}
-      .copy-all-fab {bottom:24px;right:16px;}
+      .copy-all-fab {bottom:80px;right:16px;padding:0 16px;height:40px;font-size:12px;}
     }
   </style>
 
@@ -742,10 +745,11 @@ export function useThemeDist() {
       try {
         await navigator.clipboard.writeText(lines.join('\n'));
         copyAll.classList.add('copied');
-        copyAll.innerHTML = '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 9l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        const icon = copyAll.querySelector('.copy-all-icon');
+        if (icon) icon.innerHTML = '<path d="M4 9l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
         setTimeout(() => {
           copyAll.classList.remove('copied');
-          copyAll.innerHTML = '<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6v8a2 2 0 002 2h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+          if (icon) icon.innerHTML = '<rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6v8a2 2 0 002 2h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>';
         }, 1800);
       } catch { window.__toast?.('复制失败'); }
     });
