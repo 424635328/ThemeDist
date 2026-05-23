@@ -2,9 +2,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "astro",
-  "rewrites": [
-    { "source": "/api/today.json", "destination": "/api/today" }
-  ],
   "headers": [
     {
       "source": "/api/today.json",

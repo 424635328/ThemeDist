@@ -1,7 +1,7 @@
 import { getDailyTheme, getAllThemes } from '../../utils/daily-theme';
 import { getCommunityThemes, getDailyCommunityTheme } from '../../utils/omni-bridge';
 
-export const prerender = true;
+export const prerender = false;
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -61,7 +61,7 @@ export async function GET() {
     ),
     {
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json; charset=utf-8',
         ...CORS_HEADERS,
         ...CACHE_HEADERS,
       },
