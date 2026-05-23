@@ -1,12 +1,12 @@
 export function verifyCredentials(account: string, password: string): boolean {
-  const expectedAccount = import.meta.env.ADMIN_ACCOUNT;
-  const expectedPassword = import.meta.env.ADMIN_PASSWORD;
+  const expectedAccount = import.meta.env.ADMIN_ACCOUNT || process.env.ADMIN_ACCOUNT;
+  const expectedPassword = import.meta.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD;
   if (!expectedAccount || !expectedPassword) return false;
   return account === expectedAccount && password === expectedPassword;
 }
 
 function sessionToken(): string {
-  const secret = import.meta.env.ADMIN_PASSWORD || 'default-secret';
+  const secret = import.meta.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || 'default-secret';
   // Simple token — not crypto-secure but sufficient for a single-admin dashboard
   let hash = 0;
   for (let i = 0; i < secret.length; i++) {

@@ -1,10 +1,8 @@
 import { Redis } from '@upstash/redis';
 
 let client: Redis | null = null;
-let disabled = false;
 
 function getClient(): Redis | null {
-  if (disabled) return null;
   if (client) return client;
 
   const url = import.meta.env.UPSTASH_REDIS_REST_URL
@@ -20,7 +18,6 @@ function getClient(): Redis | null {
 
   if (!url || !token) {
     console.warn('[redis] 环境变量 UPSTASH_REDIS_REST_URL 或 KV_REST_API_URL 未设置，Redis 功能已禁用。本地开发请检查 .env.local');
-    disabled = true;
     return null;
   }
 
@@ -29,7 +26,6 @@ function getClient(): Redis | null {
     console.log('[redis] Upstash Redis 客户端初始化成功');
   } catch (err) {
     console.error('[redis] 创建 Redis 客户端失败:', err);
-    disabled = true;
   }
   return client;
 }

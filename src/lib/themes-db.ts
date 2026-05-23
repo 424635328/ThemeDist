@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid';
 import { get, set, zadd, zincrby, zrevrange, zscore, zcard, zrem, del, sadd, sismember, isReady } from './redis';
 
 export type ThemeStatus = 'pending' | 'approved' | 'rejected';
+export type ThemeTag = string;
 
 export interface CommunityTheme {
   id: string;
@@ -12,6 +13,7 @@ export interface CommunityTheme {
   cssVars: Record<string, string>;
   customCss: string | null;
   status: ThemeStatus;
+  tags?: ThemeTag[];
 }
 
 interface SubmitInput {
@@ -19,6 +21,7 @@ interface SubmitInput {
   author: string;
   cssVars: Record<string, string>;
   customCss?: string;
+  tags?: string[];
 }
 
 function makeId(): string {
@@ -49,6 +52,7 @@ export async function submitTheme(input: SubmitInput): Promise<CommunityTheme | 
     cssVars: input.cssVars,
     customCss: input.customCss || null,
     status: 'pending',
+    tags: Array.isArray(input.tags) ? input.tags.filter(Boolean).slice(0, 5) : undefined,
   };
 
   const ok = await set(themeKey(id), theme, { ex: 86400 });

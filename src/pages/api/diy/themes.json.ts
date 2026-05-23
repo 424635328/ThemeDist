@@ -20,11 +20,15 @@ export async function GET({ url }: { url: URL }) {
   const sort = (url.searchParams.get('sort') || 'new') as 'new' | 'hot';
   const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'));
   const pageSize = Math.min(50, Math.max(1, parseInt(url.searchParams.get('size') || '20')));
+  const tagFilter = url.searchParams.get('tag') || '';
 
-  const [themes, total] = await Promise.all([
-    listThemes(sort, page, pageSize),
-    getTotalCount(),
-  ]);
+  const rawThemes = tagFilter ? await listThemes(sort, 1, 200) : null;
+  const allThemes = rawThemes || await listThemes(sort, page, pageSize);
+  const total = tagFilter ? allThemes.length : await getTotalCount();
+
+  const themes = tagFilter
+    ? allThemes.filter(t => t.tags?.includes(tagFilter)).slice((page - 1) * pageSize, page * pageSize)
+    : rawThemes ? allThemes.slice((page - 1) * pageSize, page * pageSize) : allThemes;
 
   return new Response(JSON.stringify({ themes, total, dbAvailable: true }), {
     status: 200,

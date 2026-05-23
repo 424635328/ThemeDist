@@ -1,6 +1,6 @@
 import OmniConfig from '../api/index_config.js';
-import type { ComposedTheme, ThemeExtension } from '../themes/types';
-import { isReady, zrevrange, get } from '../lib/redis';
+import type { ComposedTheme, ThemeExtension, ThemeTag } from '../themes/types';
+import { isReady, zrevrange, get, zcard } from '../lib/redis';
 
 interface OmniThemeEntry {
   id: string;
@@ -19,6 +19,78 @@ interface OmniThemeEntry {
   };
   extensions?: ThemeExtension[];
   type?: string;
+}
+
+/** Infer tags from theme colors and metadata */
+function inferTags(entry: OmniThemeEntry): ThemeTag[] {
+  const tags: ThemeTag[] = [];
+  const bgBase = entry.theme.bgBase || '#000000';
+  const textMain = entry.theme.textMain || '#ffffff';
+  const bgBrightness = luminance(bgBase);
+  const textBrightness = luminance(textMain);
+
+  // Dark vs light
+  tags.push(bgBrightness < 0.3 ? 'dark' : 'light');
+
+  // Warm vs cool — approximate from primary hue
+  const primaryHex = rgbToHex(entry.theme.avatarGrad1);
+  const hue = hexToHue(primaryHex);
+  if (hue >= 200 && hue <= 330) tags.push('cool');
+  else tags.push('warm');
+
+  // Vibrant vs minimal — check color saturation proxies
+  const sat = estimateSaturation(entry.theme);
+  tags.push(sat > 0.5 ? 'vibrant' : 'minimal');
+
+  // Type-based
+  if (entry.type === 'holiday') tags.push('holiday');
+
+  return tags;
+}
+
+/** Relative luminance (0-1) */
+function luminance(hex: string): number {
+  const c = hex.replace('#', '');
+  if (c.length < 6) return 0.5;
+  const r = parseInt(c.slice(0, 2), 16) / 255;
+  const g = parseInt(c.slice(2, 4), 16) / 255;
+  const b = parseInt(c.slice(4, 6), 16) / 255;
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function hexToHue(hex: string): number {
+  if (!hex || typeof hex !== 'string') return 0;
+  const c = hex.replace('#', '').trim();
+  if (c.length !== 6 && c.length !== 3) return 0;
+  if (c.length === 3) {
+    const chars = c.split('');
+    return hexToHue(`#${chars[0]}${chars[0]}${chars[1]}${chars[1]}${chars[2]}${chars[2]}`);
+  }
+  const r = parseInt(c.slice(0, 2), 16) / 255;
+  const g = parseInt(c.slice(2, 4), 16) / 255;
+  const b = parseInt(c.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  if (d === 0) return 0;
+  let h = 0;
+  if (max === r) h = ((g - b) / d) % 6;
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  return ((h * 60) % 360 + 360) % 360;
+}
+
+function estimateSaturation(theme: OmniThemeEntry['theme']): number {
+  const hex = rgbToHex(theme.avatarGrad1);
+  const c = hex.replace('#', '');
+  if (c.length < 6) return 0;
+  const r = parseInt(c.slice(0, 2), 16) / 255;
+  const g = parseInt(c.slice(2, 4), 16) / 255;
+  const b = parseInt(c.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (max === 0) return 0;
+  return (max - min) / max;
 }
 
 /** Convert an OmniConfig theme entry to our ComposedTheme format */
@@ -77,6 +149,7 @@ export function omniToComposed(entry: OmniThemeEntry): ComposedTheme {
       '--ambient-1': t.ambient1,
       '--ambient-2': t.ambient2,
     },
+    tags: inferTags(entry),
   };
 }
 
@@ -110,6 +183,39 @@ export function getOmniDailyTheme(): ComposedTheme {
   }
 
   return omniToComposed(poolTheme);
+}
+
+/**
+ * Select a community theme for today's daily rotation.
+ * Returns null if no community themes exist or DB is unreachable.
+ * Uses a deterministic day-of-year index so the same theme lasts all day.
+ */
+export async function getDailyCommunityTheme(): Promise<ComposedTheme | null> {
+  try {
+    if (!isReady()) return null;
+
+    const count = await zcard(COMMUNITY_NEWEST_KEY);
+    if (count === 0) return null;
+
+    const today = new Date();
+    const start = new Date(today.getFullYear(), 0, 0);
+    const diff = today.getTime() - start.getTime() + (start.getTimezoneOffset() - today.getTimezoneOffset()) * 60 * 1000;
+    const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    // Community theme takes over every 3rd day (~30% of days)
+    if (dayOfYear % 3 !== 2) return null;
+
+    const idx = dayOfYear % count;
+    const ids = await zrevrange(COMMUNITY_NEWEST_KEY, idx, idx) as string[];
+    if (!ids || ids.length === 0) return null;
+
+    const ct = await get<CommunityThemeRaw>(`td:theme:${ids[0]}`);
+    if (!ct) return null;
+
+    return communityToComposed(ct);
+  } catch {
+    return null;
+  }
 }
 
 /** List all available themes for the store — dailyPool + all holidays + crazyThursday */
@@ -188,6 +294,37 @@ interface CommunityThemeRaw {
   likes: number;
   cssVars: Record<string, string>;
   customCss: string | null;
+  tags?: string[];
+}
+
+function inferTagsFromVars(cssVars: Record<string, string>): ThemeTag[] {
+  const tags: ThemeTag[] = [];
+  const bg = cssVars['--color-bg'] || '#000000';
+  const primary = cssVars['--color-primary'] || '#6366f1';
+  const bgLum = luminance(bg);
+
+  tags.push(bgLum < 0.3 ? 'dark' : 'light');
+
+  const hue = hexToHue(primary);
+  if (hue >= 200 && hue <= 330) tags.push('cool');
+  else tags.push('warm');
+
+  // Estimate vibrancy from primary saturation
+  const c = primary.replace('#', '');
+  if (c.length >= 6) {
+    const r = parseInt(c.slice(0, 2), 16) / 255;
+    const g = parseInt(c.slice(2, 4), 16) / 255;
+    const b = parseInt(c.slice(4, 6), 16) / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const sat = max === 0 ? 0 : (max - min) / max;
+    tags.push(sat > 0.5 ? 'vibrant' : 'minimal');
+  } else {
+    tags.push('minimal');
+  }
+
+  tags.push('community');
+  return tags;
 }
 
 function communityToComposed(ct: CommunityThemeRaw): ComposedTheme {
@@ -196,6 +333,7 @@ function communityToComposed(ct: CommunityThemeRaw): ComposedTheme {
     presetName: ct.name,
     cssVars: ct.cssVars,
     customCss: ct.customCss || undefined,
+    tags: (ct.tags?.length ? ct.tags.filter(Boolean) : undefined) || inferTagsFromVars(ct.cssVars),
   };
 }
 

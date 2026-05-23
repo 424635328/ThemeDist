@@ -31,6 +31,20 @@ export interface ThemeExtension {
   content: string;
 }
 
+/** Theme tags for classification */
+export type ThemeTag =
+  | 'dark'
+  | 'light'
+  | 'holiday'
+  | 'minimal'
+  | 'vibrant'
+  | 'nature'
+  | 'tech'
+  | 'retro'
+  | 'warm'
+  | 'cool'
+  | 'community';
+
 /** Full composed theme */
 export interface ComposedTheme {
   preset: string;
@@ -46,4 +60,6 @@ export interface ComposedTheme {
   logoText?: string;
   /** Logo gradient colors */
   logoColors?: string[];
+  /** Classification tags */
+  tags?: ThemeTag[];
 }

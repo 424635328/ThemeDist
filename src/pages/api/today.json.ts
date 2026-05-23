@@ -1,5 +1,5 @@
 import { getDailyTheme, getAllThemes } from '../../utils/daily-theme';
-import { getCommunityThemes } from '../../utils/omni-bridge';
+import { getCommunityThemes, getDailyCommunityTheme } from '../../utils/omni-bridge';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -12,7 +12,10 @@ const CACHE_HEADERS = {
 };
 
 export async function GET() {
-  const theme = getDailyTheme();
+  // Check if a community theme is selected for today's rotation
+  const communityDaily = await getDailyCommunityTheme();
+  const theme = communityDaily || getDailyTheme();
+
   const allThemes = getAllThemes();
   const communityThemes = await getCommunityThemes(50);
   const totalAvailable = allThemes.length + communityThemes.length;
@@ -48,6 +51,7 @@ export async function GET() {
         logoColors: theme.logoColors || null,
         available: totalAvailable,
         directory: [...staticDir.slice(0, 20), ...communityDir.slice(0, 10)],
+        dailyIsCommunity: !!communityDaily,
       },
       null,
       2,

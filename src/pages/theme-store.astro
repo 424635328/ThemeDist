@@ -150,6 +150,17 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
           </div>
         </div>
         <p class="comm-header-desc">用户投稿的原创主题设计，经管理员审核后收录。点击下方卡片即可预览或一键应用。</p>
+        <div class="comm-tag-filters" id="comm-tag-filters">
+          <button class="comm-tag-chip comm-tag-active" data-comm-tag="">全部</button>
+          <button class="comm-tag-chip" data-comm-tag="dark">暗色</button>
+          <button class="comm-tag-chip" data-comm-tag="light">亮色</button>
+          <button class="comm-tag-chip" data-comm-tag="vibrant">鲜艳</button>
+          <button class="comm-tag-chip" data-comm-tag="minimal">极简</button>
+          <button class="comm-tag-chip" data-comm-tag="warm">暖色</button>
+          <button class="comm-tag-chip" data-comm-tag="cool">冷色</button>
+          <button class="comm-tag-chip" data-comm-tag="nature">自然</button>
+          <button class="comm-tag-chip" data-comm-tag="tech">科技</button>
+        </div>
       </div>
     </div>
 
@@ -768,6 +779,33 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     margin: 12px 0 0;
     line-height: 1.5;
   }
+  .comm-tag-filters {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .comm-tag-chip {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 8px;
+    border: 1.5px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+  .comm-tag-chip:hover {
+    border-color: var(--color-primary);
+    color: var(--color-text);
+  }
+  .comm-tag-active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+  }
 
   /* ─── Community empty state ─── */
   .comm-empty-state {
@@ -918,6 +956,25 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     color: var(--color-text-muted) !important;
     font-variant-numeric: tabular-nums !important;
     line-height: 1 !important;
+  }
+
+  /* 主题标签行 */
+  .comm-tags {
+    display: flex !important;
+    gap: 4px !important;
+    flex-wrap: wrap !important;
+    margin-bottom: 8px !important;
+  }
+  .comm-tag {
+    font-size: 9px !important;
+    font-weight: 700 !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+    background: color-mix(in srgb, var(--comm-primary, var(--color-primary)) 10%, transparent) !important;
+    color: var(--comm-primary, var(--color-primary)) !important;
+    border: 1px solid color-mix(in srgb, var(--comm-primary, var(--color-primary)) 15%, transparent) !important;
+    text-transform: lowercase !important;
+    line-height: 1.3 !important;
   }
 
   /* 心形点赞动效 */
@@ -1264,6 +1321,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
   const communityHeaderCount = document.getElementById('community-header-count');
   const communityChipCount = document.getElementById('community-chip-count');
   let commSort = 'new';
+  let commTag = '';
   let commPage = 1;
   let commTotal = 0;
   let commLoaded = [];
@@ -1360,6 +1418,8 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
             `).join('')}
           </div>
 
+          ${t.tags?.length ? `<div class="comm-tags">${t.tags.filter(onlyValidTags).map(tag => `<span class="comm-tag">${tag}</span>`).join('')}</div>` : ''}
+
           <div class="comm-meta-row">
             <div class="comm-meta-left">
               <span class="comm-author-avatar" style="background:${p};color:${isLight(p) ? '#0f0f23' : '#fff'}">${authorInitial}</span>
@@ -1393,7 +1453,8 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
   async function loadCommunityThemes(page) {
     if (!isCommunityMode()) return;
     try {
-      const res = await fetch(`/api/diy/themes.json?sort=${commSort}&page=${page}&size=20`);
+      const tagParam = commTag ? `&tag=${commTag}` : '';
+      const res = await fetch(`/api/diy/themes.json?sort=${commSort}&page=${page}&size=20${tagParam}`);
       const data = await res.json();
       if (data.themes) {
         if (page === 1) {
@@ -1464,6 +1525,23 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
       loadCommunityThemes(1);
     });
   });
+
+  // Community tag filter chips
+  const tagFilters = document.getElementById('comm-tag-filters');
+  if (tagFilters) {
+    tagFilters.addEventListener('click', (e) => {
+      const chip = e.target.closest('.comm-tag-chip');
+      if (!chip) return;
+      const tag = chip.getAttribute('data-comm-tag') || '';
+      if (tag === commTag) return;
+      commTag = tag;
+      tagFilters.querySelectorAll('.comm-tag-chip').forEach(c => {
+        c.classList.toggle('comm-tag-active', c.getAttribute('data-comm-tag') === tag);
+      });
+      commPage = 1;
+      loadCommunityThemes(1);
+    });
+  }
 
   // Community like button delegation
   communityGrid.addEventListener('click', async (e) => {
@@ -1546,6 +1624,9 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
       }
     })
     .catch(() => { communityChipCount.textContent = '离线'; });
+
+  const VALID_TAGS = new Set(['dark','light','holiday','minimal','vibrant','nature','tech','retro','warm','cool','community']);
+  function onlyValidTags(t) { return VALID_TAGS.has(t); }
 
   function isLight(hex) {
     const c = hex.replace('#', '');

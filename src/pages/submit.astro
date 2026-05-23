@@ -35,6 +35,40 @@ import Layout from '../layouts/Layout.astro';
             </button>
           </div>
 
+          <!-- AI Generation Bar -->
+          <div class="ai-gen-bar">
+            <div class="ai-gen-row">
+              <input id="ai-description" type="text" class="text-input ai-input" placeholder="用文字描述你心中的主题… 如：深色赛博朋克风，紫绿霓虹" maxlength="200" />
+              <button id="btn-ai-generate" class="btn btn-primary ai-gen-btn">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.5 3.5L13 6l-3.5 1.5L8 11l-1.5-3.5L3 6l3.5-1.5L8 1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5 12l1 1.5 2.5.5-2 1.5.5 2.5L5 16l-2.5-1 .5-2.5L1 11l2.5-.5L5 12z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                AI 生成
+              </button>
+            </div>
+            <div class="ai-key-bar">
+              <button id="btn-toggle-apikey" class="ai-key-toggle" type="button">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M10 8a2 2 0 11-4 0 2 2 0 014 0z" stroke="currentColor" stroke-width="1.5"/><path d="M15 8s-3 5.5-7 5.5S1 8 1 8s3-5.5 7-5.5S15 8 15 8z" stroke="currentColor" stroke-width="1.5"/></svg>
+                <span id="ai-key-indicator">未设置 API Key</span>
+              </button>
+              <div id="ai-key-panel" class="ai-key-panel" hidden>
+                <div class="ai-key-header">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M5 7V5a3 3 0 016 0v2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                  <span>DeepSeek API 密钥（可选）</span>
+                </div>
+                <div class="ai-key-notice">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 2l6 11H2L8 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6v3.5M8 11.5h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                  <span><strong>隐私声明：</strong>你的 API Key <strong>仅存储在当前浏览器 localStorage 中</strong>，生成请求由浏览器<strong>直接发送至 DeepSeek API</strong>（api.deepseek.com），<strong>不会经过本服务器</strong>。未设置时使用服务端规则引擎生成基础配色。</span>
+                </div>
+                <div class="ai-key-input-row">
+                  <input id="ai-apikey" type="password" class="text-input" placeholder="sk-..." autocomplete="off" spellcheck="false" />
+                  <button id="btn-save-apikey" class="btn btn-primary" type="button" style="height:36px;padding:0 14px;font-size:12px;white-space:nowrap">保存</button>
+                  <button id="btn-clear-apikey" class="btn btn-outline" type="button" style="height:36px;padding:0 14px;font-size:12px;white-space:nowrap">清除</button>
+                </div>
+                <p id="ai-key-feedback" class="ai-key-feedback"></p>
+              </div>
+            </div>
+            <p id="ai-status" class="ai-status-text"></p>
+          </div>
+
           <!-- Code Editors Tab Container -->
           <div class="tabs-container">
             <button id="tab-btn-vars" class="tab-btn active" type="button">🎨 核心 CSS 变量</button>
@@ -202,6 +236,135 @@ import Layout from '../layouts/Layout.astro';
     gap: 12px;
     margin-bottom: 20px;
   }
+
+  /* AI Generation Bar */
+  .ai-gen-bar {
+    margin-bottom: 20px;
+  }
+  .ai-gen-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .ai-input {
+    flex: 1;
+    height: 42px;
+    padding: 0 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
+    color: var(--color-text);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.25s, box-shadow 0.25s;
+  }
+  .ai-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
+  }
+  .ai-gen-btn {
+    white-space: nowrap;
+    height: 42px;
+    padding: 0 20px;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ai-gen-btn.loading {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+  .ai-status-text {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    margin: 4px 0 0;
+    min-height: 1.2em;
+  }
+
+  /* AI API Key Management */
+  .ai-key-bar {
+    margin-top: 8px;
+  }
+  .ai-key-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+  .ai-key-toggle:hover {
+    border-color: var(--color-primary);
+    color: var(--color-text);
+  }
+  .ai-key-toggle.key-set {
+    border-color: #10b981;
+    color: #10b981;
+  }
+  .ai-key-panel {
+    margin-top: 8px;
+    padding: 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 30%, transparent);
+  }
+  .ai-key-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 8px;
+  }
+  .ai-key-notice {
+    display: flex;
+    gap: 6px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--color-text-muted);
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: color-mix(in srgb, #f59e0b 6%, transparent);
+    border: 1px solid color-mix(in srgb, #f59e0b 15%, transparent);
+    margin-bottom: 10px;
+  }
+  .ai-key-notice svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: #f59e0b;
+  }
+  .ai-key-input-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .ai-key-input-row input {
+    flex: 1;
+    height: 36px;
+    padding: 0 10px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .ai-key-feedback {
+    font-size: 10px;
+    margin: 6px 0 0;
+    min-height: 1.2em;
+    color: var(--color-text-muted);
+  }
+  .ai-key-feedback.success { color: #10b981; }
+  .ai-key-feedback.error { color: #ef4444; }
   .import-btn, .demo-btn {
     height: 42px;
     font-size: 13px;
@@ -1191,6 +1354,257 @@ import Layout from '../layouts/Layout.astro';
     window.__toast?.('樱花漫舞梦境主题已载入');
   });
 
+  // ══════════════════════════════════════════
+  // AI Theme Generation — Client-side DeepSeek
+  // ══════════════════════════════════════════
+
+  const AI_KEY_STORAGE = 'td_deepseek_key';
+
+  function getStoredApiKey() {
+    try { return localStorage.getItem(AI_KEY_STORAGE) || ''; } catch { return ''; }
+  }
+
+  function updateKeyIndicator() {
+    const key = getStoredApiKey();
+    const toggle = $('btn-toggle-apikey');
+    const indicator = $('ai-key-indicator');
+    if (key) {
+      const masked = key.slice(0, 6) + '••••' + key.slice(-4);
+      indicator.textContent = `DeepSeek: ${masked}`;
+      toggle.classList.add('key-set');
+    } else {
+      indicator.textContent = '未设置 API Key';
+      toggle.classList.remove('key-set');
+    }
+  }
+
+  // Restore saved key on load
+  const savedKey = getStoredApiKey();
+  if (savedKey) {
+    $('ai-apikey').value = savedKey;
+    updateKeyIndicator();
+  }
+
+  // Toggle key panel
+  $('btn-toggle-apikey').addEventListener('click', () => {
+    const panel = $('ai-key-panel');
+    panel.hidden = !panel.hidden;
+  });
+
+  // Save API key (localStorage only — never sent to server)
+  $('btn-save-apikey').addEventListener('click', () => {
+    const key = $('ai-apikey').value.trim();
+    const fb = $('ai-key-feedback');
+    if (!key) {
+      fb.textContent = '请输入有效的 API Key';
+      fb.className = 'ai-key-feedback error';
+      return;
+    }
+    if (!key.startsWith('sk-')) {
+      fb.textContent = 'DeepSeek API Key 以 sk- 开头，请检查';
+      fb.className = 'ai-key-feedback error';
+      return;
+    }
+    try {
+      localStorage.setItem(AI_KEY_STORAGE, key);
+      updateKeyIndicator();
+      fb.textContent = '✓ API Key 已安全存入本地浏览器，仅用于直接请求 DeepSeek';
+      fb.className = 'ai-key-feedback success';
+    } catch {
+      fb.textContent = 'localStorage 写入失败，请检查浏览器隐私设置';
+      fb.className = 'ai-key-feedback error';
+    }
+  });
+
+  // Clear API key
+  $('btn-clear-apikey').addEventListener('click', () => {
+    try { localStorage.removeItem(AI_KEY_STORAGE); } catch {}
+    $('ai-apikey').value = '';
+    updateKeyIndicator();
+    const fb = $('ai-key-feedback');
+    fb.textContent = '✓ API Key 已从浏览器清除';
+    fb.className = 'ai-key-feedback success';
+  });
+
+  // DeepSeek prompt for theme generation
+  function buildDeepSeekPrompt(description) {
+    return `你是一位专业的主题配色设计师。根据用户的文字描述，生成一套完整的 CSS 变量主题配色方案。
+
+用户描述: "${description}"
+
+## 色彩设计法则
+- 主色(primary)定义主题性格，辅色(secondary)作邻近过渡，强调色(accent)用对比色/补色制造视觉焦点
+- 背景(bg)→表面(surface)→边框(border)→弱化文字(text-muted)→主文字(text) 亮度逐层递增（深色主题）或递减（浅色主题）
+- 主文字与背景对比度 ≥ 7:1，弱化文字 ≥ 4.5:1
+- ambient 氛围色从主色/辅色派生，降低饱和度融入背景
+- 阴影使用带色彩倾向的半透明色而非纯黑
+
+## 特效设计要求（customCss 必须实现）
+- 必须根据用户描述生成主题相关的纯 CSS 特效动画，**禁止返回空字符串**
+- 只能使用纯 CSS（@keyframes 动画、伪元素 ::before/::after、渐变、滤镜、box-shadow 等），禁止 JavaScript
+- 特效方向参考：
+  · 赛博朋克 → 霓虹发光边框、扫描线 overlay、故障闪烁 glitch、数字雨粒子（伪元素）
+  · 自然/森林 → 飘落叶片、浮动光点、柔和呼吸光晕
+  · 海洋 → 波浪动画、浮动气泡
+  · 暗黑/星空 → 闪烁星光、流星划过
+  · 樱花/甜美 → 飘落花瓣、渐变柔光
+  · 节日 → 飘落雪花、闪烁彩灯
+  · 复古 → 胶片颗粒噪点、扫描线、暖色辉光
+- @keyframes 动画名使用语义化命名，避免与现有样式冲突
+
+## 必须返回完整的 cssVars（全部 34 项）
+
+### 颜色
+--color-primary / --color-secondary / --color-accent / --color-bg / --color-surface / --color-text / --color-text-muted / --color-border
+
+### 氛围
+--ambient-1 / --ambient-2
+
+### 阴影
+--shadow-sm / --shadow-md / --shadow-lg
+
+### 毛玻璃
+--glass-bg / --glass-blur
+
+### 布局
+--radii / --content-max
+
+### 字体
+--font-heading / --font-body / --font-mono
+
+### 字号
+--text-base / --text-lg / --text-xl / --text-2xl / --text-sm
+
+### 间距
+--space-unit / --space-1 / --space-2 / --space-3 / --space-4 / --space-6 / --space-8 / --space-12
+
+### 其他
+--noise-opacity
+
+返回**纯净 JSON**（不要 markdown 包裹、不要代码块标记、不要额外文字），格式：
+{
+  "name": "主题名称（中文，2-8字，有诗意）",
+  "tags": ["dark或light", "vibrant或minimal", "warm或cool", "可选的: nature, tech, retro, holiday"],
+  "cssVars": { 全部 34 个 CSS 变量，每个值量身定制 },
+  "customCss": "必须：与主题描述匹配的纯 CSS 特效动画（@keyframes + 伪元素实现粒子掉落、霓虹发光、扫描线等）。禁止返回空字符串"
+}`;
+  }
+
+  // Call DeepSeek directly from the browser
+  async function callDeepSeek(apiKey, description) {
+    const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [{ role: 'user', content: buildDeepSeekPrompt(description) }],
+        temperature: 0.8,
+        max_tokens: 4000,
+      }),
+    });
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      throw new Error(`DeepSeek API ${res.status}: ${errBody.slice(0, 100)}`);
+    }
+    const data = await res.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    const cleanJson = content.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+    return JSON.parse(cleanJson);
+  }
+
+  // Generate button handler
+  $('btn-ai-generate').addEventListener('click', async () => {
+    const desc = $('ai-description').value.trim();
+    if (!desc) {
+      $('ai-status').textContent = '请先输入主题描述';
+      return;
+    }
+
+    const btn = $('btn-ai-generate');
+    const apiKey = getStoredApiKey();
+    const useDeepSeek = !!apiKey;
+    btn.classList.add('loading');
+    btn.innerHTML = '<span class="spinner-sm" style="width:14px;height:14px;border-width:2px;display:inline-block;margin-right:4px"></span> 生成中…';
+    $('ai-status').textContent = useDeepSeek ? '正在调用 DeepSeek 生成主题…' : '正在生成主题配色…';
+
+    try {
+      let data;
+
+      if (useDeepSeek) {
+        // Client-side: call DeepSeek API directly — key never touches our server
+        data = await callDeepSeek(apiKey, desc);
+        data.generatedBy = 'deepseek';
+      } else {
+        // Server-side fallback: rule engine
+        const res = await fetch('/api/ai/generate.json', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ description: desc }),
+        });
+        if (!res.ok) throw new Error('生成失败');
+        data = await res.json();
+      }
+
+      // Validate the response
+      if (!data.cssVars || typeof data.cssVars !== 'object') {
+        throw new Error('AI 返回的 CSS 变量格式异常');
+      }
+
+      // Merge structural defaults for any missing cssVars fields
+      const STRUCTURAL_DEFAULTS = {
+        '--font-heading': "'Inter', system-ui, sans-serif",
+        '--font-body': "'Inter', system-ui, sans-serif",
+        '--font-mono': "'JetBrains Mono', monospace",
+        '--text-base': 'clamp(1rem, 0.9rem + 0.5vw, 1.125rem)',
+        '--text-lg': 'calc(var(--text-base) * 1.25)',
+        '--text-xl': 'calc(var(--text-lg) * 1.25)',
+        '--text-2xl': 'calc(var(--text-xl) * 1.25)',
+        '--text-sm': 'calc(var(--text-base) / 1.25)',
+        '--space-unit': '0.25rem',
+        '--space-1': 'calc(0.25rem * 1)',
+        '--space-2': 'calc(0.25rem * 2)',
+        '--space-3': 'calc(0.25rem * 3)',
+        '--space-4': 'calc(0.25rem * 4)',
+        '--space-6': 'calc(0.25rem * 6)',
+        '--space-8': 'calc(0.25rem * 8)',
+        '--space-12': 'calc(0.25rem * 12)',
+        '--content-max': '72rem',
+        '--noise-opacity': '0',
+      };
+      for (const [k, v] of Object.entries(STRUCTURAL_DEFAULTS)) {
+        if (!(k in data.cssVars)) data.cssVars[k] = v;
+      }
+
+      // Populate the form
+      $('vars-input').value = JSON.stringify(data.cssVars, null, 2);
+      $('name-input').value = (data.name || '').slice(0, 40);
+      if (data.customCss) {
+        $('css-input').value = data.customCss;
+      }
+      if (data.tags?.length) {
+        $('name-input').dataset.tags = JSON.stringify(data.tags);
+      } else {
+        delete $('name-input').dataset.tags;
+      }
+
+      // Trigger preview and validation
+      $('vars-input').dispatchEvent(new Event('input'));
+      window.__toast?.(`主题「${data.name || '未命名'}」已生成`);
+      $('ai-status').textContent = useDeepSeek
+        ? `由 DeepSeek AI 生成 — ${data.name || ''}`
+        : `由规则引擎生成 — ${data.name || ''}`;
+    } catch (err) {
+      $('ai-status').textContent = '生成失败：' + (err.message || '请稍后重试');
+      window.__toast?.(err.message || 'AI 生成暂时不可用');
+    } finally {
+      btn.classList.remove('loading');
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.5 3.5L13 6l-3.5 1.5L8 11l-1.5-3.5L3 6l3.5-1.5L8 1z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5 12l1 1.5 2.5.5-2 1.5.5 2.5L5 16l-2.5-1 .5-2.5L1 11l2.5-.5L5 12z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg> AI 生成';
+    }
+  });
+
   // ─── Import from clipboard (Gracefully falling back on restricted environments) ───
   $('btn-import').addEventListener('click', async () => {
     try {
@@ -1393,6 +1807,7 @@ import Layout from '../layouts/Layout.astro';
           author,
           cssVars: currentVars,
           customCss: css || undefined,
+          tags: (() => { try { return JSON.parse($('name-input').dataset.tags || '[]'); } catch { return undefined; } })(),
         }),
       });
 

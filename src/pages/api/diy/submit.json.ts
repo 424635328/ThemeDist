@@ -19,7 +19,7 @@ export async function POST({ request }: { request: Request }) {
 
   try {
     const body = await request.json();
-    const { name, author, cssVars, customCss } = body;
+    const { name, author, cssVars, customCss, tags } = body;
 
     if (!name || !author || !cssVars || typeof cssVars !== 'object') {
       return new Response(JSON.stringify({ error: '缺少必填字段: name, author, cssVars' }), {
@@ -35,7 +35,7 @@ export async function POST({ request }: { request: Request }) {
       });
     }
 
-    const theme = await submitTheme({ name, author, cssVars, customCss });
+    const theme = await submitTheme({ name, author, cssVars, customCss, tags });
 
     if (!theme) {
       return new Response(JSON.stringify({ error: '提交失败，请稍后重试' }), {
