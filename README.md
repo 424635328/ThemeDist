@@ -2,7 +2,7 @@
 
 **每日轮换的主题 CSS 变量分发服务** — 一个 GET 请求，整套网站视觉主题。
 
-ThemeDist 是基于 Astro SSR 的主题分发平台，通过 **OmniConfig 主题数据库**（节日 + 日池主题）配合 **5 组可插拔主题部件**（颜色、排版、间距、壁纸、视觉效果），每日由 CDN 边缘函数实时计算并输出 34 个 CSS 自定义属性。同时提供主题商店、在线构建器、社区投稿与审核、AI 辅助生成、主题标签分类等完整功能。
+ThemeDist 是基于 Astro SSR 的主题分发平台，通过 **OmniConfig 主题数据库**（节日 + 日池主题）配合 **5 组可插拔主题部件**（颜色、排版、间距、壁纸、视觉效果），每日由 Astro SSR 实时计算并输出 34 个 CSS 自定义属性。同时提供主题商店、在线构建器、社区投稿与审核、AI 辅助生成、主题标签分类等完整功能。
 
 支持 **Vercel + Netlify** 双平台部署，一份代码，同时运行。
 
@@ -89,8 +89,8 @@ function applyTheme(d) {
 
 ### 核心功能
 
-- **每日自动轮换** — CDN 边缘函数实时计算，无需定时构建。农历节日 → 公历节日 → Crazy Thursday → 社区主题（约 30% 天数）→ 日池兜底
-- **农历节日支持** — 基于 `lunar-javascript` 实现，覆盖春节、元宵、端午、中秋、重阳等 30+ 传统农历节日。构建时预计算农历→公历映射，边缘函数直接检索，无需运行时加载农历库
+- **每日自动轮换** — Astro SSR 实时计算，无需定时构建。农历节日 → 公历节日 → Crazy Thursday → 社区主题（约 30% 天数）→ 日池兜底
+- **农历节日支持** — 基于 `lunar-javascript` 实现，覆盖春节、元宵、端午、中秋、重阳等 30+ 传统农历节日。运行时通过 `OmniConfig.getThemeConfig('auto')` 直接调用 `Lunar.fromDate()` 计算
 - **社区主题即发即现** — 用户投稿后自动发布至社区商店，立即可见、可点赞、可分享，长期有效
 - **RESTful API** — `GET /api/today.json` 返回完整主题数据；所有接口支持 CORS 跨域
 - **CDN 友好缓存** — 浏览器 1h / CDN 24h（今日主题，含 `stale-while-revalidate=3600` 降级），365 天不可变缓存（预设主题端点）
@@ -215,7 +215,7 @@ curl https://themedist.netlify.app/api/theme/community-abc12345.json
 curl https://themedist.netlify.app/api/index-data.json
 ```
 
-返回日池 ID 列表、公历节日映射、农历节日映射（农历→公历日期转换）和主题目录，供边缘函数使用。
+返回日池 ID 列表、公历节日映射、农历节日映射（农历→公历日期转换）和主题目录。
 
 ### 社区主题投稿
 
@@ -391,17 +391,11 @@ curl https://themedist.netlify.app/api/admin/health.json
 
 ## 主题轮换策略
 
-主题由 CDN 边缘函数根据服务器日期实时计算，无需定时构建。选择逻辑在以下三处**保持一致**：
-
-| 实现 | 平台 | 位置 |
-|------|------|------|
-| 首页 & 预渲染 API | 通用 | `OmniConfig.getThemeConfig('auto')` |
-| Edge Function | Netlify | `netlify/edge-functions/today.ts` |
-| Edge Function | Vercel | `src/pages/api/today.ts` |
+主题由 Astro SSR 端点 `src/pages/api/today.json.ts` 根据服务器日期实时计算，无需定时构建。选择逻辑集中在一处，双平台完全一致。
 
 选择优先级：
 
-1. **农历节日优先** 🏮 — 构建时通过 `lunar-javascript` 将 30+ 农历节日（春节、元宵、端午、中秋、重阳等）的农历日期转换为当年公历日期，写入 `index-data.json`。边缘函数直接按 MM-DD 检索，无需运行时加载农历库
+1. **农历节日优先** 🏮 — `OmniConfig.getThemeConfig('auto')` 运行时通过 `Lunar.fromDate()` 直接计算当前农历日期，匹配 30+ 农历节日（春节、元宵、端午、中秋、重阳等）
 2. **公历节日其次** 📅 — 匹配元旦、情人节、Pi Day、圣诞等公历节日（来自 OmniConfig 配置）
 3. **Crazy Thursday** 🍗 — 每周四的特殊覆盖主题
 4. **社区主题轮换** 👥 — 约 30% 天数（每 3 天）从已审核社区主题池中按 `dayOfYear % count` 选中一个作为今日主题
@@ -412,19 +406,13 @@ curl https://themedist.netlify.app/api/admin/health.json
 ### 农历节日处理流程
 
 ```
-构建时 (index-data.json.ts)
-  └─ Lunar.fromDate(new Date()) → 获取当前农历年
-  └─ 遍历 config.holidays 中的所有 Lxx-xx 键
-  └─ Lunar.fromYmd(year, month, day).getSolar() → 公历日期
-  └─ 输出: lunarHolidays: { "02-17": "holiday-l01-01", ... }
-
-运行时 (Edge Function)
-  └─ 获取 index-data.json（含预计算的 lunarHolidays）
-  └─ 用当日 MM-DD 直接检索 idx.lunarHolidays[mmdd]
-  └─ 命中 → 返回对应节日主题
+运行时 (Astro SSR — src/pages/api/today.json.ts)
+  └─ getDailyTheme() → OmniConfig.getThemeConfig('auto')
+  └─ Lunar.fromDate(new Date()) → 获取当前农历月日
+  └─ 遍历 config.holidays 中的 Lxx-xx 键进行匹配
+  └─ 命中 → 返回对应农历节日主题（含 customCss、extensions）
 ```
 
-每月 1 号通过 GitHub Actions 自动重建，确保农历→公历映射始终对应正确的农历年。
 
 ---
 
@@ -484,11 +472,8 @@ themeDist/
 │   └── workflows/
 │       └── deploy.yml                  # GitHub Actions：每月 1 号自动构建部署到 Netlify
 ├── astro.config.mjs                    # Astro 配置（SSR + ADAPTER 环境变量切换 Vercel/Netlify）
-├── vercel.json                         # Vercel 部署 + Rewrite（/api/today.json → /api/today）+ CORS
-├── netlify.toml                        # Netlify 部署 + Edge Function 路由 + CORS 头
-├── netlify/
-│   └── edge-functions/
-│       └── today.ts                    # ★ Netlify Edge Function：实时计算每日主题（Deno 运行时）
+├── vercel.json                         # Vercel 部署 + CORS 头
+├── netlify.toml                        # Netlify 部署 + CORS 头
 ├── package.json                        # 依赖与脚本
 ├── tsconfig.json                       # TypeScript 配置
 ├── public/
@@ -512,8 +497,8 @@ themeDist/
     │   ├── admin/
     │   │   └── index.astro             # 管理后台：登录面板 + 审核列表
     │   └── api/
-    │       ├── today.json.ts           # GET 今日主题构建时快照（预渲染静态 fallback，含社区主题）
-    │       ├── today.ts                # ★ Vercel Edge Function：实时计算每日主题
+    │       ├── today.json.ts           # ★ GET 今日主题（Astro SSR 动态端点，双平台统一入口）
+    │       ├── today.ts                # 主题端点旧版（Vercel Edge，已废弃，直接访问 /api/today 仍可用）
     │       ├── index-data.json.ts      # ★ 构建时数据快照（日池 ID、公历+农历节日映射、目录）
     │       ├── docs.astro              # API 交互式文档页面
     │       ├── spec.astro              # 旧文档 → /api/docs 301 转发
@@ -578,39 +563,27 @@ themeDist/
 ### 每日主题选择流程
 
 ```
-GET /api/today.json
+GET /api/today.json（Vercel + Netlify 统一路由）
   │
-  ├─ Netlify: Edge Function (netlify/edge-functions/today.ts) 拦截请求
-  ├─ Vercel:  rewrite → Edge Function (src/pages/api/today.ts)
-  │
-  ├─ 1. 获取 index-data.json（预渲染静态文件，含 lunarHolidays/gregorianHolidays/pool/directory）
-  │     ├─ lunarHolidays 在构建时由 index-data.json.ts 通过 lunar-javascript 预计算
-  │     └─ 每月 1 号 GitHub Actions 自动重建，保持农历映射准确
-  ├─ 2. 用当日 MM-DD 检索
-  │     ├─ 命中 lunarHolidays → 农历节日主题
-  │     ├─ 命中 gregorianHolidays → 公历节日主题
-  │     ├─ 星期四是 Thursday → Crazy Thursday 主题
-  │     ├─ dayOfYear % 3 === 2 → 从 Redis 选取社区主题
-  │     └─ 否则 → dailyPool[dayOfYear % poolLength] 日池轮换
-  ├─ 3. 获取主题完整数据
-  │     ├─ 社区主题：直接使用 Redis 数据（已包含 cssVars）
-  │     └─ 预设主题：fetch /api/theme/{preset}.json
-  └─ 4. 返回 JSON 响应（含 directory、available 等附加信息）
-        └─ 失败时：Netlify → context.next() 降级为预渲染静态文件
-                   Vercel → 500 error
+  └─ Astro SSR 端点: src/pages/api/today.json.ts
+       │
+       ├─ 1. getDailyCommunityTheme()
+       │     ├─ 检查 Redis 可用性
+       │     ├─ dayOfYear % 3 === 2 → 从 td:themes:by_newest 选取社区主题
+       │     └─ 否则 → null（不覆盖预设）
+       ├─ 2. getDailyTheme()（OmniConfig.getThemeConfig('auto')）
+       │     ├─ 通过 Lunar.fromDate() 检查农历节日
+       │     ├─ 匹配公历节日（MM-DD）
+       │     ├─ 星期四是 Thursday → Crazy Thursday 主题
+       │     └─ 否则 → dailyPool[dayOfYear % poolLength] 日池轮换
+       ├─ 3. 社区主题优先于预设（communityDaily || dailyTheme）
+       ├─ 4. 获取完整目录（预设 20 + 社区 10）
+       └─ 5. 返回 JSON（含 cssVars, directory, available 等）
+              └─ 失败时 → 500 + JSON error
 ```
 
-### 三处实现一致性
+双端（Vercel / Netlify）运行完全相同的代码路径，主题选择结果一致。
 
-由于历史和运行时限制，每日主题选择逻辑在三个位置独立实现。它们通过共享 `index-data.json`（预渲染数据快照）来保持一致性：
-
-| 位置 | 用途 | 农历支持 |
-|------|------|----------|
-| `OmniConfig.getThemeConfig('auto')` | 首页 SSR / 预渲染 today.json | `Lunar.fromDate()` 运行时计算 |
-| `netlify/edge-functions/today.ts` | Netlify CDN 边缘 | 通过 `index-data.json` 的 `lunarHolidays` 映射 |
-| `src/pages/api/today.ts` | Vercel Edge | 同上 |
-
-三处选择优先级完全一致：农历 → 公历 → Crazy Thursday → 社区 → 日池。
 
 ### 社区主题生命周期
 
@@ -630,7 +603,7 @@ GET /api/today.json
 | `/api/today.json` | 1 小时 (`max-age=3600`) | 24 小时 + 1h 降级 (`s-maxage=86400, stale-while-revalidate=3600`) |
 | `/api/theme/*.json`（预设） | 24 小时 | 365 天（`immutable`） |
 | `/api/theme/*.json`（社区） | 1 小时 | 不使用 CDN 缓存 |
-| `/api/index-data.json` | — | 预渲染静态文件 |
+| `/api/index-data.json` | 1 小时 (`max-age=3600`) | 24 小时 (`s-maxage=86400`) |
 | `/api/diy/*` | 1 分钟或不缓存 | 不使用 CDN 缓存 |
 | `/api/ai/generate.json` | 不缓存 | 不使用 CDN 缓存 |
 | `/api/admin/*` | 不缓存 | 不使用 CDN 缓存 |
@@ -647,7 +620,7 @@ GET /api/today.json
 ### 优雅降级
 
 - **Redis 不可用** — 所有社区功能（投稿、点赞、审核、列表）返回空数据或 503，`dbAvailable` 标记为 `false`。客户端缓存确保已加载数据仍可见
-- **每日主题分发** — 边缘函数中 Redis 查询失败时自动降级为纯日池轮换 + 节假日逻辑，不影响 `/api/today.json` 输出。Netlify 极端情况下降级为预渲染静态文件
+- **每日主题分发** — Redis 不可用时社区主题自动降级为纯日池轮换 + 节假日逻辑，不影响 `/api/today.json` 输出
 - **AI 生成降级** — DeepSeek Key 未设置时自动降级为内置规则引擎，无需任何外部依赖
 - **客户端降级** — 所有列表页优先展示缓存数据，请求失败时缓存内容持续可见
 
@@ -666,9 +639,8 @@ GET /api/today.json
 | **农历计算** | `lunar-javascript`（构建时使用，运行时通过预计算映射检索） |
 | **ID 生成** | `nanoid`（8 字符） |
 | **前端交互** | 原生 JavaScript（无前端框架依赖） |
-| **部署目标** | Vercel + Netlify 双平台（Edge Function 运行时计算） |
+| **部署目标** | Vercel + Netlify 双平台（Astro SSR 运行时计算） |
 | **CI/CD** | GitHub Actions（Netlify 每月自动构建）；Vercel Git Integration（自动部署） |
-| **边缘计算** | Netlify Edge Functions（Deno）/ Vercel Edge Runtime — 实时计算每日主题 |
 
 ---
 
@@ -735,19 +707,11 @@ const adapter = process.env.ADAPTER === 'netlify' ? netlify() : vercel();
 1. 推送仓库到 GitHub
 2. 在 Vercel 中导入项目（Framework 自动检测为 Astro）
 3. 在 Vercel Dashboard 设置环境变量
-4. Vercel Edge Function（`src/pages/api/today.ts`）自动部署，通过 rewrite 处理 `/api/today.json`
-
-`vercel.json` 关键配置：
-
-```json
-{
-  "rewrites": [{ "source": "/api/today.json", "destination": "/api/today" }]
-}
-```
+4. `/api/today.json` 由 Astro SSR 端点（`src/pages/api/today.json.ts`）动态处理，Vercel 与 Netlify 使用相同的代码路径。
 
 ### Netlify
 
-采用 **GitHub Actions 自动构建并部署**到 Netlify 的方式。`/api/today.json` 由 Edge Function（`netlify/edge-functions/today.ts`）处理。
+采用 **GitHub Actions 自动构建并部署**到 Netlify 的方式。`/api/today.json` 由 Astro SSR 端点统一处理。
 
 **触发方式：**
 
@@ -756,7 +720,7 @@ const adapter = process.env.ADAPTER === 'netlify' ? netlify() : vercel();
 | `schedule` (cron: `0 0 1 * *`) | 每月 1 号 UTC 午夜自动重建（更新农历映射、预渲染数据） |
 | `workflow_dispatch` | GitHub 页面手动触发 |
 
-> 主题每日轮换由 CDN 边缘函数实时计算，无需定时重建。每月重建仅用于刷新农历→公历日期映射和预渲染快照。
+> 主题每日轮换由 Astro SSR 实时计算，无需定时重建。每月重建仅用于刷新农历→公历日期映射和预渲染快照。
 
 **GitHub Secrets 配置：**
 
@@ -808,7 +772,7 @@ Netlify Dashboard → Site settings → Environment variables → 添加：
 | **客户端缓存优化** | sessionStorage（5min TTL）+ localStorage（10min TTL）减少重复请求 | ✅ 已完成 |
 | **LIVE SENSING 沙箱** | 提交页 16:9 比例全屏沙箱实时预览 | ✅ 已完成 |
 | **双平台同步部署** | 一套代码自动部署 Vercel + Netlify 双平台 | ✅ 已完成 |
-| **农历节日支持** | 30+ 农历节日，构建时预计算映射，边缘函数直接检索 | ✅ 已完成 |
+| **农历节日支持** | 30+ 农历节日，OmniConfig 运行时通过 Lunar.fromDate() 计算 | ✅ 已完成 |
 | **RSS / Webhook 通知** | 每日主题更新后推送通知 | 待规划 |
 | **多管理员支持** | 审核权限分离，支持多个管理员账号协同操作 | 待规划 |
 | **主题使用统计** | 各主题被 API 请求的次数、点赞趋势等可视化数据 | 待规划 |
