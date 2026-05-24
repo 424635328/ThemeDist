@@ -10,6 +10,7 @@ const allThemes = getAllThemes();
 const primary = today.cssVars['--color-primary'];
 const secondary = today.cssVars['--color-secondary'];
 const accent = today.cssVars['--color-accent'];
+const siteUrl = Astro.url.origin;
 ---
 
 <Layout>
@@ -246,7 +247,7 @@ const accent = today.cssVars['--color-accent'];
     ([k, v]) =&gt; document.documentElement.style.setProperty(k, v)
   );
 
-fetch('/api/today.json')
+fetch('{siteUrl}/api/today.json')
   .then(r =&gt; r.json())
   .then(apply);</code></pre>
       </div>
