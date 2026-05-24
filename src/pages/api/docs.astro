@@ -222,7 +222,7 @@ function applyTheme(d) {
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">presetName</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">人类可读名称</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">cssVars</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object</td><td style="padding:9px 16px">34 个 CSS 自定义属性键值对（5 组：Colors / Typography / Spacing / Effects / Ambient）</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">customCss</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string|null</td><td style="padding:9px 16px">主题专属 CSS（动画 keyframes、特效样式），注入为 <code>&lt;style&gt;</code></td></tr>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">extensions</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array|null</td><td style="padding:9px 16px">声明式装饰元素 <code>{'{ type:"floating", char, top, left, ... }'}</code>，安全渲染（无 innerHTML）</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">extensions</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array|null</td><td style="padding:9px 16px">声明式装饰元素数组，支持 <code>floating</code> 和 <code>decorative</code> 两种类型。null 表示无扩展。最多 20 个。</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">logoText</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string|null</td><td style="padding:9px 16px">Logo 文字</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">logoColors</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array|null</td><td style="padding:9px 16px">Logo 渐变色 hex 数组</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">available</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">number</td><td style="padding:9px 16px">可用主题总数</td></tr>
@@ -267,6 +267,98 @@ function applyTheme(d) {
             <tr><td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">--ambient-1 / --ambient-2</td><td style="padding:8px 14px;font-size:12px">氛围光球 rgba 颜色</td></tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- ====== EXTENSIONS REFERENCE ====== -->
+      <h2 id="extensions-ref" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">Extensions 扩展元素</h2>
+      <div class="card" style="margin-bottom:36px;padding:24px 28px">
+        <p class="text-muted" style="font-size:13px;line-height:1.6;margin:0 0 18px 0">
+          <code>extensions</code> 是一个声明式装饰元素数组，每个元素描述一个无需执行脚本即可渲染的视觉组件。
+          系统支持两种类型，<strong>不支持 JavaScript</strong>（安全原因，提交时如果类型不匹配会被自动移除并返回警告）。
+        </p>
+
+        <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:12px;margin-top:20px">类型 1: floating — 浮动字符</h3>
+        <p class="text-muted" style="font-size:12px;margin:0 0 10px">通过 <code>document.createElement('div')</code> 安全创建，绝无 innerHTML。适合 emoji 装饰。</p>
+        <div class="card card-glass" style="padding:0;overflow:hidden;margin-bottom:16px">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="border-bottom:1px solid var(--color-border)">
+              <th style="text-align:left;padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:100px">字段</th>
+              <th style="text-align:left;padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:55px">必填</th>
+              <th style="text-align:left;padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:80px">限制</th>
+              <th style="text-align:left;padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">说明</th>
+            </tr></thead>
+            <tbody>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">type</td><td style="padding:7px 14px;color:#ef4444">是</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">"floating"</td><td style="padding:7px 14px;font-size:12px">固定值</td></tr>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">char</td><td style="padding:7px 14px;color:#ef4444">是</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">≤ 4 个 Unicode 码点</td><td style="padding:7px 14px;font-size:12px">显示字符（emoji / 文字），控制字符自动剔除</td></tr>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">top / left / right / bottom</td><td style="padding:7px 14px">否</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">CSS 尺寸 128 字</td><td style="padding:7px 14px;font-size:12px">定位，须为合法 CSS 值 (px/%/em/rem/vh/vw)</td></tr>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">fontSize</td><td style="padding:7px 14px">否</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">CSS 尺寸</td><td style="padding:7px 14px;font-size:12px">字号</td></tr>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">opacity</td><td style="padding:7px 14px">否</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">0.0 ~ 1.0</td><td style="padding:7px 14px;font-size:12px">透明度，自动 clamp 到 [0, 1]</td></tr>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">animation</td><td style="padding:7px 14px">否</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">CSS animation 128 字</td><td style="padding:7px 14px;font-size:12px">如 <code>"swing 4s ease-in-out infinite"</code>，XSS 清洗（去除 expression/javascript:）</td></tr>
+              <tr><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">zIndex</td><td style="padding:7px 14px">否</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">-1 ~ 99999</td><td style="padding:7px 14px;font-size:12px">层级，自动 clamp</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cmd-block" style="margin-bottom:8px"><code>{String.raw`// 示例
+      { "type": "floating", "char": "🪷", "top": "20%", "left": "5%", "fontSize": "30px", "opacity": 0.3, "animation": "swing 4s ease-in-out infinite" }`}</code></div>
+
+        <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:12px;margin-top:24px">类型 2: decorative — 装饰 HTML</h3>
+        <p class="text-muted" style="font-size:12px;margin:0 0 10px">使用 <code>&lt;template&gt;</code> + <code>DocumentFragment</code> 安全解析，渲染前剥离 <code>on*</code> 事件。适合复杂粒子层、叠层、氛围元素。</p>
+        <div class="card card-glass" style="padding:0;overflow:hidden;margin-bottom:16px">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="border-bottom:1px solid var(--color-border)">
+              <th style="text-align:left;padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:100px">字段</th>
+              <th style="text-align:left;padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:55px">必填</th>
+              <th style="text-align:left;padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">说明</th>
+            </tr></thead>
+            <tbody>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">type</td><td style="padding:7px 14px;color:#ef4444">是</td><td style="padding:7px 14px;font-size:12px">固定值 <code>"decorative"</code></td></tr>
+              <tr><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">html</td><td style="padding:7px 14px;color:#ef4444">是</td><td style="padding:7px 14px;font-size:12px">HTML 片段字符串。提交时自动清洗：剥离 <code>&lt;script&gt;</code>、<code>&lt;iframe&gt;</code>、<code>on*</code> 事件处理器、<code>javascript:</code> 协议。系统自动分析其中 CSS 类名以<strong>避免与自动生成粒子重复</strong>。</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cmd-block" style="margin-bottom:8px"><code>{String.raw`// 示例 — 粒子层 + 氛围叠层
+      { "type": "decorative", "html": "<div class=\"noise-overlay\"></div><div class=\"particle-layer\"><span class=\"sparkle\" style=\"left:12vw;animation-delay:-3s\"></span></div>" }`}</code></div>
+
+        <div style="padding:14px 18px;border-radius:10px;background:color-mix(in srgb, #f59e0b 8%, transparent);border:1.5px solid rgba(245,158,11,0.3);margin-top:16px">
+          <p style="font-size:12px;font-weight:600;color:#f59e0b;margin:0 0 4px">⚠ 不支持 JavaScript 类型</p>
+          <p style="font-size:11px;color:var(--color-text-muted);line-height:1.6;margin:0">
+            <code>"type": "javascript"</code> 不安全且不被支持。提交时会被静默移除，API 响应中的 <code>warnings</code> 数组会提示被移除的类型。
+            请将 JS 逻辑转换为 <code>"decorative"</code> HTML 片段 + <code>customCss</code> 中的 CSS 动画。
+            详见下方「字段限制」表。
+          </p>
+        </div>
+      </div>
+
+      <!-- ====== FIELD LIMITS ====== -->
+      <h2 id="limits" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">字段限制与约束</h2>
+      <div class="card card-glass" style="padding:0;overflow:hidden;margin-bottom:36px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="border-bottom:1px solid var(--color-border)">
+            <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:120px">字段</th>
+            <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:100px">限制</th>
+            <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">超限行为</th>
+          </tr></thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">name</td><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px">≤ 100 字符</td><td style="padding:8px 16px;font-size:12px">截断；HTML 标签剥离</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">author</td><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px">≤ 50 字符</td><td style="padding:8px 16px;font-size:12px">截断；HTML 标签剥离</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">cssVars</td><td style="padding:8px 16px;font-size:12px">必须含 <code>--color-primary</code> + <code>--color-bg</code>；键自动补齐 <code>--</code> 前缀</td><td style="padding:8px 16px;font-size:12px">缺少必填键 → 400 错误</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">customCss</td><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px">≤ 16 KB</td><td style="padding:8px 16px;font-size:12px">截断；<code>@import</code>、<code>url(http)</code>、<code>expression()</code>、<code>javascript:</code> 剥离</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">extensions</td><td style="padding:8px 16px;font-size:12px">≤ 20 个；只支持 <code>floating</code> + <code>decorative</code></td><td style="padding:8px 16px;font-size:12px">超量截断；不支持的类型<strong>静默移除</strong> → 见 API 响应的 <code>warnings</code></td></tr>
+            <tr><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">tags</td><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:11px">≤ 5 个</td><td style="padding:8px 16px;font-size:12px">截断</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="font-size:14px;font-weight:700;letter-spacing:-0.01em;margin-bottom:10px">特殊说明</h3>
+      <div class="card" style="margin-bottom:24px;padding:18px 24px">
+        <ul style="font-size:12px;color:var(--color-text-muted);line-height:1.8;padding-left:18px;margin:0">
+          <li><strong>社区主题</strong>（Redis 存储）的 <code>extensions</code> 字段始终存在（<code>null</code> 或数组），不会缺失。</li>
+          <li><strong>静态预设主题</strong>（<code>index_config.js</code>）可能不含 <code>extensions</code> 字段。</li>
+          <li><code>/api/theme/{'{preset}'}.json</code>：社区主题返回 <code>logoText: null, logoColors: null</code>（社区主题无 Logo）。</li>
+          <li><strong>CSS 变量自动归一化</strong>：提交时所有键自动补齐 <code>--</code> 前缀，可防止 AI 生成未前缀化的键名。</li>
+          <li><strong>customCss 中的动画类</strong>会被自动解析并生成对应 DOM 粒子元素（系统根据类名启发式决定数量：particle/dot/orb/bubble/spark/star → 20，float/drift/sway → 12，rain/snow/fall → 30，其他 → 8）。如已在 extensions 中手动声明该类元素，系统自动跳过以避免重复。</li>
+          <li><strong>速率限制</strong>：GET 端点无限制（有 CDN 缓存）。写操作：投稿 3次/分钟，点赞 10次/分钟，超限返回 429。</li>
+        </ul>
       </div>
 
       <!-- ====== ROTATION ====== -->
@@ -404,8 +496,9 @@ function applyTheme(d) {
         <h3 style="font-size:14px;font-weight:700;margin:20px 0 12px">提交主题</h3>
         <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl</span></div><pre class="cmd-block"><code>curl -X POST {siteUrl}/api/diy/submit.json \
   -H 'Content-Type: application/json' \
-  -d '{'{'}"name":"My Theme","author":"You","cssVars":{'{'}"--color-primary":"#ff6b6b","--color-bg":"#1a1a2e"{'}'},"tags":["dark","vibrant"]{'}'}'</code></pre></div>
-        <p class="text-muted" style="font-size:12px;margin-top:6px">必填: <code>name</code>, <code>author</code>, <code>cssVars</code>（必须含 <code>--color-primary</code> 和 <code>--color-bg</code>）。可选: <code>customCss</code>, <code>tags</code>（最多 5 个）。提交后进入审核队列，管理员审核通过后发布至商店。</p>
+  -d '{'{'}"name":"My Theme","author":"You","cssVars":{'{'}"--color-primary":"#ff6b6b","--color-bg":"#1a1a2e"{'}'},"customCss":"body {'{'} ... {'}'}","extensions":[{'{'}"type":"floating","char":"✨"{'}'}],"tags":["dark","vibrant"]{'}'}'</code></pre></div>
+        <p class="text-muted" style="font-size:12px;margin-top:6px">必填: <code>name</code>, <code>author</code>, <code>cssVars</code>（必须含 <code>--color-primary</code> 和 <code>--color-bg</code>）。可选: <code>customCss</code>, <code>extensions</code>, <code>tags</code>（最多 5 个）。提交后进入审核队列。</p>
+        <p class="text-muted" style="font-size:12px;margin-top:4px">成功响应 <code style="color:#22c55e">201</code>：<code>{'{'} success: true, theme: {'{'} id, name, ... {'}'}, warnings?: [...] {'}'}</code>。如果有 <code>warnings</code> 数组，说明部分字段被自动调整（如不支持的类型被移除）。</p>
 
         <h3 style="font-size:14px;font-weight:700;margin:20px 0 12px">点赞</h3>
         <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl</span></div><pre class="cmd-block"><code>curl -X POST {siteUrl}/api/diy/like.json \
@@ -527,6 +620,18 @@ export function useThemeDist() {
           <p style="font-size:13px;font-weight:700;margin:0 0 4px">Q: 可以自己部署吗？</p>
           <p class="text-muted" style="font-size:12px;line-height:1.6;margin:0">可以。项目开源，支持 Vercel + Netlify 双平台。需要配置 Upstash Redis 实例（社区功能）和可选的 DeepSeek API Key（AI 生成）。详见 README 部署章节。</p>
         </div>
+        <div style="margin-bottom:18px">
+          <p style="font-size:13px;font-weight:700;margin:0 0 4px">Q: extensions 支持哪些类型？</p>
+          <p class="text-muted" style="font-size:12px;line-height:1.6;margin:0">仅支持 <code>"floating"</code>（浮动 emoji/字符，createElement 安全渲染）和 <code>"decorative"</code>（装饰 HTML 片段，server 端清洗后 client 端 template 安全解析）。<strong>不支持 JavaScript</strong>（<code>"type": "javascript"</code> 会在提交时被移除并在 <code>warnings</code> 中报告）。最多 20 个扩展。</p>
+        </div>
+        <div style="margin-bottom:18px">
+          <p style="font-size:13px;font-weight:700;margin:0 0 4px">Q: 提交的主题有 JavaScript 扩展，为什么不生效？</p>
+          <p class="text-muted" style="font-size:12px;line-height:1.6;margin:0"><code>"type": "javascript"</code> 不被支持。请将其中的 DOM 创建逻辑转为 <code>"decorative"</code> 类型的 HTML 片段 + <code>customCss</code> 中的 CSS 动画。系统会自动从 customCss 中解析动画类并生成粒子元素。API 响应中的 <code>warnings</code> 数组会提示被移除的类型及原因。</p>
+        </div>
+        <div>
+          <p style="font-size:13px;font-weight:700;margin:0 0 4px">Q: CSS 变量键名可以不带 -- 前缀吗？</p>
+          <p class="text-muted" style="font-size:12px;line-height:1.6;margin:0">可以。提交 API 会自动补齐 <code>--</code> 前缀（如 <code>color-primary</code> → <code>--color-primary</code>），防御 AI 生成时忘记前缀。</p>
+        </div>
       </div>
 
       <!-- ====== ERROR HANDLING ====== -->
@@ -540,7 +645,10 @@ export function useThemeDist() {
           </tr></thead>
           <tbody>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--color-primary)">200</td><td style="padding:6px 0;font-size:12px">正常</td><td style="padding:6px 0;font-size:12px">解析 JSON，注入变量</td></tr>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--color-primary)">404</td><td style="padding:6px 0;font-size:12px">文件不存在</td><td style="padding:6px 0;font-size:12px">提示检查 API 地址</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-weight:700;color:#ef4444">400</td><td style="padding:6px 0;font-size:12px">请求格式错误 / 缺少必填字段</td><td style="padding:6px 0;font-size:12px">检查 <code>cssVars</code> 含 <code>--color-primary</code> + <code>--color-bg</code></td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--color-primary)">404</td><td style="padding:6px 0;font-size:12px">主题 / 文件不存在</td><td style="padding:6px 0;font-size:12px">检查 ID 或路径是否正确</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-weight:700;color:#ef4444">429</td><td style="padding:6px 0;font-size:12px">请求频率超限</td><td style="padding:6px 0;font-size:12px">投稿 3/min，点赞 10/min；等待恢复</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-weight:700;color:#ef4444">503</td><td style="padding:6px 0;font-size:12px">数据库不可用</td><td style="padding:6px 0;font-size:12px">稍后重试；GET 端点有静态降级</td></tr>
             <tr><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--color-primary)">—</td><td style="padding:6px 0;font-size:12px">网络中断</td><td style="padding:6px 0;font-size:12px"><code>catch</code> → localStorage 降级</td></tr>
           </tbody>
         </table>
@@ -583,6 +691,8 @@ export function useThemeDist() {
       <a href="#endpoints" class="toc-link" data-target="endpoints" role="menuitem" tabindex="-1">端点</a>
       <a href="#schema" class="toc-link" data-target="schema" role="menuitem" tabindex="-1">响应结构</a>
       <a href="#css-vars" class="toc-link" data-target="css-vars" role="menuitem" tabindex="-1">CSS 变量</a>
+      <a href="#extensions-ref" class="toc-link" data-target="extensions-ref" role="menuitem" tabindex="-1">Extensions</a>
+      <a href="#limits" class="toc-link" data-target="limits" role="menuitem" tabindex="-1">字段限制</a>
       <a href="#rotation" class="toc-link" data-target="rotation" role="menuitem" tabindex="-1">轮换策略</a>
       <a href="#caching" class="toc-link" data-target="caching" role="menuitem" tabindex="-1">缓存策略</a>
       <a href="#today-safe" class="toc-link" data-target="today-safe" role="menuitem" tabindex="-1">安全代理</a>

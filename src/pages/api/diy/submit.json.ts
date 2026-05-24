@@ -2,7 +2,7 @@ export const prerender = false;
 
 import { submitTheme } from '../../../lib/themes-db';
 import { isReady } from '../../../lib/redis';
-import { sanitizeText, sanitizeCustomCss, validateUserExtensions } from '../../../utils/sanitize';
+import { sanitizeText, sanitizeCustomCss, validateUserExtensions, collectExtensionWarnings } from '../../../utils/sanitize';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -45,6 +45,7 @@ export async function POST({ request }: { request: Request }) {
     }
 
     const extensions = validateUserExtensions(rawExts);
+    const extWarnings = collectExtensionWarnings(rawExts);
 
     const theme = await submitTheme({
       name: sanitizeText(name),
@@ -62,7 +63,7 @@ export async function POST({ request }: { request: Request }) {
       });
     }
 
-    return new Response(JSON.stringify({ success: true, theme }), {
+    return new Response(JSON.stringify({ success: true, theme, warnings: extWarnings.length > 0 ? extWarnings : undefined }), {
       status: 201,
       headers: { 'Content-Type': 'application/json', ...CORS },
     });

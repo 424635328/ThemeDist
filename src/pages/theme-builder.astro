@@ -139,10 +139,12 @@ const initialThemeData = {
 
         <!-- ===== TAB: CSS Vars Editor ===== -->
         <div class="editor-panel" id="panel-vars" style="display:none">
-          <div style="margin-bottom:8px;display:flex;align-items:center;gap:12px">
+          <div style="margin-bottom:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <span style="font-size:12px;color:var(--color-text-muted)">编辑 JSON 格式的 CSS 变量，修改即时生效。</span>
             <span id="vars-error" style="font-size:11px;color:#ef4444;font-weight:600;display:none"></span>
             <span id="vars-ok" style="font-size:11px;color:#22c55e;font-weight:600;display:none">✓ 有效</span>
+            <span id="vars-count" style="font-size:11px;color:var(--color-text-muted);margin-left:auto;font-family:'JetBrains Mono',monospace"></span>
+            <button class="mini-btn-format" data-target="vars-editor" title="格式化 JSON" style="font-size:10px;font-weight:600;padding:3px 10px;border-radius:5px;border:1px solid var(--color-border);background:transparent;color:var(--color-text-muted);cursor:pointer;font-family:inherit">格式化</button>
           </div>
           <textarea
             id="vars-editor"
@@ -153,8 +155,9 @@ const initialThemeData = {
 
         <!-- ===== TAB: Custom CSS Editor ===== -->
         <div class="editor-panel" id="panel-css" style="display:none">
-          <div style="margin-bottom:8px">
+          <div style="margin-bottom:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <span style="font-size:12px;color:var(--color-text-muted)">编写自定义 CSS，即时注入页面。可用于微调样式或添加动画。</span>
+            <span id="css-count" style="font-size:11px;color:var(--color-text-muted);margin-left:auto;font-family:'JetBrains Mono',monospace"></span>
           </div>
           <textarea
             id="css-editor"
@@ -166,8 +169,13 @@ const initialThemeData = {
 
         <!-- ===== TAB: Extensions Editor ===== -->
         <div class="editor-panel" id="panel-exts" style="display:none">
-          <div style="margin-bottom:8px">
-            <span style="font-size:12px;color:var(--color-text-muted)">声明式扩展元素 JSON 数组。每个元素需包含 <code>type:"floating"</code> + <code>char</code>；可选 <code>top/left/right/bottom/fontSize/opacity/animation/zIndex</code>。</span>
+          <div style="margin-bottom:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div>
+              <span style="font-size:12px;color:var(--color-text-muted)"><code>floating</code> 浮动字符 · <code>decorative</code> 装饰 HTML。修改即时生效。</span>
+              <div id="exts-hint-builder" style="font-size:10px;color:var(--color-text-muted);margin-top:2px;line-height:1.4"></div>
+            </div>
+            <span id="exts-count" style="font-size:11px;color:var(--color-text-muted);margin-left:auto;font-family:'JetBrains Mono',monospace"></span>
+            <button class="mini-btn-format" data-target="exts-editor" title="格式化 JSON" style="font-size:10px;font-weight:600;padding:3px 10px;border-radius:5px;border:1px solid var(--color-border);background:transparent;color:var(--color-text-muted);cursor:pointer;font-family:inherit">格式化</button>
           </div>
           <textarea
             id="exts-editor"
@@ -269,6 +277,31 @@ const initialThemeData = {
   .editor-tab.active {
     color: var(--color-primary);
     border-bottom-color: var(--color-primary);
+  }
+  .editor-tab[data-badge]:not([data-badge=""])::after {
+    content: attr(data-badge);
+    margin-left: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 99px;
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    color: var(--color-primary);
+    vertical-align: middle;
+  }
+  .editor-tab[data-badge="●"]::after {
+    background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+    color: var(--color-accent);
+    padding: 0 5px;
+    font-size: 7px;
+  }
+  .mini-btn-format {
+    transition: all 0.2s;
+  }
+  .mini-btn-format:hover {
+    color: var(--color-primary) !important;
+    border-color: var(--color-primary) !important;
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent) !important;
   }
 
   #vars-editor:focus, #css-editor:focus {
@@ -391,9 +424,18 @@ const initialThemeData = {
 
       if (target === 'vars') {
         varsEditor.value = JSON.stringify(currentVars, null, 2);
+        updateCounts();
+      }
+      if (target === 'css') {
+        updateCounts();
       }
       if (target === 'exts') {
-        extsEditor.value = originalExtensions.length > 0 ? JSON.stringify(originalExtensions, null, 2) : '';
+        // Show original extensions if loaded, otherwise keep what's in the editor
+        if (originalExtensions.length > 0) {
+          extsEditor.value = JSON.stringify(originalExtensions, null, 2);
+        }
+        updateExtsWarning();
+        updateCounts();
       }
     });
   });
@@ -429,6 +471,7 @@ const initialThemeData = {
     applyCustomCSS(customCSS);
     injectExtensions(originalExtensions);
     updateEditUI();
+    updateCounts();
 
     // Update editors if visible
     varsEditor.value = JSON.stringify(vars, null, 2);
@@ -436,6 +479,7 @@ const initialThemeData = {
     if (extsEditor) extsEditor.value = originalExtensions.length > 0 ? JSON.stringify(originalExtensions, null, 2) : '';
     varsError.style.display = 'none';
     varsOk.style.display = 'none';
+    updateExtsWarning();
   }
 
   themeItems.forEach(btn => {
@@ -491,6 +535,7 @@ const initialThemeData = {
         varsError.style.display = 'none';
         varsOk.style.display = 'inline';
         markEdited();
+        updateCounts();
         setTimeout(() => { varsOk.style.display = 'none'; }, 2000);
       } catch (e) {
         varsError.textContent = 'JSON 错误: ' + (e.message || '格式无效');
@@ -508,6 +553,7 @@ const initialThemeData = {
     cssDebounce = setTimeout(() => {
       applyCustomCSS(cssEditor.value);
       markEdited();
+      updateCounts();
     }, 300);
   });
 
@@ -520,6 +566,8 @@ const initialThemeData = {
       injectExtensions(exts);
       originalExtensions = exts;
       markEdited();
+      updateExtsWarning();
+      updateCounts();
     }, 300);
   });
 
@@ -567,6 +615,7 @@ const initialThemeData = {
     varsOk.style.display = 'none';
     hasEdits = false;
     updateEditUI();
+    updateCounts();
     window.__toast?.('已重置为原始主题');
   });
 
@@ -574,10 +623,18 @@ const initialThemeData = {
   document.getElementById('btn-apply-site').addEventListener('click', () => {
     const preset = currentPreset;
 
+    // Warn if extensions contain unsupported types
+    const extsToApply = parseExtsEditor();
+    const badExts = extsToApply.filter(e => e && e.type && !['floating','decorative'].includes(e.type));
+    if (badExts.length > 0) {
+      const names = [...new Set(badExts.map(e => e.type))].join(', ');
+      window.__toast?.(`警告: ${badExts.length} 个扩展使用了不支持的类型 (${names})，将被忽略。请改用 "floating" 或 "decorative"。`);
+    }
+
     if (hasEdits) {
       sessionStorage.setItem('td-diy-vars', JSON.stringify(currentVars));
       sessionStorage.setItem('td-diy-css', cssEditor.value);
-      sessionStorage.setItem('td-diy-exts', JSON.stringify(parseExtsEditor()));
+      sessionStorage.setItem('td-diy-exts', JSON.stringify(extsToApply));
       sessionStorage.setItem('td-diy-name', 'DIY Theme');
 
       const url = new URL(location.origin + '/');
@@ -1051,6 +1108,8 @@ Theme color summary: primary=${vars['--color-primary']}, bg=${vars['--color-bg']
       injectExtensions(originalExtensions);
     }
     if (extsEditor) extsEditor.value = originalExtensions.length > 0 ? JSON.stringify(originalExtensions, null, 2) : '';
+    updateCounts();
+    updateExtsWarning();
   })();
 
   // ── Copy for AI: generates a structured prompt + theme data ──
@@ -1091,17 +1150,17 @@ Theme color summary: primary=${currentVars['--color-primary']}, bg=${currentVars
     }
   });
 
-  // ── Format JSON in editor ──
+  // ── Format helpers ──
   function formatVarsJSON() {
     try {
       const parsed = JSON.parse(varsEditor.value);
       varsEditor.value = JSON.stringify(parsed, null, 2);
-      // Also apply the formatted vars
       currentVars = parsed;
       applyVars(currentVars);
       varsError.style.display = 'none';
       varsOk.style.display = 'inline';
       setTimeout(() => { varsOk.style.display = 'none'; }, 1500);
+      updateCounts();
       return true;
     } catch (e) {
       varsError.textContent = '无法格式化: ' + (e.message || 'JSON 无效');
@@ -1110,11 +1169,81 @@ Theme color summary: primary=${currentVars['--color-primary']}, bg=${currentVars
     }
   }
 
+  function formatExtsJSON() {
+    try {
+      const raw = extsEditor.value.trim();
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      extsEditor.value = JSON.stringify(parsed, null, 2);
+      originalExtensions = Array.isArray(parsed) ? parsed : [];
+      injectExtensions(originalExtensions);
+      markEdited();
+      updateExtsWarning();
+      updateCounts();
+      window.__toast?.('Extensions 已格式化');
+    } catch (e) {
+      window.__toast?.('Extensions JSON 无效');
+    }
+  }
+
+  // Smart format: acts on whichever editor tab is active
   document.getElementById('btn-format').addEventListener('click', () => {
-    formatVarsJSON();
-    // Also switch to vars tab if not already there
-    document.getElementById('tab-vars').click();
+    const activeTab = document.querySelector('.editor-tab.active');
+    if (!activeTab) { formatVarsJSON(); return; }
+    const t = activeTab.dataset.tab;
+    if (t === 'vars') { formatVarsJSON(); document.getElementById('tab-vars').click(); }
+    else if (t === 'exts') { formatExtsJSON(); document.getElementById('tab-exts').click(); }
+    else if (t === 'css') { document.getElementById('tab-vars').click(); formatVarsJSON(); }
+    else { formatVarsJSON(); document.getElementById('tab-vars').click(); }
   });
+
+  // Mini format buttons (per-editor)
+  document.querySelectorAll('.mini-btn-format').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.target;
+      if (target === 'vars-editor') formatVarsJSON();
+      else if (target === 'exts-editor') formatExtsJSON();
+    });
+  });
+
+  // ── Real-time extensions type validation ──
+  function updateExtsWarning() {
+    const hint = document.getElementById('exts-hint-builder');
+    if (!hint) return;
+    const raw = extsEditor.value.trim();
+    if (!raw) { hint.innerHTML = ''; return; }
+    let parsed;
+    try { parsed = JSON.parse(raw); } catch { hint.innerHTML = '<span style="color:#ef4444;font-weight:600">JSON 格式错误</span>'; return; }
+    if (!Array.isArray(parsed)) { hint.innerHTML = '<span style="color:#f59e0b;font-weight:600">⚠ 扩展应为 JSON 数组格式，而非单个对象。请用 [...] 包裹。</span>'; return; }
+    if (parsed.length === 0) { hint.innerHTML = ''; return; }
+    const bad = parsed.filter(e => e && typeof e === 'object' && e.type && !['floating','decorative'].includes(e.type));
+    if (bad.length > 0) {
+      const types = [...new Set(bad.map(e => e.type))].join(', ');
+      hint.innerHTML = `<span style="color:#f59e0b;font-weight:600">⚠ 检测到不支持的类型: ${types}。请改用 "floating" 或 "decorative"。</span>`;
+    } else {
+      const f = parsed.filter(e => e && e.type === 'floating').length;
+      const d = parsed.filter(e => e && e.type === 'decorative').length;
+      hint.innerHTML = `<span style="color:#22c55e">✓ 有效</span> · ${f} 浮动 + ${d} 装饰`;
+    }
+  }
+
+  // ── Update editor counts + tab badges ──
+  function updateCounts() {
+    const varsCount = document.getElementById('vars-count');
+    if (varsCount) varsCount.textContent = Object.keys(currentVars).length + ' 变量';
+    const cssCount = document.getElementById('css-count');
+    if (cssCount) cssCount.textContent = cssEditor.value.trim() ? (cssEditor.value.length > 500 ? Math.round(cssEditor.value.length/100)/10 + 'k' : cssEditor.value.length) + ' 字符' : '空';
+    const extsCount = document.getElementById('exts-count');
+    if (extsCount) {
+      const exts = parseExtsEditor();
+      extsCount.textContent = exts.length > 0 ? exts.length + ' 个扩展' : '空';
+    }
+    // Tab badges
+    const cssTab = document.getElementById('tab-css');
+    if (cssTab) cssTab.setAttribute('data-badge', cssEditor.value.trim() ? '●' : '');
+    const extsTab = document.getElementById('tab-exts');
+    if (extsTab) extsTab.setAttribute('data-badge', parseExtsEditor().length > 0 ? parseExtsEditor().length : '');
+  }
 
   // ── File input: import theme JSON ──
   // (Support drag & drop of .json files onto the vars editor)

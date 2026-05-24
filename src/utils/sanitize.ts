@@ -82,6 +82,30 @@ export function sanitizeChar(input: string): string {
   return [...cleaned].slice(0, 4).join('');
 }
 
+const SUPPORTED_EXT_TYPES = ['floating', 'decorative'];
+
+/**
+ * Check raw extensions for unsupported types and return human-readable warnings.
+ * Called BEFORE validateUserExtensions so warnings reflect what will be dropped.
+ */
+export function collectExtensionWarnings(raw: any): string[] {
+  if (!Array.isArray(raw)) return [];
+  const warnings: string[] = [];
+  const seenTypes = new Set<string>();
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const t = item.type;
+    if (t && !SUPPORTED_EXT_TYPES.includes(t) && !seenTypes.has(t)) {
+      seenTypes.add(t);
+      warnings.push(`不支持的类型 "${t}"，已自动移除。请改用 ${SUPPORTED_EXT_TYPES.map(x => `"${x}"`).join(' 或 ')}。`);
+    }
+  }
+  if (warnings.length > 0) {
+    warnings.push('提示：如需注入 HTML 结构（如粒子层、叠层），请使用 "decorative" 类型，将 HTML 写入 html 字段。');
+  }
+  return warnings;
+}
+
 /**
  * Validate user-submitted extensions. Allows 'floating' (safe) and 'decorative' (sanitized HTML).
  * Sanitizes all CSS values and HTML to prevent injection.
