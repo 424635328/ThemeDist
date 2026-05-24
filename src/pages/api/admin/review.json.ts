@@ -1,6 +1,6 @@
 export const prerender = false;
 
-import { isAdmin } from '../../../lib/auth';
+import { isAdmin, verifyCsrf } from '../../../lib/auth';
 import { batchApproveThemes, batchRejectThemes, getPendingThemes, getPendingCount } from '../../../lib/themes-db';
 
 const CORS = {
@@ -28,6 +28,13 @@ export async function POST({ request, cookies }: { request: Request; cookies: an
   if (!isAdmin(cookies)) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
+      headers: { 'Content-Type': 'application/json', ...CORS },
+    });
+  }
+
+  if (!verifyCsrf(cookies, request.headers)) {
+    return new Response(JSON.stringify({ error: 'CSRF validation failed' }), {
+      status: 403,
       headers: { 'Content-Type': 'application/json', ...CORS },
     });
   }

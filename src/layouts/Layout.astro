@@ -14,7 +14,10 @@ const currentPath = Astro.url.pathname;
 
 const themeStyleTag = `<style>:root{${style}}</style>`;
 const customCssTag = customCss ? `<style>${customCss}</style>` : '';
-const extensionsHTML = extensions ? extensions.map(e => e.content).join('') : '';
+const extensionsJSON = extensions
+  ? JSON.stringify(extensions, null, 2).replace(/<\/script/gi, '<\\/script')
+  : '[]';
+
 const brandGradient = logoColors && logoColors.length >= 2
   ? `linear-gradient(135deg, ${logoColors[0]}, ${logoColors[1]})`
   : 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))';
@@ -581,7 +584,52 @@ function navClass(path: string) {
     <div class="amb-orb"></div>
   </div>
   <div class="amb-grain"></div>
-  {extensions && <Fragment set:html={extensionsHTML} />}
+  <div id="td-extensions"></div>
+  <script id="td-exts-json" type="application/json" is:inline>
+    {extensionsJSON}
+  </script>
+  {extensions && extensions.length > 0 && (
+    <script is:inline>
+      (function() {
+        var el = document.getElementById('td-exts-json');
+        if (!el) return;
+        var exts;
+        try { exts = JSON.parse(el.textContent); } catch(e) { return; }
+        var container = document.getElementById('td-extensions');
+        if (!container || !exts || !exts.length) return;
+        // Inline CSS sanitizer for defense-in-depth
+        function safeVal(v) { return (v||'').toString().slice(0,128).replace(/[;{}]/g,'').replace(/url\s*\(/gi,'').replace(/expression\s*\(/gi,'').replace(/javascript\s*:/gi,'').replace(/@import/gi,'').trim(); }
+        function safeDim(v) { var s = safeVal(v); return /^-?[\d.]+(?:%|px|em|rem|vh|vw|s|ms)?$/i.test(s) ? s : ''; }
+        exts.slice(0,20).forEach(function(ext) {
+          if (ext.type === 'floating' && ext.char) {
+            var div = document.createElement('div');
+            var t = safeDim(ext.top), l = safeDim(ext.left), r = safeDim(ext.right), b = safeDim(ext.bottom);
+            var fs = safeDim(ext.fontSize), anim = safeVal(ext.animation);
+            var z = (typeof ext.zIndex === 'number' && ext.zIndex > -2 && ext.zIndex < 100000) ? ext.zIndex : null;
+            var op = (typeof ext.opacity === 'number' && ext.opacity >= 0 && ext.opacity <= 1) ? ext.opacity : null;
+            div.style.cssText = [
+              'position:fixed', 'pointer-events:none',
+              t && 'top:' + t, l && 'left:' + l, r && 'right:' + r, b && 'bottom:' + b,
+              fs && 'font-size:' + fs, anim && 'animation:' + anim,
+              z != null && 'z-index:' + z, op != null && 'opacity:' + op
+            ].filter(Boolean).join(';');
+            div.textContent = String(ext.char).slice(0,4);
+            container.appendChild(div);
+          } else if (ext.type === 'decorative') {
+            var tpl = document.createElement('template');
+            tpl.innerHTML = ext.html;
+            var frag = tpl.content.cloneNode(true);
+            frag.querySelectorAll('*').forEach(function(el) {
+              Array.from(el.attributes).forEach(function(attr) {
+                if (/^on/i.test(attr.name)) el.removeAttribute(attr.name);
+              });
+            });
+            container.appendChild(frag);
+          }
+        });
+      })();
+    </script>
+  )}
 
   <nav class="nav" id="nav">
     <a href="/" class="nav-home" aria-label="首页">
@@ -622,6 +670,40 @@ function navClass(path: string) {
   <div class="toast" id="toast"></div>
 
   <script lang="ts">
+    // ── Safe extension renderer (no innerHTML) ──
+    function _safeVal(v) { return (v||'').toString().slice(0,128).replace(/[;{}]/g,'').replace(/url\s*\(/gi,'').replace(/expression\s*\(/gi,'').replace(/javascript\s*:/gi,'').replace(/@import/gi,'').trim(); }
+    function _safeDim(v) { var s = _safeVal(v); return /^-?[\d.]+(?:%|px|em|rem|vh|vw|s|ms)?$/i.test(s) ? s : ''; }
+    function renderExtensionsInto(exts, container) {
+      if (!exts || !exts.length || !container) return;
+      exts.slice(0,20).forEach(function(ext) {
+        if (ext.type === 'floating' && ext.char) {
+          var el = document.createElement('div');
+          var t = _safeDim(ext.top), l = _safeDim(ext.left), r = _safeDim(ext.right), b = _safeDim(ext.bottom);
+          var fs = _safeDim(ext.fontSize), anim = _safeVal(ext.animation);
+          var z = (typeof ext.zIndex === 'number' && ext.zIndex > -2 && ext.zIndex < 100000) ? ext.zIndex : null;
+          var op = (typeof ext.opacity === 'number' && ext.opacity >= 0 && ext.opacity <= 1) ? ext.opacity : null;
+          el.style.cssText = [
+            'position:fixed', 'pointer-events:none',
+            t && 'top:' + t, l && 'left:' + l, r && 'right:' + r, b && 'bottom:' + b,
+            fs && 'font-size:' + fs, anim && 'animation:' + anim,
+            z != null && 'z-index:' + z, op != null && 'opacity:' + op
+          ].filter(Boolean).join(';');
+          el.textContent = String(ext.char).slice(0,4);
+          container.appendChild(el);
+        } else if (ext.type === 'decorative') {
+          var tpl = document.createElement('template');
+          tpl.innerHTML = ext.html;
+          var frag = tpl.content.cloneNode(true);
+          frag.querySelectorAll('*').forEach(function(el) {
+            Array.from(el.attributes).forEach(function(attr) {
+              if (/^on/i.test(attr.name)) el.removeAttribute(attr.name);
+            });
+          });
+          container.appendChild(frag);
+        }
+      });
+    }
+
     // ── Theme preview via ?theme= or localStorage ──
     (function() {
       var APPLY_STORAGE_KEY = 'themeDistApplied';
@@ -669,7 +751,7 @@ function navClass(path: string) {
               if (exts && exts.length) {
                 var container = document.createElement('div');
                 container.id = 'preview-extensions';
-                container.innerHTML = exts.map(function(e) { return e.content; }).join('');
+                renderExtensionsInto(exts, container);
                 document.body.insertBefore(container, document.body.firstChild);
               }
             }
@@ -711,7 +793,7 @@ function navClass(path: string) {
             if (data.extensions && data.extensions.length) {
               var container = document.createElement('div');
               container.id = 'preview-extensions';
-              container.innerHTML = data.extensions.map(function(e) { return e.content; }).join('');
+              renderExtensionsInto(data.extensions, container);
               document.body.insertBefore(container, document.body.firstChild);
             }
 

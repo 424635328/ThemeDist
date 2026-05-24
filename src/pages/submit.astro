@@ -66,8 +66,9 @@ import Layout from '../layouts/Layout.astro';
 
           <!-- Code Editors Tab Container -->
           <div class="tabs-container">
-            <button id="tab-btn-vars" class="tab-btn active" type="button">🎨 核心 CSS 变量</button>
-            <button id="tab-btn-css" class="tab-btn" type="button">✨ 自定义 CSS (可选)</button>
+            <button id="tab-btn-vars" class="tab-btn active" type="button">🎨 核心 CSS</button>
+            <button id="tab-btn-css" class="tab-btn" type="button">✨ 自定义 CSS</button>
+            <button id="tab-btn-exts" class="tab-btn" type="button">🎯 Extensions</button>
           </div>
 
           <!-- Tab 1: CSS Variables JSON -->
@@ -106,6 +107,25 @@ import Layout from '../layouts/Layout.astro';
                 placeholder="/* 可以在这里编写针对当前主题的专属 CSS 动画、粒子效果等 */"
                 class="code-textarea css-textarea"
               ></textarea>
+            </div>
+          </div>
+
+          <!-- Tab 3: Extensions (declarative, safe) -->
+          <div id="tab-content-exts" class="tab-content">
+            <div class="input-block">
+              <div class="block-header">
+                <label for="exts-input" class="input-label">声明式扩展元素 JSON 数组 (可选)</label>
+                <button id="btn-format-exts" class="text-btn" title="自动排版美化 JSON">格式化</button>
+              </div>
+              <textarea
+                id="exts-input"
+                spellcheck="false"
+                placeholder='[{"type":"floating","char":"🪷","top":"20%","left":"5%","fontSize":"30px","opacity":0.3,"animation":"swing 4s ease-in-out infinite"}]'
+                class="code-textarea css-textarea"
+              ></textarea>
+              <div id="exts-hint" class="extensions-hint">
+                每个元素需包含 <code>type: "floating"</code> + <code>char</code>；可选 <code>top/left/right/bottom/fontSize/opacity/animation/zIndex</code>
+              </div>
             </div>
           </div>
 
@@ -244,6 +264,8 @@ import Layout from '../layouts/Layout.astro';
   .code-textarea { width: 100%; height: 180px; padding: 10px; border-radius: 10px; border: 1.5px solid var(--color-border); background: color-mix(in srgb, var(--color-text) 2%, var(--color-bg)); color: var(--color-text); font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.5; resize: vertical; outline: none; transition: all 0.2s ease; }
   .code-textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 10%, transparent); }
   .css-textarea { height: 180px; }
+  .extensions-hint { font-size: 10px; color: var(--color-text-muted); margin-top: 4px; line-height: 1.5; }
+  .extensions-hint code { font-size: 9px; padding: 1px 4px; border-radius: 3px; background: color-mix(in srgb, var(--color-text) 5%, transparent); }
   
   .validation-error-container { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; min-height: 18px; }
   .validation-error { font-size: 10px; color: #ef4444; font-weight: 700; display: none; }
@@ -372,17 +394,58 @@ import Layout from '../layouts/Layout.astro';
       "--ambient-1": "rgba(255, 143, 163, 0.18)", "--ambient-2": "rgba(255, 179, 193, 0.12)"
     },
     customCss: `
+      /* ── 樱花飘落 ── */
       @keyframes sakuraFall {
         0% { transform: translateY(-20px) rotate(0deg); opacity: 0; }
-        15% { opacity: 1; }
-        90% { opacity: 1; }
-        100% { transform: translateY(420px) rotate(360deg); opacity: 0; }
+        15% { opacity: 0.9; }
+        90% { opacity: 0.7; }
+        100% { transform: translateY(500px) rotate(360deg); opacity: 0; }
       }
       .sakura-petal {
         position: absolute; top: -10px; background: var(--color-primary); border-radius: 150% 0 150% 150%;
-        opacity: 0.7; width: 10px; height: 10px; pointer-events: none; animation: sakuraFall 5s linear infinite; z-index: 10;
+        opacity: 0.7; width: 10px; height: 10px; pointer-events: none; animation: sakuraFall 5s linear infinite;
+        box-shadow: 0 0 4px var(--color-primary);
       }
-    `
+      /* ── 浮动光点 ── */
+      @keyframes petalFloat {
+        0%, 100% { transform: translateY(0) translateX(0) scale(1); opacity: 0.3; }
+        33% { transform: translateY(-15px) translateX(10px) scale(1.3); opacity: 0.6; }
+        66% { transform: translateY(-30px) translateX(-5px) scale(0.9); opacity: 0.4; }
+      }
+      .petal-float {
+        position: absolute; pointer-events: none;
+        width: 8px; height: 8px; border-radius: 50%;
+        background: color-mix(in srgb, var(--color-secondary) 60%, var(--color-primary));
+        animation: petalFloat 7s ease-in-out infinite;
+        box-shadow: 0 0 6px var(--ambient-1, var(--color-primary));
+      }
+      /* ── 旋转粒子 ── */
+      @keyframes sparkRotate {
+        0% { transform: rotate(0deg) translateX(30px) rotate(0deg); opacity: 0; }
+        30% { opacity: 0.5; }
+        70% { opacity: 0.5; }
+        100% { transform: rotate(360deg) translateX(30px) rotate(-360deg); opacity: 0; }
+      }
+      .spark-rotate {
+        position: absolute; pointer-events: none;
+        width: 5px; height: 5px; border-radius: 1px;
+        background: var(--color-accent);
+        animation: sparkRotate 10s linear infinite;
+        box-shadow: 0 0 4px var(--color-accent);
+      }
+      /* ── 全局氛围 ── */
+      body::before {
+        content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+        background:
+          radial-gradient(circle at 20% 30%, color-mix(in srgb, var(--color-primary) 5%, transparent) 0%, transparent 50%),
+          radial-gradient(circle at 80% 70%, color-mix(in srgb, var(--ambient-1, var(--color-secondary)) 4%, transparent) 0%, transparent 50%);
+      }
+    `,
+    extensions: [
+      { type: "floating", char: "🌸", top: "10%", left: "8%", fontSize: "28px", opacity: 0.3, animation: "sakuraFall 5s linear infinite" },
+      { type: "floating", char: "🌸", top: "25%", right: "12%", fontSize: "22px", opacity: 0.25, animation: "sakuraFall 4.5s linear infinite 0.5s" },
+      { type: "floating", char: "✨", top: "40%", left: "50%", fontSize: "16px", opacity: 0.3, animation: "petalFloat 7s ease-in-out infinite" }
+    ]
   };
 
   // 🛡️ Web sandbox SPA iframe template
@@ -453,12 +516,15 @@ import Layout from '../layouts/Layout.astro';
         .toast.success { border-left: 4px solid var(--color-primary); }
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes slideOut { to { transform: translateY(10px); opacity: 0; } }
+        /* ─── Particle Engine ─── */
+        #particle-layer { position: fixed; inset: 0; pointer-events: none; z-index: 100; overflow: hidden; }
+        .particle { position: absolute; pointer-events: none; will-change: transform, opacity; }
         @media (max-width: 768px) { .app-layout { flex-direction: column; } .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--color-border); flex-direction: row; padding: 12px 16px; overflow-x: auto; align-items: center;} .sidebar-brand { padding: 0 16px 0 0; margin-right: 16px; border-right: 1px solid var(--color-border); } .nav-item { white-space: nowrap; } .main-content { padding: var(--space-4); } .toast-container { bottom: 20px; right: 20px; left: 20px; align-items: center; } }
       </style>
       <style id="theme-style"></style>
     </head>
     <body>
-      <div id="effects-container"></div>
+      <div id="particle-layer"></div>
       <div class="toast-container" id="toast-container"></div>
       <div class="app-layout">
         <aside class="sidebar" id="sidebar-nav">
@@ -558,6 +624,7 @@ import Layout from '../layouts/Layout.astro';
 
   let currentVars = null;
   let currentCss = '';
+  let currentExts = [];
   let submitting = false;
 
   const $ = (sel) => document.getElementById(sel);
@@ -565,18 +632,23 @@ import Layout from '../layouts/Layout.astro';
   // ─── Code Editors Tabs Switcher Logics ───
   const tabBtnVars = $('tab-btn-vars');
   const tabBtnCss = $('tab-btn-css');
+  const tabBtnExts = $('tab-btn-exts');
   const tabContentVars = $('tab-content-vars');
   const tabContentCss = $('tab-content-css');
+  const tabContentExts = $('tab-content-exts');
+  const allTabs = [tabBtnVars, tabBtnCss, tabBtnExts];
+  const allContents = [tabContentVars, tabContentCss, tabContentExts];
 
-  tabBtnVars.addEventListener('click', () => {
-    tabBtnVars.classList.add('active'); tabBtnCss.classList.remove('active');
-    tabContentVars.classList.add('active'); tabContentCss.classList.remove('active');
-  });
+  function switchTab(activeBtn, activeContent) {
+    allTabs.forEach(b => b.classList.remove('active'));
+    allContents.forEach(c => c.classList.remove('active'));
+    activeBtn.classList.add('active');
+    activeContent.classList.add('active');
+  }
 
-  tabBtnCss.addEventListener('click', () => {
-    tabBtnCss.classList.add('active'); tabBtnVars.classList.remove('active');
-    tabContentCss.classList.add('active'); tabContentVars.classList.remove('active');
-  });
+  tabBtnVars.addEventListener('click', () => switchTab(tabBtnVars, tabContentVars));
+  tabBtnCss.addEventListener('click', () => switchTab(tabBtnCss, tabContentCss));
+  tabBtnExts.addEventListener('click', () => switchTab(tabBtnExts, tabContentExts));
 
   function setupCounter(inputEl, counterEl, max) {
     inputEl.addEventListener('input', () => {
@@ -633,10 +705,11 @@ import Layout from '../layouts/Layout.astro';
     iframe.srcdoc = IFRAME_TEMPLATE;
   }
 
-  function updatePreview(vars, css, themeName = "未命名主题") {
+  function updatePreview(vars, css, themeName = "未命名主题", exts = null) {
     if (vars) vars = normalizeCssVarKeys(vars);
     currentVars = vars;
     currentCss = css;
+    if (exts !== null) currentExts = exts;
 
     const iframe = $('preview-iframe');
     const placeholder = $('preview-placeholder');
@@ -659,7 +732,6 @@ import Layout from '../layouts/Layout.astro';
     const styleEl = doc.getElementById('theme-style');
     if (styleEl) {
       const varsCSS = Object.entries(vars).map(([k, v]) => `${k}:${v}`).join(';');
-      // 使用 textContent 自动防范跨站注入，保障安全
       styleEl.textContent = `:root { ${varsCSS} }\n${css || ''}`;
     }
 
@@ -667,16 +739,69 @@ import Layout from '../layouts/Layout.astro';
     const titleEl = doc.getElementById('preview-title');
     if (titleEl) titleEl.textContent = themeName;
 
-    // 3. Render Effects (e.g. Sakura)
-    const effectsContainer = doc.getElementById('effects-container');
-    if (effectsContainer) {
-      effectsContainer.innerHTML = ''; // 清除旧特效
-      if (themeName === "樱花梦境" || (css && css.includes('.sakura-petal'))) {
-        let effectsHtml = '';
-        for (let i = 0; i < 15; i++) {
-          effectsHtml += `<div class="sakura-petal" style="left:${Math.random() * 100}%; animation-delay:${Math.random() * 5}s; animation-duration:${Math.random() * 4 + 4}s"></div>`;
+    // 3. Generic Particle Engine + User Extensions
+    const particleLayer = doc.getElementById('particle-layer');
+    if (particleLayer) {
+      particleLayer.innerHTML = '';
+      var _sv = function(v) { return (v||'').toString().slice(0,128).replace(/[;{}]/g,'').replace(/url\s*\(/gi,'').replace(/expression\s*\(/gi,'').replace(/javascript\s*:/gi,'').replace(/@import/gi,'').trim(); };
+      var _sd = function(v) { var s = _sv(v); return /^-?[\d.]+(?:%|px|em|rem|vh|vw|s|ms)?$/i.test(s) ? s : ''; };
+      var extAnimNames = [];
+      // Render user-submitted declarative extensions (sanitized)
+      if (currentExts && currentExts.length > 0) {
+        currentExts.slice(0,20).forEach(function(ext) {
+          if (ext.type === 'floating' && ext.char) {
+            var el = doc.createElement('div');
+            var t = _sd(ext.top), l = _sd(ext.left), r = _sd(ext.right), b = _sd(ext.bottom);
+            var fs = _sd(ext.fontSize), anim = _sv(ext.animation);
+            var z = (typeof ext.zIndex === 'number' && ext.zIndex > -2 && ext.zIndex < 100000) ? ext.zIndex : null;
+            var op = (typeof ext.opacity === 'number' && ext.opacity >= 0 && ext.opacity <= 1) ? ext.opacity : null;
+            el.style.cssText = [
+              'position:fixed', 'pointer-events:none',
+              t && 'top:' + t, l && 'left:' + l, r && 'right:' + r, b && 'bottom:' + b,
+              fs && 'font-size:' + fs, anim && 'animation:' + anim,
+              z != null && 'z-index:' + z, op != null && 'opacity:' + op
+            ].filter(Boolean).join(';');
+            el.textContent = String(ext.char).slice(0,4);
+            particleLayer.appendChild(el);
+            if (anim) { var m = anim.match(/^(\w+)/); if (m) extAnimNames.push(m[1]); }
+          } else if (ext.type === 'decorative' && ext.html) {
+            var tpl = doc.createElement('template');
+            tpl.innerHTML = ext.html;
+            var frag = tpl.content.cloneNode(true);
+            frag.querySelectorAll('*').forEach(function(el) {
+              Array.from(el.attributes).forEach(function(attr) {
+                if (/^on/i.test(attr.name)) el.removeAttribute(attr.name);
+              });
+            });
+            particleLayer.appendChild(frag);
+          }
+        });
+      }
+      // Auto-generate particles from CSS class definitions
+      // Skip classes whose keyframe animation is already handled by explicit extensions
+      if (css) {
+        var classMatch = css.match(/\.([a-zA-Z][\w-]*)\s*\{[^}]*animation\s*:\s*(\w+)/g);
+        if (classMatch) {
+          classMatch.forEach(function(m) {
+            var parts = m.match(/\.([\w-]+)\s*\{[^}]*animation\s*:\s*(\w+)/);
+            if (!parts) return;
+            var cls = parts[1], animName = parts[2];
+            if (extAnimNames.indexOf(animName) !== -1) return;
+            var count = /particle|dot|orb|bubble|spark|star/.test(cls) ? 20
+              : /float|drift|sway/.test(cls) ? 12
+              : /rain|snow|fall/.test(cls) ? 30 : 8;
+            for (var i = 0; i < count; i++) {
+              var el = doc.createElement('div');
+              el.className = cls + ' particle';
+              el.style.left = Math.random() * 100 + '%';
+              el.style.top = Math.random() * 100 + '%';
+              el.style.animationDelay = Math.random() * 5 + 's';
+              el.style.animationDuration = (Math.random() * 3 + 2) + 's';
+              if (/rain|snow|fall/.test(cls)) el.style.top = -(Math.random() * 20) + 'px';
+              particleLayer.appendChild(el);
+            }
+          });
         }
-        effectsContainer.innerHTML = effectsHtml;
       }
     }
 
@@ -706,6 +831,19 @@ import Layout from '../layouts/Layout.astro';
     }
   });
 
+  // Extensions format button
+  $('btn-format-exts').addEventListener('click', () => {
+    const input = $('exts-input');
+    const raw = input.value.trim();
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      input.value = JSON.stringify(parsed, null, 2);
+    } catch {
+      window.__toast?.('Extensions JSON 格式错误');
+    }
+  });
+
   // ─── Autofix typical JSON syntax errors ───
   $('btn-autofix').addEventListener('click', () => {
     const input = $('vars-input');
@@ -725,6 +863,8 @@ import Layout from '../layouts/Layout.astro';
   function loadThemeData(themeObj) {
     $('vars-input').value = JSON.stringify(themeObj.cssVars, null, 2);
     $('css-input').value = themeObj.customCss || '';
+    const exts = themeObj.extensions || [];
+    $('exts-input').value = exts.length > 0 ? JSON.stringify(exts, null, 2) : '';
     $('name-input').value = themeObj.name;
     $('author-input').value = themeObj.author;
 
@@ -732,7 +872,7 @@ import Layout from '../layouts/Layout.astro';
     $('author-input').dispatchEvent(new Event('input'));
 
     clearError();
-    updatePreview(themeObj.cssVars, themeObj.customCss || '', themeObj.name);
+    updatePreview(themeObj.cssVars, themeObj.customCss || '', themeObj.name, exts);
     setSynced();
   }
 
@@ -806,37 +946,30 @@ import Layout from '../layouts/Layout.astro';
   });
 
   function buildDeepSeekPrompt(description) {
-    return `你是一位专业的主题配色设计师。根据用户的文字描述，生成一套完整的 CSS 变量主题配色方案。
+    return `你是一位世界级主题配色设计师。根据用户描述生成一套完整的 CSS 主题：包含 34 个 CSS 变量 + 粒子动画特效 CSS。
 
 用户描述: "${description}"
 
-## 强制要求
-- 所有 CSS 变量键名必须以双横线 -- 开头，如 "--color-primary" 而非 "color-primary"
-- --color-primary 和 --color-bg 为必填项，缺一不可
-- 必须返回完整 34 个 CSS 变量，一个不能少
+## 强制规则
+- 所有变量键名以双横线 -- 开头
+- --color-primary 和 --color-bg 必填
+- 返回完整 34 个变量：--color-primary/secondary/accent/bg/surface/text/text-muted/border, --font-heading/body/mono, --text-base/lg/xl/2xl/sm, --space-unit/1/2/3/4/6/8/12, --radii, --content-max, --shadow-sm/md/lg, --glass-bg/blur, --noise-opacity, --ambient-1/2
+- 深色主题 bg<surface<border 亮度，text>text-muted；浅色反之
 
-## 色彩设计法则
-- 主色(primary)定义性格，背景(bg)→表面(surface)→边框(border)→主文字(text) 亮度递增（深色）或递减（浅色）
+## 粒子特效要求（customCss 字段）
+- 必须包含至少 2 个 @keyframes 动画 + 对应 CSS class 定义
+- class 名称使用英文小写+连字符，如 .particle-orb, .float-spark, .drift-dot
+- 每个 class 需定义 position:absolute, pointer-events:none 和对应 animation
+- 粒子大小 3-12px, opacity 0.15-0.5, 使用 var(--color-primary) 或 var(--ambient-1)
+- 推荐特效组合：漂浮光点(translateY+scale)、旋转星屑(rotate+opacity)、上升气泡(translateY+opacity)
 
-## 特效设计要求
-- 必须根据描述生成纯 CSS 特效动画（@keyframes），不可返回空。
-
-返回纯净 JSON 格式（禁止 Markdown 代码块包裹）：
+返回纯净 JSON（禁止 markdown 包裹）:
 {
-  "name": "主题名称",
+  "name": "主题名",
   "tags": ["dark"],
-  "cssVars": {
-    "--color-primary": "#hex",
-    "--color-secondary": "#hex",
-    "--color-accent": "#hex",
-    "--color-bg": "#hex",
-    "--color-surface": "#hex",
-    "--color-text": "#hex",
-    "--color-text-muted": "#hex",
-    "--color-border": "rgba(...)",
-    ...全部 34 个变量
-  },
-  "customCss": "/* @keyframes 动画 */"
+  "cssVars": { "--color-primary": "#hex", ...全部34个 },
+  "customCss": "/* @keyframes + 粒子 class 定义 */",
+  "extensions": [{"type":"floating","char":"✨","top":"30%","left":"15%","fontSize":"18px","opacity":0.3,"animation":"orbFloat 6s ease-in-out infinite"}]
 }`;
   }
 
@@ -865,14 +998,40 @@ import Layout from '../layouts/Layout.astro';
   }
 
   function generateFallbackCSS(text) {
-    return `/* 通用氛围粒子特效 */
-body::after {
-  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
-  background-image: radial-gradient(1.5px 1.5px at 20% 30%, color-mix(in srgb, var(--color-primary) 25%, transparent) 50%, transparent 50%),
-    radial-gradient(1px 1px at 55% 65%, color-mix(in srgb, var(--color-primary) 20%, transparent) 50%, transparent 50%);
-  animation: ambientDrift 6s ease-in-out infinite alternate;
+    return `/* ── 粒子特效：漂浮光点 ── */
+.particle-orb {
+  position: absolute; pointer-events: none;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--color-primary);
+  opacity: 0.25;
+  animation: orbFloat 6s ease-in-out infinite;
+  box-shadow: 0 0 8px var(--color-primary);
 }
-@keyframes ambientDrift { 0%{opacity:0.3;transform:translateY(0)} 100%{opacity:0.8;transform:translateY(-10px)} }`;
+@keyframes orbFloat {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0.15; }
+  50% { transform: translateY(-30px) scale(1.8); opacity: 0.4; }
+}
+/* ── 粒子特效：旋转星屑 ── */
+.particle-spark {
+  position: absolute; pointer-events: none;
+  width: 4px; height: 4px; border-radius: 1px;
+  background: var(--ambient-1, var(--color-secondary));
+  opacity: 0.3;
+  animation: sparkSpin 8s linear infinite;
+}
+@keyframes sparkSpin {
+  0% { transform: rotate(0deg) translateY(0); opacity: 0; }
+  20% { opacity: 0.5; }
+  80% { opacity: 0.5; }
+  100% { transform: rotate(360deg) translateY(-40px); opacity: 0; }
+}
+/* ── 全局氛围光 ── */
+body::after {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--ambient-1, var(--color-primary)) 8%, transparent) 0%, transparent 50%),
+    radial-gradient(circle at 70% 80%, color-mix(in srgb, var(--ambient-2, var(--color-secondary)) 6%, transparent) 0%, transparent 50%);
+}`;
   }
 
   $('btn-ai-generate').addEventListener('click', async () => {
@@ -922,10 +1081,14 @@ body::after {
       $('vars-input').value = JSON.stringify(data.cssVars, null, 2);
       $('name-input').value = (data.name || '').slice(0, 40);
       $('css-input').value = finalCss;
+      const aiExts = Array.isArray(data.extensions) ? data.extensions : [];
+      $('exts-input').value = aiExts.length > 0 ? JSON.stringify(aiExts, null, 2) : '';
+      currentExts = aiExts;
       if (data.tags?.length) $('name-input').dataset.tags = JSON.stringify(data.tags);
       else delete $('name-input').dataset.tags;
 
-      $('vars-input').dispatchEvent(new Event('input'));
+      updatePreview(data.cssVars, finalCss, data.name || undefined, aiExts);
+      setSynced();
       window.__toast?.(`主题「${data.name || '未命名'}」已生成`);
       $('ai-status').textContent = useDeepSeek ? `由 DeepSeek V4 Flash 生成 — ${data.name || ''}` : `由规则引擎生成 — ${data.name || ''}`;
     } catch (err) {
@@ -946,9 +1109,11 @@ body::after {
 
       let vars = data;
       let css = '';
+      let exts = [];
       if (data.cssVars && typeof data.cssVars === 'object') {
         vars = data.cssVars;
         css = data.customCss || '';
+        exts = Array.isArray(data.extensions) ? data.extensions : [];
       }
 
       if (!validateVars(vars)) { showError('无效的数据：导入的 JSON 必须包含一系列 CSS 自定义属性变量'); return; }
@@ -956,7 +1121,8 @@ body::after {
       clearError();
       $('vars-input').value = JSON.stringify(vars, null, 2);
       $('css-input').value = css;
-      updatePreview(vars, css, $('name-input').value || undefined);
+      $('exts-input').value = exts.length > 0 ? JSON.stringify(exts, null, 2) : '';
+      updatePreview(vars, css, $('name-input').value || undefined, exts);
       window.__toast?.('配置导入成功！');
     } catch {
       showError('由于浏览器安全策略，剪贴板读取失败。请手动粘贴');
@@ -1014,7 +1180,10 @@ body::after {
         const vars = JSON.parse(raw);
         if (!validateVars(vars)) { showError('JSON 中至少需包含 5 个以 --color 开头的主题变量'); updatePreview(null, ''); setLiveError(); return; }
         clearError();
-        updatePreview(vars, $('css-input').value, $('name-input').value || undefined);
+        let exts = [];
+        const extsRaw = $('exts-input').value.trim();
+        if (extsRaw) { try { exts = JSON.parse(extsRaw); } catch {} }
+        updatePreview(vars, $('css-input').value, $('name-input').value || undefined, exts);
         setSynced();
       } catch {
         showError('JSON 语法错误，请检查括号与双引号格式');
@@ -1031,6 +1200,20 @@ body::after {
     clearTimeout(cssDebounce);
     cssDebounce = window.setTimeout(() => {
       if (currentVars) { updatePreview(currentVars, $('css-input').value, $('name-input').value || undefined); setSynced(); }
+    }, 250);
+  });
+
+  let extsDebounce;
+  $('exts-input').addEventListener('input', () => {
+    setSensing();
+    clearTimeout(extsDebounce);
+    extsDebounce = window.setTimeout(() => {
+      let exts = [];
+      const raw = $('exts-input').value.trim();
+      if (raw) {
+        try { exts = JSON.parse(raw); } catch {}
+      }
+      if (currentVars) { updatePreview(currentVars, currentCss, $('name-input').value || undefined, exts); setSynced(); }
     }, 250);
   });
 
@@ -1157,6 +1340,7 @@ body::after {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name, author, cssVars: normalizedVars, customCss: css || undefined,
+          extensions: currentExts.length > 0 ? currentExts : undefined,
           tags: (() => { try { return JSON.parse($('name-input').dataset.tags || '[]'); } catch { return undefined; } })(),
         }),
       });

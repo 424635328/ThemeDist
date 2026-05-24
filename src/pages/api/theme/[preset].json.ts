@@ -22,7 +22,7 @@ export async function GET({ params }: { params: { preset: string } }) {
             presetName: ct.name,
             cssVars: ct.cssVars,
             customCss: ct.customCss || null,
-            extensions: null,
+            extensions: ct.extensions || null,
             logoText: null,
             logoColors: null,
           }),

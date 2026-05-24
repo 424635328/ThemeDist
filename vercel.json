@@ -2,6 +2,9 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "astro",
+  "redirects": [
+    { "source": "/api/today", "destination": "/api/today.json", "permanent": true }
+  ],
   "headers": [
     {
       "source": "/api/today.json",

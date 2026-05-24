@@ -2,6 +2,12 @@
   command = "ADAPTER=netlify npm run build"
   publish = "dist"
 
+# Redirect legacy today endpoint to today.json
+[[redirects]]
+  from = "/api/today"
+  to = "/api/today.json"
+  status = 301
+
 # CORS headers for API endpoints
 [[headers]]
   for = "/api/*"

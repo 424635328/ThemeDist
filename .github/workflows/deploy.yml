@@ -1,17 +1,19 @@
-name: Build and Deploy to Netlify
+name: Build and Deploy
 
 on:
-  # 每月一号 UTC 午夜自动重建（主题轮换）
+  # Push to main — keep Netlify in sync with Vercel's auto-deploy
+  push:
+    branches: [main]
+
+  # Monthly rebuild to refresh static calendar data
   schedule:
     - cron: '0 0 1 * *'
 
-  # 手动触发
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  deploy-netlify:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,6 +32,33 @@ jobs:
         env:
           URL: ${{ secrets.URL }}
 
-      - name: Deploy to Netlify using Official CLI
-        # 使用 npx 运行官方 netlify-cli 进行部署，它会自动读取 netlify.toml 里的 publish 目录并打包关联的 Serverless 函数
+      - name: Deploy to Netlify
         run: npx netlify-cli deploy --prod --site ${{ secrets.NETLIFY_SITE_ID }} --auth ${{ secrets.NETLIFY_AUTH_TOKEN }}
+
+  deploy-vercel:
+    runs-on: ubuntu-latest
+    # Only run if Vercel credentials are configured
+    if: ${{ github.event_name != 'push' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build with Vercel adapter
+        run: npm run build
+        env:
+          URL: ${{ secrets.URL }}
+
+      - name: Deploy to Vercel
+        run: npx vercel deploy --prod --token ${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}

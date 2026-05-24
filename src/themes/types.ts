@@ -1,35 +1,26 @@
-/** Output of any ThemePart.generate() */
-export interface ThemePartOutput {
-  /** CSS custom properties to inject */
-  cssVars: Record<string, string>;
-}
-
-/** Options that any theme part can receive */
-export type ThemePartOptions = Record<string, unknown>;
-
-/** A pluggable theme part */
-export interface ThemePart<T extends ThemePartOptions = ThemePartOptions> {
-  id: string;
-  name: string;
-  description: string;
-  /** Default values for optional keys */
-  defaults: Partial<T>;
-  generate(options: T): ThemePartOutput;
-}
-
-/** A preset bundles part configs */
-export interface ThemePreset {
-  id: string;
-  name: string;
-  description: string;
-  /** Part ID → options. Omitted parts fall back to defaults. */
-  parts: Record<string, ThemePartOptions>;
-}
-
+/** Simple floating emoji — rendered via document.createElement */
 export interface ThemeExtension {
-  type: 'html';
-  content: string;
+  type: 'floating';
+  char: string;
+  top?: string;
+  left?: string;
+  right?: string;
+  bottom?: string;
+  fontSize?: string;
+  opacity?: number;
+  animation?: string;
+  zIndex?: number;
 }
+
+/** Pre-vetted decorative HTML from trusted server config (index_config.js).
+ *  Rendered via safe DocumentFragment parsing — never innerHTML. */
+export interface DecorativeExtension {
+  type: 'decorative';
+  html: string;
+}
+
+/** Any extension — floating (safe) or decorative (trusted-only). */
+export type AnyExtension = ThemeExtension | DecorativeExtension;
 
 /** Theme tags for classification */
 export type ThemeTag =
@@ -45,21 +36,15 @@ export type ThemeTag =
   | 'cool'
   | 'community';
 
-/** Full composed theme */
+/** The single theme data model — all themes flow through this shape.
+ *  OmniConfig entries, community themes, and fallback themes all conform. */
 export interface ComposedTheme {
   preset: string;
   presetName: string;
   cssVars: Record<string, string>;
-  /** Present only if the wallpaper part is active */
-  wallpaper?: string;
-  /** Theme-specific custom CSS injected into the page */
   customCss?: string;
-  /** Theme-specific decorative HTML extensions */
-  extensions?: ThemeExtension[];
-  /** Logo text for gradient display */
+  extensions?: AnyExtension[];
   logoText?: string;
-  /** Logo gradient colors */
   logoColors?: string[];
-  /** Classification tags */
   tags?: ThemeTag[];
 }

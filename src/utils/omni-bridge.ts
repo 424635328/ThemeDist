@@ -1,6 +1,8 @@
 import OmniConfig from '../api/index_config.js';
-import type { ComposedTheme, ThemeExtension, ThemeTag } from '../themes/types';
+import type { ComposedTheme, AnyExtension, ThemeTag } from '../themes/types';
 import { isReady, zrevrange, get, zcard } from '../lib/redis';
+import { cacheGet, cacheSet } from '../lib/cache';
+import { parseLegacyExtension } from './sanitize';
 
 interface OmniThemeEntry {
   id: string;
@@ -17,7 +19,7 @@ interface OmniThemeEntry {
     ambient2: string;
     customCss?: string;
   };
-  extensions?: ThemeExtension[];
+  extensions?: any[];
   type?: string;
 }
 
@@ -93,6 +95,13 @@ function estimateSaturation(theme: OmniThemeEntry['theme']): number {
   return (max - min) / max;
 }
 
+/** Convert legacy extensions from OmniConfig to new declarative format. */
+function convertExtensions(raw: any[] | undefined): AnyExtension[] | undefined {
+  if (!raw || raw.length === 0) return undefined;
+  const converted = raw.map((e) => parseLegacyExtension(e)).filter(Boolean) as AnyExtension[];
+  return converted.length > 0 ? converted : undefined;
+}
+
 /** Convert an OmniConfig theme entry to our ComposedTheme format */
 export function omniToComposed(entry: OmniThemeEntry): ComposedTheme {
   const t = entry.theme;
@@ -102,7 +111,7 @@ export function omniToComposed(entry: OmniThemeEntry): ComposedTheme {
     preset: entry.id,
     presetName: entry.name,
     customCss: t.customCss || undefined,
-    extensions: entry.extensions,
+    extensions: convertExtensions(entry.extensions),
     logoText: entry.logo?.text,
     logoColors: entry.logo?.colors,
     cssVars: {
@@ -183,7 +192,6 @@ export function getOmniDailyTheme(): ComposedTheme {
   const poolTheme = dailyPool[dayOfYear % dailyPool.length];
 
   if (isHoliday) {
-    // Holiday override: use holiday config with all decorations
     return omniToComposed({
       id: `holiday-${dayOfYear}`,
       name: raw.logo?.text || 'Special Day',
@@ -306,6 +314,7 @@ interface CommunityThemeRaw {
   likes: number;
   cssVars: Record<string, string>;
   customCss: string | null;
+  extensions?: AnyExtension[] | null;
   tags?: string[];
 }
 
@@ -345,6 +354,7 @@ function communityToComposed(ct: CommunityThemeRaw): ComposedTheme {
     presetName: ct.name,
     cssVars: ct.cssVars,
     customCss: ct.customCss || undefined,
+    extensions: ct.extensions && ct.extensions.length > 0 ? ct.extensions : undefined,
     tags: (ct.tags?.length ? ct.tags.filter(Boolean) : undefined) || inferTagsFromVars(ct.cssVars),
   };
 }
@@ -359,6 +369,10 @@ export async function getCommunityThemes(limit: number = 50): Promise<ComposedTh
   try {
     if (!isReady() || limit <= 0) return [];
 
+    const cacheKey = `community:list:${limit}`;
+    const cached = cacheGet<ComposedTheme[]>(cacheKey);
+    if (cached) return cached;
+
     const ids = await zrevrange(COMMUNITY_NEWEST_KEY, 0, limit - 1) as string[];
     if (!ids || ids.length === 0) return [];
 
@@ -371,6 +385,8 @@ export async function getCommunityThemes(limit: number = 50): Promise<ComposedTh
         }
       } catch { /* skip broken entries */ }
     }
+
+    cacheSet(cacheKey, themes, 300_000); // 5 min cache
     return themes;
   } catch {
     return [];

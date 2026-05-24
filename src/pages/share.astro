@@ -642,17 +642,51 @@ const id = Astro.url.searchParams.get('id') || '';
 
   function initIframe(t) {
     const iframe = document.getElementById('preview-iframe');
-    
-    // 构造注入的样式变量字符串，进行严格转义
+
     const varsCSS = Object.entries(t.cssVars).map(([k, v]) => `${k}:${v}`).join(';');
     const injectedStyles = `:root { ${varsCSS} }`;
     const customCssRaw = t.customCss || '';
-    
-    // 如果主题包含 sakura 樱花特效（利用名字或CSS中是否包含 .sakura-petal 探测）
-    let effectsHtml = '';
-    if (t.name === "樱花梦境" || customCssRaw.includes('.sakura-petal')) {
-      for (let i = 0; i < 15; i++) {
-        effectsHtml += `<div class="sakura-petal" style="left:${Math.random() * 100}%; animation-delay:${Math.random() * 5}s; animation-duration:${Math.random() * 4 + 4}s"></div>`;
+
+    // Render extensions + auto-generated particles (mirrors submit.astro & Layout.astro)
+    var effectsHtml = '';
+    var extAnimNames = [];
+    var exts = t.extensions || [];
+
+    // 1. Render explicit extensions
+    exts.slice(0, 20).forEach(function(ext) {
+      if (ext.type === 'floating' && ext.char) {
+        var anim = ext.animation || '';
+        if (anim) { var m = anim.match(/^(\w+)/); if (m) extAnimNames.push(m[1]); }
+        var styles = ['position:fixed', 'pointer-events:none'];
+        if (ext.top) styles.push('top:' + ext.top);
+        if (ext.left) styles.push('left:' + ext.left);
+        if (ext.right) styles.push('right:' + ext.right);
+        if (ext.bottom) styles.push('bottom:' + ext.bottom);
+        if (ext.fontSize) styles.push('font-size:' + ext.fontSize);
+        if (anim) styles.push('animation:' + anim);
+        if (typeof ext.zIndex === 'number') styles.push('z-index:' + ext.zIndex);
+        if (typeof ext.opacity === 'number') styles.push('opacity:' + ext.opacity);
+        effectsHtml += '<div style="' + styles.join(';') + '">' + String(ext.char).slice(0, 4) + '</div>';
+      }
+    });
+
+    // 2. Auto-generate particles from CSS class animations not already covered by explicit extensions
+    if (customCssRaw) {
+      var classMatch = customCssRaw.match(/\.([a-zA-Z][\w-]*)\s*\{[^}]*animation\s*:\s*(\w+)/g);
+      if (classMatch) {
+        classMatch.forEach(function(m) {
+          var parts = m.match(/\.([\w-]+)\s*\{[^}]*animation\s*:\s*(\w+)/);
+          if (!parts) return;
+          var cls = parts[1], animName = parts[2];
+          if (extAnimNames.indexOf(animName) !== -1) return;
+          var count = /particle|dot|orb|bubble|spark|star/.test(cls) ? 20
+            : /float|drift|sway/.test(cls) ? 12
+            : /rain|snow|fall/.test(cls) ? 30 : 8;
+          for (var i = 0; i < count; i++) {
+            var top = /rain|snow|fall/.test(cls) ? -(Math.random() * 20) + 'px' : Math.random() * 100 + '%';
+            effectsHtml += '<div class="' + cls + '" style="left:' + Math.random() * 100 + '%;top:' + top + ';animation-delay:' + Math.random() * 5 + 's;animation-duration:' + (Math.random() * 3 + 2) + 's"></div>';
+          }
+        });
       }
     }
 
@@ -660,7 +694,7 @@ const id = Astro.url.searchParams.get('id') || '';
       .replace('{{INJECT_STYLES}}', injectedStyles)
       .replace('{{INJECT_CUSTOM_CSS}}', customCssRaw)
       .replace('{{INJECT_TITLE}}', escapeHtml(t.name))
-      .replace('{{INJECT_EFFECTS_HTML}}', effectsHtml); // 避免直接转义HTML，仅做组装
+      .replace('{{INJECT_EFFECTS_HTML}}', effectsHtml);
 
     iframe.srcdoc = finalHtml;
   }

@@ -79,8 +79,9 @@ const initialThemeData = {
         <!-- Tab bar -->
         <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--color-border);padding-bottom:0">
           <button class="editor-tab active" data-tab="preview" id="tab-preview">组件预览</button>
-          <button class="editor-tab" data-tab="vars" id="tab-vars">CSS 变量编辑</button>
+          <button class="editor-tab" data-tab="vars" id="tab-vars">CSS 变量</button>
           <button class="editor-tab" data-tab="css" id="tab-css">自定义 CSS</button>
+          <button class="editor-tab" data-tab="exts" id="tab-exts">Extensions</button>
           <button class="editor-tab" data-tab="image" id="tab-image">图片取色</button>
           <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
             <span id="edit-status" style="font-size:11px;color:var(--color-text-muted)"></span>
@@ -161,6 +162,19 @@ const initialThemeData = {
             placeholder="/* 例如：修改卡片圆角 */&#10;.card { border-radius: 30px; }&#10;&#10;/* 或添加自定义动画 */&#10;@keyframes pulse {&#10;  0%, 100% { opacity: 1; }&#10;  50% { opacity: 0.5; }&#10;}"
             style="width:100%;height:420px;padding:20px;border-radius:14px;border:1.5px solid var(--color-border);background:color-mix(in srgb, var(--color-text) 3%, var(--color-bg));color:var(--color-text);font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;line-height:1.65;resize:vertical;outline:none;tab-size:2"
           >{initialCustomCSS}</textarea>
+        </div>
+
+        <!-- ===== TAB: Extensions Editor ===== -->
+        <div class="editor-panel" id="panel-exts" style="display:none">
+          <div style="margin-bottom:8px">
+            <span style="font-size:12px;color:var(--color-text-muted)">声明式扩展元素 JSON 数组。每个元素需包含 <code>type:"floating"</code> + <code>char</code>；可选 <code>top/left/right/bottom/fontSize/opacity/animation/zIndex</code>。</span>
+          </div>
+          <textarea
+            id="exts-editor"
+            spellcheck="false"
+            placeholder='[{"type":"floating","char":"🪷","top":"20%","left":"5%","fontSize":"30px","opacity":0.3,"animation":"swing 4s ease-in-out infinite"}]'
+            style="width:100%;height:420px;padding:20px;border-radius:14px;border:1.5px solid var(--color-border);background:color-mix(in srgb, var(--color-text) 3%, var(--color-bg));color:var(--color-text);font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;line-height:1.65;resize:vertical;outline:none;tab-size:2"
+          >{selected.extensions ? JSON.stringify(selected.extensions, null, 2) : ''}</textarea>
         </div>
 
         <!-- ===== TAB: Image to Theme ===== -->
@@ -328,11 +342,39 @@ const initialThemeData = {
     document.querySelectorAll('.omni-petal, .omni-stardust, .cinematic-vignette, .yozakura-glow, .summer-bubble, .ice-particle').forEach(el => el.remove());
   }
 
+  function _bSafeVal(v) { return (v||'').toString().slice(0,128).replace(/[;{}]/g,'').replace(/url\s*\(/gi,'').replace(/expression\s*\(/gi,'').replace(/javascript\s*:/gi,'').replace(/@import/gi,'').trim(); }
+  function _bSafeDim(v) { var s = _bSafeVal(v); return /^-?[\d.]+(?:%|px|em|rem|vh|vw|s|ms)?$/i.test(s) ? s : ''; }
   function injectExtensions(exts) {
     removeExtensions();
     if (!exts || exts.length === 0) return;
     const container = getExtensionsContainer();
-    container.innerHTML = exts.map(e => e.content).join('');
+    exts.slice(0,20).forEach(function(ext) {
+      if (ext.type === 'floating' && ext.char) {
+        var el = document.createElement('div');
+        var t = _bSafeDim(ext.top), l = _bSafeDim(ext.left), r = _bSafeDim(ext.right), bb = _bSafeDim(ext.bottom);
+        var fs = _bSafeDim(ext.fontSize), anim = _bSafeVal(ext.animation);
+        var z = (typeof ext.zIndex === 'number' && ext.zIndex > -2 && ext.zIndex < 100000) ? ext.zIndex : null;
+        var op = (typeof ext.opacity === 'number' && ext.opacity >= 0 && ext.opacity <= 1) ? ext.opacity : null;
+        el.style.cssText = [
+          'position:fixed', 'pointer-events:none',
+          t && 'top:' + t, l && 'left:' + l, r && 'right:' + r, bb && 'bottom:' + bb,
+          fs && 'font-size:' + fs, anim && 'animation:' + anim,
+          z != null && 'z-index:' + z, op != null && 'opacity:' + op
+        ].filter(Boolean).join(';');
+        el.textContent = String(ext.char).slice(0,4);
+        container.appendChild(el);
+      } else if (ext.type === 'decorative') {
+        var tpl = document.createElement('template');
+        tpl.innerHTML = ext.html;
+        var frag = tpl.content.cloneNode(true);
+        frag.querySelectorAll('*').forEach(function(el) {
+          Array.from(el.attributes).forEach(function(attr) {
+            if (/^on/i.test(attr.name)) el.removeAttribute(attr.name);
+          });
+        });
+        container.appendChild(frag);
+      }
+    });
   }
 
   // ── Tab switching ──
@@ -348,9 +390,10 @@ const initialThemeData = {
       document.getElementById('panel-' + target).style.display = '';
 
       if (target === 'vars') {
-        // Sync editor content with current vars
-        const editor = document.getElementById('vars-editor');
-        editor.value = JSON.stringify(currentVars, null, 2);
+        varsEditor.value = JSON.stringify(currentVars, null, 2);
+      }
+      if (target === 'exts') {
+        extsEditor.value = originalExtensions.length > 0 ? JSON.stringify(originalExtensions, null, 2) : '';
       }
     });
   });
@@ -359,27 +402,38 @@ const initialThemeData = {
   const themeItems = document.querySelectorAll('.theme-item');
   const varsEditor = document.getElementById('vars-editor');
   const cssEditor = document.getElementById('css-editor');
+  const extsEditor = document.getElementById('exts-editor');
   const varsError = document.getElementById('vars-error');
   const varsOk = document.getElementById('vars-ok');
   const editStatus = document.getElementById('edit-status');
   const btnReset = document.getElementById('btn-reset');
   const diyHint = document.getElementById('diy-hint');
 
+  function parseExtsEditor() {
+    try {
+      const raw = extsEditor ? extsEditor.value.trim() : '';
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  }
+
   function loadTheme(vars, customCSS, exts, _presetName) {
     originalVars = { ...vars };
     currentVars = { ...vars };
     originalCustomCSS = customCSS;
-    originalExtensions = exts;
+    originalExtensions = Array.isArray(exts) ? exts : [];
     hasEdits = false;
 
     applyVars(vars);
     applyCustomCSS(customCSS);
-    injectExtensions(exts);
+    injectExtensions(originalExtensions);
     updateEditUI();
 
     // Update editors if visible
     varsEditor.value = JSON.stringify(vars, null, 2);
     cssEditor.value = customCSS;
+    if (extsEditor) extsEditor.value = originalExtensions.length > 0 ? JSON.stringify(originalExtensions, null, 2) : '';
     varsError.style.display = 'none';
     varsOk.style.display = 'none';
   }
@@ -457,6 +511,18 @@ const initialThemeData = {
     }, 300);
   });
 
+  // ── Extensions editor: live preview ──
+  let extsDebounce;
+  extsEditor.addEventListener('input', () => {
+    clearTimeout(extsDebounce);
+    extsDebounce = setTimeout(() => {
+      const exts = parseExtsEditor();
+      injectExtensions(exts);
+      originalExtensions = exts;
+      markEdited();
+    }, 300);
+  });
+
   // ── Apply helpers ──
   function applyVars(vars) {
     const root = document.documentElement;
@@ -490,11 +556,13 @@ const initialThemeData = {
   // ── Reset ──
   btnReset.addEventListener('click', () => {
     currentVars = { ...originalVars };
+    originalExtensions = [...(window._initialExts || [])];
     applyVars(currentVars);
     applyCustomCSS(originalCustomCSS);
     injectExtensions(originalExtensions);
     varsEditor.value = JSON.stringify(currentVars, null, 2);
     cssEditor.value = originalCustomCSS;
+    if (extsEditor) extsEditor.value = originalExtensions.length > 0 ? JSON.stringify(originalExtensions, null, 2) : '';
     varsError.style.display = 'none';
     varsOk.style.display = 'none';
     hasEdits = false;
@@ -509,7 +577,7 @@ const initialThemeData = {
     if (hasEdits) {
       sessionStorage.setItem('td-diy-vars', JSON.stringify(currentVars));
       sessionStorage.setItem('td-diy-css', cssEditor.value);
-      sessionStorage.setItem('td-diy-exts', JSON.stringify(originalExtensions));
+      sessionStorage.setItem('td-diy-exts', JSON.stringify(parseExtsEditor()));
       sessionStorage.setItem('td-diy-name', 'DIY Theme');
 
       const url = new URL(location.origin + '/');
@@ -525,11 +593,13 @@ const initialThemeData = {
 
   // ── Copy DIY theme ──
   document.getElementById('btn-copy-diy').addEventListener('click', async () => {
+    const exts = parseExtsEditor();
     const diy = {
       preset: 'custom',
       presetName: 'DIY Custom Theme',
       cssVars: currentVars,
       customCss: cssEditor.value || null,
+      extensions: exts.length > 0 ? exts : undefined,
     };
     try {
       await navigator.clipboard.writeText(JSON.stringify(diy, null, 2));
@@ -560,7 +630,7 @@ const initialThemeData = {
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
       // If in editor, prevent save dialog and apply instead
-      if (document.activeElement === varsEditor || document.activeElement === cssEditor) {
+      if (document.activeElement === varsEditor || document.activeElement === cssEditor || document.activeElement === extsEditor) {
         e.preventDefault();
         document.getElementById('btn-apply-site').click();
       }
@@ -943,24 +1013,27 @@ The design should feel cohesive with the color palette extracted from the image.
     originalVars = { ...__INITIAL.cssVars };
     originalCustomCSS = __INITIAL.customCss || '';
     originalExtensions = __INITIAL.extensions || [];
+    window._initialExts = [...originalExtensions];
     applyVars(currentVars);
     applyCustomCSS(originalCustomCSS);
     if (originalExtensions.length > 0) {
       injectExtensions(originalExtensions);
     }
+    if (extsEditor) extsEditor.value = originalExtensions.length > 0 ? JSON.stringify(originalExtensions, null, 2) : '';
   })();
 
   // ── Copy for AI: generates a structured prompt + theme data ──
   document.getElementById('btn-copy-ai').addEventListener('click', async () => {
-    const hasExtensions = originalExtensions.length > 0;
+    const exts = parseExtsEditor();
+    const hasExtensions = exts.length > 0;
     const themeJSON = JSON.stringify({
       cssVars: currentVars,
       customCss: cssEditor.value || null,
-      extensions: hasExtensions ? originalExtensions : null
+      extensions: hasExtensions ? exts : undefined
     }, null, 2);
 
     const extNote = hasExtensions
-      ? `\n7. Renders the "extensions" HTML fragments into the page body for visual effects (particles, decorative elements, glow layers)`
+      ? `\n7. Renders the "extensions" declarative array as floating decorative elements using document.createElement (safe, no innerHTML)`
       : '';
 
     const prompt = `I need to build a website that uses this exact theme. Here is the theme data in JSON format:
@@ -1032,10 +1105,17 @@ Theme color summary: primary=${currentVars['--color-primary']}, bg=${currentVars
         const data = JSON.parse(reader.result);
         // Accept both raw cssVars and { cssVars: {...} } wrapper
         const vars = data.cssVars || data;
+        const css = data.customCss || '';
+        const exts = Array.isArray(data.extensions) ? data.extensions : [];
         if (typeof vars === 'object' && vars['--color-primary']) {
           varsEditor.value = JSON.stringify(vars, null, 2);
+          cssEditor.value = css;
+          if (extsEditor) extsEditor.value = exts.length > 0 ? JSON.stringify(exts, null, 2) : '';
           currentVars = vars;
+          originalExtensions = exts;
           applyVars(vars);
+          applyCustomCSS(css);
+          injectExtensions(exts);
           markEdited();
           window.__toast?.('主题已导入');
         } else {

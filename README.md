@@ -2,7 +2,7 @@
 
 **每日轮换的主题 CSS 变量分发服务** — 一个 GET 请求，整套网站视觉主题。
 
-ThemeDist 是基于 Astro SSR 的主题分发平台，通过 **OmniConfig 主题数据库**（节日 + 日池主题）配合 **5 组可插拔主题部件**（颜色、排版、间距、壁纸、视觉效果），每日由 Astro SSR 实时计算并输出 34 个 CSS 自定义属性。同时提供主题商店、在线构建器、社区投稿与审核、AI 辅助生成、主题标签分类等完整功能。
+ThemeDist 是基于 Astro SSR 的主题分发平台，通过 **OmniConfig 主题数据库**（227+ 套节日 + 日池主题）每日由 Astro SSR 实时计算并输出 34 个 CSS 自定义属性。同时提供主题商店、在线构建器、社区投稿与审核、AI 辅助生成、主题标签分类等完整功能。
 
 支持 **Vercel + Netlify** 双平台部署，一份代码，同时运行。
 
@@ -77,7 +77,20 @@ function applyTheme(d) {
   }
   if (d.exts) {
     d.exts.forEach(e => {
-      if (e.type === 'html') document.body.insertAdjacentHTML('beforeend', e.content);
+      if (e.type === 'floating') {
+        const el = document.createElement('div');
+        el.style.cssText = [
+          'position:fixed', 'pointer-events:none',
+          e.top && 'top:' + e.top, e.left && 'left:' + e.left,
+          e.right && 'right:' + e.right, e.bottom && 'bottom:' + e.bottom,
+          e.fontSize && 'font-size:' + e.fontSize,
+          e.animation && 'animation:' + e.animation,
+          e.zIndex != null && 'z-index:' + e.zIndex,
+          e.opacity != null && 'opacity:' + e.opacity
+        ].filter(Boolean).join(';');
+        el.textContent = e.char;
+        document.body.appendChild(el);
+      }
     });
   }
 }
@@ -91,7 +104,7 @@ function applyTheme(d) {
 
 - **每日自动轮换** — Astro SSR 实时计算，无需定时构建。农历节日 → 公历节日 → Crazy Thursday → 社区主题（约 30% 天数）→ 日池兜底
 - **农历节日支持** — 基于 `lunar-javascript` 实现，覆盖春节、元宵、端午、中秋、重阳等 30+ 传统农历节日。运行时通过 `OmniConfig.getThemeConfig('auto')` 直接调用 `Lunar.fromDate()` 计算
-- **社区主题即发即现** — 用户投稿后自动发布至社区商店，立即可见、可点赞、可分享，长期有效
+- **社区主题投稿与审核** — 用户投稿后进入待审队列，管理员审核通过后自动发布至社区商店。通过后可点赞、可分享，长期有效
 - **RESTful API** — `GET /api/today.json` 返回完整主题数据；所有接口支持 CORS 跨域
 - **CDN 友好缓存** — 浏览器 1h / CDN 24h（今日主题，含 `stale-while-revalidate=3600` 降级），365 天不可变缓存（预设主题端点）
 - **CSS 变量体系** — 34 个语义化 CSS 自定义属性（颜色 8 + 排版 8 + 间距 9 + 效果 8 + 氛围 2），覆盖完整 UI 语义
@@ -108,9 +121,10 @@ function applyTheme(d) {
 
 ### 管理端
 
-- **Cookie 认证** — 单管理员登录，HttpOnly + SameSite strict
-- **审核面板** — 主题默认自动发布，管理后台可用于手动审核或清理过期主题
-- **点赞去重** — 基于 IP + User-Agent + 客户端 UUID 三重哈希，Redis Set 防重复点赞，点赞数实时同步至排行榜
+- **Cookie 认证 + CSRF** — 单管理员登录，HttpOnly + SameSite strict，写操作需 CSRF Token
+- **投稿限流** — 内存级滑动窗口限流（投稿 3次/分钟，点赞 10次/分钟），超限返回 429
+- **审核面板** — 主题提交后默认进入待审队列，管理员审核通过后发布至社区商店
+- **点赞去重** — Redis Set 防重复点赞（IP + User-Agent 哈希），点赞数实时同步至排行榜
 
 ---
 
@@ -171,7 +185,7 @@ curl https://themedist.netlify.app/api/today.json
   },
   "customCss": ".spring-festival { /* ... */ }",
   "extensions": [
-    { "type": "html", "content": "<div class='lantern-left'>...</div>" }
+    { "type": "floating", "char": "🏮", "top": "20%", "left": "5%", "fontSize": "30px", "opacity": 0.3, "animation": "swing 4s ease-in-out infinite" }
   ],
   "logoText": "🧧",
   "logoColors": ["#C84B31", "#FFB347"],
@@ -191,7 +205,7 @@ curl https://themedist.netlify.app/api/today.json
 | `dailyIsCommunity` | `true` 表示今日主题来自社区投稿 |
 | `cssVars` | 34 个 CSS 自定义属性键值对 |
 | `customCss` | 节日专属 CSS 动画（非节日为 `null`） |
-| `extensions` | HTML 装饰片段（非节日为 `null`） |
+| `extensions` | 声明式装饰元素（`floating` 型）或受信 `decorative` HTML，非节日为 `null` |
 | `logoText` | 节日 Emoji / 主题 Logo 文字 |
 | `logoColors` | Logo 渐变色对 |
 | `available` | 可用主题总数（预设 + 社区） |
@@ -276,7 +290,7 @@ curl -X POST https://themedist.netlify.app/api/diy/submit.json \
 必填字段：`name`、`author`、`cssVars`（必须包含 `--color-primary` 和 `--color-bg`）。
 可选字段：`customCss`、`tags`（最多 5 个标签）。
 
-主题提交后**自动发布**至社区商店，立即可见和可点赞，长期有效。
+主题提交后进入**审核队列**，管理员审核通过后发布至社区商店。
 
 ### 社区主题列表（带标签筛选）
 
@@ -443,7 +457,7 @@ curl https://themedist.netlify.app/api/admin/health.json
 4. **社区主题轮换** 👥 — 约 30% 天数（每 3 天）从已审核社区主题池中按 `dayOfYear % count` 选中一个作为今日主题
 5. **每日池兜底** 🎲 — 按 `dayOfYear % poolLength` 从日池主题中轮选
 
-节日主题可附带 `customCss`（专属 CSS 动画）和 `extensions`（HTML 装饰片段，如春节灯笼、中秋月饼等）。
+节日主题可附带 `customCss`（专属 CSS 动画）和 `extensions`（声明式装饰元素，如浮动 emoji、特效层等）。
 
 ### 农历节日处理流程
 
@@ -528,8 +542,11 @@ themeDist/
     │   └── Layout.astro                # 全局布局：导航、氛围背景、主题注入、Toast 通知
     ├── lib/
     │   ├── redis.ts                    # Upstash Redis 封装（set/get/zadd/zrevrange 等，带优雅降级）
-    │   ├── auth.ts                     # 管理员认证（Cookie 会话，HttpOnly）
-    │   └── themes-db.ts               # 社区主题 CRUD（提交/审核/点赞/列表，Redis 持久化，含标签）
+    │   ├── auth.ts                     # 管理员认证（Cookie 会话 + CSRF Token）
+    │   ├── themes-db.ts               # 社区主题 CRUD（提交/审核/点赞/列表，Redis 持久化）
+    │   ├── cache.ts                    # 内存缓存（today 2min / community 5min TTL，减少 Redis 穿透）
+    │   └── fallback.ts                # 静态兜底主题注册表（Redis 全挂时使用）
+    ├── middleware.ts                    # Astro 中间件（投稿/点赞滑动窗口限流）
     ├── pages/
     │   ├── index.astro                 # 首页：Hero、三步接入、功能展示、代码示例
     │   ├── theme-builder.astro         # 主题构建器：实时编辑 CSS 变量、预设切换、图片取色
@@ -540,7 +557,7 @@ themeDist/
     │   │   └── index.astro             # 管理后台：登录面板 + 审核列表
     │   └── api/
     │       ├── today.json.ts           # ★ GET 今日主题（Astro SSR 动态端点，双平台统一入口）
-    │       ├── today.ts                # 主题端点旧版（Vercel Edge，已废弃，直接访问 /api/today 仍可用）
+    │       ├── today.css.ts            # ★ GET 今日主题 CSS（阻塞式 <link> 引入，消除 FOUC）
     │       ├── index-data.json.ts      # ★ 构建时数据快照（日池 ID、公历+农历节日映射、目录）
     │       ├── docs.astro              # API 交互式文档页面
     │       ├── spec.astro              # 旧文档 → /api/docs 301 转发
@@ -560,47 +577,22 @@ themeDist/
     ├── api/
     │   └── index_config.js             # ★ 核心主题数据库：全部节日规则、日池主题、轮换逻辑（源自 OMNI-MATRIX）
     ├── themes/
-    │   ├── types.ts                    # 核心类型定义（ThemePart, ThemePreset, ComposedTheme, ThemeTag）
-    │   ├── registry.ts                 # 主题部件注册中心（5 部件）
-    │   ├── presets/
-    │   │   └── index.ts                # 5 套季节预设定义
-    │   └── parts/
-    │       ├── colors.ts               # 颜色部件（8 个 CSS 变量）
-    │       ├── typography.ts           # 排版部件（Modular Scale）
-    │       ├── spacing.ts              # 间距部件（基准 + 梯度）
-    │       ├── wallpaper.ts            # 壁纸部件（URL + blend + opacity）
-    │       └── effects.ts              # 视觉效果部件（阴影/毛玻璃/噪点/氛围光）
+    │   └── types.ts                    # 核心类型定义（ComposedTheme, ThemeExtension, ThemeTag）
     └── utils/
         ├── daily-theme.ts              # 统一导出入口（转发 omni-bridge 方法）
-        ├── omni-bridge.ts              # ★ 核心桥接：OmniConfig → ComposedTheme 转换（含标签推断、社区主题轮换、颜色工具）
-        ├── theme-composer.ts           # 主题合成器：部件 + 预设 → 完整 ComposedTheme
-        └── sanitize.ts                 # 输入净化（去 HTML 标签/事件处理器/js: 协议/CSS expression）
+        ├── omni-bridge.ts              # ★ 唯一主题管道：OmniConfig/社区主题 → ComposedTheme 转换
+        └── sanitize.ts                 # 输入净化（去 HTML 标签/CSS expression/@import/url()）
 ```
 
 ---
 
 ## 架构说明
 
-### 双层主题模型
+### 单一主题管道
 
-1. **OmniConfig（配置层）** — `src/api/index_config.js` 是独立的主题数据库，包含全部节日规则（公历 + 农历 30+ 条）、日池主题和轮换逻辑。源自独立项目 OMNI-MATRIX，以纯数据格式存储，`getThemeConfig(strategy, date)` 为核心入口。
+**OmniConfig（数据源）** — `src/api/index_config.js` 包含全部节日规则（公历 + 农历 30+ 条）、日池主题（227+ 套）和轮换逻辑。源自独立项目 OMNI-MATRIX，以纯数据格式存储。
 
-2. **ComposedTheme（运行时层）** — TypeScript 类型化的主题表示（`src/themes/types.ts`），通过 `omni-bridge.ts` 从 OmniConfig 原始数据转换为前端可消费的 CSS 变量展开结果。新增 `tags` 和 `ThemeTag` 类型支持分类。
-
-### 部件系统
-
-除了 OmniConfig 数据源，项目还维护一套独立的**可插拔主题部件系统**（`src/themes/parts/`），支持通过 5 组部件 + 5 套预设定义主题，由 `theme-composer.ts` 合成。这套系统与 OmniConfig 并行存在，主要用于首页/主题商店/构建器的界面展示。
-
-每个部件是一个 `ThemePart` 模块，提供 `defaults`（默认 CSS 变量值）和 `generate(options)` 函数（合并默认值与覆盖项）。
-
-| 部件 | 变量数 | 说明 |
-|------|--------|------|
-| `colors` | 8 | 颜色调色板（主色/辅色/强调色/背景/表面/文字/边框） |
-| `typography` | 8 | 字体栈 + Modular Scale 字号 |
-| `spacing` | 9 | 间距梯度 + 圆角 + 最大宽度 |
-| `wallpaper` | 3 | 背景图 URL + CSS blend + 透明度 |
-| `effects` | 8 | 阴影 + 毛玻璃 + 噪点纹理 + 氛围光球 |
-| **总计** | **36** | （实际输出 34 个，wallpaper 在无背景图时省略 3 个） |
+**ComposedTheme（统一输出）** — 所有主题（OmniConfig 预设、社区投稿、AI 生成）通过 `omni-bridge.ts` 转换为唯一的 `ComposedTheme` 格式，确保 API 输出的一致性和类型安全。无论来源，输出的 `cssVars`、`extensions`、`tags` 等字段结构完全对齐。
 
 ### 每日主题选择流程
 
@@ -630,8 +622,8 @@ GET /api/today.json（Vercel + Netlify 统一路由）
 ### 社区主题生命周期
 
 ```
-用户投稿 → status: approved (存入 Redis，长期有效，含 tags)
-  → 直接进入公共池（by_newest + by_likes 有序集合）立即可见
+用户投稿 → status: pending（存入审核队列）
+  → 管理员 approved → 进入公共池（by_newest + by_likes 有序集合）立即可见
   → 点赞数据实时同步至排行榜
   → 社区主题可被每日轮换选中（约 30% 天数）
 ```
@@ -682,7 +674,7 @@ GET /api/today.json（Vercel + Netlify 统一路由）
 | **ID 生成** | `nanoid`（8 字符） |
 | **前端交互** | 原生 JavaScript（无前端框架依赖） |
 | **部署目标** | Vercel + Netlify 双平台（Astro SSR 运行时计算） |
-| **CI/CD** | GitHub Actions（Netlify 每月自动构建）；Vercel Git Integration（自动部署） |
+| **CI/CD** | GitHub Actions（push 时部署 Netlify，cron/manual 并行部署双平台）；Vercel Git Integration（push 自动部署） |
 
 ---
 
@@ -760,8 +752,9 @@ const adapter = process.env.ADAPTER === 'netlify' ? netlify() : vercel();
 
 | 事件 | 说明 |
 |------|------|
-| `schedule` (cron: `0 0 1 * *`) | 每月 1 号 UTC 午夜自动重建（更新农历映射、预渲染数据） |
-| `workflow_dispatch` | GitHub 页面手动触发 |
+| `push` (branches: `main`) | 推送即部署 Netlify（与 Vercel Git Integration 同步） |
+| `schedule` (cron: `0 0 1 * *`) | 每月 1 号 UTC 午夜重建（刷新农历映射、预渲染数据）并并行部署双平台 |
+| `workflow_dispatch` | GitHub 页面手动触发，并行部署双平台 |
 
 > 主题每日轮换由 Astro SSR 实时计算，无需定时重建。每月重建仅用于刷新农历→公历日期映射和预渲染快照。
 
@@ -809,7 +802,9 @@ Netlify Dashboard → Site settings → Environment variables → 添加：
 | 功能 | 说明 | 状态 |
 |------|------|------|
 | **社区主题纳入每日轮换池** | 社区主题有机会被 `/api/today.json` 选中（约 30% 天数） | ✅ 已完成 |
-| **社区主题即发即现** | 投稿后自动发布至社区商店，立即可见可点赞 | ✅ 已完成 |
+| **社区主题投稿与审核** | 投稿后进入待审队列，管理员审核通过后发布 | ✅ 已完成 |
+| **XSS 安全防护** | CSS/HTML 注入过滤（@import/url()/expression/事件处理器），声明式扩展渲染 | ✅ 已完成 |
+| **CSRF 保护** | 管理员写操作需 Double Submit Cookie 校验 | ✅ 已完成 |
 | **主题分类与标签** | 支持为主题添加标签（暗色/亮色/节日/极简等），按分类浏览 | ✅ 已完成 |
 | **AI 辅助主题生成** | 根据文字描述，通过 DeepSeek（客户端直调）或规则引擎生成主题 | ✅ 已完成 |
 | **客户端缓存优化** | sessionStorage（5min TTL）+ localStorage（10min TTL）减少重复请求 | ✅ 已完成 |
@@ -819,7 +814,7 @@ Netlify Dashboard → Site settings → Environment variables → 添加：
 | **RSS / Webhook 通知** | 每日主题更新后推送通知 | 待规划 |
 | **多管理员支持** | 审核权限分离，支持多个管理员账号协同操作 | 待规划 |
 | **主题使用统计** | 各主题被 API 请求的次数、点赞趋势等可视化数据 | 待规划 |
-| **API 速率限制** | 可选的分级限流策略，保障服务稳定性 | 待规划 |
+| **API 速率限制** | 投稿/点赞接口滑动窗口限流（投稿 3次/分钟，点赞 10次/分钟），超限 429 | ✅ 已完成 |
 | **Theme Preview 截图** | 为主题自动生成可视化预览图 | 待规划 |
 
 ---

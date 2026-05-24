@@ -25,7 +25,7 @@ const minimalResponse = JSON.stringify({
     Object.entries(today.cssVars).slice(0, 8)
   ),
   customCss: today.customCss ? "(theme-specific CSS animations)" : null,
-  extensions: today.extensions ? [{ type: "html", content: "..." }] : null,
+  extensions: today.extensions ? [{ type: "floating", char: "🏮", top: "20%", left: "5%", opacity: 0.3 }] : null,
   logoText: today.logoText || null,
   logoColors: today.logoColors || null,
   available: totalAvailable,
@@ -74,7 +74,7 @@ const vanillaJS = String.raw`// 完整集成示例 — 含缓存、降级、特�
 function applyTheme(d) {
   Object.entries(d.cssVars).forEach(([k,v]) => document.documentElement.style.setProperty(k,v));
   if (d.customCss) { let s = document.createElement('style'); s.textContent = d.customCss; document.head.appendChild(s); }
-  if (d.exts) { let e = document.createElement('div'); e.innerHTML = d.exts.map(x => x.content).join(''); document.body.prepend(e); }
+  if (d.exts) { d.exts.forEach(ext => { if (ext.type==='floating') { let el = document.createElement('div'); el.style.cssText = ['position:fixed','pointer-events:none', ext.top&&'top:'+ext.top, ext.left&&'left:'+ext.left, ext.fontSize&&'font-size:'+ext.fontSize, ext.animation&&'animation:'+ext.animation, ext.opacity!=null&&'opacity:'+ext.opacity].filter(Boolean).join(';'); el.textContent = ext.char; document.body.prepend(el); } }); }
 }`;
 ---
 
@@ -96,7 +96,7 @@ function applyTheme(d) {
           ThemeDist 是<strong>每日自动轮换的主题分发 API</strong>。主题由 CDN 边缘函数实时计算，无需定时构建。
           客户端 GET <code>/api/today.json</code>，将返回的 34 个 CSS 自定义属性注入 <code>:root</code>，即可获得当日主题。
           同时提供<strong>社区主题</strong>（用户投稿 / 点赞 / 分享）和 <strong>AI 生成</strong> 等完整 API。
-          无认证、无速率限制、支持 CORS 跨域。
+          无认证（公开端点），支持 CORS 跨域。写操作（投稿/点赞）设有滑动窗口限流。
         </p>
         <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:10px">
           <span class="tag">{totalAvailable}+ 预设</span>
@@ -162,6 +162,11 @@ function applyTheme(d) {
             </tr>
             <tr style="border-bottom:1px solid var(--color-border)">
               <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/today.css</td>
+              <td style="padding:12px 18px;font-size:13px">今日主题纯 CSS（<code>:root {'{'}</code> 变量），支持 <code>&lt;link&gt;</code> 阻塞引入消除 FOUC</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
               <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/today-safe</td>
               <td style="padding:12px 18px;font-size:13px">安全主题代理 — Vercel 优先，Netlify 备用，XSS 清洗后输出</td>
             </tr>
@@ -184,7 +189,7 @@ function applyTheme(d) {
             <tr style="border-bottom:1px solid var(--color-border)">
               <td style="padding:12px 18px"><span class="ep-tag post">POST</span></td>
               <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/diy/submit.json</td>
-              <td style="padding:12px 18px;font-size:13px">提交社区主题（自动发布）</td>
+              <td style="padding:12px 18px;font-size:13px">提交社区主题（进入审核队列）</td>
             </tr>
             <tr style="border-bottom:1px solid var(--color-border)">
               <td style="padding:12px 18px"><span class="ep-tag post">POST</span></td>
@@ -215,9 +220,9 @@ function applyTheme(d) {
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">generatedAt</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">ISO 8601 生成时间戳</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">preset</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">预设标识符 (kebab-case)</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">presetName</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">人类可读名称</td></tr>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">cssVars</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object</td><td style="padding:9px 16px">28 个 CSS 自定义属性键值对（5 组：Colors / Typography / Spacing / Effects / Ambient）</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">cssVars</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object</td><td style="padding:9px 16px">34 个 CSS 自定义属性键值对（5 组：Colors / Typography / Spacing / Effects / Ambient）</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">customCss</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string|null</td><td style="padding:9px 16px">主题专属 CSS（动画 keyframes、特效样式），注入为 <code>&lt;style&gt;</code></td></tr>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">extensions</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array|null</td><td style="padding:9px 16px">HTML 片段数组 <code>{'{ type:"html", content:"..." }'}</code>，注入为 DOM 元素</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">extensions</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array|null</td><td style="padding:9px 16px">声明式装饰元素 <code>{'{ type:"floating", char, top, left, ... }'}</code>，安全渲染（无 innerHTML）</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">logoText</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string|null</td><td style="padding:9px 16px">Logo 文字</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">logoColors</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array|null</td><td style="padding:9px 16px">Logo 渐变色 hex 数组</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">available</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">number</td><td style="padding:9px 16px">可用主题总数</td></tr>
@@ -400,7 +405,7 @@ function applyTheme(d) {
         <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl</span></div><pre class="cmd-block"><code>curl -X POST {siteUrl}/api/diy/submit.json \
   -H 'Content-Type: application/json' \
   -d '{'{'}"name":"My Theme","author":"You","cssVars":{'{'}"--color-primary":"#ff6b6b","--color-bg":"#1a1a2e"{'}'},"tags":["dark","vibrant"]{'}'}'</code></pre></div>
-        <p class="text-muted" style="font-size:12px;margin-top:6px">必填: <code>name</code>, <code>author</code>, <code>cssVars</code>（必须含 <code>--color-primary</code> 和 <code>--color-bg</code>）。可选: <code>customCss</code>, <code>tags</code>（最多 5 个）。提交后自动发布。</p>
+        <p class="text-muted" style="font-size:12px;margin-top:6px">必填: <code>name</code>, <code>author</code>, <code>cssVars</code>（必须含 <code>--color-primary</code> 和 <code>--color-bg</code>）。可选: <code>customCss</code>, <code>tags</code>（最多 5 个）。提交后进入审核队列，管理员审核通过后发布至商店。</p>
 
         <h3 style="font-size:14px;font-weight:700;margin:20px 0 12px">点赞</h3>
         <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl</span></div><pre class="cmd-block"><code>curl -X POST {siteUrl}/api/diy/like.json \
@@ -414,7 +419,7 @@ function applyTheme(d) {
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:36px">
         <div class="card" style="padding:18px 24px"><strong style="font-size:13px">1. 请求 API</strong> <span class="text-muted" style="font-size:13px">— 页面加载时 GET <code>/api/today.json</code>，尽早执行减少 FOUC</span></div>
         <div class="card" style="padding:18px 24px"><strong style="font-size:13px">2. 注入 CSS 变量</strong> <span class="text-muted" style="font-size:13px">— 遍历 <code>cssVars</code>，逐条 <code>setProperty(k, v)</code> 到 <code>:root</code></span></div>
-        <div class="card" style="padding:18px 24px"><strong style="font-size:13px">3. 注入特效</strong> <span class="text-muted" style="font-size:13px">— <code>customCss</code> 非 null → 创建 <code>&lt;style&gt;</code>；<code>extensions</code> 非 null → 遍历 <code>content</code> 插入 <code>&lt;body&gt;</code></span></div>
+        <div class="card" style="padding:18px 24px"><strong style="font-size:13px">3. 注入特效</strong> <span class="text-muted" style="font-size:13px">— <code>customCss</code> 非 null → 创建 <code>&lt;style&gt;</code>；<code>extensions</code> 非 null → 安全解析声明式元素（<code>createElement</code> + <code>textContent</code>）</span></div>
         <div class="card" style="padding:18px 24px"><strong style="font-size:13px">4. localStorage 缓存</strong> <span class="text-muted" style="font-size:13px">— 存 date + cssVars + customCss，同日跳过网络请求</span></div>
         <div class="card" style="padding:18px 24px"><strong style="font-size:13px">5. 错误降级</strong> <span class="text-muted" style="font-size:13px">— fetch 失败 → 从 localStorage 恢复昨日主题 → CSS <code>var(--xxx, fallback)</code> 兜底</span></div>
       </div>
@@ -512,11 +517,11 @@ export function useThemeDist() {
         </div>
         <div style="margin-bottom:18px">
           <p style="font-size:13px;font-weight:700;margin:0 0 4px">Q: 请求有速率限制吗？</p>
-          <p class="text-muted" style="font-size:12px;line-height:1.6;margin:0">目前无速率限制。响应已设 CDN 缓存头（today: 24h，preset: 365d），推荐客户端 localStorage 缓存，每人每天最多 1 次真正请求。</p>
+          <p class="text-muted" style="font-size:12px;line-height:1.6;margin:0">GET 端点无速率限制，响应已设 CDN 缓存头（today: 24h，preset: 365d）。写操作（投稿/点赞）有滑动窗口限流：投稿 3次/分钟，点赞 10次/分钟，超限返回 429。</p>
         </div>
         <div style="margin-bottom:18px">
           <p style="font-size:13px;font-weight:700;margin:0 0 4px">Q: 社区主题会过期吗？</p>
-          <p class="text-muted" style="font-size:12px;line-height:1.6;margin:0">不会。社区主题提交后长期有效。主题出现在商店中即可被其他人浏览、点赞。</p>
+          <p class="text-muted" style="font-size:12px;line-height:1.6;margin:0">不会。审核通过后长期有效，可被每日轮换选中（约 30% 天数）。</p>
         </div>
         <div>
           <p style="font-size:13px;font-weight:700;margin:0 0 4px">Q: 可以自己部署吗？</p>

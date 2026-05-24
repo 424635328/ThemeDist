@@ -820,7 +820,13 @@ const siteUrl = Astro.url.origin;
 </style>
 
 <script>
-  // ─── Login ───
+  // ── CSRF helper ──
+  function getCsrfToken() {
+    const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
+    return match ? match[1] : '';
+  }
+
+  // ── Login ──
   const loginForm = document.getElementById('login-form');
   if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
@@ -832,8 +838,7 @@ const siteUrl = Astro.url.origin;
       const errorEl = document.getElementById('login-error');
 
       if (!account || !password) {
-        errorEl.textContent = '请完整填写管理员账号和密码';
-        errorEl.style.display = 'block';
+        if (errorEl) { errorEl.textContent = '请完整填写管理员账号和密码'; errorEl.style.display = 'block'; }
         return;
       }
 
@@ -847,12 +852,10 @@ const siteUrl = Astro.url.origin;
         if (res.ok && data.success) {
           location.reload();
         } else {
-          errorEl.textContent = data.error || '登录失败，凭证不匹配';
-          errorEl.style.display = 'block';
+          if (errorEl) { errorEl.textContent = data.error || '登录失败，凭证不匹配'; errorEl.style.display = 'block'; }
         }
       } catch {
-        errorEl.textContent = '网络层发生传输故障，请稍后检查重试';
-        errorEl.style.display = 'block';
+        if (errorEl) { errorEl.textContent = '网络层发生传输故障，请稍后检查重试'; errorEl.style.display = 'block'; }
       }
     });
   }
@@ -1017,9 +1020,9 @@ const siteUrl = Astro.url.origin;
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                   预览详情页
                 </a>
-                <button class="review-action-copy" data-copy-vars="${escapeAttr(JSON.stringify(v))}" title="复制整个 CSS 变量 JSON">
+                <button class="review-action-copy" data-copy-theme="${escapeAttr(JSON.stringify({ cssVars: v, customCss: t.customCss || null, extensions: t.extensions || null }))}" title="复制完整主题代码（CSS 变量 + 自定义 CSS + 扩展元素）">
                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 6v8a2 2 0 002 2h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-                  复制 JSON 配置
+                  复制完整主题代码
                 </button>
               </div>
             </div>
@@ -1043,7 +1046,7 @@ const siteUrl = Astro.url.origin;
         const res = await fetch('/api/admin/review.json');
         if (!res.ok) throw new Error('Failed');
         const data = await res.json();
-        
+
         console.log('[ThemeDist Admin Monitor] Raw response data:', data);
 
         themes = data.themes || data.list || data.data || [];
@@ -1091,9 +1094,9 @@ const siteUrl = Astro.url.origin;
         listEl.querySelectorAll('.review-checkbox').forEach(cb => {
           cb.addEventListener('click', (e) => {
             e.stopPropagation();
-            const card = e.target.closest('.review-card');
+            const card = (e.target as Element).closest('.review-card');
             if (card) {
-              toggleTheme(card.dataset.id || '');
+              toggleTheme((card as HTMLElement).dataset.id || '');
             }
           });
         });
@@ -1101,7 +1104,7 @@ const siteUrl = Astro.url.origin;
         updateSelection();
       } catch (err) {
         console.error('[ThemeDist Admin Error] Failed to fetch review list:', err);
-        loadingEl.style.display = 'none';
+        if (loadingEl) loadingEl.style.display = 'none';
         if (errorEl) errorEl.style.display = 'block';
       }
     }
@@ -1124,7 +1127,7 @@ const siteUrl = Astro.url.origin;
       try {
         const res = await fetch('/api/admin/review.json', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
           body: JSON.stringify({ action: 'approve', ids: Array.from(selected) }),
         });
         const data = await res.json();
@@ -1150,7 +1153,7 @@ const siteUrl = Astro.url.origin;
       try {
         const res = await fetch('/api/admin/review.json', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
           body: JSON.stringify({ action: 'reject', ids: Array.from(selected) }),
         });
         const data = await res.json();
@@ -1184,17 +1187,22 @@ const siteUrl = Astro.url.origin;
         return;
       }
 
-      // Copy whole CSS variables JSON delegation
-      const btn = e.target.closest('[data-copy-vars]');
+      // Copy complete theme code delegation
+      const btn = e.target.closest('[data-copy-theme]');
       if (btn) {
         e.stopPropagation();
-        const vars = btn.getAttribute('data-copy-vars');
-        if (vars) {
-          navigator.clipboard.writeText(vars).then(() => {
-            window.__toast?.('CSS 主题 JSON 变量已全部复制');
-          }).catch(() => {
-            window.__toast?.('复制失败');
-          });
+        const code = btn.getAttribute('data-copy-theme');
+        if (code) {
+          try {
+            const parsed = JSON.parse(code);
+            navigator.clipboard.writeText(JSON.stringify(parsed, null, 2)).then(() => {
+              window.__toast?.('完整主题代码已复制，可粘贴至构建器导入');
+            }).catch(() => {
+              window.__toast?.('复制失败');
+            });
+          } catch {
+            window.__toast?.('数据解析异常');
+          }
         }
       }
     });

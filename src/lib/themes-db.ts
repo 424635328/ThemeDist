@@ -4,6 +4,9 @@ import { get, set, zadd, zincrby, zrevrange, zscore, zcard, zrem, del, sadd, sis
 export type ThemeStatus = 'pending' | 'approved' | 'rejected';
 export type ThemeTag = string;
 
+import type { AnyExtension } from '../themes/types';
+import { validateUserExtensions } from '../utils/sanitize';
+
 export interface CommunityTheme {
   id: string;
   name: string;
@@ -12,6 +15,8 @@ export interface CommunityTheme {
   likes: number;
   cssVars: Record<string, string>;
   customCss: string | null;
+  /** Declarative extensions — only 'floating' type from user submissions */
+  extensions?: AnyExtension[] | null;
   status: ThemeStatus;
   tags?: ThemeTag[];
 }
@@ -21,6 +26,7 @@ interface SubmitInput {
   author: string;
   cssVars: Record<string, string>;
   customCss?: string;
+  extensions?: any[];
   tags?: string[];
 }
 
@@ -51,16 +57,15 @@ export async function submitTheme(input: SubmitInput): Promise<CommunityTheme | 
     likes: 0,
     cssVars: input.cssVars,
     customCss: input.customCss || null,
-    status: 'approved',
+    extensions: validateUserExtensions(input.extensions),
+    status: 'pending',
     tags: Array.isArray(input.tags) ? input.tags.filter(Boolean).slice(0, 5) : undefined,
   };
 
   const ok = await set(themeKey(id), theme);
   if (!ok) return null;
 
-  // Auto-approve: add to public indexes + admin review queue
-  await zadd(NEWEST_KEY, theme.createdAt, id);
-  await zadd(LIKES_KEY, 0, id);
+  // Pending themes only go to review queue, not public indexes
   await zadd(PENDING_KEY, theme.createdAt, id);
 
   return theme;

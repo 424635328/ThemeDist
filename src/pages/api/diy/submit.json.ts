@@ -2,7 +2,7 @@ export const prerender = false;
 
 import { submitTheme } from '../../../lib/themes-db';
 import { isReady } from '../../../lib/redis';
-import { sanitizeText, sanitizeCustomCss } from '../../../utils/sanitize';
+import { sanitizeText, sanitizeCustomCss, validateUserExtensions } from '../../../utils/sanitize';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -20,7 +20,7 @@ export async function POST({ request }: { request: Request }) {
 
   try {
     const body = await request.json();
-    const { name, author, cssVars: rawVars, customCss, tags } = body;
+    const { name, author, cssVars: rawVars, customCss, extensions: rawExts, tags } = body;
 
     if (!name || !author || !rawVars || typeof rawVars !== 'object') {
       return new Response(JSON.stringify({ error: '缺少必填字段: name, author, cssVars' }), {
@@ -44,11 +44,14 @@ export async function POST({ request }: { request: Request }) {
       });
     }
 
+    const extensions = validateUserExtensions(rawExts);
+
     const theme = await submitTheme({
       name: sanitizeText(name),
       author: sanitizeText(author),
       cssVars,
       customCss: sanitizeCustomCss(customCss),
+      extensions,
       tags,
     });
 
