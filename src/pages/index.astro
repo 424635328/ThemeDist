@@ -12,35 +12,149 @@ const secondary = today.cssVars['--color-secondary'];
 const accent = today.cssVars['--color-accent'];
 const siteUrl = Astro.url.origin;
 
-const injectCode = `fetch('${siteUrl}/api/today.json')
-  .then(r => r.json())
-  .then(t => Object.entries(t.cssVars)
-    .forEach(([k, v]) => document.documentElement.style.setProperty(k, v))
-  );`;
+const injectCode = `// ThemeDist — 生产级主题接入（推荐）
+// 当日缓存 localStorage，跨日自动刷新，网络故障降级
 
-const cssCode = `body {
+(async () => {
+  const KEY = 'td_theme';
+  const today = new Date().toISOString().slice(0, 10);
+
+  // ① 命中当日缓存 → 直接应用（零网络开销）
+  const cached = JSON.parse(localStorage.getItem(KEY) || 'null');
+  if (cached?.date === today) return applyTheme(cached);
+
+  // ② 请求今日主题
+  try {
+    const res = await fetch('${siteUrl}/api/today.json');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const t = await res.json();
+    const data = { date: t.date, cssVars: t.cssVars, customCss: t.customCss, extensions: t.extensions };
+    localStorage.setItem(KEY, JSON.stringify(data));
+    applyTheme(data);
+  } catch (err) {
+    // ③ 网络故障 → 降级使用过期缓存
+    console.warn('ThemeDist: fetch failed, using stale cache', err.message);
+    const fallback = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (fallback) applyTheme(fallback);
+  }
+})();
+
+function applyTheme(d) {
+  // 注入 34 个 CSS 变量到 :root
+  Object.entries(d.cssVars).forEach(([k, v]) =>
+    document.documentElement.style.setProperty(k, v)
+  );
+
+  // 注入主题专属 CSS（keyframes 动画、节日特效样式）
+  if (d.customCss) {
+    const s = document.createElement('style');
+    s.setAttribute('data-themedist', '');
+    s.textContent = d.customCss;
+    document.head.appendChild(s);
+  }
+
+  // 渲染浮动装饰元素（emoji、节日粒子）
+  if (d.extensions) {
+    d.extensions.forEach(ext => {
+      if (ext.type !== 'floating') return;
+      const el = document.createElement('div');
+      el.style.cssText = [
+        'position:fixed', 'pointer-events:none',
+        ext.top && 'top:' + ext.top, ext.left && 'left:' + ext.left,
+        ext.right && 'right:' + ext.right, ext.bottom && 'bottom:' + ext.bottom,
+        ext.fontSize && 'font-size:' + ext.fontSize,
+        ext.animation && 'animation:' + ext.animation,
+        ext.zIndex != null && 'z-index:' + ext.zIndex,
+        ext.opacity != null && 'opacity:' + ext.opacity,
+      ].filter(Boolean).join(';');
+      el.textContent = ext.char;
+      document.body.appendChild(el);
+    });
+  }
+}`;
+
+const cssCode = `/* ==========================================
+   ThemeDist CSS 变量速查（5 大类 34 个变量）
+   变量由 JS 注入到 :root，直接 var() 引用即可
+   ========================================== */
+
+/* ① 色板 Colors ————————————————————— */
+body {
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-body), system-ui, sans-serif;
-  font-size: var(--text-base);
 }
-h1 { color: var(--color-primary); font-size: var(--text-2xl); }
+h1, h2, h3 { color: var(--color-primary); }
+a          { color: var(--color-secondary); }
+code       { font-family: var(--font-mono), monospace; }
+
+/* ② 字号 Typography ————————————————— */
+h1   { font-size: var(--text-2xl); }
+h2   { font-size: var(--text-xl); }
+.lead    { font-size: var(--text-lg); }
+.muted   { color: var(--color-text-muted); font-size: var(--text-sm); }
+
+/* ③ 间距 & 圆角 Spacing ———————————— */
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radii);
   padding: var(--space-6);
-  box-shadow: var(--shadow-md);
+  margin-bottom: var(--space-8);
+  max-width: var(--content-max);
 }
-.muted { color: var(--color-text-muted); font-size: var(--text-sm); }
 .btn {
-  background: var(--color-primary);
-  color: #fff;
-  border: none;
-  border-radius: var(--radii);
   padding: var(--space-2) var(--space-4);
-  cursor: pointer;
+  border-radius: var(--radii);
+}
+
+/* ④ 阴影 & 毛玻璃 Effects —————————— */
+.card-sm { box-shadow: var(--shadow-sm); }
+.card-md { box-shadow: var(--shadow-md); }
+.card-lg { box-shadow: var(--shadow-lg); }
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+/* ⑤ 氛围光球 Ambient —————————————— */
+.hero-glow::before {
+  content: '';
+  position: absolute;
+  background: radial-gradient(circle, var(--ambient-1), transparent);
 }`;
+
+const linkCode = `<!-- 零 FOUC 方案：阻塞引入 CSS，确保首帧变量就绪 -->
+<link rel="stylesheet" href="${siteUrl}/api/today.css">
+
+<!-- 异步获取 JSON，用于 customCss 和浮动装饰 -->
+<script>
+fetch('${siteUrl}/api/today.json')
+  .then(r => r.json())
+  .then(t => {
+    // 注入主题专属 CSS
+    if (t.customCss) {
+      const s = document.createElement('style');
+      s.textContent = t.customCss;
+      document.head.appendChild(s);
+    }
+    // 渲染浮动装饰
+    if (t.extensions) {
+      t.extensions.forEach(ext => {
+        if (ext.type !== 'floating') return;
+        const el = document.createElement('div');
+        el.style.cssText = [
+          'position:fixed','pointer-events:none',
+          ext.top && 'top:'+ext.top,
+          ext.left && 'left:'+ext.left,
+          ext.animation && 'animation:'+ext.animation,
+        ].filter(Boolean).join(';');
+        el.textContent = ext.char;
+        document.body.appendChild(el);
+      });
+    }
+  });
+<\/script>`;
 ---
 
 <Layout>
@@ -256,37 +370,64 @@ h1 { color: var(--color-primary); font-size: var(--text-2xl); }
   </section>
 
   <!-- ================================================
-       CODE EXAMPLE
+       QUICK START: CODE EXAMPLES
        ================================================ -->
   <section class="section-sm">
     <div class="text-center mb-8">
       <p class="t-label">Integration</p>
       <h2 class="t-heading mt-2">快速上手</h2>
-      <p class="t-subhead mt-2" style="max-width:540px;margin-inline:auto">
-        请求 <code>GET /api/today.json</code>，获得完整 CSS 变量表，注入 <code>:root</code> 后即可在 CSS 中使用
+      <p class="t-subhead mt-2" style="max-width:580px;margin-inline:auto">
+        复制下方代码到你的 HTML 中，站点即刻拥有每日自动轮换的完整视觉主题
       </p>
     </div>
 
-    <div style="max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:20px" class="reveal">
+    <div style="max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:24px" class="reveal">
+
+      <!-- Card 1: 生产级 JS 接入 -->
       <div class="card card-glass">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
           <span style="width:12px;height:12px;border-radius:50%;background:#ff5f57"></span>
           <span style="width:12px;height:12px;border-radius:50%;background:#ffbd2e"></span>
           <span style="width:12px;height:12px;border-radius:50%;background:#28ca41"></span>
-          <span style="margin-left:8px;font-size:12px;color:var(--color-text-muted)">1. 注入变量 — JavaScript</span>
+          <span style="margin-left:8px;font-size:13px;font-weight:600;letter-spacing:-0.01em">1. 生产级 JS 接入（推荐）</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--color-text-muted);background:color-mix(in srgb, var(--color-primary) 12%, transparent);padding:2px 10px;border-radius:99px">含缓存 · 降级 · 特效</span>
         </div>
-        <pre style="margin:0;font-size:13px"><code>{injectCode}</code></pre>
+        <p style="font-size:12px;color:var(--color-text-muted);margin:0 0 12px 0;line-height:1.6">
+          将这段脚本放在 <code>&lt;/body&gt;</code> 前，自动完成变量注入、localStorage 缓存和网络降级。42 行覆盖全部特性。
+        </p>
+        <pre style="margin:0;font-size:12px;line-height:1.55;max-height:420px;overflow-y:auto"><code>{injectCode}</code></pre>
       </div>
 
+      <!-- Card 2: CSS 变量参考 -->
       <div class="card card-glass">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
           <span style="width:12px;height:12px;border-radius:50%;background:#ff5f57"></span>
           <span style="width:12px;height:12px;border-radius:50%;background:#ffbd2e"></span>
           <span style="width:12px;height:12px;border-radius:50%;background:#28ca41"></span>
-          <span style="margin-left:8px;font-size:12px;color:var(--color-text-muted)">2. 使用变量 — CSS</span>
+          <span style="margin-left:8px;font-size:13px;font-weight:600;letter-spacing:-0.01em">2. CSS 变量速查</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--color-text-muted);background:color-mix(in srgb, var(--color-primary) 12%, transparent);padding:2px 10px;border-radius:99px">5 大类 · 34 个变量</span>
         </div>
-        <pre style="margin:0;font-size:13px"><code>{cssCode}</code></pre>
+        <p style="font-size:12px;color:var(--color-text-muted);margin:0 0 12px 0;line-height:1.6">
+          变量注入到 <code>:root</code> 后，在 CSS 中直接 <code>var()</code> 引用。覆盖色板、字号、间距、阴影、毛玻璃、氛围光球。
+        </p>
+        <pre style="margin:0;font-size:12px;line-height:1.55;max-height:420px;overflow-y:auto"><code>{cssCode}</code></pre>
       </div>
+
+      <!-- Card 3: 零 FOUC 方案 -->
+      <div class="card card-glass">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <span style="width:12px;height:12px;border-radius:50%;background:#ff5f57"></span>
+          <span style="width:12px;height:12px;border-radius:50%;background:#ffbd2e"></span>
+          <span style="width:12px;height:12px;border-radius:50%;background:#28ca41"></span>
+          <span style="margin-left:8px;font-size:13px;font-weight:600;letter-spacing:-0.01em">3. 零 FOUC 方案</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--color-text-muted);background:color-mix(in srgb, var(--color-primary) 12%, transparent);padding:2px 10px;border-radius:99px">首帧无闪烁</span>
+        </div>
+        <p style="font-size:12px;color:var(--color-text-muted);margin:0 0 12px 0;line-height:1.6">
+          用 <code>&lt;link&gt;</code> 标签阻塞引入 <code>/api/today.css</code>，确保 CSS 变量在首帧渲染前就绪。再异步获取 JSON 装载特效。
+        </p>
+        <pre style="margin:0;font-size:12px;line-height:1.55;max-height:300px;overflow-y:auto"><code>{linkCode}</code></pre>
+      </div>
+
     </div>
   </section>
 

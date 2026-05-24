@@ -104,7 +104,7 @@ function applyTheme(d) {
 
 - **每日自动轮换** — Astro SSR 实时计算，无需定时构建。农历节日 → 公历节日 → Crazy Thursday → 社区主题（约 30% 天数）→ 日池兜底
 - **农历节日支持** — 基于 `lunar-javascript` 实现，覆盖春节、元宵、端午、中秋、重阳等 30+ 传统农历节日。运行时通过 `OmniConfig.getThemeConfig('auto')` 直接调用 `Lunar.fromDate()` 计算
-- **社区主题投稿与审核** — 用户投稿后进入待审队列，管理员审核通过后自动发布至社区商店。通过后可点赞、可分享，长期有效
+- **社区主题投稿与审核** — 用户投稿后进入待审队列，管理员审核通过后自动发布至社区商店。通过后可点赞、可分享，长期有效。API 返回 `warnings` 提示不支持的扩展类型（如 `javascript`）
 - **RESTful API** — `GET /api/today.json` 返回完整主题数据；所有接口支持 CORS 跨域
 - **CDN 友好缓存** — 浏览器 1h / CDN 24h（今日主题，含 `stale-while-revalidate=3600` 降级），365 天不可变缓存（预设主题端点）
 - **CSS 变量体系** — 34 个语义化 CSS 自定义属性（颜色 8 + 排版 8 + 间距 9 + 效果 8 + 氛围 2），覆盖完整 UI 语义
@@ -114,8 +114,8 @@ function applyTheme(d) {
 ### 用户端页面
 
 - **主题商店（Theme Store）** — 浏览、搜索、按分类/色温/标签筛选所有主题（预设 + 社区），社区主题支持按暗色/亮色/暖色/冷色/鲜艳/极简/自然/科技标签筛选，高亮今日主题。社区列表使用 sessionStorage 缓存（5 分钟 TTL），命中缓存瞬间渲染，后台静默刷新
-- **主题构建器（Theme Builder）** — 实时编辑 CSS 变量 JSON、注入自定义 CSS、在预设间切换，一键复制应用。支持图片取色（K-means 聚类提取调色板）、AI 描述生成
-- **社区投稿（Submit）** — 左侧紧凑表单（粘贴 JSON / AI 生成 / DeepSeek 直调），右侧 16:9 LIVE SENSING 沙箱实时预览。提交后自动发布，本地历史记录含数据库状态检测（收录中/已过期），状态缓存至 localStorage（10 分钟 TTL）
+- **主题构建器（Theme Builder）** — 实时编辑 CSS 变量、自定义 CSS、声明式扩展（floating + decorative），各编辑器独立格式化 + 实时计数。智能检测不支持类型并实时提示。支持图片取色（K-means 聚类提取调色板）、AI 描述生成、一键应用至全站
+- **社区投稿（Submit）** — 三栏编辑器（CSS 变量 / 自定义 CSS / Extensions），实时校验 extensions 类型（floating / decorative）并警告不支持的类型（如 javascript）。右侧 16:9 LIVE SENSING 沙箱实时预览。提交后 API 返回 warnings 提示被移除的字段。本地历史记录含数据库状态检测
 - **AI 主题生成** — 输入文字描述，使用 DeepSeek（用户自带 Key，客户端直接调用，max_tokens: 10000）或内置规则引擎生成完整 CSS 变量主题
 - **主题分享页（Share）** — 社区主题详情展示，支持点赞、复制链接、一键应用，含桌面/平板/手机视口切换预览
 
@@ -205,7 +205,7 @@ curl https://themedist.netlify.app/api/today.json
 | `dailyIsCommunity` | `true` 表示今日主题来自社区投稿 |
 | `cssVars` | 34 个 CSS 自定义属性键值对 |
 | `customCss` | 节日专属 CSS 动画（非节日为 `null`） |
-| `extensions` | 声明式装饰元素（`floating` 型）或受信 `decorative` HTML，非节日为 `null` |
+| `extensions` | 声明式装饰元素数组，支持 `floating`（安全浮动字符）和 `decorative`（经清洗的 HTML 片段）。社区主题为 `null` 或数组，静态预设可能不含此字段 |
 | `logoText` | 节日 Emoji / 主题 Logo 文字 |
 | `logoColors` | Logo 渐变色对 |
 | `available` | 可用主题总数（预设 + 社区） |
@@ -283,12 +283,25 @@ curl -X POST https://themedist.netlify.app/api/diy/submit.json \
     "author": "Nickname",
     "cssVars": { "--color-primary": "#FF6B6B", "--color-bg": "#1a1a2e" },
     "customCss": "body { font-family: sans-serif; }",
+    "extensions": [{ "type": "floating", "char": "✨" }],
     "tags": ["dark", "vibrant"]
   }'
 ```
 
 必填字段：`name`、`author`、`cssVars`（必须包含 `--color-primary` 和 `--color-bg`）。
-可选字段：`customCss`、`tags`（最多 5 个标签）。
+可选字段：`customCss`（最大 16KB）、`extensions`（最大 20 个，仅支持 `floating` 和 `decorative` 类型）、`tags`（最多 5 个）。
+
+成功响应（201）：
+
+```json
+{
+  "success": true,
+  "theme": { "id": "abc12345", "name": "My Theme", ... },
+  "warnings": ["不支持的类型 \"javascript\"，已自动移除。请改用 \"floating\" 或 \"decorative\"。"]
+}
+```
+
+> **`warnings` 字段**：当提交的 extensions 包含不支持的类型（如 `"javascript"`）时，系统静默移除并在 `warnings` 中报告原因。不影响主题提交成功，但提醒用户扩展已被过滤。
 
 主题提交后进入**审核队列**，管理员审核通过后发布至社区商店。
 
@@ -445,6 +458,44 @@ curl https://themedist.netlify.app/api/admin/health.json
 
 ---
 
+## Extensions 扩展元素
+
+`extensions` 是一个声明式装饰元素数组，每个元素无需执行脚本即可安全渲染。支持两种类型：
+
+### `floating` — 浮动字符
+
+通过 `document.createElement('div')` 创建，绝无 innerHTML。适合 emoji / 字符装饰：
+
+```json
+{ "type": "floating", "char": "🪷", "top": "20%", "left": "5%", "fontSize": "30px", "opacity": 0.3, "animation": "swing 4s ease-in-out infinite" }
+```
+
+| 字段 | 必填 | 限制 |
+|------|------|------|
+| `type` | 是 | `"floating"` |
+| `char` | 是 | ≤ 4 个 Unicode 码点 |
+| `top/left/right/bottom` | 否 | CSS 尺寸 (px/%/em/rem/vh/vw) |
+| `fontSize` | 否 | CSS 尺寸 |
+| `opacity` | 否 | 0.0 ~ 1.0，自动 clamp |
+| `animation` | 否 | CSS animation 值，XSS 清洗 |
+| `zIndex` | 否 | -1 ~ 99999 |
+
+### `decorative` — 装饰 HTML
+
+使用 `<template>` + `DocumentFragment` 安全解析，渲染前剥离 `on*` 事件、`<script>`、`<iframe>`、`javascript:` 协议：
+
+```json
+{ "type": "decorative", "html": "<div class=\"particle-layer\"><span class=\"sparkle\" style=\"left:12vw;animation-delay:-3s\"></span></div>" }
+```
+
+> **不支持 JavaScript 类型**：`"type": "javascript"` 因安全原因不被支持。提交时会被移除并在 API 响应的 `warnings` 中报告。请将 JS 逻辑转为 `decorative` HTML + `customCss` CSS 动画。
+
+### 自动粒子生成
+
+系统会从 `customCss` 中解析含 `animation` 的 CSS 类，自动生成 DOM 粒子元素（数量根据类名启发式决定：particle/dot/orb/bubble/spark/star → 20，float/drift/sway → 12，rain/snow/fall → 30，其他 → 8）。如已在 `extensions` 中手动声明该类元素，系统自动跳过以避免重复。
+
+---
+
 ## 主题轮换策略
 
 主题由 Astro SSR 端点 `src/pages/api/today.json.ts` 根据服务器日期实时计算，无需定时构建。选择逻辑集中在一处，双平台完全一致。
@@ -549,12 +600,12 @@ themeDist/
     ├── middleware.ts                    # Astro 中间件（投稿/点赞滑动窗口限流）
     ├── pages/
     │   ├── index.astro                 # 首页：Hero、三步接入、功能展示、代码示例
-    │   ├── theme-builder.astro         # 主题构建器：实时编辑 CSS 变量、预设切换、图片取色
+    │   ├── theme-builder.astro         # 主题构建器：CSS 变量/自定义 CSS/Extensions 三栏编辑，实时校验，智能格式化，图片取色
     │   ├── theme-store.astro           # 主题商店：浏览/搜索/分类/标签筛选/社区标签页
-    │   ├── submit.astro                # 社区投稿：JSON 编辑器 + AI 生成（DeepSeek 客户端集成）
-    │   ├── share.astro                 # 主题分享页：详情、点赞、复制链接、视口切换预览
+    │   ├── submit.astro                # 社区投稿：三栏编辑器 + AI 生成（DeepSeek 客户端集成），extensions 实时校验 + 提交后 warnings
+    │   ├── share.astro                 # 主题分享页：详情、点赞、复制链接、视口切换预览，iframe 沙箱 extensions 自动生成
     │   ├── admin/
-    │   │   └── index.astro             # 管理后台：登录面板 + 审核列表
+    │   │   └── index.astro             # 管理后台：登录面板 + 审核列表（含扩展类型指示）
     │   └── api/
     │       ├── today.json.ts           # ★ GET 今日主题（Astro SSR 动态端点，双平台统一入口）
     │       ├── today.css.ts            # ★ GET 今日主题 CSS（阻塞式 <link> 引入，消除 FOUC）
@@ -815,6 +866,11 @@ Netlify Dashboard → Site settings → Environment variables → 添加：
 | **多管理员支持** | 审核权限分离，支持多个管理员账号协同操作 | 待规划 |
 | **主题使用统计** | 各主题被 API 请求的次数、点赞趋势等可视化数据 | 待规划 |
 | **API 速率限制** | 投稿/点赞接口滑动窗口限流（投稿 3次/分钟，点赞 10次/分钟），超限 429 | ✅ 已完成 |
+| **Extensions 类型支持** | 支持 `floating`（浮动字符）和 `decorative`（装饰 HTML），`javascript` 类型拒绝并返回 warnings | ✅ 已完成 |
+| **智能格式化** | theme-builder 各编辑器独立格式化按钮，智能检测当前 tab 格式化对应内容 | ✅ 已完成 |
+| **Extensions 实时校验** | submit + theme-builder 两端实时检测不支持类型并提示，提交后 warnings 展示 | ✅ 已完成 |
+| **存储格式归一化** | `extensions` 字段统一为 `null` 或数组（不再出现 `undefined`），JSON 始终完整 | ✅ 已完成 |
+| **渲染一致性** | share 页 iframe、首页 Apply、theme-builder 预览、submit 预览四路径 extensions 渲染逻辑统一 | ✅ 已完成 |
 | **Theme Preview 截图** | 为主题自动生成可视化预览图 | 待规划 |
 
 ---
