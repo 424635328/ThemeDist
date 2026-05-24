@@ -197,6 +197,48 @@ curl https://themedist.netlify.app/api/today.json
 | `available` | 可用主题总数（预设 + 社区） |
 | `directory` | 主题目录列表（用于商店浏览） |
 
+### 获取今日主题（安全代理）
+
+```bash
+curl https://themedist-monitor.vercel.app/api/today-safe
+```
+
+从 ThemeDist 代理获取最新 `today.json` 数据（**Vercel 优先，Netlify 备用**），并应用 XSS 清洗。下游主题渲染器可直接安全消费，无需自行处理输入净化。
+
+**响应格式：** `application/json`
+
+```json
+{
+  "date": "2026-05-24",
+  "preset": "minimal-blue",
+  "presetName": "Minimal Blue",
+  "author": "themedist",
+  "available": 12,
+  "cssVars": { "--color-primary": "#3b82f6" },
+  "customCss": "...",
+  "extensions": [ ... ],
+  "directory": [ ... ],
+  "_meta": {
+    "sanitized": true,
+    "schemaValid": true,
+    "timestamp": "2026-05-24T12:00:00.000Z"
+  }
+}
+```
+
+关键字段：
+
+| 字段 | 说明 |
+|------|------|
+| `author` | 主题作者（`"themedist"` 或社区作者名） |
+| `_meta.sanitized` | `true` 表示所有字符串字段已完成 XSS 清洗 |
+| `_meta.schemaValid` | `true` 表示响应结构通过 schema 校验 |
+| `_meta.timestamp` | 代理处理时间戳 |
+
+**异常处理：** 两个上游平台（Vercel、Netlify）均不可达时返回 `502 Bad Gateway`。
+
+**XSS 清洗范围：** 移除 HTML 标签、事件处理器（`onerror`、`onload` 等）、`javascript:` 协议、CSS `expression()`。清洗后的数据可直接注入 DOM。
+
 ### 获取指定主题
 
 ```bash

@@ -162,6 +162,11 @@ function applyTheme(d) {
             </tr>
             <tr style="border-bottom:1px solid var(--color-border)">
               <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/today-safe</td>
+              <td style="padding:12px 18px;font-size:13px">安全主题代理 — Vercel 优先，Netlify 备用，XSS 清洗后输出</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
               <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/theme/{'{preset}'}.json</td>
               <td style="padding:12px 18px;font-size:13px">指定预设的完整数据（{totalAvailable} 个端点，永久缓存）</td>
             </tr>
@@ -299,6 +304,84 @@ function applyTheme(d) {
             Service Worker 可预缓存全部 {totalAvailable} 个 <code>/api/theme/*.json</code>（总计 ~500KB）。
           </p>
         </div>
+      </div>
+
+      <!-- ====== TODAY-SAFE ====== -->
+      <h2 id="today-safe" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">安全主题代理 /api/today-safe</h2>
+      <div class="card" style="margin-bottom:36px;padding:24px 28px">
+        <p class="text-muted" style="font-size:13px;line-height:1.6;margin:0 0 18px 0">
+          从 ThemeDist 代理获取最新的 <code>/api/today.json</code> 数据（<strong>Vercel 优先，Netlify 备用</strong>），并应用 XSS 清洗。
+          下游主题渲染器可直接安全消费，无需自行处理输入净化。
+        </p>
+
+        <div class="cmd-group" style="margin-bottom:0">
+          <div class="cmd-header"><span class="cmd-label">curl</span></div>
+          <pre class="cmd-block"><code>curl https://themedist-monitor.vercel.app/api/today-safe</code></pre>
+        </div>
+      </div>
+
+      <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px;margin-top:28px">响应结构</h3>
+      <div class="card card-glass" style="padding:0;overflow:hidden;margin-bottom:20px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="border-bottom:1px solid var(--color-border)">
+            <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:110px">字段</th>
+            <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:80px">类型</th>
+            <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">说明</th>
+          </tr></thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">date</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">ISO 日期 YYYY-MM-DD</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">preset</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">主题预设标识符</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">presetName</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">主题可读名称</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">author</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">主题作者（"themedist" 或社区作者名）</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">available</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">number</td><td style="padding:9px 16px">可用主题总数</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">cssVars</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object</td><td style="padding:9px 16px">CSS 自定义属性键值对（已完成 XSS 清洗）</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">customCss</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">主题专属 CSS（已完成 XSS 清洗）</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">extensions</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array</td><td style="padding:9px 16px">HTML 装饰片段数组（已完成 XSS 清洗）</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">directory</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array</td><td style="padding:9px 16px">主题目录列表</td></tr>
+            <tr><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">_meta</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object</td><td style="padding:9px 16px">安全元信息：<code>sanitized</code>（是否已清洗）、<code>schemaValid</code>（结构校验）、<code>timestamp</code>（处理时间）</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="font-size:14px;font-weight:700;letter-spacing:-0.01em;margin-bottom:10px">示例响应</h3>
+      <pre style="max-height:400px;overflow-y:auto;margin-bottom:14px"><code>{String.raw`{
+  "date": "2026-05-24",
+  "preset": "minimal-blue",
+  "presetName": "Minimal Blue",
+  "author": "themedist",
+  "available": 12,
+  "cssVars": { "--color-primary": "#3b82f6" },
+  "customCss": "...",
+  "extensions": [ ... ],
+  "directory": [ ... ],
+  "_meta": {
+    "sanitized": true,
+    "schemaValid": true,
+    "timestamp": "2026-05-24T12:00:00.000Z"
+  }
+}`}</code></pre>
+
+      <h3 style="font-size:14px;font-weight:700;letter-spacing:-0.01em;margin-bottom:10px;margin-top:20px">异常处理</h3>
+      <div class="card" style="padding:16px 20px;margin-bottom:20px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="border-bottom:1px solid var(--color-border)">
+            <th style="text-align:left;padding:6px 0;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:70px">状态</th>
+            <th style="text-align:left;padding:6px 0;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">场景</th>
+          </tr></thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--color-primary)">200</td><td style="padding:6px 0;font-size:12px">成功代理并清洗数据</td></tr>
+            <tr><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-weight:700;color:#ef4444">502</td><td style="padding:6px 0;font-size:12px">Vercel 和 Netlify 两个上游平台均不可达</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="padding:14px 18px;border-radius:10px;background:color-mix(in srgb, var(--color-primary) 8%, transparent);border-left:3px solid var(--color-primary);margin-bottom:20px">
+        <p style="font-size:13px;font-weight:600;margin:0 0 4px">XSS 清洗说明</p>
+        <p style="font-size:12px;color:var(--color-text-muted);line-height:1.6;margin:0">
+          代理返回前对所有字符串字段执行 XSS 清洗，移除 HTML 标签、事件处理器（<code>onerror</code>、<code>onload</code> 等）、
+          <code>javascript:</code> 协议和 CSS <code>expression()</code>。清洗后的数据可直接注入 DOM，无需额外净化。
+          <code>_meta.sanitized</code> 标识清洗状态，<code>_meta.schemaValid</code> 标识结构校验结果。
+        </p>
       </div>
 
       <!-- ====== COMMUNITY API ====== -->
@@ -497,6 +580,7 @@ export function useThemeDist() {
       <a href="#css-vars" class="toc-link" data-target="css-vars" role="menuitem" tabindex="-1">CSS 变量</a>
       <a href="#rotation" class="toc-link" data-target="rotation" role="menuitem" tabindex="-1">轮换策略</a>
       <a href="#caching" class="toc-link" data-target="caching" role="menuitem" tabindex="-1">缓存策略</a>
+      <a href="#today-safe" class="toc-link" data-target="today-safe" role="menuitem" tabindex="-1">安全代理</a>
       <a href="#community" class="toc-link" data-target="community" role="menuitem" tabindex="-1">社区 API</a>
       <a href="#steps" class="toc-link" data-target="steps" role="menuitem" tabindex="-1">接入步骤</a>
       <a href="#code" class="toc-link" data-target="code" role="menuitem" tabindex="-1">代码示例</a>
