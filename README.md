@@ -430,7 +430,7 @@ ThemeDist 提供两级 AI 主题生成能力，帮助用户快速创建配色方
 
 - API Key 仅存储在 `localStorage` 中，隐私声明在 UI 中明确展示
 - Key 格式校验（`sk-` 前缀），状态指示器显示已设置/未设置
-- 使用 `deepseek-chat` 模型，定制系统 prompt 输出结构化主题数据
+- 使用 `deepseek-v4-flash` 模型，定制系统 prompt 输出结构化主题数据
 
 ### 服务端规则引擎（降级方案）
 
@@ -681,6 +681,7 @@ npm run preview                  # 预览生产构建
 URL=http://localhost:4321
 ADMIN_ACCOUNT=admin
 ADMIN_PASSWORD=your-secure-password
+// UPSTASH、KV
 UPSTASH_REDIS_REST_URL=https://xxx.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your-token
 ```
@@ -783,4 +784,6 @@ Netlify Dashboard → Site settings → Environment variables → 添加：
 
 ## 许可证
 
-待定
+本项目基于 **GNU General Public License v3.0 (GPL-3.0)** 发布。详见 [LICENSE](LICENSE) 文件。
+
+Copyright (C) 2026 Tony

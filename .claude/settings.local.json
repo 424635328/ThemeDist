@@ -50,7 +50,8 @@
       "Bash(ADAPTER=netlify npx astro dev --port 4323)",
       "Bash(netlify deploy *)",
       "Read(//api/**)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "WebFetch(domain:www.gnu.org)"
     ]
   }
 }
