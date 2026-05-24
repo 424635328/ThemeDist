@@ -57,7 +57,7 @@ export async function submitTheme(input: SubmitInput): Promise<CommunityTheme | 
     likes: 0,
     cssVars: input.cssVars,
     customCss: input.customCss || null,
-    extensions: validateUserExtensions(input.extensions),
+    extensions: validateUserExtensions(input.extensions) ?? null,
     status: 'pending',
     tags: Array.isArray(input.tags) ? input.tags.filter(Boolean).slice(0, 5) : undefined,
   };

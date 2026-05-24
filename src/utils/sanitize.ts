@@ -83,51 +83,58 @@ export function sanitizeChar(input: string): string {
 }
 
 /**
- * Validate user-submitted extensions. Only allows safe 'floating' type.
- * Rejects 'decorative' (raw HTML) and any unknown types.
- * Sanitizes all CSS values to prevent CSS injection.
+ * Validate user-submitted extensions. Allows 'floating' (safe) and 'decorative' (sanitized HTML).
+ * Sanitizes all CSS values and HTML to prevent injection.
  */
-export function validateUserExtensions(raw: any): ThemeExtension[] | undefined {
+export function validateUserExtensions(raw: any): AnyExtension[] | undefined {
   if (!Array.isArray(raw) || raw.length === 0) return undefined;
   if (raw.length > MAX_EXTENSIONS) raw = raw.slice(0, MAX_EXTENSIONS);
 
-  const cleaned: ThemeExtension[] = [];
+  const cleaned: AnyExtension[] = [];
   for (const item of raw) {
     if (!item || typeof item !== 'object') continue;
-    if (item.type !== 'floating') continue;
-    if (!item.char || typeof item.char !== 'string') continue;
 
-    const char = sanitizeChar(item.char);
-    if (!char) continue;
+    if (item.type === 'floating') {
+      if (!item.char || typeof item.char !== 'string') continue;
 
-    const ext: ThemeExtension = { type: 'floating', char };
+      const char = sanitizeChar(item.char);
+      if (!char) continue;
 
-    if (item.top && typeof item.top === 'string') {
-      const v = sanitizeCssDimension(item.top); if (v) ext.top = v;
-    }
-    if (item.left && typeof item.left === 'string') {
-      const v = sanitizeCssDimension(item.left); if (v) ext.left = v;
-    }
-    if (item.right && typeof item.right === 'string') {
-      const v = sanitizeCssDimension(item.right); if (v) ext.right = v;
-    }
-    if (item.bottom && typeof item.bottom === 'string') {
-      const v = sanitizeCssDimension(item.bottom); if (v) ext.bottom = v;
-    }
-    if (item.fontSize && typeof item.fontSize === 'string') {
-      const v = sanitizeCssDimension(item.fontSize); if (v) ext.fontSize = v;
-    }
-    if (typeof item.opacity === 'number') {
-      ext.opacity = Math.max(0, Math.min(1, item.opacity));
-    }
-    if (item.animation && typeof item.animation === 'string') {
-      const v = sanitizeCssValue(item.animation); if (v) ext.animation = v;
-    }
-    if (typeof item.zIndex === 'number') {
-      ext.zIndex = Math.max(-1, Math.min(99999, Math.floor(item.zIndex)));
-    }
+      const ext: ThemeExtension = { type: 'floating', char };
 
-    cleaned.push(ext);
+      if (item.top && typeof item.top === 'string') {
+        const v = sanitizeCssDimension(item.top); if (v) ext.top = v;
+      }
+      if (item.left && typeof item.left === 'string') {
+        const v = sanitizeCssDimension(item.left); if (v) ext.left = v;
+      }
+      if (item.right && typeof item.right === 'string') {
+        const v = sanitizeCssDimension(item.right); if (v) ext.right = v;
+      }
+      if (item.bottom && typeof item.bottom === 'string') {
+        const v = sanitizeCssDimension(item.bottom); if (v) ext.bottom = v;
+      }
+      if (item.fontSize && typeof item.fontSize === 'string') {
+        const v = sanitizeCssDimension(item.fontSize); if (v) ext.fontSize = v;
+      }
+      if (typeof item.opacity === 'number') {
+        ext.opacity = Math.max(0, Math.min(1, item.opacity));
+      }
+      if (item.animation && typeof item.animation === 'string') {
+        const v = sanitizeCssValue(item.animation); if (v) ext.animation = v;
+      }
+      if (typeof item.zIndex === 'number') {
+        ext.zIndex = Math.max(-1, Math.min(99999, Math.floor(item.zIndex)));
+      }
+
+      cleaned.push(ext);
+
+    } else if (item.type === 'decorative' && item.html && typeof item.html === 'string') {
+      const html = sanitizeDecorativeHtml(item.html);
+      if (html) {
+        cleaned.push({ type: 'decorative', html });
+      }
+    }
   }
   return cleaned.length > 0 ? cleaned : undefined;
 }

@@ -120,11 +120,11 @@ import Layout from '../layouts/Layout.astro';
               <textarea
                 id="exts-input"
                 spellcheck="false"
-                placeholder='[{"type":"floating","char":"🪷","top":"20%","left":"5%","fontSize":"30px","opacity":0.3,"animation":"swing 4s ease-in-out infinite"}]'
+                placeholder='[{"type":"floating","char":"🪷","top":"20%","left":"5%","fontSize":"30px","opacity":0.3,"animation":"swing 4s ease-in-out infinite"},{"type":"decorative","html":"<div class=\\"particle\\" style=\\"top:50%;left:20%\\"></div>"}]'
                 class="code-textarea css-textarea"
               ></textarea>
               <div id="exts-hint" class="extensions-hint">
-                每个元素需包含 <code>type: "floating"</code> + <code>char</code>；可选 <code>top/left/right/bottom/fontSize/opacity/animation/zIndex</code>
+                <code>type: "floating"</code> + <code>char</code> 创建浮动字符；<code>type: "decorative"</code> + <code>html</code> 注入装饰性 HTML。可选 <code>top/left/right/bottom/fontSize/opacity/animation/zIndex</code>
               </div>
             </div>
           </div>
@@ -516,14 +516,30 @@ import Layout from '../layouts/Layout.astro';
         .toast.success { border-left: 4px solid var(--color-primary); }
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes slideOut { to { transform: translateY(10px); opacity: 0; } }
+        /* ─── Ambient Orbs ─── */
+        .amb { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+        .amb-orb { position: absolute; border-radius: 50%; filter: blur(160px); animation: orbDrift 20s ease-in-out infinite; will-change: transform; }
+        .amb-orb:nth-child(1) { width: 800px; height: 800px; top: -30%; left: -15%; background: var(--ambient-1); animation-delay: 0s; }
+        .amb-orb:nth-child(2) { width: 600px; height: 600px; bottom: -20%; right: -10%; background: var(--ambient-2); animation-delay: -7s; }
+        .amb-orb:nth-child(3) { width: 500px; height: 500px; top: 40%; left: 45%; background: var(--ambient-1); opacity: 0.6; animation-delay: -14s; }
+        .amb-grain { position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.035; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); background-repeat: repeat; background-size: 256px 256px; }
+        @keyframes orbDrift { 0%, 100% { transform: translate(0, 0) scale(1); } 25% { transform: translate(4%, -3%) scale(1.08); } 50% { transform: translate(-2%, 2%) scale(0.94); } 75% { transform: translate(-3%, -1%) scale(1.05); } }
+        .app-layout { position: relative; z-index: 1; }
         /* ─── Particle Engine ─── */
         #particle-layer { position: fixed; inset: 0; pointer-events: none; z-index: 100; overflow: hidden; }
         .particle { position: absolute; pointer-events: none; will-change: transform, opacity; }
         @media (max-width: 768px) { .app-layout { flex-direction: column; } .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--color-border); flex-direction: row; padding: 12px 16px; overflow-x: auto; align-items: center;} .sidebar-brand { padding: 0 16px 0 0; margin-right: 16px; border-right: 1px solid var(--color-border); } .nav-item { white-space: nowrap; } .main-content { padding: var(--space-4); } .toast-container { bottom: 20px; right: 20px; left: 20px; align-items: center; } }
       </style>
       <style id="theme-style"></style>
+      <style id="custom-css-style"></style>
     </head>
     <body>
+      <div class="amb">
+        <div class="amb-orb"></div>
+        <div class="amb-orb"></div>
+        <div class="amb-orb"></div>
+      </div>
+      <div class="amb-grain"></div>
       <div id="particle-layer"></div>
       <div class="toast-container" id="toast-container"></div>
       <div class="app-layout">
@@ -728,11 +744,15 @@ import Layout from '../layouts/Layout.astro';
     const doc = iframe.contentDocument || iframe.contentWindow?.document;
     if (!doc) return;
 
-    // 1. Live injection of CSS Variables & Custom CSS via DOM
+    // 1. Live injection of CSS Variables (separate from custom CSS)
     const styleEl = doc.getElementById('theme-style');
     if (styleEl) {
       const varsCSS = Object.entries(vars).map(([k, v]) => `${k}:${v}`).join(';');
-      styleEl.textContent = `:root { ${varsCSS} }\n${css || ''}`;
+      styleEl.textContent = `:root { ${varsCSS} }`;
+    }
+    const customStyleEl = doc.getElementById('custom-css-style');
+    if (customStyleEl) {
+      customStyleEl.textContent = css || '';
     }
 
     // 2. Set Theme metadata within sandbox
@@ -746,6 +766,7 @@ import Layout from '../layouts/Layout.astro';
       var _sv = function(v) { return (v||'').toString().slice(0,128).replace(/[;{}]/g,'').replace(/url\s*\(/gi,'').replace(/expression\s*\(/gi,'').replace(/javascript\s*:/gi,'').replace(/@import/gi,'').trim(); };
       var _sd = function(v) { var s = _sv(v); return /^-?[\d.]+(?:%|px|em|rem|vh|vw|s|ms)?$/i.test(s) ? s : ''; };
       var extAnimNames = [];
+      var extClassNames = [];
       // Render user-submitted declarative extensions (sanitized)
       if (currentExts && currentExts.length > 0) {
         currentExts.slice(0,20).forEach(function(ext) {
@@ -773,6 +794,16 @@ import Layout from '../layouts/Layout.astro';
                 if (/^on/i.test(attr.name)) el.removeAttribute(attr.name);
               });
             });
+            // Track class names to avoid auto-generating duplicates
+            var classMatches = ext.html.match(/class\s*=\s*["']([^"']+)["']/g);
+            if (classMatches) {
+              classMatches.forEach(function(cm) {
+                var clsMatch = cm.match(/class\s*=\s*["']([^"']+)["']/);
+                if (clsMatch) {
+                  clsMatch[1].split(/\s+/).forEach(function(c) { if (c) extClassNames.push(c); });
+                }
+              });
+            }
             particleLayer.appendChild(frag);
           }
         });
@@ -787,6 +818,7 @@ import Layout from '../layouts/Layout.astro';
             if (!parts) return;
             var cls = parts[1], animName = parts[2];
             if (extAnimNames.indexOf(animName) !== -1) return;
+            if (extClassNames.indexOf(cls) !== -1) return;
             var count = /particle|dot|orb|bubble|spark|star/.test(cls) ? 20
               : /float|drift|sway/.test(cls) ? 12
               : /rain|snow|fall/.test(cls) ? 30 : 8;
@@ -1245,6 +1277,8 @@ body::after {
 
   function getCachedStatus(h) {
     if (!h._status || !h._checked) return null;
+    // 'expired' is permanent — the theme was deleted from Redis, don't re-check
+    if (h._status === 'expired') return h._status;
     if (Date.now() - h._checked > STATUS_CACHE_TTL) return null;
     return h._status;
   }

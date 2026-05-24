@@ -709,10 +709,10 @@ const initialThemeData = {
       pixels.push([data[i], data[i + 1], data[i + 2]]);
     }
 
-    if (pixels.length < 100) return ['#000000', '#ffffff', '#888888'];
+    if (pixels.length < 100) return ['#000000', '#ffffff', '#888888', '#cccccc', '#666666'];
 
-    // K-means clustering (k=8)
-    const k = 8;
+    // K-means clustering (k=12 — enough for 5+ unique after dedup)
+    const k = 12;
     const centroids = kMeansInit(pixels, k, 10);
     const clusters = kMeansCluster(pixels, centroids, 15);
 
@@ -728,22 +728,47 @@ const initialThemeData = {
       .sort((a, b) => b.size - a.size)
       .map(c => c.color);
 
-    // Remove near-duplicates using CIEDE2000-like simplified distance
-    const unique = [palette[0]];
-    for (let i = 1; i < palette.length; i++) {
-      const [r1, g1, b1] = hexToRgb(palette[i]);
-      let tooClose = false;
-      for (const existing of unique) {
-        const [r2, g2, b2] = hexToRgb(existing);
-        // Weighted RGB distance (human perception weighted)
-        const dr = (r1 - r2) * 0.299;
-        const dg = (g1 - g2) * 0.587;
-        const db = (b1 - b2) * 0.114;
-        const dist = Math.sqrt(dr * dr + dg * dg + db * db);
-        if (dist < 35) { tooClose = true; break; }
+    // Remove near-duplicates (perceptually weighted distance)
+    function dedupWithThreshold(colors, threshold) {
+      const result = [colors[0]];
+      for (let i = 1; i < colors.length; i++) {
+        const [r1, g1, b1] = hexToRgb(colors[i]);
+        let tooClose = false;
+        for (const existing of result) {
+          const [r2, g2, b2] = hexToRgb(existing);
+          const dr = (r1 - r2) * 0.299;
+          const dg = (g1 - g2) * 0.587;
+          const db = (b1 - b2) * 0.114;
+          const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+          if (dist < threshold) { tooClose = true; break; }
+        }
+        if (!tooClose) result.push(colors[i]);
+        if (result.length >= 8) break;
       }
-      if (!tooClose) unique.push(palette[i]);
-      if (unique.length >= 8) break;
+      return result;
+    }
+
+    let unique = dedupWithThreshold(palette, 30);
+    // Fallback: lower threshold to ensure at least 5 colors
+    if (unique.length < 5) unique = dedupWithThreshold(palette, 18);
+    // Still not enough: supplement with generated variants from extracted colors
+    if (unique.length < 5) {
+      const byLum = [...unique].sort((a, b) => relativeLuminance(a) - relativeLuminance(b));
+      const darkest = byLum[0];
+      // Generate additional colors by lightening the darkest color at different steps
+      const steps = [0.06, 0.15, 0.28, 0.42, 0.58];
+      for (const step of steps) {
+        if (unique.length >= 5) break;
+        const variant = lightenColor(darkest, step);
+        // Only add if perceptually distinct from all existing
+        const [r1, g1, b1] = hexToRgb(variant);
+        const tooClose = unique.some(c => {
+          const [r2, g2, b2] = hexToRgb(c);
+          const dr = (r1 - r2) * 0.299, dg = (g1 - g2) * 0.587, db = (b1 - b2) * 0.114;
+          return Math.sqrt(dr * dr + dg * dg + db * db) < 18;
+        });
+        if (!tooClose) unique.push(variant);
+      }
     }
 
     return unique;
@@ -884,8 +909,8 @@ const initialThemeData = {
 
   // Apply palette as theme
   document.getElementById('btn-apply-palette').addEventListener('click', () => {
-    if (extractedColors.length < 3) {
-      window.__toast?.('需要至少 3 种颜色');
+    if (extractedColors.length < 5) {
+      window.__toast?.('需要至少 5 种颜色，请尝试色彩更丰富的图片');
       return;
     }
     const vars = generateThemeFromColors(extractedColors);
@@ -905,8 +930,8 @@ const initialThemeData = {
 
   // Copy AI prompt with palette description
   document.getElementById('btn-copy-palette-ai').addEventListener('click', async () => {
-    if (extractedColors.length < 3) {
-      window.__toast?.('请先上传图片');
+    if (extractedColors.length < 5) {
+      window.__toast?.('提取的颜色不足，请尝试色彩更丰富的图片');
       return;
     }
     const paletteDesc = extractedColors.slice(0, 6).map((c, i) => {
@@ -915,7 +940,11 @@ const initialThemeData = {
     }).join('\n');
 
     const vars = generateThemeFromColors(extractedColors);
-    const themeJSON = JSON.stringify({ cssVars: vars }, null, 2);
+    const themeJSON = JSON.stringify({
+      cssVars: vars,
+      customCss: "",
+      extensions: [],
+    }, null, 2);
 
     const prompt = `I have an image with these dominant colors:
 ${paletteDesc}
@@ -927,18 +956,20 @@ ${themeJSON}
 \`\`\`
 
 Requirements:
-1. Generate a complete HTML page that uses these CSS custom properties
-2. Create a dark-mode glass-morphism design
-3. Add subtle animations and particle effects that match the color mood
-4. Use the color palette consistently across buttons, cards, typography, backgrounds
-5. Include ambient background orbs using the primary and secondary colors
-6. Inject CSS variables into :root on page load
+1. Injects all CSS variables from the starter theme JSON into :root using document.documentElement.style.setProperty() on page load
+2. Uses the CSS variables throughout the page (buttons, cards, typography, backgrounds)
+3. Has a glass-morphism dark design with ambient background orbs using --ambient-1 and --ambient-2
+4. Includes localStorage caching so the theme persists across page loads
+5. Allows customCss injection via a <style> tag appended to <head>
+6. Add subtle animations and particle effects that match the color mood
 
-The design should feel cohesive with the color palette extracted from the image.`;
+You may adjust the color roles (primary, secondary, accent, bg, surface, text) if the starter assignments don't feel optimal — the starter JSON is just a best-guess mapping from the palette extraction.
+
+Theme color summary: primary=${vars['--color-primary']}, bg=${vars['--color-bg']}, surface=${vars['--color-surface']}, text=${vars['--color-text']}.`;
 
     try {
       await navigator.clipboard.writeText(prompt);
-      window.__toast?.('AI 提示词（含调色板描述）已复制');
+      window.__toast?.('AI 提示词已复制，可粘贴给 AI 生成站点');
     } catch {
       window.__toast?.('复制失败');
     }

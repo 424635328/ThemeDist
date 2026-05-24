@@ -947,6 +947,11 @@ const siteUrl = Astro.url.origin;
       // Has custom CSS?
       const hasCustomCSS = t.customCss && t.customCss.trim().length > 0;
 
+      // Has extensions?
+      const hasExts = t.extensions && t.extensions.length > 0;
+      const floatingCount = hasExts ? t.extensions.filter(e => e.type === 'floating').length : 0;
+      const decorativeCount = hasExts ? t.extensions.filter(e => e.type === 'decorative').length : 0;
+
       // Generate preview chip colors
       const chipBg = bg;
       const chipSurface = surface;
@@ -979,7 +984,8 @@ const siteUrl = Astro.url.origin;
                 <span class="review-meta-date">${dateStr}</span>
                 <span class="review-meta-sep">·</span>
                 <span class="review-meta-extra">${varCount} 核心 CSS 变量</span>
-                ${hasCustomCSS ? '<span class="review-meta-tag">含外部动画/粒子 CSS</span>' : ''}
+                ${hasCustomCSS ? '<span class="review-meta-tag">含自定义 CSS</span>' : ''}
+                ${hasExts ? `<span class="review-meta-tag">扩展: ${floatingCount > 0 ? floatingCount + '浮动' : ''}${floatingCount > 0 && decorativeCount > 0 ? ' + ' : ''}${decorativeCount > 0 ? decorativeCount + '装饰' : ''}</span>` : ''}
               </div>
 
               <div class="review-swatches">

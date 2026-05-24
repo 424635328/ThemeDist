@@ -381,6 +381,48 @@ const id = Astro.url.searchParams.get('id') || '';
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes slideOut { to { transform: translateY(10px); opacity: 0; } }
 
+        /* Ambient orbs (mirrors Layout.astro) */
+        .amb {
+          position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+        }
+        .amb-orb {
+          position: absolute; border-radius: 50%; filter: blur(160px);
+          animation: orbDrift 20s ease-in-out infinite;
+          will-change: transform;
+        }
+        .amb-orb:nth-child(1) {
+          width: 800px; height: 800px;
+          top: -30%; left: -15%;
+          background: var(--ambient-1);
+          animation-delay: 0s;
+        }
+        .amb-orb:nth-child(2) {
+          width: 600px; height: 600px;
+          bottom: -20%; right: -10%;
+          background: var(--ambient-2);
+          animation-delay: -7s;
+        }
+        .amb-orb:nth-child(3) {
+          width: 500px; height: 500px;
+          top: 40%; left: 45%;
+          background: var(--ambient-1);
+          opacity: 0.6;
+          animation-delay: -14s;
+        }
+        .amb-grain {
+          position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.035;
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+          background-repeat: repeat;
+          background-size: 256px 256px;
+        }
+        @keyframes orbDrift {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          25% { transform: translate(4%, -3%) scale(1.08); }
+          50% { transform: translate(-2%, 2%) scale(0.94); }
+          75% { transform: translate(-3%, -1%) scale(1.05); }
+        }
+        .app-layout, #effects-container { position: relative; z-index: 1; }
+
         /* Responsive */
         @media (max-width: 768px) {
           .app-layout { flex-direction: column; }
@@ -395,6 +437,12 @@ const id = Astro.url.searchParams.get('id') || '';
       <style id="custom-effects-style">{{INJECT_CUSTOM_CSS}}</style>
     </head>
     <body>
+      <div class="amb">
+        <div class="amb-orb"></div>
+        <div class="amb-orb"></div>
+        <div class="amb-orb"></div>
+      </div>
+      <div class="amb-grain"></div>
       <div id="effects-container">{{INJECT_EFFECTS_HTML}}</div>
       <div class="toast-container" id="toast-container"></div>
       
@@ -650,23 +698,48 @@ const id = Astro.url.searchParams.get('id') || '';
     // Render extensions + auto-generated particles (mirrors submit.astro & Layout.astro)
     var effectsHtml = '';
     var extAnimNames = [];
+    var extClassNames = [];
     var exts = t.extensions || [];
+
+    // Inline CSS sanitizers (mirrors Layout.astro safeVal/safeDim)
+    function _sv(v) { return (v||'').toString().slice(0,128).replace(/[;{}]/g,'').replace(/url\s*\(/gi,'').replace(/expression\s*\(/gi,'').replace(/javascript\s*:/gi,'').replace(/@import/gi,'').trim(); }
+    function _sd(v) { var s = _sv(v); return /^-?[\d.]+(?:%|px|em|rem|vh|vw|s|ms)?$/i.test(s) ? s : ''; }
 
     // 1. Render explicit extensions
     exts.slice(0, 20).forEach(function(ext) {
       if (ext.type === 'floating' && ext.char) {
-        var anim = ext.animation || '';
+        var t2 = _sd(ext.top), l = _sd(ext.left), r = _sd(ext.right), b = _sd(ext.bottom);
+        var fs = _sd(ext.fontSize), anim = _sv(ext.animation || '');
         if (anim) { var m = anim.match(/^(\w+)/); if (m) extAnimNames.push(m[1]); }
+        var z = (typeof ext.zIndex === 'number' && ext.zIndex > -2 && ext.zIndex < 100000) ? ext.zIndex : null;
+        var op = (typeof ext.opacity === 'number' && ext.opacity >= 0 && ext.opacity <= 1) ? ext.opacity : null;
         var styles = ['position:fixed', 'pointer-events:none'];
-        if (ext.top) styles.push('top:' + ext.top);
-        if (ext.left) styles.push('left:' + ext.left);
-        if (ext.right) styles.push('right:' + ext.right);
-        if (ext.bottom) styles.push('bottom:' + ext.bottom);
-        if (ext.fontSize) styles.push('font-size:' + ext.fontSize);
+        if (t2) styles.push('top:' + t2);
+        if (l) styles.push('left:' + l);
+        if (r) styles.push('right:' + r);
+        if (b) styles.push('bottom:' + b);
+        if (fs) styles.push('font-size:' + fs);
         if (anim) styles.push('animation:' + anim);
-        if (typeof ext.zIndex === 'number') styles.push('z-index:' + ext.zIndex);
-        if (typeof ext.opacity === 'number') styles.push('opacity:' + ext.opacity);
-        effectsHtml += '<div style="' + styles.join(';') + '">' + String(ext.char).slice(0, 4) + '</div>';
+        if (z != null) styles.push('z-index:' + z);
+        if (op != null) styles.push('opacity:' + op);
+        effectsHtml += '<div style="' + styles.join(';') + '">' + _sv(ext.char).slice(0, 4) + '</div>';
+      } else if (ext.type === 'decorative' && ext.html) {
+        // Strip event handlers from decorative HTML
+        var html = ext.html.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '')
+          .replace(/javascript\s*:/gi, '')
+          .replace(/<script[\s\S]*?<\/script>/gi, '')
+          .replace(/<iframe[\s\S]*?<\/iframe>/gi, '');
+        // Track class names to avoid auto-generating duplicates
+        var classMatches = ext.html.match(/class\s*=\s*["']([^"']+)["']/g);
+        if (classMatches) {
+          classMatches.forEach(function(cm) {
+            var clsMatch = cm.match(/class\s*=\s*["']([^"']+)["']/);
+            if (clsMatch) {
+              clsMatch[1].split(/\s+/).forEach(function(c) { if (c) extClassNames.push(c); });
+            }
+          });
+        }
+        effectsHtml += html;
       }
     });
 
@@ -679,6 +752,7 @@ const id = Astro.url.searchParams.get('id') || '';
           if (!parts) return;
           var cls = parts[1], animName = parts[2];
           if (extAnimNames.indexOf(animName) !== -1) return;
+          if (extClassNames.indexOf(cls) !== -1) return;
           var count = /particle|dot|orb|bubble|spark|star/.test(cls) ? 20
             : /float|drift|sway/.test(cls) ? 12
             : /rain|snow|fall/.test(cls) ? 30 : 8;

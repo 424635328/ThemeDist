@@ -13,7 +13,7 @@ const style = Object.entries(cssVars)
 const currentPath = Astro.url.pathname;
 
 const themeStyleTag = `<style>:root{${style}}</style>`;
-const customCssTag = customCss ? `<style>${customCss}</style>` : '';
+const customCssTag = customCss ? `<style id="td-custom-css">${customCss}</style>` : '';
 const extensionsJSON = extensions
   ? JSON.stringify(extensions, null, 2).replace(/<\/script/gi, '<\\/script')
   : '[]';
@@ -739,6 +739,8 @@ function navClass(path: string) {
             var root = document.documentElement;
             Object.entries(vars).forEach(function(e) { root.style.setProperty(e[0], e[1]); });
             if (diyCSS) {
+              var dailyCSS = document.getElementById('td-custom-css');
+              if (dailyCSS) dailyCSS.remove();
               var style = document.getElementById('preview-custom-css') || document.createElement('style');
               style.id = 'preview-custom-css';
               style.textContent = diyCSS;
@@ -748,11 +750,18 @@ function navClass(path: string) {
               var exts = JSON.parse(diyExts);
               var oldExt = document.getElementById('preview-extensions');
               if (oldExt) oldExt.remove();
+              var dailyExt2 = document.getElementById('td-extensions');
+              if (dailyExt2) dailyExt2.innerHTML = '';
               if (exts && exts.length) {
                 var container = document.createElement('div');
                 container.id = 'preview-extensions';
                 renderExtensionsInto(exts, container);
-                document.body.insertBefore(container, document.body.firstChild);
+                var tdExtRef = document.getElementById('td-extensions');
+                if (tdExtRef && tdExtRef.nextSibling) {
+                  document.body.insertBefore(container, tdExtRef.nextSibling);
+                } else {
+                  document.body.appendChild(container);
+                }
               }
             }
             bar.style.display = 'block';
@@ -781,6 +790,8 @@ function navClass(path: string) {
 
             var oldStyle = document.getElementById('preview-custom-css');
             if (oldStyle) oldStyle.remove();
+            var dailyStyle = document.getElementById('td-custom-css');
+            if (dailyStyle) dailyStyle.remove();
             if (data.customCss) {
               var style = document.createElement('style');
               style.id = 'preview-custom-css';
@@ -790,11 +801,70 @@ function navClass(path: string) {
 
             var oldExt = document.getElementById('preview-extensions');
             if (oldExt) oldExt.remove();
+            var oldAuto = document.getElementById('preview-auto-particles');
+            if (oldAuto) oldAuto.remove();
+            var dailyExt = document.getElementById('td-extensions');
+            if (dailyExt) dailyExt.innerHTML = '';
             if (data.extensions && data.extensions.length) {
               var container = document.createElement('div');
               container.id = 'preview-extensions';
               renderExtensionsInto(data.extensions, container);
-              document.body.insertBefore(container, document.body.firstChild);
+              var tdExtRef2 = document.getElementById('td-extensions');
+              if (tdExtRef2 && tdExtRef2.nextSibling) {
+                document.body.insertBefore(container, tdExtRef2.nextSibling);
+              } else {
+                document.body.appendChild(container);
+              }
+            }
+
+            // Auto-generate particles from custom CSS animation classes (mirrors share.astro initIframe)
+            if (data.customCss) {
+              var classMatch = data.customCss.match(/\.([a-zA-Z][\w-]*)\s*\{[^}]*animation\s*:\s*(\w+)/g);
+              if (classMatch) {
+                var extAnimNames = [];
+                var extClassNames = [];
+                if (data.extensions) {
+                  data.extensions.forEach(function(ext) {
+                    if (ext.animation) { var m = ext.animation.match(/^(\w+)/); if (m) extAnimNames.push(m[1]); }
+                    if (ext.type === 'decorative' && ext.html) {
+                      var classMatches = ext.html.match(/class\s*=\s*["']([^"']+)["']/g);
+                      if (classMatches) {
+                        classMatches.forEach(function(cm) {
+                          var clsMatch = cm.match(/class\s*=\s*["']([^"']+)["']/);
+                          if (clsMatch) {
+                            clsMatch[1].split(/\s+/).forEach(function(c) { if (c) extClassNames.push(c); });
+                          }
+                        });
+                      }
+                    }
+                  });
+                }
+                var autoContainer = document.createElement('div');
+                autoContainer.id = 'preview-auto-particles';
+                classMatch.forEach(function(m) {
+                  var parts = m.match(/\.([\w-]+)\s*\{[^}]*animation\s*:\s*(\w+)/);
+                  if (!parts) return;
+                  var cls = parts[1], animName = parts[2];
+                  if (extAnimNames.indexOf(animName) !== -1) return;
+                  if (extClassNames.indexOf(cls) !== -1) return;
+                  var count = /particle|dot|orb|bubble|spark|star/.test(cls) ? 20
+                    : /float|drift|sway/.test(cls) ? 12
+                    : /rain|snow|fall/.test(cls) ? 30 : 8;
+                  for (var i = 0; i < count; i++) {
+                    var el = document.createElement('div');
+                    el.className = cls;
+                    var topVal = /rain|snow|fall/.test(cls) ? -(Math.random() * 20) + 'px' : Math.random() * 100 + '%';
+                    el.style.cssText = 'left:' + Math.random() * 100 + '%;top:' + topVal + ';animation-delay:' + Math.random() * 5 + 's;animation-duration:' + (Math.random() * 3 + 2) + 's';
+                    autoContainer.appendChild(el);
+                  }
+                });
+                var tdExtRef3 = document.getElementById('td-extensions');
+                if (tdExtRef3 && tdExtRef3.nextSibling) {
+                  document.body.insertBefore(autoContainer, tdExtRef3.nextSibling);
+                } else {
+                  document.body.appendChild(autoContainer);
+                }
+              }
             }
 
             // If applied (not just preview via ?theme=), store to localStorage
