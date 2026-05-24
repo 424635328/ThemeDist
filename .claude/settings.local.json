@@ -51,7 +51,10 @@
       "Bash(netlify deploy *)",
       "Read(//api/**)",
       "Bash(node *)",
-      "WebFetch(domain:www.gnu.org)"
+      "WebFetch(domain:www.gnu.org)",
+      "Bash(python3 *)",
+      "Bash(python *)",
+      "Bash(xxd)"
     ]
   }
 }
