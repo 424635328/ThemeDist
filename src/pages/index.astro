@@ -438,7 +438,7 @@ fetch('/api/today.json')
 
         // Overall from status endpoint
         var overallOk = data.overall === 'healthy';
-        setOverall(overallOk ? 'sec-healthy' : 'sec-warning', overallOk ? '系统正常' : '部分异常');
+        setOverall(overallOk ? 'sec-healthy' : 'sec-warning', overallOk ? '系统正常' : '维护中');
       })
       .catch(function() {
         setOverall('sec-danger', '不可达');
@@ -459,7 +459,7 @@ fetch('/api/today.json')
         setCard(
           'sec-theme',
           safe ? 'sec-healthy' : 'sec-danger',
-          safe ? '安全' : '有风险',
+          safe ? '安全' : '不安全',
           data.themeName || ''
         );
 
