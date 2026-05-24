@@ -1,3 +1,4 @@
+import { Lunar } from 'lunar-javascript';
 import OmniConfig from '../api/index_config.js';
 import type { ComposedTheme, AnyExtension, ThemeTag } from '../themes/types';
 import { isReady, zrevrange, get, zcard } from '../lib/redis';
@@ -236,6 +237,90 @@ export async function getDailyCommunityTheme(): Promise<ComposedTheme | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Get the theme for a specific date (MM-DD format).
+ * Selection priority: lunar holiday → gregorian holiday → community (every 3rd day) → dailyPool.
+ */
+export async function getDateTheme(dateStr: string): Promise<ComposedTheme> {
+  const dailyPool = (OmniConfig.dailyPool || []) as OmniThemeEntry[];
+  if (dailyPool.length === 0) {
+    return omniToComposed({
+      id: 'fallback',
+      name: 'Default',
+      theme: {
+        bgBase: '#0f0f23', textMain: '#f4f4f5', textMuted: '#a1a1aa',
+        accentRgb: '99,102,241', avatarGrad1: '#6366f1', avatarGrad2: '#818cf8',
+        ambient1: 'rgba(99,102,241,0.15)', ambient2: 'rgba(129,140,248,0.1)',
+      },
+    });
+  }
+
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) {
+    return getOmniDailyTheme();
+  }
+
+  const targetDate = new Date(new Date().getFullYear(), parts[0] - 1, parts[1]);
+  if (isNaN(targetDate.getTime())) {
+    return getOmniDailyTheme();
+  }
+
+  const start = new Date(targetDate.getFullYear(), 0, 0);
+  const diff = targetDate.getTime() - start.getTime() + (start.getTimezoneOffset() - targetDate.getTimezoneOffset()) * 60 * 1000;
+  const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+  // Helper: wrap a raw holiday/crazy entry into full OmniThemeEntry shape
+  const wrapEntry = (entry: any, id: string): OmniThemeEntry => ({
+    id,
+    name: entry.logo?.text || id,
+    logo: entry.logo,
+    theme: entry.theme,
+    extensions: entry.extensions,
+    type: 'holiday',
+  });
+
+  // 1. Lunar holiday
+  try {
+    const lunar = Lunar.fromDate(targetDate);
+    const lMonth = String(Math.abs(lunar.getMonth())).padStart(2, '0');
+    const lDay = String(lunar.getDay()).padStart(2, '0');
+    const lunarKey = `L${lMonth}-${lDay}`;
+    if (OmniConfig.holidays?.[lunarKey]) {
+      return omniToComposed(wrapEntry(OmniConfig.holidays[lunarKey], `holiday-${lunarKey.toLowerCase()}`));
+    }
+  } catch { /* skip if lunar conversion fails */ }
+
+  // 2. Gregorian holiday
+  if (OmniConfig.holidays?.[dateStr]) {
+    return omniToComposed(wrapEntry(OmniConfig.holidays[dateStr], `holiday-${dateStr.toLowerCase()}`));
+  }
+
+  // 3. Crazy Thursday
+  if (targetDate.getDay() === 4 && OmniConfig.crazyThursday) {
+    return omniToComposed(wrapEntry(OmniConfig.crazyThursday as any, 'crazy-thursday'));
+  }
+
+  // 4. Community theme (every 3rd day)
+  if (dayOfYear % 3 === 2) {
+    try {
+      if (isReady()) {
+        const count = await zcard(COMMUNITY_NEWEST_KEY);
+        if (count > 0) {
+          const idx = dayOfYear % count;
+          const ids = await zrevrange(COMMUNITY_NEWEST_KEY, idx, idx) as string[];
+          if (ids && ids.length > 0) {
+            const ct = await get<CommunityThemeRaw>(`td:theme:${ids[0]}`);
+            if (ct) return communityToComposed(ct);
+          }
+        }
+      }
+    } catch { /* fall through to dailyPool */ }
+  }
+
+  // 5. Daily pool
+  return omniToComposed(dailyPool[dayOfYear % dailyPool.length]);
 }
 
 /** List all available themes for the store — dailyPool + all holidays + crazyThursday */

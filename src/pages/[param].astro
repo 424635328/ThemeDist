@@ -1,0 +1,25 @@
+---
+import { getDateTheme } from '../utils/daily-theme';
+
+const { param } = Astro.params;
+const match = param?.match(/^date=(\d{2}-\d{2})$/);
+
+if (!match) {
+  return Astro.redirect('/');
+}
+
+const theme = await getDateTheme(match[1]);
+const script = `<script>localStorage.setItem('themeDistApplied',JSON.stringify({preset:'${theme.preset}'}));location.replace('/');</script>`;
+---
+
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>应用主题 — {theme.presetName}</title>
+  <Fragment set:html={script} />
+</head>
+<body>
+  <p style="text-align:center;margin-top:40px;color:#888">正在应用 {theme.presetName}...</p>
+</body>
+</html>

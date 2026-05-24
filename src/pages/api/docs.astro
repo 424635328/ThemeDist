@@ -175,6 +175,11 @@ function applyTheme(d) {
               <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/theme/{'{preset}'}.json</td>
               <td style="padding:12px 18px;font-size:13px">指定预设的完整数据（{totalAvailable} 个端点，永久缓存）</td>
             </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/date=MM-DD</td>
+              <td style="padding:12px 18px;font-size:13px">按日期查询主题，格式 MM-DD（如 <code>/api/date=02-14</code>）</td>
+            </tr>
             <tr><td colspan="3" style="padding:8px 18px;font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 4%, transparent)">COMMUNITY 社区主题</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)">
               <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
