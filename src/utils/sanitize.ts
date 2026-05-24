@@ -201,11 +201,9 @@ function tryParseFloating(html: string): ThemeExtension | null {
 
     switch (key) {
       case 'top': case 'left': case 'right': case 'bottom':
-      case 'font-size': case 'fontsize': {
-        const dim = sanitizeCssDimension(val);
-        if (dim) (ext as Record<string, string>)[key === 'fontsize' ? 'fontSize' : key] = dim;
-        break;
-      }
+        { const dim = sanitizeCssDimension(val); if (dim) (ext as Record<string, string>)[key] = dim; break; }
+      case 'font-size': case 'fontsize':
+        { const dim = sanitizeCssDimension(val); if (dim) ext.fontSize = dim; break; }
       case 'opacity':
         ext.opacity = Math.max(0, Math.min(1, parseFloat(val) || 0));
         break;

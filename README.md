@@ -53,8 +53,8 @@ function applyTheme(t) {
     s.textContent = t.customCss;
   }
 
-  // 3. 声明式装饰元素
-  if (t.extensions) renderExtensions(t.extensions);
+  // 3. 声明式装饰元素 — 完整渲染逻辑见下方「完整集成方案」的 renderExtensions 函数
+  // 此处省略，生产环境请使用下方完整方案（含缓存、降级、XSS 安全渲染）
 
   // 4. 写入缓存
   const today = new Date().toISOString().slice(0, 10);
@@ -247,7 +247,14 @@ curl https://themedist.netlify.app/api/today.json
   "logoColors": ["#C84B31", "#FFB347"],
   "available": 248,
   "directory": [
-    { "preset": "spring", "name": "Spring Blossom", "primary": "#ec4899", "accent": "#10b981", "logoText": null }
+    { "preset": "spring", "name": "Spring Blossom", "primary": "#ec4899", "accent": "#10b981", "logoText": null },
+    {
+      "preset": "arknights-babel-epic",
+      "name": "ARKNIGHTS",
+      "primary": "#2c3540",
+      "accent": "#b34747",
+      "logoText": "ARKNIGHTS"
+    },
   ]
 }
 ```
@@ -309,17 +316,21 @@ curl https://themedist-monitor.vercel.app/api/today-safe
 
 **XSS 清洗范围：** 移除 HTML 标签、事件处理器（`onerror`、`onload` 等）、`javascript:` 协议、CSS `expression()`。清洗后的数据可直接注入 DOM。
 
-### 获取指定主题
+### 获取指定预设主题
 
 ```bash
-# 获取预设主题
-curl https://themedist.netlify.app/api/theme/midnight.json
-
-# 获取社区主题
-curl https://themedist.netlify.app/api/theme/community-abc12345.json
+curl https://themedist.netlify.app/api/theme/yozakura-reverie.json
 ```
 
-预设主题返回 365 天不可变缓存头；社区主题返回 1 小时缓存。
+返回 365 天不可变缓存头（`immutable`）。
+
+### 获取指定社区主题
+
+```bash
+curl "https://themedist.netlify.app/api/diy/theme.json?id=La59KWMz"
+```
+
+返回完整社区主题数据（含作者、点赞数、标签等元信息），缓存 5 分钟。
 
 ### 获取构建时索引数据
 
@@ -743,9 +754,12 @@ GET /api/today.json（Vercel + Netlify 统一路由）
 |------|--------|-----|
 | `/api/today.json` | 1 小时 (`max-age=3600`) | 24 小时 + 1h 降级 (`s-maxage=86400, stale-while-revalidate=3600`) |
 | `/api/theme/*.json`（预设） | 24 小时 | 365 天（`immutable`） |
-| `/api/theme/*.json`（社区） | 1 小时 | 不使用 CDN 缓存 |
+| `/api/theme/community-*.json` | 1 小时 (`max-age=3600`) | 不使用 CDN 缓存 |
 | `/api/index-data.json` | 1 小时 (`max-age=3600`) | 24 小时 (`s-maxage=86400`) |
-| `/api/diy/*` | 1 分钟或不缓存 | 不使用 CDN 缓存 |
+| `/api/diy/theme.json?id=` | 5 分钟 (`max-age=300`) | 不使用 CDN 缓存 |
+| `/api/diy/themes.json` | 1 分钟 (`max-age=60`) | 不使用 CDN 缓存 |
+| `/api/diy/submit.json` | 不缓存（POST） | 不使用 CDN 缓存 |
+| `/api/diy/like.json` | 不缓存（POST） | 不使用 CDN 缓存 |
 | `/api/ai/generate.json` | 不缓存 | 不使用 CDN 缓存 |
 | `/api/admin/*` | 不缓存 | 不使用 CDN 缓存 |
 
