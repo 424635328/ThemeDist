@@ -75,6 +75,65 @@ const accent = today.cssVars['--color-accent'];
   </section>
 
   <!-- ================================================
+       SECURITY STATUS
+       ================================================ -->
+  <section class="section-sm" id="security-status" style="padding-top:0">
+    <div class="sec-panel card card-glass reveal reveal-d4">
+      <div class="sec-header">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="sec-dot" id="sec-dot"></span>
+          <span style="font-size:15px;font-weight:700;letter-spacing:-0.02em">安全状态</span>
+        </div>
+        <span class="sec-tag" id="sec-tag">检查中...</span>
+      </div>
+
+      <div class="sec-grid" id="sec-grid">
+        <!-- Vercel -->
+        <div class="sec-card" id="sec-vercel">
+          <div class="sec-card-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg>
+            <span>Vercel</span>
+          </div>
+          <div class="sec-card-body">
+            <span class="sec-card-status" id="sec-vercel-status">—</span>
+            <span class="sec-card-detail" id="sec-vercel-detail"></span>
+          </div>
+        </div>
+
+        <!-- Netlify -->
+        <div class="sec-card" id="sec-netlify">
+          <div class="sec-card-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg>
+            <span>Netlify</span>
+          </div>
+          <div class="sec-card-body">
+            <span class="sec-card-status" id="sec-netlify-status">—</span>
+            <span class="sec-card-detail" id="sec-netlify-detail"></span>
+          </div>
+        </div>
+
+        <!-- Theme Safety -->
+        <div class="sec-card" id="sec-theme">
+          <div class="sec-card-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg>
+            <span>主题安全</span>
+          </div>
+          <div class="sec-card-body">
+            <span class="sec-card-status" id="sec-theme-status">—</span>
+            <span class="sec-card-detail" id="sec-theme-detail"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- flagged reasons -->
+      <div class="sec-reasons" id="sec-reasons" style="display:none">
+        <div style="font-size:13px;font-weight:600;margin-bottom:6px;color:var(--color-text-muted)">安全警告</div>
+        <ul id="sec-reasons-list" style="font-size:12px;color:#ef4444;margin:0;padding-left:18px;line-height:1.7"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================
        THREE STEPS
        ================================================ -->
   <section class="section-sm">
@@ -209,7 +268,215 @@ fetch('/api/today.json')
   </section>
 </Layout>
 
+<style>
+  .sec-panel {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 28px 32px;
+  }
+  .sec-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .sec-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--color-text-muted);
+    transition: background 0.4s ease, box-shadow 0.4s ease;
+    flex-shrink: 0;
+  }
+  .sec-dot.sec-healthy { background: #22c55e; box-shadow: 0 0 10px #22c55e88; }
+  .sec-dot.sec-warning { background: #f59e0b; box-shadow: 0 0 10px #f59e0b88; }
+  .sec-dot.sec-danger  { background: #ef4444; box-shadow: 0 0 10px #ef444488; animation: secPulse 1.5s ease-in-out infinite; }
+
+  @keyframes secPulse {
+    0%, 100% { box-shadow: 0 0 8px #ef444488; }
+    50%      { box-shadow: 0 0 20px #ef4444aa; }
+  }
+
+  .sec-tag {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 4px 14px;
+    border-radius: 99px;
+    background: color-mix(in srgb, var(--color-text-muted) 12%, transparent);
+    color: var(--color-text-muted);
+    transition: all 0.4s ease;
+  }
+  .sec-tag.sec-healthy { background: #22c55e22; color: #22c55e; }
+  .sec-tag.sec-danger  { background: #ef444422; color: #ef4444; }
+
+  .sec-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 768px) {
+    .sec-grid { grid-template-columns: 1fr; }
+  }
+
+  .sec-card {
+    background: color-mix(in srgb, var(--color-bg) 60%, transparent);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    transition: border-color 0.3s ease;
+  }
+  .sec-card.sec-healthy { border-color: #22c55e44; }
+  .sec-card.sec-warning { border-color: #f59e0b44; }
+  .sec-card.sec-danger  { border-color: #ef444444; }
+
+  .sec-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    margin-bottom: 10px;
+  }
+  .sec-card-header svg {
+    flex-shrink: 0;
+    transition: color 0.4s ease;
+  }
+  .sec-card.sec-healthy .sec-card-header svg { color: #22c55e; }
+  .sec-card.sec-warning .sec-card-header svg { color: #f59e0b; }
+  .sec-card.sec-danger  .sec-card-header svg { color: #ef4444; }
+
+  .sec-card-body {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .sec-card-status {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--color-text);
+    transition: color 0.4s ease;
+  }
+  .sec-card.sec-healthy .sec-card-status { color: #22c55e; }
+  .sec-card.sec-warning .sec-card-status { color: #f59e0b; }
+  .sec-card.sec-danger  .sec-card-status { color: #ef4444; }
+
+  .sec-card-detail {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    font-family: "JetBrains Mono", monospace;
+  }
+
+  .sec-reasons {
+    margin-top: 18px;
+    padding: 16px 20px;
+    border-radius: 12px;
+    background: #ef444410;
+    border: 1px solid #ef444433;
+  }
+</style>
+
 <script>
+  // ── Security status from monitor API ──
+  (function() {
+    var BASE = 'https://themedist-monitor.vercel.app';
+
+    function setCard(id, statusClass, statusText, detail) {
+      var card = document.getElementById(id);
+      var statusEl = document.getElementById(id + '-status');
+      var detailEl = document.getElementById(id + '-detail');
+      if (!card || !statusEl) return;
+      card.className = 'sec-card ' + statusClass;
+      statusEl.textContent = statusText;
+      if (detailEl && detail) detailEl.textContent = detail;
+    }
+
+    function setOverall(cls, text) {
+      var dot = document.getElementById('sec-dot');
+      var tag = document.getElementById('sec-tag');
+      if (dot) { dot.className = 'sec-dot ' + cls; }
+      if (tag) { tag.className = 'sec-tag ' + cls; tag.textContent = text; }
+    }
+
+    fetch(BASE + '/api/status')
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        if (!data) {
+          setOverall('sec-danger', '不可达');
+          setCard('sec-vercel', 'sec-danger', '不可达', '');
+          setCard('sec-netlify', 'sec-danger', '不可达', '');
+          return;
+        }
+
+        var platforms = data.platforms || {};
+        var vercel = platforms.vercel || {};
+        var netlify = platforms.netlify || {};
+
+        // Vercel
+        var vOk = vercel.status === 'online';
+        setCard(
+          'sec-vercel',
+          vOk ? 'sec-healthy' : 'sec-danger',
+          vOk ? '在线' : '离线',
+          vOk ? (vercel.latencyMs + 'ms · ' + vercel.cacheStatus) : (vercel.status || '')
+        );
+
+        // Netlify
+        var nOk = netlify.status === 'online';
+        setCard(
+          'sec-netlify',
+          nOk ? 'sec-healthy' : 'sec-danger',
+          nOk ? '在线' : '离线',
+          nOk ? (netlify.latencyMs + 'ms · ' + netlify.cacheStatus) : (netlify.status || '')
+        );
+
+        // Overall from status endpoint
+        var overallOk = data.overall === 'healthy';
+        setOverall(overallOk ? 'sec-healthy' : 'sec-warning', overallOk ? '系统正常' : '部分异常');
+      })
+      .catch(function() {
+        setOverall('sec-danger', '不可达');
+        setCard('sec-vercel', 'sec-danger', '不可达', '');
+        setCard('sec-netlify', 'sec-danger', '不可达', '');
+      });
+
+    // Security audit
+    fetch(BASE + '/api/security-status')
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        if (!data) {
+          setCard('sec-theme', 'sec-warning', '未知', '无法获取安全状态');
+          return;
+        }
+
+        var safe = data.status === 'safe' || data.securityStatus === 'safe';
+        setCard(
+          'sec-theme',
+          safe ? 'sec-healthy' : 'sec-danger',
+          safe ? '安全' : '有风险',
+          data.themeName || ''
+        );
+
+        // Show flagged reasons if unsafe
+        var reasons = document.getElementById('sec-reasons');
+        var list = document.getElementById('sec-reasons-list');
+        if (!safe && data.flaggedReasons && data.flaggedReasons.length && reasons && list) {
+          reasons.style.display = 'block';
+          list.innerHTML = data.flaggedReasons.map(function(r) { return '<li>' + r + '</li>'; }).join('');
+        }
+      })
+      .catch(function() {
+        setCard('sec-theme', 'sec-warning', '未知', '无法获取安全状态');
+      });
+  })();
+
+  // ── Community theme count ──
   fetch('/api/diy/themes.json?size=1')
     .then(r => r.json())
     .then(data => {
