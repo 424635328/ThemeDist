@@ -9,11 +9,13 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
+const NO_CACHE = { 'Cache-Control': 'no-store' };
+
 export async function GET({ cookies }: { cookies: any }) {
   if (!isAdmin(cookies)) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
-      headers: { 'Content-Type': 'application/json', ...CORS },
+      headers: { 'Content-Type': 'application/json', ...CORS, ...NO_CACHE },
     });
   }
 
@@ -35,7 +37,7 @@ export async function GET({ cookies }: { cookies: any }) {
   const [themes, count] = await Promise.all([getPendingThemes(), getPendingCount()]);
   return new Response(JSON.stringify({ themes, pending: count }), {
     status: 200,
-    headers: { 'Content-Type': 'application/json', ...CORS },
+    headers: { 'Content-Type': 'application/json', ...CORS, ...NO_CACHE },
   });
 }
 
@@ -43,14 +45,14 @@ export async function POST({ request, cookies }: { request: Request; cookies: an
   if (!isAdmin(cookies)) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
-      headers: { 'Content-Type': 'application/json', ...CORS },
+      headers: { 'Content-Type': 'application/json', ...CORS, ...NO_CACHE },
     });
   }
 
   if (!verifyCsrf(cookies, request.headers)) {
     return new Response(JSON.stringify({ error: 'CSRF validation failed' }), {
       status: 403,
-      headers: { 'Content-Type': 'application/json', ...CORS },
+      headers: { 'Content-Type': 'application/json', ...CORS, ...NO_CACHE },
     });
   }
 
@@ -61,7 +63,7 @@ export async function POST({ request, cookies }: { request: Request; cookies: an
     if (!Array.isArray(ids) || ids.length === 0) {
       return new Response(JSON.stringify({ error: '请选择至少一个主题' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json', ...CORS },
+        headers: { 'Content-Type': 'application/json', ...CORS, ...NO_CACHE },
       });
     }
 
@@ -69,7 +71,7 @@ export async function POST({ request, cookies }: { request: Request; cookies: an
       const result = await batchApproveThemes(ids);
       return new Response(JSON.stringify({ success: true, ...result }), {
         status: 200,
-        headers: { 'Content-Type': 'application/json', ...CORS },
+        headers: { 'Content-Type': 'application/json', ...CORS, ...NO_CACHE },
       });
     }
 
@@ -77,18 +79,18 @@ export async function POST({ request, cookies }: { request: Request; cookies: an
       const result = await batchRejectThemes(ids);
       return new Response(JSON.stringify({ success: true, ...result }), {
         status: 200,
-        headers: { 'Content-Type': 'application/json', ...CORS },
+        headers: { 'Content-Type': 'application/json', ...CORS, ...NO_CACHE },
       });
     }
 
     return new Response(JSON.stringify({ error: `未知操作: ${action}` }), {
       status: 400,
-      headers: { 'Content-Type': 'application/json', ...CORS },
+      headers: { 'Content-Type': 'application/json', ...CORS, ...NO_CACHE },
     });
   } catch {
     return new Response(JSON.stringify({ error: '请求格式错误' }), {
       status: 400,
-      headers: { 'Content-Type': 'application/json', ...CORS },
+      headers: { 'Content-Type': 'application/json', ...CORS, ...NO_CACHE },
     });
   }
 }

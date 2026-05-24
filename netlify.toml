@@ -8,6 +8,15 @@
   to = "/api/today.json"
   status = 301
 
+# Admin endpoints — never cache
+[[headers]]
+  for = "/api/admin/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
+    Cache-Control = "no-store"
+
 # CORS headers for API endpoints
 [[headers]]
   for = "/api/*"
