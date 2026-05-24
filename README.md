@@ -35,20 +35,35 @@ ThemeDist 是基于 Astro SSR 的主题分发平台，通过 **OmniConfig 主题
 <script>
 fetch('https://themedist.netlify.app/api/today.json')
   .then(r => r.json())
-  .then(theme => {
-    Object.entries(theme.cssVars).forEach(([k, v]) => {
-      document.documentElement.style.setProperty(k, v);
-    });
-    if (theme.customCss) {
-      const s = document.createElement('style');
-      s.textContent = theme.customCss;
-      document.head.appendChild(s);
-    }
+  .then(t => applyTheme(t))
+  .catch(() => {
+    const fb = JSON.parse(localStorage.getItem('td') || 'null');
+    if (fb) applyTheme(fb);
   });
+
+function applyTheme(t) {
+  // 1. CSS 变量注入 :root
+  Object.entries(t.cssVars).forEach(([k, v]) =>
+    document.documentElement.style.setProperty(k, v));
+
+  // 2. 自定义 CSS（安全注入：textContent，绝无 innerHTML）
+  if (t.customCss) {
+    let s = document.getElementById('td-custom-css');
+    if (!s) { s = document.createElement('style'); s.id = 'td-custom-css'; document.head.appendChild(s); }
+    s.textContent = t.customCss;
+  }
+
+  // 3. 声明式装饰元素
+  if (t.extensions) renderExtensions(t.extensions);
+
+  // 4. 写入缓存
+  const today = new Date().toISOString().slice(0, 10);
+  localStorage.setItem('td', JSON.stringify({ date: today, cssVars: t.cssVars, customCss: t.customCss, exts: t.extensions }));
+}
 </script>
 ```
 
-完整集成方案（含缓存、降级、节日特效）：
+完整集成方案（含缓存、降级、双类型扩展渲染）：
 
 ```javascript
 (async () => {
@@ -58,6 +73,7 @@ fetch('https://themedist.netlify.app/api/today.json')
 
   try {
     const res = await fetch('https://themedist.netlify.app/api/today.json');
+    if (!res.ok) throw new Error('API unavailable');
     const t = await res.json();
     const data = { date: t.date, cssVars: t.cssVars, customCss: t.customCss, exts: t.extensions };
     localStorage.setItem('td', JSON.stringify(data));
@@ -68,33 +84,73 @@ fetch('https://themedist.netlify.app/api/today.json')
   }
 })();
 
+// ── 主题应用核心 ──
+
 function applyTheme(d) {
-  Object.entries(d.cssVars).forEach(([k, v]) => document.documentElement.style.setProperty(k, v));
+  // CSS 变量 → :root
+  Object.entries(d.cssVars).forEach(([k, v]) =>
+    document.documentElement.style.setProperty(k, v));
+
+  // 自定义 CSS → <style>（安全：textContent）
+  let styleEl = document.getElementById('td-custom-css');
   if (d.customCss) {
-    const s = document.createElement('style');
-    s.textContent = d.customCss;
-    document.head.appendChild(s);
+    if (!styleEl) { styleEl = document.createElement('style'); styleEl.id = 'td-custom-css'; document.head.appendChild(styleEl); }
+    styleEl.textContent = d.customCss;
+  } else if (styleEl) {
+    styleEl.remove();
   }
-  if (d.exts) {
-    d.exts.forEach(e => {
-      if (e.type === 'floating') {
-        const el = document.createElement('div');
-        el.style.cssText = [
-          'position:fixed', 'pointer-events:none',
-          e.top && 'top:' + e.top, e.left && 'left:' + e.left,
-          e.right && 'right:' + e.right, e.bottom && 'bottom:' + e.bottom,
-          e.fontSize && 'font-size:' + e.fontSize,
-          e.animation && 'animation:' + e.animation,
-          e.zIndex != null && 'z-index:' + e.zIndex,
-          e.opacity != null && 'opacity:' + e.opacity
-        ].filter(Boolean).join(';');
-        el.textContent = e.char;
-        document.body.appendChild(el);
-      }
-    });
-  }
+
+  // 扩展元素渲染
+  const oldExts = document.getElementById('td-extensions');
+  if (oldExts) oldExts.innerHTML = '';
+  if (d.exts && d.exts.length) renderExtensions(d.exts);
+}
+
+// ── 扩展元素渲染（无 innerHTML） ──
+
+// 轻量 CSS 值清洗（防御 XSS）
+function safeVal(v) { return (v||'').toString().slice(0,128).replace(/[;{}]/g,'').replace(/url\s*\(/gi,'').replace(/expression\s*\(/gi,'').replace(/javascript\s*:/gi,'').replace(/@import/gi,'').trim(); }
+function safeDim(v) { var s = safeVal(v); return /^-?[\d.]+(?:%|px|em|rem|vh|vw|s|ms)?$/i.test(s) ? s : ''; }
+
+function renderExtensions(exts) {
+  let container = document.getElementById('td-extensions');
+  if (!container) { container = document.createElement('div'); container.id = 'td-extensions'; document.body.prepend(container); }
+
+  exts.slice(0, 20).forEach(function(ext) {
+    if (ext.type === 'floating' && ext.char) {
+      // floating: document.createElement 安全创建，绝无 innerHTML
+      var el = document.createElement('div');
+      var t = safeDim(ext.top), l = safeDim(ext.left), r = safeDim(ext.right), b = safeDim(ext.bottom);
+      var fs = safeDim(ext.fontSize), anim = safeVal(ext.animation || '');
+      var z = (typeof ext.zIndex === 'number' && ext.zIndex > -2 && ext.zIndex < 100000) ? ext.zIndex : null;
+      var op = (typeof ext.opacity === 'number' && ext.opacity >= 0 && ext.opacity <= 1) ? ext.opacity : null;
+      el.style.cssText = [
+        'position:fixed', 'pointer-events:none',
+        t && 'top:' + t, l && 'left:' + l, r && 'right:' + r, b && 'bottom:' + b,
+        fs && 'font-size:' + fs, anim && 'animation:' + anim,
+        z != null && 'z-index:' + z, op != null && 'opacity:' + op
+      ].filter(Boolean).join(';');
+      el.textContent = String(ext.char).slice(0, 4);
+      container.appendChild(el);
+
+    } else if (ext.type === 'decorative' && ext.html) {
+      // decorative: <template> 安全解析 HTML，剥离 on* 事件
+      var tpl = document.createElement('template');
+      tpl.innerHTML = ext.html;
+      var frag = tpl.content.cloneNode(true);
+      frag.querySelectorAll('*').forEach(function(node) {
+        Array.from(node.attributes).forEach(function(attr) {
+          if (/^on/i.test(attr.name)) node.removeAttribute(attr.name);
+        });
+      });
+      container.appendChild(frag);
+    }
+    // 注意："javascript" 类型不支持且会被服务端拒绝（API 响应的 warnings 字段会提示）
+  });
 }
 ```
+
+> **FOUC 消除**：推荐在 `<head>` 中同步引入 `<link rel="stylesheet" href="/api/today.css">`，阻塞式加载 CSS 变量，消除无样式闪烁。配合上述 JS 注入 customCss + extensions 即可完整覆盖。
 
 ---
 
@@ -763,13 +819,14 @@ npm run preview                  # 预览生产构建
 创建 `.env.local` 文件：
 
 ```env
-URL=http://localhost:4321
 ADMIN_ACCOUNT=admin
 ADMIN_PASSWORD=your-secure-password
-// UPSTASH、KV
-UPSTASH_REDIS_REST_URL=https://xxx.upstash.io
-UPSTASH_REDIS_REST_TOKEN=your-token
+KV_REST_API_URL=https://xxx.upstash.io
+KV_REST_API_TOKEN=your-token
+KV_URL=rediss://default:your-token@xxx.upstash.io:6379
 ```
+
+> `KV_URL` 与 `KV_REST_API_URL` / `KV_REST_API_TOKEN` 二选一即可，底层都是 Upstash Redis。
 
 ---
 
@@ -823,8 +880,8 @@ Netlify Dashboard → Site settings → Environment variables → 添加：
 
 | 变量 | 必填 | 说明 |
 |------|------|------|
-| `UPSTASH_REDIS_REST_URL` | 是 | Upstash Redis REST URL |
-| `UPSTASH_REDIS_REST_TOKEN` | 是 | Upstash Redis 访问令牌 |
+| `KV_REST_API_URL` | 是 | Upstash Redis REST URL |
+| `KV_REST_API_TOKEN` | 是 | Upstash Redis 访问令牌 |
 | `ADMIN_ACCOUNT` | 是 | 管理员用户名 |
 | `ADMIN_PASSWORD` | 是 | 管理员密码 |
 | `URL` | 是 | 站点公开 URL |
@@ -833,16 +890,14 @@ Netlify Dashboard → Site settings → Environment variables → 添加：
 
 | 变量 | Vercel | Netlify | 本地开发 |
 |------|--------|---------|---------|
-| `URL` | 手动设置 | 手动设置 | `.env.local` |
 | `ADMIN_ACCOUNT` | 手动设置 | 手动设置 | `.env.local` |
 | `ADMIN_PASSWORD` | 手动设置 | 手动设置 | `.env.local` |
-| `UPSTASH_REDIS_REST_URL` | 手动设置 | 手动设置 | `.env.local` |
-| `UPSTASH_REDIS_REST_TOKEN` | 手动设置 | 手动设置 | `.env.local` |
-| `KV_REST_API_URL` | Vercel KV 自动注入 | 不适用 | 不适用 |
-| `KV_REST_API_TOKEN` | Vercel KV 自动注入 | 不适用 | 不适用 |
+| `URL` | 手动设置 | 手动设置 | 不强制 |
+| `KV_REST_API_URL` | Vercel KV 自动注入 | 手动设置 | `.env.local` |
+| `KV_REST_API_TOKEN` | Vercel KV 自动注入 | 手动设置 | `.env.local` |
 | `OPENAI_API_KEY` | 可选（服务端降级用） | 可选（服务端降级用） | `.env.local`（可选） |
 
-> **注意**：Vercel KV 本质是 Upstash Redis。Netlify 上需设置 `UPSTASH_REDIS_REST_URL` 和 `UPSTASH_REDIS_REST_TOKEN`，值与 Vercel KV 的 `KV_REST_API_URL` / `KV_REST_API_TOKEN` 一致。
+> **注意**：Vercel KV 本质是 Upstash Redis。Netlify 上需手动设置 `KV_REST_API_URL` 和 `KV_REST_API_TOKEN`，值与 Vercel 自动注入的 `KV_REST_API_URL` / `KV_REST_API_TOKEN` 一致。代码同时兼容 `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` 命名（优先级更高）。
 >
 > **AI 密钥说明**：`OPENAI_API_KEY` 仅作为服务端规则引擎的增强备选，非必需。推荐用户在提交页面使用客户端 DeepSeek 集成（自带 Key，浏览器直调 DeepSeek API，不经本服务器）。
 
