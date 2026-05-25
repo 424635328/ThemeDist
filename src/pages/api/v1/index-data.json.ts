@@ -1,6 +1,6 @@
 import { Lunar } from 'lunar-javascript';
-import OmniConfig from '../../api/index_config.js';
-import { getAllThemes } from '../../utils/daily-theme';
+import OmniConfig from '../../../../api/index_config.js';
+import { getAllThemes } from '../../../utils/daily-theme';
 
 export const prerender = true;
 
@@ -54,6 +54,7 @@ export async function GET() {
     gregorianHolidays,
     lunarHolidays,
     directory,
+    apiVersion: 'v1',
   }), {
     headers: {
       'Content-Type': 'application/json; charset=utf-8',

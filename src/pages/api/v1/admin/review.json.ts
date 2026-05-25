@@ -1,7 +1,7 @@
 export const prerender = false;
 
-import { isAdmin, verifyCsrf } from '../../../lib/auth';
-import { batchApproveThemes, batchRejectThemes, getPendingThemes, getPendingCount } from '../../../lib/themes-db';
+import { isAdmin, verifyCsrf } from '../../../../lib/auth';
+import { batchApproveThemes, batchRejectThemes, getPendingThemes, getPendingCount } from '../../../../lib/themes-db';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -35,7 +35,7 @@ export async function GET({ cookies }: { cookies: any }) {
   }
 
   const [themes, count] = await Promise.all([getPendingThemes(), getPendingCount()]);
-  return new Response(JSON.stringify({ themes, pending: count }), {
+  return new Response(JSON.stringify({ themes, pending: count, apiVersion: 'v1' }), {
     status: 200,
     headers: { 'Content-Type': 'application/json', ...CORS, ...NO_CACHE },
   });
@@ -69,7 +69,7 @@ export async function POST({ request, cookies }: { request: Request; cookies: an
 
     if (action === 'approve') {
       const result = await batchApproveThemes(ids);
-      return new Response(JSON.stringify({ success: true, ...result }), {
+      return new Response(JSON.stringify({ success: true, ...result, apiVersion: 'v1' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json', ...CORS, ...NO_CACHE },
       });
@@ -77,7 +77,7 @@ export async function POST({ request, cookies }: { request: Request; cookies: an
 
     if (action === 'reject') {
       const result = await batchRejectThemes(ids);
-      return new Response(JSON.stringify({ success: true, ...result }), {
+      return new Response(JSON.stringify({ success: true, ...result, apiVersion: 'v1' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json', ...CORS, ...NO_CACHE },
       });

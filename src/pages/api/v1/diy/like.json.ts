@@ -1,7 +1,7 @@
 export const prerender = false;
 
-import { likeTheme, hasVoted } from '../../../lib/themes-db';
-import { isReady } from '../../../lib/redis';
+import { likeTheme, hasVoted } from '../../../../lib/themes-db';
+import { isReady } from '../../../../lib/redis';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -54,7 +54,7 @@ export async function POST({ request }: { request: Request }) {
 
     const voted = await hasVoted(id, fp);
 
-    return new Response(JSON.stringify({ likes, voted }), {
+    return new Response(JSON.stringify({ likes, voted, apiVersion: 'v1' }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...CORS },
     });

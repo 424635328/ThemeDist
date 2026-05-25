@@ -48,10 +48,10 @@ const fullResponse = JSON.stringify({
 
 const siteUrl = Astro.url.origin;
 
-const curlCmd = `curl ${siteUrl}/api/today.json`;
-const curlJqCmd = `curl -s ${siteUrl}/api/today.json | jq .`;
-const fetchCmd = `fetch('${siteUrl}/api/today.json').then(r => r.json()).then(console.log)`;
-const wgetCmd = `wget -qO- ${siteUrl}/api/today.json | jq .`;
+const curlCmd = `curl ${siteUrl}/api/v1/today.json`;
+const curlJqCmd = `curl -s ${siteUrl}/api/v1/today.json | jq .`;
+const fetchCmd = `fetch('${siteUrl}/api/v1/today.json').then(r => r.json()).then(console.log)`;
+const wgetCmd = `wget -qO- ${siteUrl}/api/v1/today.json | jq .`;
 
 const vanillaJS = String.raw`// 完整集成示例 — 含缓存、降级、特效注入
 (async () => {
@@ -60,7 +60,7 @@ const vanillaJS = String.raw`// 完整集成示例 — 含缓存、降级、特�
 
   if (cached?.date === today) return applyTheme(cached);
 
-  const res = await fetch('{siteUrl}/api/today.json');
+  const res = await fetch('{siteUrl}/api/v1/today.json');
   const t = await res.json();
 
   const data = { date: t.date, cssVars: t.cssVars, customCss: t.customCss, exts: t.extensions };
@@ -94,7 +94,7 @@ function applyTheme(d) {
       <div class="card" style="margin-bottom:36px;padding:24px 28px">
         <p class="text-muted" style="font-size:14px;line-height:1.75;margin:0">
           ThemeDist 是<strong>每日自动轮换的主题分发 API</strong>。主题由 CDN 边缘函数实时计算，无需定时构建。
-          客户端 GET <code>/api/today.json</code>，将返回的 34 个 CSS 自定义属性注入 <code>:root</code>，即可获得当日主题。
+          客户端 GET <code>/api/v1/today.json</code>，将返回的 34 个 CSS 自定义属性注入 <code>:root</code>，即可获得当日主题。
           同时提供<strong>社区主题</strong>（用户投稿 / 点赞 / 分享）和 <strong>AI 生成</strong> 等完整 API。
           无认证（公开端点），支持 CORS 跨域。写操作（投稿/点赞）设有滑动窗口限流。
         </p>
@@ -157,12 +157,12 @@ function applyTheme(d) {
           <tbody>
             <tr style="border-bottom:1px solid var(--color-border)">
               <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
-              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/today.json</td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/today.json</td>
               <td style="padding:12px 18px;font-size:13px">今日主题的完整数据（CSS 变量 + 特效 + 目录）</td>
             </tr>
             <tr style="border-bottom:1px solid var(--color-border)">
               <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
-              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/today.css</td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/today.css</td>
               <td style="padding:12px 18px;font-size:13px">今日主题纯 CSS（<code>:root {'{'}</code> 变量），支持 <code>&lt;link&gt;</code> 阻塞引入消除 FOUC</td>
             </tr>
             <tr style="border-bottom:1px solid var(--color-border)">
@@ -172,39 +172,39 @@ function applyTheme(d) {
             </tr>
             <tr style="border-bottom:1px solid var(--color-border)">
               <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
-              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/theme/{'{preset}'}.json</td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/theme/{'{preset}'}.json</td>
               <td style="padding:12px 18px;font-size:13px">指定预设的完整数据（{totalAvailable} 个端点，永久缓存）</td>
             </tr>
             <tr style="border-bottom:1px solid var(--color-border)">
               <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
-              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/date=MM-DD</td>
-              <td style="padding:12px 18px;font-size:13px">按日期查询主题，格式 MM-DD（如 <code>/api/date=02-14</code>）</td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/date=MM-DD</td>
+              <td style="padding:12px 18px;font-size:13px">按日期查询主题，格式 MM-DD（如 <code>/api/v1/date=02-14</code>）</td>
             </tr>
             <tr><td colspan="3" style="padding:8px 18px;font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 4%, transparent)">COMMUNITY 社区主题</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)">
               <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
-              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/diy/themes.json</td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/diy/themes.json</td>
               <td style="padding:12px 18px;font-size:13px">社区主题列表（分页 + 排序 + 标签筛选）</td>
             </tr>
             <tr style="border-bottom:1px solid var(--color-border)">
               <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
-              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/diy/theme.json?id=</td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/diy/theme.json?id=</td>
               <td style="padding:12px 18px;font-size:13px">单个社区主题详情（含点赞数）</td>
             </tr>
             <tr style="border-bottom:1px solid var(--color-border)">
               <td style="padding:12px 18px"><span class="ep-tag post">POST</span></td>
-              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/diy/submit.json</td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/diy/submit.json</td>
               <td style="padding:12px 18px;font-size:13px">提交社区主题（进入审核队列）</td>
             </tr>
             <tr style="border-bottom:1px solid var(--color-border)">
               <td style="padding:12px 18px"><span class="ep-tag post">POST</span></td>
-              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/diy/like.json</td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/diy/like.json</td>
               <td style="padding:12px 18px;font-size:13px">点赞社区主题（IP+UA 去重）</td>
             </tr>
             <tr><td colspan="3" style="padding:8px 18px;font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 4%, transparent)">AI 生成</td></tr>
             <tr>
               <td style="padding:12px 18px"><span class="ep-tag post">POST</span></td>
-              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/ai/generate.json</td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/ai/generate.json</td>
               <td style="padding:12px 18px;font-size:13px">AI 主题生成（规则引擎，或客户端 DeepSeek 直调）</td>
             </tr>
           </tbody>
@@ -212,7 +212,7 @@ function applyTheme(d) {
       </div>
 
       <!-- ====== RESPONSE SCHEMA ====== -->
-      <h2 id="schema" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">响应结构 /api/today.json</h2>
+      <h2 id="schema" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">响应结构 /api/v1/today.json</h2>
       <div class="card card-glass" style="padding:0;overflow:hidden;margin-bottom:20px">
         <table style="width:100%;border-collapse:collapse;font-size:13px">
           <thead><tr style="border-bottom:1px solid var(--color-border)">
@@ -235,7 +235,7 @@ function applyTheme(d) {
           </tbody>
         </table>
       </div>
-      <p class="text-muted" style="font-size:12px;margin-bottom:14px"><code>/api/theme/{'{preset}'}.json</code> 结构一致，但不含 <code>date</code>、<code>generatedAt</code>、<code>available</code>、<code>directory</code>。</p>
+      <p class="text-muted" style="font-size:12px;margin-bottom:14px"><code>/api/v1/theme/{'{preset}'}.json</code> 结构一致，但不含 <code>date</code>、<code>generatedAt</code>、<code>available</code>、<code>directory</code>。</p>
 
       <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px">示例响应</h3>
       <pre style="max-height:400px;overflow-y:auto;margin-bottom:40px"><code>{minimalResponse}</code></pre>
@@ -359,7 +359,7 @@ function applyTheme(d) {
         <ul style="font-size:12px;color:var(--color-text-muted);line-height:1.8;padding-left:18px;margin:0">
           <li><strong>社区主题</strong>（Redis 存储）的 <code>extensions</code> 字段始终存在（<code>null</code> 或数组），不会缺失。</li>
           <li><strong>静态预设主题</strong>（<code>index_config.js</code>）可能不含 <code>extensions</code> 字段。</li>
-          <li><code>/api/theme/{'{preset}'}.json</code>：社区主题返回 <code>logoText: null, logoColors: null</code>（社区主题无 Logo）。</li>
+          <li><code>/api/v1/theme/{'{preset}'}.json</code>：社区主题返回 <code>logoText: null, logoColors: null</code>（社区主题无 Logo）。</li>
           <li><strong>CSS 变量自动归一化</strong>：提交时所有键自动补齐 <code>--</code> 前缀，可防止 AI 生成未前缀化的键名。</li>
           <li><strong>customCss 中的动画类</strong>会被自动解析并生成对应 DOM 粒子元素（系统根据类名启发式决定数量：particle/dot/orb/bubble/spark/star → 20，float/drift/sway → 12，rain/snow/fall → 30，其他 → 8）。如已在 extensions 中手动声明该类元素，系统自动跳过以避免重复。</li>
           <li><strong>速率限制</strong>：GET 端点无限制（有 CDN 缓存）。写操作：投稿 3次/分钟，点赞 10次/分钟，超限返回 429。</li>
@@ -395,15 +395,15 @@ function applyTheme(d) {
             <th style="text-align:left;padding:8px 0;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">CDN</th>
           </tr></thead>
           <tbody>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">/api/today.json</td><td style="padding:6px 0">1 小时</td><td style="padding:6px 0">24 小时</td></tr>
-            <tr><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">/api/theme/*.json</td><td style="padding:6px 0">24 小时</td><td style="padding:6px 0">永久 (immutable)</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">/api/v1/today.json</td><td style="padding:6px 0">1 小时</td><td style="padding:6px 0">24 小时</td></tr>
+            <tr><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">/api/v1/theme/*.json</td><td style="padding:6px 0">24 小时</td><td style="padding:6px 0">永久 (immutable)</td></tr>
           </tbody>
         </table>
         <div style="padding:14px 18px;border-radius:10px;background:color-mix(in srgb, var(--color-primary) 8%, transparent);border-left:3px solid var(--color-primary)">
           <p style="font-size:13px;font-weight:600;margin-bottom:2px">推荐客户端策略</p>
           <p style="font-size:12px;color:var(--color-text-muted);line-height:1.6;margin:0">
             fetch → 解析 date → 存入 localStorage → 同日访问跳过网络请求 → 每人每天最多 1 次请求。
-            Service Worker 可预缓存全部 {totalAvailable} 个 <code>/api/theme/*.json</code>（总计 ~500KB）。
+            Service Worker 可预缓存全部 {totalAvailable} 个 <code>/api/v1/theme/*.json</code>（总计 ~500KB）。
           </p>
         </div>
       </div>
@@ -412,7 +412,7 @@ function applyTheme(d) {
       <h2 id="today-safe" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">安全主题代理 /api/today-safe</h2>
       <div class="card" style="margin-bottom:36px;padding:24px 28px">
         <p class="text-muted" style="font-size:13px;line-height:1.6;margin:0 0 18px 0">
-          从 ThemeDist 代理获取最新的 <code>/api/today.json</code> 数据（<strong>Vercel 优先，Netlify 备用</strong>），并应用 XSS 清洗。
+          从 ThemeDist 代理获取最新的 <code>/api/v1/today.json</code> 数据（<strong>Vercel 优先，Netlify 备用</strong>），并应用 XSS 清洗。
           下游主题渲染器可直接安全消费，无需自行处理输入净化。
         </p>
 
@@ -490,23 +490,23 @@ function applyTheme(d) {
       <h2 id="community" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">社区主题 API</h2>
       <div class="card" style="margin-bottom:36px;padding:24px 28px">
         <h3 style="font-size:14px;font-weight:700;margin:0 0 12px">获取列表</h3>
-        <div class="cmd-group"><div class="cmd-header"><span class="cmd-label">curl — 最新（分页）</span></div><pre class="cmd-block"><code>curl {siteUrl}/api/diy/themes.json?sort=new&page=1&size=20</code></pre></div>
-        <div class="cmd-group"><div class="cmd-header"><span class="cmd-label">curl — 最热</span></div><pre class="cmd-block"><code>curl {siteUrl}/api/diy/themes.json?sort=hot</code></pre></div>
-        <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl — 按标签筛选</span></div><pre class="cmd-block"><code>curl {siteUrl}/api/diy/themes.json?tag=dark</code></pre></div>
+        <div class="cmd-group"><div class="cmd-header"><span class="cmd-label">curl — 最新（分页）</span></div><pre class="cmd-block"><code>curl {siteUrl}/api/v1/diy/themes.json?sort=new&page=1&size=20</code></pre></div>
+        <div class="cmd-group"><div class="cmd-header"><span class="cmd-label">curl — 最热</span></div><pre class="cmd-block"><code>curl {siteUrl}/api/v1/diy/themes.json?sort=hot</code></pre></div>
+        <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl — 按标签筛选</span></div><pre class="cmd-block"><code>curl {siteUrl}/api/v1/diy/themes.json?tag=dark</code></pre></div>
         <p class="text-muted" style="font-size:12px;margin-top:10px">参数: <code>sort</code>=new|hot, <code>page</code>=1, <code>size</code>=20(max50), <code>tag</code>=dark|light|warm|cool|vibrant|minimal|nature|tech</p>
 
         <h3 style="font-size:14px;font-weight:700;margin:20px 0 12px">获取单个主题</h3>
-        <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl</span></div><pre class="cmd-block"><code>curl {siteUrl}/api/diy/theme.json?id=abc12345</code></pre></div>
+        <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl</span></div><pre class="cmd-block"><code>curl {siteUrl}/api/v1/diy/theme.json?id=abc12345</code></pre></div>
 
         <h3 style="font-size:14px;font-weight:700;margin:20px 0 12px">提交主题</h3>
-        <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl</span></div><pre class="cmd-block"><code>curl -X POST {siteUrl}/api/diy/submit.json \
+        <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl</span></div><pre class="cmd-block"><code>curl -X POST {siteUrl}/api/v1/diy/submit.json \
   -H 'Content-Type: application/json' \
   -d '{'{'}"name":"My Theme","author":"You","cssVars":{'{'}"--color-primary":"#ff6b6b","--color-bg":"#1a1a2e"{'}'},"customCss":"body {'{'} ... {'}'}","extensions":[{'{'}"type":"floating","char":"✨"{'}'}],"tags":["dark","vibrant"]{'}'}'</code></pre></div>
         <p class="text-muted" style="font-size:12px;margin-top:6px">必填: <code>name</code>, <code>author</code>, <code>cssVars</code>（必须含 <code>--color-primary</code> 和 <code>--color-bg</code>）。可选: <code>customCss</code>, <code>extensions</code>, <code>tags</code>（最多 5 个）。提交后进入审核队列。</p>
         <p class="text-muted" style="font-size:12px;margin-top:4px">成功响应 <code style="color:#22c55e">201</code>：<code>{'{'} success: true, theme: {'{'} id, name, ... {'}'}, warnings?: [...] {'}'}</code>。如果有 <code>warnings</code> 数组，说明部分字段被自动调整（如不支持的类型被移除）。</p>
 
         <h3 style="font-size:14px;font-weight:700;margin:20px 0 12px">点赞</h3>
-        <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl</span></div><pre class="cmd-block"><code>curl -X POST {siteUrl}/api/diy/like.json \
+        <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl</span></div><pre class="cmd-block"><code>curl -X POST {siteUrl}/api/v1/diy/like.json \
   -H 'Content-Type: application/json' \
   -d '{'{'}"id":"abc12345"{'}'}'</code></pre></div>
         <p class="text-muted" style="font-size:12px;margin-top:6px">服务器基于 IP + User-Agent 指纹去重，同一用户对同一主题仅计一次。返回 <code>{'{'}likes: number, voted: boolean{'}'}</code>。</p>
@@ -515,7 +515,7 @@ function applyTheme(d) {
       <!-- ====== STEPS ====== -->
       <h2 id="steps" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">接入步骤</h2>
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:36px">
-        <div class="card" style="padding:18px 24px"><strong style="font-size:13px">1. 请求 API</strong> <span class="text-muted" style="font-size:13px">— 页面加载时 GET <code>/api/today.json</code>，尽早执行减少 FOUC</span></div>
+        <div class="card" style="padding:18px 24px"><strong style="font-size:13px">1. 请求 API</strong> <span class="text-muted" style="font-size:13px">— 页面加载时 GET <code>/api/v1/today.json</code>，尽早执行减少 FOUC</span></div>
         <div class="card" style="padding:18px 24px"><strong style="font-size:13px">2. 注入 CSS 变量</strong> <span class="text-muted" style="font-size:13px">— 遍历 <code>cssVars</code>，逐条 <code>setProperty(k, v)</code> 到 <code>:root</code></span></div>
         <div class="card" style="padding:18px 24px"><strong style="font-size:13px">3. 注入特效</strong> <span class="text-muted" style="font-size:13px">— <code>customCss</code> 非 null → 创建 <code>&lt;style&gt;</code>；<code>extensions</code> 非 null → 安全解析声明式元素（<code>createElement</code> + <code>textContent</code>）</span></div>
         <div class="card" style="padding:18px 24px"><strong style="font-size:13px">4. localStorage 缓存</strong> <span class="text-muted" style="font-size:13px">— 存 date + cssVars + customCss，同日跳过网络请求</span></div>
@@ -544,7 +544,7 @@ function useThemeDist() {
     const cached = JSON.parse(localStorage.getItem('td') || 'null');
     if (cached?.date === today) { setTheme(cached); return; }
 
-    fetch('${siteUrl}/api/today.json')
+    fetch('${siteUrl}/api/v1/today.json')
       .then(r => r.json())
       .then(t => {
         const data = { date: t.date, cssVars: t.cssVars, customCss: t.customCss };
@@ -578,7 +578,7 @@ export function useThemeDist() {
     if (cached?.date === today) { theme.value = cached; return; }
 
     try {
-      const res = await fetch('${siteUrl}/api/today.json');
+      const res = await fetch('${siteUrl}/api/v1/today.json');
       const t = await res.json();
       const data = { date: t.date, cssVars: t.cssVars, customCss: t.customCss };
       localStorage.setItem('td', JSON.stringify(data));
@@ -607,7 +607,7 @@ export function useThemeDist() {
       <div class="card" style="margin-bottom:36px;padding:24px 28px">
         <div style="margin-bottom:18px">
           <p style="font-size:13px;font-weight:700;margin:0 0 4px">Q: 如何固定使用某个主题？</p>
-          <p class="text-muted" style="font-size:12px;line-height:1.6;margin:0">调用 <code>GET /api/theme/{'{preset}'}.json</code> 获取指定主题，或从 <code>/api/today.json</code> 响应的 <code>directory</code> 字段中选择 preset 后调用。</p>
+          <p class="text-muted" style="font-size:12px;line-height:1.6;margin:0">调用 <code>GET /api/v1/theme/{'{preset}'}.json</code> 获取指定主题，或从 <code>/api/v1/today.json</code> 响应的 <code>directory</code> 字段中选择 preset 后调用。</p>
         </div>
         <div style="margin-bottom:18px">
           <p style="font-size:13px;font-weight:700;margin:0 0 4px">Q: 每天什么时候切换主题？</p>
@@ -934,7 +934,7 @@ export function useThemeDist() {
     const copyAll = document.getElementById('copy-all');
     copyAll.addEventListener('click', async () => {
       const sections = document.querySelectorAll('h2[id]');
-      const lines = ['# ThemeDist API Reference', '', `> Base: ${location.origin}/api/today.json`, ''];
+      const lines = ['# ThemeDist API Reference', '', `> Base: ${location.origin}/api/v1/today.json`, ''];
       sections.forEach(h => {
         const text = h.textContent?.trim() || '';
         lines.push(`## ${text}`, '');

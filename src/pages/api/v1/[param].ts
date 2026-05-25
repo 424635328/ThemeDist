@@ -1,6 +1,6 @@
-import { getDateTheme, getAllThemes } from '../../utils/daily-theme';
-import { getCommunityThemes } from '../../utils/omni-bridge';
-import { cacheGet, cacheSet } from '../../lib/cache';
+import { getDateTheme, getAllThemes } from '../../../utils/daily-theme';
+import { getCommunityThemes } from '../../../utils/omni-bridge';
+import { cacheGet, cacheSet } from '../../../lib/cache';
 
 export const prerender = false;
 
@@ -20,7 +20,7 @@ export async function GET({ params }: { params: { param: string } }) {
   // Expect format: date=MM-DD
   const match = raw.match(/^date=(\d{2}-\d{2})$/);
   if (!match) {
-    return new Response(JSON.stringify({ error: 'Invalid format. Use /api/date=MM-DD' }), {
+    return new Response(JSON.stringify({ error: 'Invalid format. Use /api/v1/date=MM-DD' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS_HEADERS },
     });
@@ -73,6 +73,7 @@ export async function GET({ params }: { params: { param: string } }) {
         logoColors: theme.logoColors || null,
         available: staticDir.length + communityDir.length,
         directory,
+        apiVersion: 'v1',
       },
       null,
       2,
@@ -84,7 +85,7 @@ export async function GET({ params }: { params: { param: string } }) {
       headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS_HEADERS, ...CACHE_HEADERS },
     });
   } catch (err) {
-    console.error('[api/date] Unexpected error:', err);
+    console.error('[v1/api/date] Unexpected error:', err);
     return new Response(JSON.stringify({ error: '内部服务错误' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },

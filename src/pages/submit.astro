@@ -1105,7 +1105,7 @@ body::after {
         data = await callDeepSeek(apiKey, desc);
         data.generatedBy = 'deepseek';
       } else {
-        const res = await fetch('/api/ai/generate.json', {
+        const res = await fetch('/api/v1/ai/generate.json', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ description: desc }),
@@ -1351,7 +1351,7 @@ body::after {
     for (const h of toCheck) {
       const statusEl = container.querySelector(`[data-rid="${escapeAttr(h.id)}"] .recent-status`);
       try {
-        const res = await fetch(`/api/diy/theme.json?id=${encodeURIComponent(h.id)}`);
+        const res = await fetch(`/api/v1/diy/theme.json?id=${encodeURIComponent(h.id)}`);
         const status = res.ok ? 'active' : 'expired';
         updateCachedStatus(h.id, status);
         if (statusEl) {
@@ -1400,7 +1400,7 @@ body::after {
     if (!submitExts && currentExts.length > 0) submitExts = currentExts;
 
     try {
-      const res = await fetch('/api/diy/submit.json', {
+      const res = await fetch('/api/v1/diy/submit.json', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

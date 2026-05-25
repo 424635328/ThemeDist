@@ -5,9 +5,9 @@
 ### 1. 安全与注入风险解决方案 (Security & Sanitization)
 
 #### A. 默认强制净化 (Enforce Sanitization by Default)
-不应将安全清洗功能孤立在 `/api/today-safe`。应当在**数据入口（投稿提交）**和**默认出口（`/api/today.json`）**双重强制执行净化。
+不应将安全清洗功能孤立在 `/api/today-safe`。应当在**数据入口（投稿提交）**和**默认出口（`/api/v1/today.json`）**双重强制执行净化。
 *   **输入端限制：** 
-    在 `POST /api/diy/submit.json` 接口中使用基于 `DOMPurify` (在 Node 环境下配合 `jsdom` 或使用轻量级的 `sanitize-html` 库) 对 `customCss` 和所有文本进行严格过滤。
+    在 `POST /api/v1/diy/submit.json` 接口中使用基于 `DOMPurify` (在 Node 环境下配合 `jsdom` 或使用轻量级的 `sanitize-html` 库) 对 `customCss` 和所有文本进行严格过滤。
 *   **废弃不安全的 Extensions 注入：** 
     避免在 `extensions` 中允许提交任意 HTML。将其重构为**声明式特效配置**。例如，不返回 `<div style="...">🪷</div>`，而是返回结构化 JSON：
     ```json
@@ -20,7 +20,7 @@
     使用 CSS 解析器（如 `postcss-safe-parser`）对用户提交的 `customCss` 进行过滤，禁止 `@import`、`url()` 外部资源引入、以及旧版 IE 的 `expression()`。
 
 #### B. 引入 CSRF 校验
-对于管理员端（`/api/admin/*`）的所有写操作（POST/PUT/DELETE），引入 **Double Submit Cookie** 机制：
+对于管理员端（`/api/v1/admin/*`）的所有写操作（POST/PUT/DELETE），引入 **Double Submit Cookie** 机制：
 1. 登录成功后，服务器生成一个随机的 CSRF Token 写入非 HttpOnly Cookie。
 2. 客户端发起请求时，读取该 Cookie 并将其放入自定义 Header（如 `X-CSRF-Token`）中。
 3. 服务端中间件比对 Cookie 中的 Token 与 Header 中的 Token 是否一致，防止跨站请求伪造。
@@ -32,11 +32,11 @@
 #### A. 引入人工审核流/自动分类过滤 (Moderation Workflow)
 改变“即发即现”的机制，建立一个轻量级的状态机：
 *   **状态设计：** 主题提交后默认为 `pending`（待审）状态，不能进入公共列表，也不会被每日轮换选中。
-*   **审核流程：** 仅在管理员通过 `/api/admin/review.json` 批准（状态变为 `approved`）后，才将其加入 Redis 的 `td:themes:by_newest` 有序集合。
+*   **审核流程：** 仅在管理员通过 `/api/v1/admin/review.json` 批准（状态变为 `approved`）后，才将其加入 Redis 的 `td:themes:by_newest` 有序集合。
 *   **前置自动垃圾过滤：** 在提交阶段接入简单的敏感词检测或使用开源分类模型，自动拒绝包含非法字符的主题。
 
 #### B. 边缘限流中间件 (Rate Limiting)
-利用 Astro Middleware，在边缘节点（Edge Middleware）针对 `POST /api/diy/submit.json` 和 `/api/diy/like.json` 部署滑动窗口限流：
+利用 Astro Middleware，在边缘节点（Edge Middleware）针对 `POST /api/v1/diy/submit.json` 和 `/api/v1/diy/like.json` 部署滑动窗口限流：
 *   使用 Upstash Redis 提供的 `@upstash/ratelimit` SDK。
 *   设置限流规则，例如：**单 IP 每分钟最多提交 2 次投稿，每分钟最多点赞 5 次**。超限请求直接返回 `429 Too Many Requests`。
 
@@ -56,8 +56,8 @@
     使 `omni-bridge.ts` 成为唯一的转换器。无论是预设的节日配置还是数据库读取的社区主题，一律通过同一 Schema 实例化并校验，随后分发至前端和 API 端点。
 
 #### B. 彻底清理遗留代码
-*   移除旧的 `src/pages/api/today.ts`。
-*   在 `vercel.json` 和 `netlify.toml` 中配置 **Redirects 规则**，将旧的 `/api/today` 路由在 CDN 边缘层直接 301 重定向到 `/api/today.json`，释放服务器运行时压力。
+*   ~~移除旧的 `src/pages/api/today.ts`~~。✅ 已完成 — 已删除旧的 Vercel Edge 端点，所有端点已迁移至 `src/pages/api/v1/`。
+*   在 `vercel.json` 和 `netlify.toml` 中配置 **Redirects 规则**，将旧的 `/api/today` 路由在 CDN 边缘层直接 301 重定向到 `/api/v1/today.json`，释放服务器运行时压力。✅ 已完成。
 
 ---
 
@@ -84,10 +84,10 @@
 ```
 
 #### B. 提供阻塞渲染的 CSS 直接引入
-除了 JSON API，额外提供一个 **CSS 格式的 API 端点**（例如 `GET /api/today.css`），直接返回 `:root { --color-primary: ... }`。
+除了 JSON API，额外提供一个 **CSS 格式的 API 端点**（例如 `GET /api/v1/today.css`），直接返回 `:root { --color-primary: ... }`。
 这样，用户可以直接在 HTML 中引入，利用浏览器的默认 CSS 阻塞机制自然消除 FOUC：
 ```html
-<link rel="stylesheet" href="https://themedist.netlify.app/api/today.css" />
+<link rel="stylesheet" href="https://themedist.netlify.app/api/v1/today.css" />
 ```
 
 ---
@@ -95,7 +95,7 @@
 ### 5. 数据库依赖与降级逻辑优化 (Database & Reliability)
 
 #### A. 引入多级缓存以保护 Upstash 额度
-不要让每次 `/api/today.json` 访问都穿透到 Upstash Redis。
+不要让每次 `/api/v1/today.json` 访问都穿透到 Upstash Redis。
 *   **CDN 强缓存：**
     确保 `Cache-Control` 设置了合理的 CDN 缓存时间（如 `s-maxage=86400`）。
 *   **内存二级缓存：**

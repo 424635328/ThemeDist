@@ -1,7 +1,7 @@
 export const prerender = false;
 
-import { getThemeWithLikes } from '../../../lib/themes-db';
-import { isReady } from '../../../lib/redis';
+import { getThemeWithLikes } from '../../../../lib/themes-db';
+import { isReady } from '../../../../lib/redis';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -34,7 +34,7 @@ export async function GET({ url }: { url: URL }) {
     });
   }
 
-  return new Response(JSON.stringify(theme), {
+  return new Response(JSON.stringify({ ...theme, apiVersion: 'v1' }), {
     status: 200,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300', ...CORS },
   });

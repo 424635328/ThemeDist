@@ -503,7 +503,7 @@ const initialThemeData = {
       history.replaceState(null, '', url.toString());
 
       try {
-        const res = await fetch(`/api/theme/${preset}.json`);
+        const res = await fetch(`/api/v1/theme/${preset}.json`);
         if (!res.ok) throw new Error('Failed to load theme');
         const data = await res.json();
         loadTheme(data.cssVars, data.customCss || '', data.extensions || [], data.presetName || '');

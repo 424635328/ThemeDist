@@ -2,22 +2,31 @@
   command = "ADAPTER=netlify npm run build"
   publish = "dist"
 
-# Redirect legacy today endpoint to today.json
+# Redirect legacy today endpoint to v1 today.json
 [[redirects]]
   from = "/api/today"
-  to = "/api/today.json"
+  to = "/api/v1/today.json"
   status = 301
 
-# Admin endpoints — never cache
+# Admin endpoints — never cache (v1)
 [[headers]]
-  for = "/api/admin/*"
+  for = "/api/v1/admin/*"
   [headers.values]
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type"
     Cache-Control = "no-store"
 
-# CORS headers for API endpoints
+# Theme endpoints — long cache (v1)
+[[headers]]
+  for = "/api/v1/theme/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
+    Cache-Control = "public, max-age=86400, s-maxage=31536000, immutable"
+
+# CORS headers for all API endpoints
 [[headers]]
   for = "/api/*"
   [headers.values]
@@ -25,11 +34,3 @@
     Access-Control-Allow-Methods = "GET, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type"
     Cache-Control = "public, max-age=3600, s-maxage=86400"
-
-[[headers]]
-  for = "/api/theme/*"
-  [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Methods = "GET, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type"
-    Cache-Control = "public, max-age=86400, s-maxage=31536000, immutable"

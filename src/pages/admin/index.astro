@@ -843,7 +843,7 @@ const siteUrl = Astro.url.origin;
       }
 
       try {
-        const res = await fetch('/api/admin/login.json', {
+        const res = await fetch('/api/v1/admin/login.json', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ account, password }),
@@ -864,7 +864,7 @@ const siteUrl = Astro.url.origin;
   const btnLogout = document.getElementById('btn-logout');
   if (btnLogout) {
     btnLogout.addEventListener('click', async () => {
-      await fetch('/api/admin/login.json', {
+      await fetch('/api/v1/admin/login.json', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'logout' }),
@@ -1049,7 +1049,7 @@ const siteUrl = Astro.url.origin;
       updateSelection();
 
       try {
-        const res = await fetch('/api/admin/review.json');
+        const res = await fetch('/api/v1/admin/review.json');
         if (!res.ok) throw new Error('Failed');
         const data = await res.json();
 
@@ -1131,7 +1131,7 @@ const siteUrl = Astro.url.origin;
       btnApprove.disabled = true;
       btnReject.disabled = true;
       try {
-        const res = await fetch('/api/admin/review.json', {
+        const res = await fetch('/api/v1/admin/review.json', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
           body: JSON.stringify({ action: 'approve', ids: Array.from(selected) }),
@@ -1157,7 +1157,7 @@ const siteUrl = Astro.url.origin;
       btnApprove.disabled = true;
       btnReject.disabled = true;
       try {
-        const res = await fetch('/api/admin/review.json', {
+        const res = await fetch('/api/v1/admin/review.json', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
           body: JSON.stringify({ action: 'reject', ids: Array.from(selected) }),

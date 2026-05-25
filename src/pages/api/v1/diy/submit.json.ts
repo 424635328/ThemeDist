@@ -1,8 +1,8 @@
 export const prerender = false;
 
-import { submitTheme } from '../../../lib/themes-db';
-import { isReady } from '../../../lib/redis';
-import { sanitizeText, sanitizeCustomCss, validateUserExtensions, collectExtensionWarnings } from '../../../utils/sanitize';
+import { submitTheme } from '../../../../lib/themes-db';
+import { isReady } from '../../../../lib/redis';
+import { sanitizeText, sanitizeCustomCss, validateUserExtensions, collectExtensionWarnings } from '../../../../utils/sanitize';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -63,7 +63,7 @@ export async function POST({ request }: { request: Request }) {
       });
     }
 
-    return new Response(JSON.stringify({ success: true, theme, warnings: extWarnings.length > 0 ? extWarnings : undefined }), {
+    return new Response(JSON.stringify({ success: true, theme, warnings: extWarnings.length > 0 ? extWarnings : undefined, apiVersion: 'v1' }), {
       status: 201,
       headers: { 'Content-Type': 'application/json', ...CORS },
     });

@@ -1,5 +1,5 @@
-import { getDailyTheme, getAllThemes } from '../../utils/daily-theme';
-import { getDailyCommunityTheme } from '../../utils/omni-bridge';
+import { getDailyTheme, getAllThemes } from '../../../utils/daily-theme';
+import { getDailyCommunityTheme } from '../../../utils/omni-bridge';
 
 export const prerender = false;
 
@@ -30,7 +30,7 @@ export async function GET() {
       },
     });
   } catch (err) {
-    console.error('[today.css] Unexpected error:', err);
+    console.error('[v1/today.css] Unexpected error:', err);
     return new Response('/* Theme unavailable */', {
       status: 500,
       headers: { 'Content-Type': 'text/css', 'Access-Control-Allow-Origin': '*' },

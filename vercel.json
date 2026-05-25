@@ -3,11 +3,11 @@
   "outputDirectory": "dist",
   "framework": "astro",
   "redirects": [
-    { "source": "/api/today", "destination": "/api/today.json", "permanent": true }
+    { "source": "/api/today", "destination": "/api/v1/today.json", "permanent": true }
   ],
   "headers": [
     {
-      "source": "/api/today.json",
+      "source": "/api/v1/today.json",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Access-Control-Allow-Methods", "value": "GET, OPTIONS" },
@@ -16,7 +16,7 @@
       ]
     },
     {
-      "source": "/api/theme/(.*)",
+      "source": "/api/v1/theme/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Access-Control-Allow-Methods", "value": "GET, OPTIONS" },
@@ -25,7 +25,7 @@
       ]
     },
     {
-      "source": "/api/admin/(.*)",
+      "source": "/api/v1/admin/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },

@@ -1,5 +1,5 @@
-import { getAllThemes } from '../../../utils/daily-theme';
-import { get as redisGet } from '../../../lib/redis';
+import { getAllThemes } from '../../../../utils/daily-theme';
+import { get as redisGet } from '../../../../lib/redis';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -25,6 +25,7 @@ export async function GET({ params }: { params: { preset: string } }) {
             extensions: ct.extensions || null,
             logoText: null,
             logoColors: null,
+            apiVersion: 'v1',
           }),
           {
             headers: {
@@ -66,6 +67,7 @@ export async function GET({ params }: { params: { preset: string } }) {
         extensions: theme.extensions || null,
         logoText: theme.logoText || null,
         logoColors: theme.logoColors || null,
+        apiVersion: 'v1',
       },
       null,
       2,

@@ -7,8 +7,8 @@ interface WindowEntry {
 const windows = new Map<string, WindowEntry>();
 
 const LIMITS: Record<string, { max: number; windowMs: number }> = {
-  '/api/diy/submit.json': { max: 3, windowMs: 60_000 },
-  '/api/diy/like.json': { max: 10, windowMs: 60_000 },
+  '/api/v1/diy/submit.json': { max: 3, windowMs: 60_000 },
+  '/api/v1/diy/like.json': { max: 10, windowMs: 60_000 },
 };
 
 function getIp(request: Request): string {

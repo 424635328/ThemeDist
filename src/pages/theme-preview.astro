@@ -797,7 +797,7 @@ ${JSON.stringify(EXAMPLE, null, 2)}
     const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean).slice(0, 5) : undefined;
 
     try {
-      const res = await fetch('/api/diy/submit.json', {
+      const res = await fetch('/api/v1/diy/submit.json', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

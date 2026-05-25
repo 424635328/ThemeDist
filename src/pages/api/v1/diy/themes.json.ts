@@ -1,7 +1,7 @@
 export const prerender = false;
 
-import { listThemes, getTotalCount } from '../../../lib/themes-db';
-import { isReady } from '../../../lib/redis';
+import { listThemes, getTotalCount } from '../../../../lib/themes-db';
+import { isReady } from '../../../../lib/redis';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -11,7 +11,7 @@ const CORS = {
 
 export async function GET({ url }: { url: URL }) {
   if (!isReady()) {
-    return new Response(JSON.stringify({ themes: [], total: 0, dbAvailable: false }), {
+    return new Response(JSON.stringify({ themes: [], total: 0, dbAvailable: false, apiVersion: 'v1' }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...CORS },
     });
@@ -30,7 +30,7 @@ export async function GET({ url }: { url: URL }) {
     ? allThemes.filter(t => t.tags?.includes(tagFilter)).slice((page - 1) * pageSize, page * pageSize)
     : rawThemes ? allThemes.slice((page - 1) * pageSize, page * pageSize) : allThemes;
 
-  return new Response(JSON.stringify({ themes, total, dbAvailable: true }), {
+  return new Response(JSON.stringify({ themes, total, dbAvailable: true, apiVersion: 'v1' }), {
     status: 200,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60', ...CORS },
   });

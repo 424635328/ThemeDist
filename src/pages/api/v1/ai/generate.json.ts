@@ -92,7 +92,7 @@ function getEnv(name: string): string | undefined {
   // 静态替换优先
   if (name === 'OPENAI_API_KEY' && typeof import.meta !== 'undefined' && (import.meta as any).env?.OPENAI_API_KEY) return (import.meta as any).env.OPENAI_API_KEY;
   if (name === 'OPENAI_API_BASE' && typeof import.meta !== 'undefined' && (import.meta as any).env?.OPENAI_API_BASE) return (import.meta as any).env.OPENAI_API_BASE;
-  
+
   // 动态读取 fallback
   if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env[name]) return (import.meta as any).env[name];
   if (typeof process !== 'undefined' && process.env && process.env[name]) return process.env[name];
@@ -123,7 +123,7 @@ function HSLToHex(h: number, s: number, l: number) {
   h /= 360;
   let r, g, b;
   if (s === 0) {
-    r = g = b = l; 
+    r = g = b = l;
   } else {
     const hue2rgb = (p: number, q: number, t: number) => {
       if (t < 0) t += 1;
@@ -193,7 +193,7 @@ function inferTags(text: string, cssVars: Record<string, string>): string[] {
   const tags: string[] = [];
   const lower = text.toLowerCase();
   const bg = cssVars['--color-bg'] || '#000000';
-  
+
   let bgLum = 0.5;
   if (bg.startsWith('#') && bg.length >= 7) {
     const r = parseInt(bg.slice(1, 3), 16) / 255;
@@ -299,7 +299,7 @@ export async function POST({ request }: { request: Request }) {
         if (aiRes.ok) {
           const aiData = await aiRes.json();
           const content = aiData.choices?.[0]?.message?.content || '{}';
-          
+
           // 安全提取 JSON（防止模型无视指令输出 Markdown 前缀）
           const match = content.match(/\{[\s\S]*\}/);
           const cleanJson = match ? match[0] : content;
@@ -313,15 +313,16 @@ export async function POST({ request }: { request: Request }) {
             ...generated,
             description,
             generatedBy: 'openai',
+            apiVersion: 'v1',
           }), {
             status: 200,
             headers: { 'Content-Type': 'application/json', ...CORS },
           });
         } else {
-          console.error('[Theme API] OpenAI 请求失败:', await aiRes.text());
+          console.error('[v1/Theme API] OpenAI 请求失败:', await aiRes.text());
         }
       } catch (err) {
-        console.error('[Theme API] AI 解析与生成过程发生异常:', err);
+        console.error('[v1/Theme API] AI 解析与生成过程发生异常:', err);
         // 出错自动降级到规则引擎
       }
     }
@@ -329,7 +330,7 @@ export async function POST({ request }: { request: Request }) {
     // 降级: 基于关键词及 HSL 色相偏移生成的规则引擎
     const result = generateFallbackTheme(description);
 
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify({ ...result, apiVersion: 'v1' }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', ...CORS },
     });

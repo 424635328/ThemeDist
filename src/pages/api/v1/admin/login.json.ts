@@ -1,6 +1,6 @@
 export const prerender = false;
 
-import { verifyCredentials, setAdminCookie, clearAdminCookie } from '../../../lib/auth';
+import { verifyCredentials, setAdminCookie, clearAdminCookie } from '../../../../lib/auth';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -17,7 +17,7 @@ export async function POST({ request, cookies }: { request: Request; cookies: an
 
     if (action === 'logout') {
       clearAdminCookie(cookies);
-      return new Response(JSON.stringify({ success: true }), {
+      return new Response(JSON.stringify({ success: true, apiVersion: 'v1' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json', ...CORS, ...NO_CACHE },
       });
@@ -32,7 +32,7 @@ export async function POST({ request, cookies }: { request: Request; cookies: an
 
     if (verifyCredentials(account, password)) {
       setAdminCookie(cookies);
-      return new Response(JSON.stringify({ success: true }), {
+      return new Response(JSON.stringify({ success: true, apiVersion: 'v1' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json', ...CORS, ...NO_CACHE },
       });

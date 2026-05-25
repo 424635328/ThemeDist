@@ -11,10 +11,10 @@
 ## 目录
 
 1. [第一部分: 核心 API 接口测试](#第一部分-核心-api-接口测试)
-   - [1.1 GET /api/today.json](#11-get-apitodayjson)
-   - [1.2 GET /api/theme/{preset}.json](#12-get-apithemepresetjson)
-   - [1.3 POST /api/diy/submit.json](#13-post-apidiysubmitjson)
-   - [1.4 POST /api/diy/like.json](#14-post-apidiylikejson)
+   - [1.1 GET /api/v1/today.json](#11-get-apitodayjson)
+   - [1.2 GET /api/v1/theme/{'{preset}'}.json](#12-get-apithemepresetjson)
+   - [1.3 POST /api/v1/diy/submit.json](#13-post-apidiysubmitjson)
+   - [1.4 POST /api/v1/diy/like.json](#14-post-apidiylikejson)
 2. [第二部分: 核心业务逻辑](#第二部分-核心业务逻辑)
 3. [第三部分: 页面可访问性](#第三部分-页面可访问性)
 4. [第四部分: 缓存与 CDN 策略](#第四部分-缓存与-cdn-策略)
@@ -25,20 +25,20 @@
 
 ## 第一部分: 核心 API 接口测试
 
-### 1.1 GET /api/today.json
+### 1.1 GET /api/v1/today.json
 
 **测试目的:** 验证今日主题分发的数据完整性及双端数据同步性
 
 #### Netlify 请求
 
 ```bash
-curl -s "https://themedist.netlify.app/api/today.json"
+curl -s "https://themedist.netlify.app/api/v1/today.json"
 ```
 
 #### Vercel 请求
 
 ```bash
-curl -s "https://themedist.vercel.app/api/today.json"
+curl -s "https://themedist.vercel.app/api/v1/today.json"
 ```
 
 #### 响应头对比
@@ -153,7 +153,7 @@ curl -s "https://themedist.vercel.app/api/today.json"
 
 ---
 
-### 1.2 GET /api/theme/{preset}.json
+### 1.2 GET /api/v1/theme/{'{preset}'}.json
 
 **测试目的:** 验证预设主题与社区主题的缓存策略
 
@@ -163,10 +163,10 @@ curl -s "https://themedist.vercel.app/api/today.json"
 
 ```bash
 # Netlify
-curl -s -I "https://themedist.netlify.app/api/theme/yozakura-reverie.json"
+curl -s -I "https://themedist.netlify.app/api/v1/theme/yozakura-reverie.json"
 
 # Vercel
-curl -s -I "https://themedist.vercel.app/api/theme/yozakura-reverie.json"
+curl -s -I "https://themedist.vercel.app/api/v1/theme/yozakura-reverie.json"
 ```
 
 | 检查项 | Netlify | Vercel | 预期 | 状态 |
@@ -182,10 +182,10 @@ curl -s -I "https://themedist.vercel.app/api/theme/yozakura-reverie.json"
 
 ```bash
 # Netlify
-curl -s -I "https://themedist.netlify.app/api/theme/community-rYhqZtwC.json"
+curl -s -I "https://themedist.netlify.app/api/v1/theme/community-rYhqZtwC.json"
 
 # Vercel
-curl -s -I "https://themedist.vercel.app/api/theme/community-rYhqZtwC.json"
+curl -s -I "https://themedist.vercel.app/api/v1/theme/community-rYhqZtwC.json"
 ```
 
 | 检查项 | Netlify | Vercel | 预期 | 状态 |
@@ -198,8 +198,8 @@ curl -s -I "https://themedist.vercel.app/api/theme/community-rYhqZtwC.json"
 
 ```bash
 # 双端
-curl -s "https://themedist.netlify.app/api/theme/midnight.json"
-curl -s "https://themedist.vercel.app/api/theme/midnight.json"
+curl -s "https://themedist.netlify.app/api/v1/theme/midnight.json"
+curl -s "https://themedist.vercel.app/api/v1/theme/midnight.json"
 ```
 
 | 检查项 | Netlify | Vercel |
@@ -220,14 +220,14 @@ curl -s "https://themedist.vercel.app/api/theme/midnight.json"
 
 ---
 
-### 1.3 POST /api/diy/submit.json
+### 1.3 POST /api/v1/diy/submit.json
 
 **测试目的:** 验证投稿数据校验规则及 XSS 安全过滤
 
 #### 测试用例 3a: 正常提交
 
 ```bash
-curl -s -X POST "https://themedist.{netlify,vercel}.app/api/diy/submit.json" \
+curl -s -X POST "https://themedist.{netlify,vercel}.app/api/v1/diy/submit.json" \
   -H "Content-Type: application/json" \
   -d '{"name":"Test Neon Theme","author":"Tester","cssVars":{"--color-primary":"#ff00ff","--color-bg":"#000000"},"tags":["dark","vibrant"]}'
 ```
@@ -244,7 +244,7 @@ curl -s -X POST "https://themedist.{netlify,vercel}.app/api/diy/submit.json" \
 #### 测试用例 3b: 缺少必填项 (--color-bg)
 
 ```bash
-curl -s -X POST "https://themedist.{netlify,vercel}.app/api/diy/submit.json" \
+curl -s -X POST "https://themedist.{netlify,vercel}.app/api/v1/diy/submit.json" \
   -H "Content-Type: application/json" \
   -d '{"name":"Test Incomplete","author":"Tester","cssVars":{"--color-primary":"#ff00ff"},"tags":["dark"]}'
 ```
@@ -258,7 +258,7 @@ curl -s -X POST "https://themedist.{netlify,vercel}.app/api/diy/submit.json" \
 #### 测试用例 3c: XSS 安全过滤
 
 ```bash
-curl -s -X POST "https://themedist.{netlify,vercel}.app/api/diy/submit.json" \
+curl -s -X POST "https://themedist.{netlify,vercel}.app/api/v1/diy/submit.json" \
   -H "Content-Type: application/json" \
   -d '{"name":"XSS Test","author":"Hacker","cssVars":{"--color-primary":"#ff00ff","--color-bg":"#000000"},"customCss":"<script>alert(1)</script> body { color: red; } expression(alert(2))"}'
 ```
@@ -283,14 +283,14 @@ curl -s -X POST "https://themedist.{netlify,vercel}.app/api/diy/submit.json" \
 
 ---
 
-### 1.4 POST /api/diy/like.json
+### 1.4 POST /api/v1/diy/like.json
 
 **测试目的:** 验证基于 IP+UA+UUID 的点赞防刷机制
 
 #### 首次点赞
 
 ```bash
-curl -s -X POST "https://themedist.{netlify,vercel}.app/api/diy/like.json" \
+curl -s -X POST "https://themedist.{netlify,vercel}.app/api/v1/diy/like.json" \
   -H "Content-Type: application/json" \
   -d '{"id":"<submitted-theme-id>","clientUUID":"test-uuid-123"}'
 ```
@@ -304,7 +304,7 @@ curl -s -X POST "https://themedist.{netlify,vercel}.app/api/diy/like.json" \
 
 ```bash
 # 立即再次发送相同请求
-curl -s -X POST "https://themedist.{netlify,vercel}.app/api/diy/like.json" \
+curl -s -X POST "https://themedist.{netlify,vercel}.app/api/v1/diy/like.json" \
   -H "Content-Type: application/json" \
   -d '{"id":"<submitted-theme-id>","clientUUID":"test-uuid-123"}'
 ```
@@ -388,12 +388,12 @@ done
 
 | API 端点 | 缓存层 | Netlify | Vercel | 预期 | 一致 |
 |---|---|---|---|---|---|
-| `/api/today.json` | 浏览器 | `max-age=3600` (1h) | `max-age=3600` (1h) | 1h | ✅ |
-| `/api/today.json` | CDN | `s-maxage=86400` (24h) | **缺失** | 24h | ❌ |
-| `/api/today.json` | SWR | `stale-while-revalidate=3600` (1h) | **缺失** | 1h | ❌ |
-| `/api/theme/{preset}.json` | 浏览器 | `max-age=86400` (1d) | `max-age=86400` (1d) | 365d | ⚠️ |
-| `/api/theme/{preset}.json` | CDN | `s-maxage=31536000` (1y) | **缺失** | 365d | ❌ |
-| `/api/theme/{community}.json` | 全部 | `max-age=3600` (1h) | `max-age=3600` (1h) | 1h | ✅ |
+| `/api/v1/today.json` | 浏览器 | `max-age=3600` (1h) | `max-age=3600` (1h) | 1h | ✅ |
+| `/api/v1/today.json` | CDN | `s-maxage=86400` (24h) | **缺失** | 24h | ❌ |
+| `/api/v1/today.json` | SWR | `stale-while-revalidate=3600` (1h) | **缺失** | 1h | ❌ |
+| `/api/v1/theme/{'{preset}'}.json` | 浏览器 | `max-age=86400` (1d) | `max-age=86400` (1d) | 365d | ⚠️ |
+| `/api/v1/theme/{'{preset}'}.json` | CDN | `s-maxage=31536000` (1y) | **缺失** | 365d | ❌ |
+| `/api/v1/theme/{community}.json` | 全部 | `max-age=3600` (1h) | `max-age=3600` (1h) | 1h | ✅ |
 
 ### 4.2 Vercel 缺失项
 
@@ -419,7 +419,7 @@ s-maxage=31536000       ← 预设主题 CDN 永久缓存
 
 | 场景 | 端点 | Netlify | Vercel | 状态 |
 |---|---|---|---|---|
-| 不存在的预设 | `/api/theme/midnight.json` | 404 + JSON 错误体 | 404 + JSON 错误体 | ✅ |
+| 不存在的预设 | `/api/v1/theme/midnight.json` | 404 + JSON 错误体 | 404 + JSON 错误体 | ✅ |
 | 不存在的社区主题 | 预期 404 | ✅ | ✅ | ✅ |
 
 ### 5.2 Redis 不可用测试
@@ -449,7 +449,7 @@ s-maxage=31536000       ← 预设主题 CDN 永久缓存
 
 ### 通过项 (33项)
 
-- ✅ 双端 `/api/today.json` 返回完全一致的数据
+- ✅ 双端 `/api/v1/today.json` 返回完全一致的数据
 - ✅ 34 个 CSS 变量值无任何偏差
 - ✅ 30 条 directory 内容与排序一致
 - ✅ `Access-Control-Allow-Origin: *` CORS 头正确
@@ -465,8 +465,8 @@ s-maxage=31536000       ← 预设主题 CDN 永久缓存
 
 | # | 差异 | Vercel 缺失 | 端 |
 |---|---|---|---|
-| 1 | `/api/today.json` 缺 CDN 缓存 | `s-maxage=86400` | Vercel |
-| 2 | `/api/today.json` 缺 SWR | `stale-while-revalidate=3600` | Vercel |
+| 1 | `/api/v1/today.json` 缺 CDN 缓存 | `s-maxage=86400` | Vercel |
+| 2 | `/api/v1/today.json` 缺 SWR | `stale-while-revalidate=3600` | Vercel |
 | 3 | 预设主题缺 CDN 永久缓存 | `s-maxage=31536000` | Vercel |
 | 4 | 预设主题实际 `max-age=86400` vs 预期 `31536000` | 两端 | 双端 |
 

@@ -1,6 +1,6 @@
-import { getDailyTheme, getAllThemes } from '../../utils/daily-theme';
-import { getCommunityThemes, getDailyCommunityTheme } from '../../utils/omni-bridge';
-import { cacheGet, cacheSet } from '../../lib/cache';
+import { getDailyTheme, getAllThemes } from '../../../utils/daily-theme';
+import { getCommunityThemes, getDailyCommunityTheme } from '../../../utils/omni-bridge';
+import { cacheGet, cacheSet } from '../../../lib/cache';
 
 export const prerender = false;
 
@@ -66,6 +66,7 @@ export async function GET() {
       available: staticDir.length + communityDir.length,
       directory,
       dailyIsCommunity: !!communityDaily,
+      apiVersion: 'v1',
     },
     null,
     2,
@@ -81,7 +82,7 @@ export async function GET() {
     },
   });
   } catch (err) {
-    console.error('[today.json] Unexpected error:', err);
+    console.error('[v1/today.json] Unexpected error:', err);
     return new Response(JSON.stringify({ error: '内部服务错误' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
