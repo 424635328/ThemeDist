@@ -1,5 +1,5 @@
 import { Lunar } from 'lunar-javascript';
-import OmniConfig from '../../../../api/index_config.js';
+import OmniConfig from '../../../api/index_config.js';
 import { getAllThemes } from '../../../utils/daily-theme';
 
 export const prerender = true;

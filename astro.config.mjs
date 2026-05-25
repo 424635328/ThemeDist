@@ -7,5 +7,5 @@ const adapter = process.env.ADAPTER === 'netlify' ? netlify() : vercel();
 export default defineConfig({
   output: 'server',
   adapter,
-  site: process.env.URL || 'http://localhost:4321',
+  site: process.env.URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:4321'),
 });

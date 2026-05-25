@@ -1,6 +1,5 @@
 [build]
   command = "ADAPTER=netlify npm run build"
-  publish = "dist"
 
 # Redirect legacy today endpoint to v1 today.json
 [[redirects]]

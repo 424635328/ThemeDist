@@ -1,6 +1,5 @@
 {
   "buildCommand": "npm run build",
-  "outputDirectory": "dist",
   "framework": "astro",
   "redirects": [
     { "source": "/api/today", "destination": "/api/v1/today.json", "permanent": true }
