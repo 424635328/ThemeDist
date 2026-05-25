@@ -4,6 +4,9 @@ import type { ComposedTheme, AnyExtension, ThemeTag } from '../themes/types';
 import { isReady, zrevrange, get, zcard } from '../lib/redis';
 import { cacheGet, cacheSet } from '../lib/cache';
 import { parseLegacyExtension } from './sanitize';
+import { extractRgbChannels } from './color';
+import { getDayOfYear } from './date';
+import { STRUCTURAL_CSS_VARS } from '../lib/css-vars-defaults';
 
 interface OmniThemeEntry {
   id: string;
@@ -115,7 +118,7 @@ export function omniToComposed(entry: OmniThemeEntry): ComposedTheme {
     extensions: convertExtensions(entry.extensions),
     logoText: entry.logo?.text,
     logoColors: entry.logo?.colors,
-    cssVars: {
+    cssVars: enrichCssVars({
       '--color-primary': t.avatarGrad1,
       '--color-secondary': t.avatarGrad2,
       '--color-accent': rgbToHex(t.accentRgb),
@@ -125,40 +128,12 @@ export function omniToComposed(entry: OmniThemeEntry): ComposedTheme {
       '--color-text-muted': t.textMuted,
       '--color-border': borderColor,
 
-      // Typography defaults (OmniConfig doesn't specify fonts)
-      '--font-heading': "'Inter', system-ui, sans-serif",
-      '--font-body': "'Inter', system-ui, sans-serif",
-      '--font-mono': "'JetBrains Mono', monospace",
-      '--text-base': 'clamp(1rem, 0.9rem + 0.5vw, 1.125rem)',
-      '--text-lg': 'calc(var(--text-base) * 1.25)',
-      '--text-xl': 'calc(var(--text-lg) * 1.25)',
-      '--text-2xl': 'calc(var(--text-xl) * 1.25)',
-      '--text-sm': 'calc(var(--text-base) / 1.25)',
-
-      // Spacing defaults
-      '--space-unit': '0.25rem',
-      '--space-1': 'calc(0.25rem * 1)',
-      '--space-2': 'calc(0.25rem * 2)',
-      '--space-3': 'calc(0.25rem * 3)',
-      '--space-4': 'calc(0.25rem * 4)',
-      '--space-6': 'calc(0.25rem * 6)',
-      '--space-8': 'calc(0.25rem * 8)',
-      '--space-12': 'calc(0.25rem * 12)',
-      '--radii': '0.75rem',
-      '--content-max': '72rem',
-
-      // Effects from OmniConfig ambient
-      '--shadow-sm': '0 1px 2px rgba(0,0,0,0.08)',
-      '--shadow-md': '0 4px 12px rgba(0,0,0,0.12)',
-      '--shadow-lg': '0 12px 32px rgba(0,0,0,0.18)',
-      '--glass-bg': 'color-mix(in srgb, var(--color-bg) 85%, transparent)',
-      '--glass-blur': 'blur(16px)',
-      '--noise-opacity': '0',
+      ...STRUCTURAL_CSS_VARS,
 
       // OmniConfig ambient colors
       '--ambient-1': t.ambient1,
       '--ambient-2': t.ambient2,
-    },
+    }),
     tags: inferTags(entry),
   };
 }
@@ -169,9 +144,7 @@ export function getOmniDailyTheme(): ComposedTheme {
   // The _mergeConfig returns a merged config; we need to figure out which preset was selected
   // For daily pool, infer from the day-of-year
   const today = new Date();
-  const start = new Date(today.getFullYear(), 0, 0);
-  const diff = today.getTime() - start.getTime() + (start.getTimezoneOffset() - today.getTimezoneOffset()) * 60 * 1000;
-  const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const dayOfYear = getDayOfYear(today);
 
   // Check if a holiday matched (holidays have date keys, dailyPool entries have id/name)
   // If a holiday matched, raw.theme will differ from default
@@ -219,9 +192,7 @@ export async function getDailyCommunityTheme(): Promise<ComposedTheme | null> {
     if (count === 0) return null;
 
     const today = new Date();
-    const start = new Date(today.getFullYear(), 0, 0);
-    const diff = today.getTime() - start.getTime() + (start.getTimezoneOffset() - today.getTimezoneOffset()) * 60 * 1000;
-    const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const dayOfYear = getDayOfYear(today);
 
     // Community theme takes over every 3rd day (~30% of days)
     if (dayOfYear % 3 !== 2) return null;
@@ -267,9 +238,7 @@ export async function getDateTheme(dateStr: string): Promise<ComposedTheme> {
     return getOmniDailyTheme();
   }
 
-  const start = new Date(targetDate.getFullYear(), 0, 0);
-  const diff = targetDate.getTime() - start.getTime() + (start.getTimezoneOffset() - targetDate.getTimezoneOffset()) * 60 * 1000;
-  const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const dayOfYear = getDayOfYear(targetDate);
 
   // Helper: wrap a raw holiday/crazy entry into full OmniThemeEntry shape
   const wrapEntry = (entry: any, id: string): OmniThemeEntry => ({
@@ -390,6 +359,21 @@ function lightenDarken(hex: string, amount: number): string {
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
+/** Append --*-rgb channel variants for all color CSS variables. */
+export function enrichCssVars(cssVars: Record<string, string>): Record<string, string> {
+  const enriched: Record<string, string> = { ...cssVars };
+
+  for (const [key, val] of Object.entries(cssVars)) {
+    if (!key.startsWith('--color-') && key !== '--ambient-1' && key !== '--ambient-2') continue;
+    if (typeof val !== 'string') continue;
+
+    const rgb = extractRgbChannels(val);
+    if (rgb) enriched[`${key}-rgb`] = rgb;
+  }
+
+  return enriched;
+}
+
 /** Community theme from Redis, in ComposedTheme shape */
 interface CommunityThemeRaw {
   id: string;
@@ -437,7 +421,7 @@ function communityToComposed(ct: CommunityThemeRaw): ComposedTheme {
   return {
     preset: `community-${ct.id}`,
     presetName: ct.name,
-    cssVars: ct.cssVars,
+    cssVars: enrichCssVars(ct.cssVars),
     customCss: ct.customCss || undefined,
     extensions: ct.extensions && ct.extensions.length > 0 ? ct.extensions : undefined,
     tags: (ct.tags?.length ? ct.tags.filter(Boolean) : undefined) || inferTagsFromVars(ct.cssVars),
@@ -445,6 +429,36 @@ function communityToComposed(ct: CommunityThemeRaw): ComposedTheme {
 }
 
 const COMMUNITY_NEWEST_KEY = 'td:themes:by_newest';
+
+/**
+ * Get YYYY-MM-DD date string for a given timezone.
+ * Uses Intl.DateTimeFormat.formatToParts for robust cross-runtime parsing.
+ * Falls back to server local time on invalid timezone.
+ */
+export function getDateStrForTimezone(tz: string): string {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const parts = formatter.formatToParts(new Date());
+    const year = parts.find(p => p.type === 'year')?.value;
+    const month = parts.find(p => p.type === 'month')?.value;
+    const day = parts.find(p => p.type === 'day')?.value;
+    if (year && month && day) return `${year}-${month}-${day}`;
+  } catch { /* fall through */ }
+  return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Get MM-DD date string for a given timezone (for theme selection).
+ */
+export function getMMDDForTimezone(tz: string): string {
+  const full = getDateStrForTimezone(tz);
+  return full.slice(5, 10);
+}
 
 /**
  * Load community themes from Redis. Returns [] on any failure.

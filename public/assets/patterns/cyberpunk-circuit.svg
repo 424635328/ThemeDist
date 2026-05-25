@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <rect width="80" height="80" fill="none"/>
+  <g fill="none" stroke="#ffffff" stroke-width="0.8">
+    <path d="M0,40h15l5,-10h10l5,20h10l5,-30h10l5,15h15"/>
+    <path d="M40,0v15l10,5v10l-20,5v10l30,5v10l-15,5v15"/>
+    <path d="M0,20h8l4,8h8l4,-16h8l4,24h8l4,-8h8l4,12h8"/>
+    <path d="M20,0v8l-8,4v8l16,4v8l-24,4v8l12,4v8l-8,4v8"/>
+    <path d="M60,0v10l-8,5v8l8,5v10l-10,5v8l10,5v10"/>
+    <circle cx="15" cy="40" r="2.5"/>
+    <circle cx="40" cy="15" r="2"/>
+    <circle cx="65" cy="40" r="2.5"/>
+    <circle cx="40" cy="65" r="2"/>
+    <circle cx="15" cy="20" r="1.5"/>
+    <circle cx="65" cy="60" r="1.5"/>
+    <circle cx="20" cy="60" r="1.5"/>
+    <circle cx="60" cy="20" r="1.5"/>
+  </g>
+  <g fill="#ffffff">
+    <rect x="13" y="38" width="4" height="4" rx="1"/>
+    <rect x="38" y="13" width="4" height="4" rx="1"/>
+    <rect x="63" y="38" width="4" height="4" rx="1"/>
+    <rect x="38" y="63" width="4" height="4" rx="1"/>
+  </g>
+</svg>

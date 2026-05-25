@@ -62,7 +62,7 @@ export async function submitTheme(input: SubmitInput): Promise<CommunityTheme | 
     tags: Array.isArray(input.tags) ? input.tags.filter(Boolean).slice(0, 5) : undefined,
   };
 
-  const ok = await set(themeKey(id), theme);
+  const ok = await set(themeKey(id), theme, { ex: 86400 });
   if (!ok) return null;
 
   // Pending themes only go to review queue, not public indexes

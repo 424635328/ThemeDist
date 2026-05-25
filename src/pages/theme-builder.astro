@@ -2,6 +2,8 @@
 import Layout from '../layouts/Layout.astro';
 import { getAllThemes, getDailyTheme } from '../utils/daily-theme';
 import { getDailyCommunityTheme } from '../utils/omni-bridge';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const communityDaily = await getDailyCommunityTheme();
 const themes = getAllThemes();
@@ -17,6 +19,27 @@ const initialThemeData = {
   extensions: selected.extensions || null,
   presetName: selected.presetName,
 };
+
+let availableAssets = [];
+try {
+  const assetsDir = path.join(process.cwd(), 'public/assets/patterns');
+  if (fs.existsSync(assetsDir)) {
+    const files = fs.readdirSync(assetsDir);
+    files.forEach(file => {
+      const fullPath = path.join(assetsDir, file);
+      const stat = fs.statSync(fullPath);
+      if (!stat.isDirectory() && /\.(svg|png|webp|jpg|gif)$/i.test(file)) {
+        availableAssets.push({
+          name: file,
+          url: `/assets/patterns/${file}`
+        });
+      }
+    });
+  }
+} catch (e) {
+  console.warn('Failed to scan assets directory:', e);
+}
+const initialAssetsJSON = JSON.stringify(availableAssets);
 ---
 
 <Layout>
@@ -83,6 +106,7 @@ const initialThemeData = {
           <button class="editor-tab" data-tab="css" id="tab-css">自定义 CSS</button>
           <button class="editor-tab" data-tab="exts" id="tab-exts">Extensions</button>
           <button class="editor-tab" data-tab="image" id="tab-image">图片取色</button>
+          <button class="editor-tab" data-tab="assets" id="tab-assets">素材库</button>
           <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
             <span id="edit-status" style="font-size:11px;color:var(--color-text-muted)"></span>
             <button id="btn-reset" style="font-size:11px;font-weight:600;padding:5px 12px;border-radius:7px;border:1px solid var(--color-border);background:transparent;color:var(--color-text-muted);cursor:pointer;font-family:inherit;transition:all 0.2s;display:none">重置</button>
@@ -229,6 +253,57 @@ const initialThemeData = {
         <!-- Hidden canvas for color extraction -->
         <canvas id="color-canvas" style="display:none"></canvas>
 
+        <!-- ===== TAB: Asset Library ===== -->
+        <div class="editor-panel" id="panel-assets" style="display:none">
+          <div class="assets-toolbar">
+            <div class="assets-toolbar-left">
+              <span class="assets-toolbar-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.8"/><rect x="8" y="8" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 17l5-5 3 3 4-4 6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span class="assets-toolbar-title">图案素材</span>
+              <span class="assets-toolbar-count" id="assets-count"></span>
+            </div>
+            <input type="text" id="assets-filter" placeholder="筛选素材…" class="assets-filter-input" />
+          </div>
+
+          <!-- Live controls -->
+          <div class="assets-controls" id="assets-controls" style="display:none">
+            <div class="assets-controls-row">
+              <span class="assets-ctrl-label">不透明度</span>
+              <input type="range" id="assets-opacity" class="assets-opacity-slider" min="1" max="200" value="6" />
+              <span class="assets-ctrl-val" id="assets-opacity-val">0.06</span>
+            </div>
+            <div class="assets-controls-row assets-blend-row">
+              <span class="assets-ctrl-label">混合模式</span>
+              <div class="assets-blend-group" id="assets-blend-group">
+                <button class="assets-blend-btn active" data-blend="overlay" title="overlay — 高光叠加，亮部更亮暗部更深">
+                  <span class="blend-dot blend-dot-overlay"></span>叠加
+                </button>
+                <button class="assets-blend-btn" data-blend="soft-light" title="soft-light — 柔和光照，类似 diffuse 柔光箱">
+                  <span class="blend-dot blend-dot-soft"></span>柔光
+                </button>
+                <button class="assets-blend-btn" data-blend="screen" title="screen — 屏幕滤色，整体提亮，黑色变透明">
+                  <span class="blend-dot blend-dot-screen"></span>滤色
+                </button>
+                <button class="assets-blend-btn" data-blend="multiply" title="multiply — 正片叠底，整体压暗，白色变透明">
+                  <span class="blend-dot blend-dot-multiply"></span>叠底
+                </button>
+                <button class="assets-blend-btn" data-blend="color-dodge" title="color-dodge — 颜色减淡，强光漂白效果">
+                  <span class="blend-dot blend-dot-dodge"></span>减淡
+                </button>
+                <button class="assets-blend-btn" data-blend="difference" title="difference — 差值反相，赛博/故障风格">
+                  <span class="blend-dot blend-dot-diff"></span>差值
+                </button>
+              </div>
+            </div>
+            <button id="assets-clear" class="assets-ctrl-clear" title="移除图案">清除</button>
+            <button id="assets-copy-full" class="assets-ctrl-copy" title="复制完整 CSS 代码段">复制 CSS <span id="assets-active-name" class="assets-active-name"></span></button>
+          </div>
+
+          <div id="assets-grid" class="assets-grid">
+          </div>
+        </div>
+
         <!-- Action bar -->
         <div style="display:flex;gap:8px;margin-top:14px;align-items:center;flex-wrap:wrap">
           <button id="btn-apply-site" class="btn btn-primary" style="height:38px;padding:0 18px;font-size:12px">
@@ -332,9 +407,233 @@ const initialThemeData = {
       grid-template-columns: 1fr !important;
     }
   }
+
+  /* ── Assets Gallery ── */
+  .assets-toolbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-bottom: 10px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .assets-toolbar-left {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .assets-toolbar-icon {
+    color: var(--color-primary);
+    display: flex; align-items: center;
+  }
+  .assets-toolbar-title {
+    font-size: 13px; font-weight: 700; color: var(--color-text);
+  }
+  .assets-toolbar-count {
+    font-size: 10px; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+    color: var(--color-text-muted);
+    background: color-mix(in srgb, var(--color-text-muted) 10%, transparent);
+    padding: 2px 8px; border-radius: 99px;
+  }
+  .assets-filter-input {
+    width: 160px; height: 30px; padding: 0 12px;
+    border-radius: 8px; border: 1.5px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 30%, transparent);
+    color: var(--color-text); font-size: 12px; font-family: inherit; outline: none;
+    transition: border-color 0.2s;
+  }
+  .assets-filter-input:focus { border-color: var(--color-primary); }
+  .assets-filter-input::placeholder { color: var(--color-text-muted); opacity: 0.5; }
+
+  /* Live controls bar */
+  .assets-controls {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 12px; padding: 10px 14px;
+    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+  }
+  .assets-controls-row {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .assets-ctrl-label {
+    font-size: 11px; font-weight: 600; color: var(--color-text-muted);
+    white-space: nowrap; min-width: 52px;
+  }
+  .assets-opacity-slider {
+    -webkit-appearance: none; appearance: none;
+    width: 80px; height: 4px; border-radius: 2px;
+    background: var(--color-border); outline: none; cursor: pointer;
+  }
+  .assets-opacity-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--color-primary); cursor: pointer;
+    box-shadow: 0 0 6px color-mix(in srgb, var(--color-primary) 40%, transparent);
+  }
+  .assets-ctrl-val {
+    font-size: 11px; font-family: 'JetBrains Mono', monospace;
+    color: var(--color-primary); min-width: 28px;
+  }
+  .assets-blend-select {
+    height: 28px; padding: 0 8px; border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
+    color: var(--color-text); font-size: 11px; font-family: inherit; outline: none;
+    cursor: pointer;
+  }
+  .assets-blend-select:focus { border-color: var(--color-primary); }
+  .assets-blend-select option { background: var(--color-bg); color: var(--color-text); }
+
+  .assets-blend-row { flex: 1; min-width: 0; }
+  .assets-blend-group {
+    display: flex; gap: 3px; flex-wrap: wrap;
+  }
+  .assets-blend-btn {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 600; padding: 4px 8px; border-radius: 6px;
+    border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+    background: transparent; color: var(--color-text-muted);
+    cursor: pointer; font-family: inherit; transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .assets-blend-btn:hover {
+    border-color: var(--color-primary);
+    color: var(--color-text);
+    background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+  }
+  .assets-blend-btn.active {
+    background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+  }
+  .blend-dot {
+    width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0;
+  }
+  .blend-dot-overlay { background: linear-gradient(135deg, #fff 40%, #888 60%); }
+  .blend-dot-soft { background: linear-gradient(135deg, #fff 50%, #999 50%); }
+  .blend-dot-screen { background: linear-gradient(135deg, #fff 30%, #ccc 70%); }
+  .blend-dot-multiply { background: linear-gradient(135deg, #555 30%, #111 70%); }
+  .blend-dot-dodge { background: linear-gradient(135deg, #fff 60%, #f59e0b 100%); }
+  .blend-dot-diff { background: linear-gradient(135deg, #7c3aed 40%, #f59e0b 60%); }
+  .assets-ctrl-clear {
+    font-size: 10px; font-weight: 600; padding: 4px 10px; border-radius: 6px;
+    border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+    background: transparent; color: var(--color-text-muted);
+    cursor: pointer; font-family: inherit; transition: all 0.2s;
+    margin-left: auto;
+  }
+  .assets-ctrl-clear:hover { border-color: #ef4444; color: #ef4444; }
+  .assets-ctrl-copy {
+    font-size: 10px; font-weight: 600; padding: 4px 10px; border-radius: 6px;
+    border: 1px solid var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+    color: var(--color-primary); cursor: pointer; font-family: inherit;
+    transition: all 0.2s;
+  }
+  .assets-ctrl-copy:hover { background: var(--color-primary); color: #fff; }
+  .assets-active-name {
+    font-weight: 400; opacity: 0.75; max-width: 120px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    display: inline-block; vertical-align: middle;
+  }
+  .assets-active-name:empty { display: none; }
+
+  .assets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px; max-height: 340px; overflow-y: auto; padding-right: 4px;
+    scroll-behavior: smooth;
+  }
+  .assets-grid::-webkit-scrollbar { width: 5px; }
+  .assets-grid::-webkit-scrollbar-track { background: transparent; }
+  .assets-grid::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 99px; }
+
+  .asset-card {
+    border: 1.5px solid var(--color-border);
+    border-radius: 12px; overflow: hidden;
+    background: color-mix(in srgb, var(--color-surface) 60%, transparent);
+    backdrop-filter: blur(4px);
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  .asset-card:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 25%, transparent), 0 6px 20px rgba(0,0,0,0.3);
+    transform: translateY(-1px);
+  }
+  .asset-card.active {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 35%, transparent), 0 4px 16px color-mix(in srgb, var(--color-primary) 20%, transparent);
+  }
+  .asset-card.active .asset-thumb::before {
+    content: '✓ 预览中'; position: absolute; top: 6px; right: 6px; z-index: 2;
+    font-size: 9px; font-weight: 700; color: #fff;
+    background: var(--color-primary); padding: 2px 6px; border-radius: 4px;
+    pointer-events: none;
+  }
+  .asset-card.copied {
+    border-color: #22c55e;
+    box-shadow: 0 0 12px rgba(34,197,94,0.25);
+  }
+  .asset-thumb {
+    height: 88px; width: 100%;
+    color: var(--color-text);
+    background-color: #12121a;
+    background-image:
+      linear-gradient(45deg, #1a1a28 25%, transparent 25%),
+      linear-gradient(-45deg, #1a1a28 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #1a1a28 75%),
+      linear-gradient(-45deg, transparent 75%, #1a1a28 75%);
+    background-size: 10px 10px;
+    background-position: 0 0, 0 5px, 5px -5px, -5px 0;
+    display: flex; align-items: center; justify-content: center;
+    padding: 10px; position: relative;
+  }
+  .asset-thumb::after {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.35) 100%);
+    pointer-events: none;
+  }
+  .asset-thumb img {
+    max-width: 100%; max-height: 100%; object-fit: contain;
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));
+    position: relative; z-index: 1;
+  }
+  .asset-info {
+    padding: 8px 10px 10px; text-align: center;
+    background: color-mix(in srgb, var(--color-bg) 40%, transparent);
+  }
+  .asset-name {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    color: var(--color-text); overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; margin-bottom: 8px; font-weight: 500;
+  }
+  .asset-actions { display: flex; gap: 3px; justify-content: center; }
+  .asset-btn {
+    font-size: 10px; font-weight: 600; padding: 4px 8px; border-radius: 6px;
+    border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+    background: color-mix(in srgb, var(--color-text) 4%, transparent);
+    color: var(--color-text-muted); cursor: pointer; transition: all 0.2s;
+    font-family: inherit; letter-spacing: 0.02em; position: relative;
+  }
+  .asset-btn:hover {
+    background: var(--color-primary); color: #fff; border-color: var(--color-primary);
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--color-primary) 40%, transparent);
+  }
+  .asset-btn:active { transform: scale(0.95); }
+  .asset-btn.copied-flash {
+    background: #22c55e; color: #fff; border-color: #22c55e;
+    box-shadow: 0 0 14px rgba(34,197,94,0.4);
+  }
+
+  .assets-empty {
+    grid-column: 1 / -1; text-align: center; padding: 40px 20px;
+  }
+  .assets-empty-icon {
+    color: var(--color-text-muted); opacity: 0.3; margin-bottom: 12px;
+  }
+  .assets-empty p {
+    color: var(--color-text-muted); font-size: 12px; line-height: 1.6; margin: 0;
+  }
 </style>
 
-<script define:vars={{ initialThemeData, selectedPreset }}>
+<script define:vars={{ initialThemeData, selectedPreset, initialAssetsJSON }}>
   // ── Initial theme data (injected at build time) ──
   const __INITIAL = initialThemeData;
 
@@ -1287,4 +1586,203 @@ Theme color summary: primary=${currentVars['--color-primary']}, bg=${currentVars
     };
     reader.readAsText(file);
   });
+
+  // ═══════════════════════════════════════════
+  // Asset Library (官方素材库)
+  // ═══════════════════════════════════════════
+  const assetsGrid = document.getElementById('assets-grid');
+  const assetsFilter = document.getElementById('assets-filter');
+  const assetsCount = document.getElementById('assets-count');
+  const assetsControls = document.getElementById('assets-controls');
+  const assetsOpacitySlider = document.getElementById('assets-opacity');
+  const assetsOpacityVal = document.getElementById('assets-opacity-val');
+  const assetsBlendGroup = document.getElementById('assets-blend-group');
+  const assetsClearBtn = document.getElementById('assets-clear');
+  const assetsCopyFullBtn = document.getElementById('assets-copy-full');
+  let allAssets = [];
+  let activePatternUrl = null;
+  let patternOverlayEl = null;
+
+  function getActiveBlend() {
+    const active = assetsBlendGroup?.querySelector('.assets-blend-btn.active');
+    return active ? active.getAttribute('data-blend') : 'overlay';
+  }
+
+  function getPatternOverlay() {
+    if (!patternOverlayEl) {
+      patternOverlayEl = document.createElement('div');
+      patternOverlayEl.id = 'td-pattern-overlay';
+      patternOverlayEl.style.cssText = 'position:fixed;inset:0;z-index:-3;pointer-events:none;';
+      document.body.insertBefore(patternOverlayEl, document.body.firstChild);
+    }
+    return patternOverlayEl;
+  }
+
+  function applyPattern(url, name) {
+    const el = getPatternOverlay();
+    const opacity = parseInt(assetsOpacitySlider.value) / 100;
+    const blend = getActiveBlend();
+    el.style.backgroundImage = `url('${url}')`;
+    el.style.backgroundRepeat = 'repeat';
+    el.style.backgroundSize = 'auto';
+    el.style.backgroundColor = 'var(--color-bg)';
+    el.style.opacity = opacity;
+    el.style.mixBlendMode = blend;
+    activePatternUrl = url;
+    document.getElementById('assets-active-name').textContent = name ? `(${name})` : '';
+    assetsControls.style.display = '';
+  }
+
+  function removePattern() {
+    if (patternOverlayEl) {
+      patternOverlayEl.style.backgroundImage = '';
+      patternOverlayEl.style.backgroundColor = '';
+      patternOverlayEl.style.opacity = '';
+      patternOverlayEl.style.mixBlendMode = '';
+    }
+    activePatternUrl = null;
+    document.getElementById('assets-active-name').textContent = '';
+    assetsControls.style.display = 'none';
+    assetsGrid.querySelectorAll('.asset-card.active').forEach(c => c.classList.remove('active'));
+  }
+
+  function updatePatternLive() {
+    if (!activePatternUrl || !patternOverlayEl) return;
+    const opacity = parseInt(assetsOpacitySlider.value) / 100;
+    const blend = getActiveBlend();
+    patternOverlayEl.style.opacity = opacity;
+    patternOverlayEl.style.mixBlendMode = blend;
+    assetsOpacityVal.textContent = opacity.toFixed(2);
+  }
+
+  // Live control events
+  assetsOpacitySlider.addEventListener('input', updatePatternLive);
+  assetsBlendGroup?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.assets-blend-btn');
+    if (!btn) return;
+    assetsBlendGroup.querySelectorAll('.assets-blend-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    updatePatternLive();
+  });
+  assetsClearBtn.addEventListener('click', removePattern);
+  assetsCopyFullBtn.addEventListener('click', async () => {
+    if (!activePatternUrl) return;
+    const opacity = (parseInt(assetsOpacitySlider.value) / 100).toFixed(2);
+    const blend = getActiveBlend();
+    const css = `body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -3;
+  pointer-events: none;
+  background-color: var(--color-bg);
+  background-image: url('${activePatternUrl}');
+  background-repeat: repeat;
+  opacity: ${opacity};
+  mix-blend-mode: ${blend};
+}`;
+    try {
+      await navigator.clipboard.writeText(css);
+      window.__toast?.('已复制完整 CSS 代码段');
+    } catch { window.__toast?.('复制失败'); }
+  });
+
+  function renderAssets(assets) {
+    allAssets = assets || [];
+    if (assetsCount) assetsCount.textContent = allAssets.length;
+    doRender(allAssets);
+  }
+
+  function doRender(assets) {
+    if (!assetsGrid) return;
+    if (!assets || assets.length === 0) {
+      assetsGrid.innerHTML = '<div class="assets-empty"><div class="assets-empty-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.5"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="M3 17l5-5 3 3 4-4 6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div><p>/public/assets/patterns/ 目录下未发现素材。<br/>请在项目中添加 SVG 或 WebP 图片。</p></div>';
+      return;
+    }
+
+    assetsGrid.innerHTML = '';
+    assets.forEach(asset => {
+      const card = document.createElement('div');
+      card.className = 'asset-card';
+      card.setAttribute('data-name', asset.name.toLowerCase());
+      card.setAttribute('data-url', asset.url);
+      if (asset.url === activePatternUrl) card.classList.add('active');
+      card.innerHTML = `
+        <div class="asset-thumb">
+          <img src="${asset.url}" alt="${asset.name}" loading="lazy" />
+        </div>
+        <div class="asset-info">
+          <div class="asset-name" title="${asset.name}">${asset.name.replace(/\.\w+$/, '')}</div>
+          <div class="asset-actions">
+            <button class="asset-btn" data-action="css" data-url="${asset.url}">CSS</button>
+            <button class="asset-btn" data-action="html" data-url="${asset.url}">HTML</button>
+            <button class="asset-btn" data-action="ext" data-url="${asset.url}">JSON</button>
+          </div>
+        </div>
+      `;
+
+      // Click card → instant preview
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.asset-btn')) return; // don't intercept button clicks
+        const url = card.getAttribute('data-url');
+        assetsGrid.querySelectorAll('.asset-card.active').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        applyPattern(url, asset.name);
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+
+      assetsGrid.appendChild(card);
+    });
+
+    // Copy buttons on cards
+    assetsGrid.querySelectorAll('.asset-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const action = btn.getAttribute('data-action');
+        const url = btn.getAttribute('data-url');
+        let textToCopy = '';
+
+        if (action === 'css') {
+          textToCopy = `url('${url}')`;
+        } else if (action === 'html') {
+          textToCopy = `<img src="${url}" style="width: 100%; height: 100%; object-fit: contain; pointer-events: none;" />`;
+        } else if (action === 'ext') {
+          textToCopy = JSON.stringify({
+            type: "decorative",
+            html: `<img src="${url}" style="position:fixed; top:10%; left:10%; width:100px; opacity:0.3; animation: wd-drift 20s linear infinite; z-index:0;" />`
+          }, null, 2);
+        }
+
+        try {
+          await navigator.clipboard.writeText(textToCopy);
+          btn.classList.add('copied-flash');
+          const origText = btn.textContent;
+          btn.textContent = '✓';
+          const card = btn.closest('.asset-card');
+          if (card) card.classList.add('copied');
+          setTimeout(() => {
+            btn.classList.remove('copied-flash');
+            btn.textContent = origText;
+            if (card) card.classList.remove('copied');
+          }, 800);
+          window.__toast?.(`已复制 ${action.toUpperCase()} 代码`);
+        } catch (err) {
+          window.__toast?.('复制失败');
+        }
+      });
+    });
+  }
+
+  // Filter
+  if (assetsFilter) {
+    assetsFilter.addEventListener('input', () => {
+      const q = assetsFilter.value.toLowerCase().trim();
+      const filtered = q ? allAssets.filter(a => a.name.toLowerCase().includes(q)) : allAssets;
+      doRender(filtered);
+    });
+  }
+
+  if (typeof initialAssetsJSON !== 'undefined') {
+    renderAssets(JSON.parse(initialAssetsJSON));
+  }
 </script>

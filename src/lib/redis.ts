@@ -177,3 +177,17 @@ export async function del(key: string): Promise<boolean> {
   if (!c) return false;
   try { await c.del(key); return true; } catch { return false; }
 }
+
+// ─── HyperLogLog 操作 ───
+
+export async function pfadd(key: string, ...elements: string[]): Promise<boolean> {
+  const c = getClient();
+  if (!c) return false;
+  try { await c.pfadd(key, ...elements); return true; } catch { return false; }
+}
+
+export async function pfcount(key: string): Promise<number> {
+  const c = getClient();
+  if (!c) return 0;
+  try { return await c.pfcount(key); } catch { return 0; }
+}

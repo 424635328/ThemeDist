@@ -1,6 +1,7 @@
 import { getDailyTheme, getAllThemes } from '../../../utils/daily-theme';
-import { getCommunityThemes, getDailyCommunityTheme } from '../../../utils/omni-bridge';
+import { getCommunityThemes, getDailyCommunityTheme, getDateTheme, getDateStrForTimezone, getMMDDForTimezone } from '../../../utils/omni-bridge';
 import { cacheGet, cacheSet } from '../../../lib/cache';
+import { applyOverrides } from '../../../utils/sanitize';
 
 export const prerender = false;
 
@@ -14,10 +15,13 @@ const CACHE_HEADERS = {
   'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=3600',
 };
 
-export async function GET() {
-  const todayKey = `today:${new Date().toISOString().slice(0, 10)}`;
+export async function GET({ url }: { url: URL }) {
+  const tz = url.searchParams.get('tz');
+  const overridesRaw = url.searchParams.get('overrides');
+
+  const todayKey = `today:${new Date().toISOString().slice(0, 10)}` + (tz ? `:tz:${tz}` : '');
   const cached = cacheGet<string>(todayKey);
-  if (cached) {
+  if (cached && !overridesRaw) {
     return new Response(cached, {
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
@@ -28,8 +32,19 @@ export async function GET() {
   }
 
   try {
-  const communityDaily = await getDailyCommunityTheme();
-  const theme = communityDaily || getDailyTheme();
+  let theme;
+  if (tz) {
+    const dateStr = getMMDDForTimezone(tz);
+    theme = await getDateTheme(dateStr);
+  } else {
+    const communityDaily = await getDailyCommunityTheme();
+    theme = communityDaily || getDailyTheme();
+  }
+
+  let cssVars = theme.cssVars;
+  if (overridesRaw) {
+    cssVars = applyOverrides(cssVars, overridesRaw);
+  }
 
   const allThemes = getAllThemes();
   const communityThemes = await getCommunityThemes(50);
@@ -52,27 +67,28 @@ export async function GET() {
 
   const directory = [...staticDir.slice(0, 20), ...communityDir.slice(0, 10)];
 
-  const body = JSON.stringify(
-    {
-      date: new Date().toISOString().slice(0, 10),
-      generatedAt: new Date().toISOString(),
-      preset: theme.preset,
-      presetName: theme.presetName,
-      cssVars: theme.cssVars,
-      customCss: theme.customCss || null,
-      extensions: theme.extensions || null,
-      logoText: theme.logoText || null,
-      logoColors: theme.logoColors || null,
-      available: staticDir.length + communityDir.length,
-      directory,
-      dailyIsCommunity: !!communityDaily,
-      apiVersion: 'v1',
-    },
-    null,
-    2,
-  );
+  const bodyObj: Record<string, any> = {
+    date: tz ? getDateStrForTimezone(tz) : new Date().toISOString().slice(0, 10),
+    generatedAt: new Date().toISOString(),
+    preset: theme.preset,
+    presetName: theme.presetName,
+    cssVars,
+    customCss: theme.customCss || null,
+    extensions: theme.extensions || null,
+    logoText: theme.logoText || null,
+    logoColors: theme.logoColors || null,
+    available: staticDir.length + communityDir.length,
+    directory,
+    dailyIsCommunity: !!(!tz && await getDailyCommunityTheme()),
+    apiVersion: 'v1',
+  };
+  if (overridesRaw) bodyObj.appliedOverrides = true;
 
-  cacheSet(todayKey, body, 120_000); // 2 min in-memory cache
+  const body = JSON.stringify(bodyObj, null, 2);
+
+  if (!overridesRaw) {
+    cacheSet(todayKey, body, 120_000); // 2 min in-memory cache
+  }
 
   return new Response(body, {
     headers: {

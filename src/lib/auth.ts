@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 export function verifyCredentials(account: string, password: string): boolean {
   const expectedAccount = import.meta.env.ADMIN_ACCOUNT || process.env.ADMIN_ACCOUNT;
   const expectedPassword = import.meta.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD;
@@ -7,21 +9,11 @@ export function verifyCredentials(account: string, password: string): boolean {
 
 function sessionToken(): string {
   const secret = import.meta.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || 'default-secret';
-  let hash = 0;
-  for (let i = 0; i < secret.length; i++) {
-    hash = ((hash << 5) - hash + secret.charCodeAt(i)) | 0;
-  }
-  return `admin_${Math.abs(hash).toString(36)}`;
+  return `admin_${createHash('sha256').update(secret).digest('hex').slice(0, 32)}`;
 }
 
-/** Generate a random CSRF token. Not crypto-grade but sufficient for this use case. */
 function csrfToken(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < 32; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
+  return crypto.randomUUID();
 }
 
 export function setAdminCookie(cookies: { set: (name: string, value: string, opts?: Record<string, unknown>) => void }): void {

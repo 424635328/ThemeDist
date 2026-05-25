@@ -1,0 +1,519 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout>
+  <div class="weather-demo" id="app">
+    <!-- Loading -->
+    <div class="wd-loading" id="wd-loading">
+      <div class="wd-spinner"></div>
+      <p>正在感知您当地的天气<span class="wd-dots"></span></p>
+      <p class="wd-loading-sub">需要获取地理位置权限</p>
+    </div>
+
+    <!-- Main card (hidden until loaded) -->
+    <div class="wd-card" id="wd-card" style="display:none">
+      <div class="wd-city-row">
+        <span class="wd-city" id="wd-city">--</span>
+        <span class="wd-coords" id="wd-coords"></span>
+      </div>
+      <div class="wd-weather-row">
+        <span class="wd-icon" id="wd-icon"></span>
+        <span class="wd-temp" id="wd-temp">--</span>
+        <span class="wd-desc" id="wd-desc">--</span>
+      </div>
+      <div class="wd-theme-info" id="wd-theme-info"></div>
+    </div>
+
+    <!-- Error state -->
+    <div class="wd-error" id="wd-error" style="display:none">
+      <p class="wd-error-icon">&#9785;</p>
+      <p id="wd-error-msg">无法获取天气数据</p>
+      <button class="wd-retry-btn" id="wd-retry">重试</button>
+    </div>
+
+    <!-- Weather canvas layer for decorative elements -->
+    <div id="wd-canvas" aria-hidden="true"></div>
+
+    <!-- Manual location input -->
+    <div class="wd-manual" id="wd-manual">
+      <input type="text" id="wd-manual-lat" placeholder="纬度 (e.g. 39.90)" maxlength="10" />
+      <input type="text" id="wd-manual-lon" placeholder="经度 (e.g. 116.40)" maxlength="11" />
+      <button id="wd-manual-go">手动查询</button>
+    </div>
+  </div>
+</Layout>
+
+<style>
+.weather-demo {
+  min-height: calc(100vh - 140px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Loading */
+.wd-loading { text-align: center; color: var(--color-text-muted); }
+.wd-loading p { margin: 12px 0 0; font-size: 1.05rem; font-weight: 500; }
+.wd-loading-sub { font-size: 0.8rem !important; opacity: 0.6; }
+
+.wd-spinner {
+  width: 44px; height: 44px;
+  margin: 0 auto;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: wd-spin 0.8s linear infinite;
+}
+
+.wd-dots::after {
+  content: '';
+  animation: wd-ellipsis 1.5s steps(4, end) infinite;
+}
+@keyframes wd-ellipsis {
+  0%   { content: ''; }
+  25%  { content: '.'; }
+  50%  { content: '..'; }
+  75%  { content: '...'; }
+  100% { content: ''; }
+}
+
+@keyframes wd-spin { to { transform: rotate(360deg); } }
+
+/* Card */
+.wd-card {
+  text-align: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radii);
+  padding: 36px 44px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: var(--shadow-lg);
+  z-index: 10;
+  position: relative;
+}
+
+.wd-city-row { margin-bottom: 8px; }
+.wd-city { font-size: 1.3rem; font-weight: 700; color: var(--color-text); }
+.wd-coords { font-size: 0.7rem; color: var(--color-text-muted); margin-left: 8px; font-family: var(--font-mono); }
+
+.wd-weather-row {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  margin: 16px 0;
+}
+.wd-icon { font-size: 3.5rem; line-height: 1; }
+.wd-temp { font-size: 2.8rem; font-weight: 800; color: var(--color-text); letter-spacing: -0.03em; }
+.wd-desc { font-size: 1rem; color: var(--color-text-muted); font-weight: 500; }
+
+.wd-theme-info {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+/* Error */
+.wd-error { text-align: center; color: var(--color-text-muted); z-index: 10; position: relative; }
+.wd-error-icon { font-size: 3rem; margin: 0 0 8px; }
+.wd-retry-btn {
+  margin-top: 16px;
+  padding: 10px 28px;
+  font-size: 0.9rem; font-weight: 600;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radii);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+.wd-retry-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+
+/* Manual input */
+.wd-manual {
+  margin-top: 32px;
+  display: flex; gap: 8px;
+  z-index: 10; position: relative;
+  flex-wrap: wrap; justify-content: center;
+}
+.wd-manual input {
+  width: 140px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  font-family: var(--font-mono);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radii);
+  background: var(--color-surface);
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.wd-manual input:focus { border-color: var(--color-primary); }
+.wd-manual button {
+  padding: 8px 18px;
+  font-size: 0.82rem; font-weight: 600;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radii);
+  background: var(--color-primary);
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+.wd-manual button:hover { opacity: 0.85; }
+
+@media (max-width: 520px) {
+  .wd-card { padding: 24px 20px; }
+  .wd-temp { font-size: 2.2rem; }
+  .wd-icon { font-size: 2.5rem; }
+}
+</style>
+
+<!-- Weather ambiance — is:global because JS creates these DOM nodes -->
+<style is:global>
+#wd-canvas {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  overflow: hidden;
+}
+
+.wd-cloud {
+  position: fixed; pointer-events: none; z-index: -1;
+  opacity: 0.07; will-change: transform;
+  color: var(--color-text-muted);
+}
+.wd-cloud.wa-animate { animation: wd-drift linear infinite; }
+@keyframes wd-drift {
+  0%   { transform: translateX(-120px); }
+  100% { transform: translateX(calc(100vw + 200px)); }
+}
+
+.wd-raindrop {
+  position: fixed; pointer-events: none; z-index: -1;
+  font-size: 16px; opacity: 0.16;
+  color: var(--color-text-muted);
+  will-change: transform;
+}
+.wd-raindrop.wa-animate { animation: wd-fall linear infinite; }
+@keyframes wd-fall {
+  0%   { transform: translateY(-8vh); opacity: 0; }
+  8%   { opacity: 0.20; }
+  92%  { opacity: 0.20; }
+  100% { transform: translateY(108vh); opacity: 0; }
+}
+
+.wd-sun {
+  position: fixed; top: 80px; right: 8%;
+  pointer-events: none; z-index: 0;
+  font-size: 3rem; opacity: 0.45;
+  filter: drop-shadow(0 0 40px rgba(255,200,60,0.35));
+}
+.wd-sun.wa-animate { animation: wd-rotate 24s linear infinite; }
+@keyframes wd-rotate {
+  0%   { transform: rotate(0deg) scale(1); }
+  50%  { transform: rotate(180deg) scale(1.06); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+.wd-snowflake {
+  position: fixed; pointer-events: none; z-index: -1;
+  font-size: 13px; opacity: 0.18;
+  color: var(--color-text-muted);
+  will-change: transform;
+}
+.wd-snowflake.wa-animate { animation: wd-snowfall linear infinite, wd-sway 4s ease-in-out infinite; }
+@keyframes wd-snowfall {
+  0%   { transform: translateY(-5vh); }
+  100% { transform: translateY(108vh); }
+}
+@keyframes wd-sway {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(16px); }
+}
+
+.wd-flash {
+  position: fixed; inset: 0;
+  background: rgba(255,255,255,0.04);
+  pointer-events: none; z-index: 0;
+  animation: wd-flash 7s ease-out infinite;
+}
+@keyframes wd-flash {
+  0%, 91%, 100% { opacity: 0; }
+  92% { opacity: 1; }
+  94% { opacity: 0; }
+  96% { opacity: 0.4; }
+  98% { opacity: 0; }
+}
+
+@media (max-width: 520px) {
+  .wd-sun { font-size: 2rem; top: 4%; right: 4%; }
+}
+</style>
+
+<script>
+// Weather icon map
+const WEATHER_ICONS: Record<string, string> = {
+  clear: '☀️', clouds: '☁️', fog: '🌫️',
+  rain: '🌧️', drizzle: '🌦️', snow: '❄️', thunderstorm: '⛈️',
+};
+
+const WEATHER_LABELS: Record<string, string> = {
+  clear: '晴', clouds: '多云', fog: '雾', rain: '雨',
+  drizzle: '毛毛雨', snow: '雪', thunderstorm: '雷暴',
+};
+
+const $ = (id: string) => document.getElementById(id);
+const loadingEl = $('wd-loading')!;
+const cardEl = $('wd-card')!;
+const errorEl = $('wd-error')!;
+const canvasEl = $('wd-canvas')!;
+
+function showLoading() { loadingEl.style.display = ''; cardEl.style.display = 'none'; errorEl.style.display = 'none'; }
+function showCard()    { loadingEl.style.display = 'none'; cardEl.style.display = ''; errorEl.style.display = 'none'; }
+function showError(msg: string) {
+  loadingEl.style.display = 'none'; cardEl.style.display = 'none'; errorEl.style.display = '';
+  $('wd-error-msg')!.textContent = msg;
+}
+
+// Safe render helpers
+function safeVal(v: string, maxLen = 128) {
+  return (v || '').toString().slice(0, maxLen).replace(/[;{}]/g, '').replace(/url\s*\(/gi, '')
+    .replace(/expression\s*\(/gi, '').replace(/javascript\s*:/gi, '').replace(/@import/gi, '').trim();
+}
+
+function safeDim(v: string) {
+  const s = safeVal(v);
+  return /^-?[\d.]+(?:%|px|em|rem|vh|vw|s|ms)?$/i.test(s) ? s : '';
+}
+
+// Apply theme CSS variables
+function applyCssVars(vars: Record<string, string>) {
+  Object.entries(vars).forEach(([k, v]) => {
+    document.documentElement.style.setProperty(k, v);
+  });
+}
+
+// Inject custom CSS safely
+function applyCustomCss(css: string | null) {
+  let el = document.getElementById('td-custom-css') as HTMLStyleElement | null;
+  if (css) {
+    if (!el) { el = document.createElement('style'); el.id = 'td-custom-css'; document.head.appendChild(el); }
+    el.textContent = css;
+  } else if (el) {
+    el.remove();
+  }
+}
+
+// Weather assets — all elements get inline z-index:-1
+function clearCanvas() {
+  canvasEl.textContent = '';
+  const oldSun = document.querySelector('.wd-sun');
+  if (oldSun) oldSun.remove();
+  const oldFlash = document.querySelector('.wd-flash');
+  if (oldFlash) oldFlash.remove();
+}
+
+function makeSvgEl(tag: string, attrs: Record<string, string>) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+  return el;
+}
+
+function renderClouds() {
+  const defs = [
+    { w: 160, h: 70, scale: 0.45, dur: 85, opacity: 0.028, blur: 3 },
+    { w: 130, h: 55, scale: 0.65, dur: 65, opacity: 0.036, blur: 1 },
+    { w: 200, h: 85, scale: 0.85, dur: 50, opacity: 0.045, blur: 0 },
+    { w: 180, h: 75, scale: 1.05, dur: 38, opacity: 0.055, blur: 0 },
+  ];
+
+  defs.forEach((cd) => {
+    const el = document.createElement('div');
+    el.className = 'wd-cloud wa-animate';
+    el.style.cssText = [
+      'z-index:-1', 'pointer-events:none',
+      'top:' + (8 + Math.random() * 32) + '%',
+      'width:' + cd.w + 'px', 'height:' + cd.h + 'px',
+      'opacity:' + cd.opacity,
+      'transform:scale(' + cd.scale + ')',
+      'animation-duration:' + cd.dur + 's',
+      'animation-delay:-' + (Math.random() * cd.dur).toFixed(1) + 's',
+      cd.blur ? 'filter:blur(' + cd.blur + 'px)' : '',
+    ].filter(Boolean).join(';');
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', String(cd.w)); svg.setAttribute('height', String(cd.h));
+    svg.setAttribute('viewBox', '0 0 ' + cd.w + ' ' + cd.h);
+    svg.style.color = 'var(--color-text-muted)';
+    const els = [
+      makeSvgEl('ellipse', { cx: String(cd.w*0.22), cy: String(cd.h*0.68), rx: String(cd.w*0.22), ry: String(cd.h*0.28), fill: 'currentColor' }),
+      makeSvgEl('ellipse', { cx: String(cd.w*0.48), cy: String(cd.h*0.45), rx: String(cd.w*0.28), ry: String(cd.h*0.38), fill: 'currentColor' }),
+      makeSvgEl('ellipse', { cx: String(cd.w*0.74), cy: String(cd.h*0.62), rx: String(cd.w*0.20), ry: String(cd.h*0.26), fill: 'currentColor' }),
+    ];
+    els.forEach(e => svg.appendChild(e));
+    el.appendChild(svg);
+    canvasEl.appendChild(el);
+  });
+}
+
+function renderRain() {
+  for (let i = 0; i < 40; i++) {
+    const drop = document.createElement('div');
+    drop.className = 'wd-raindrop wa-animate';
+    drop.textContent = '|';
+    drop.style.cssText = [
+      'z-index:-1', 'pointer-events:none',
+      'left:' + (Math.random() * 98) + '%',
+      'top:-' + (Math.random() * 15) + '%',
+      'animation-duration:' + (0.55 + Math.random() * 0.7) + 's',
+      'animation-delay:-' + (Math.random() * 2).toFixed(2) + 's',
+      'font-size:' + (10 + Math.random() * 10) + 'px',
+      'opacity:' + (0.10 + Math.random() * 0.16),
+    ].join(';');
+    canvasEl.appendChild(drop);
+  }
+}
+
+function renderSun() {
+  const sun = document.createElement('div');
+  sun.className = 'wd-sun wa-animate';
+  sun.textContent = '☀️';
+  sun.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(sun);
+}
+
+function renderSnow() {
+  for (let i = 0; i < 32; i++) {
+    const flake = document.createElement('div');
+    flake.className = 'wd-snowflake wa-animate';
+    flake.textContent = Math.random() > 0.5 ? '❄' : '❅';
+    flake.style.cssText = [
+      'z-index:-1', 'pointer-events:none',
+      'left:' + (Math.random() * 98) + '%',
+      'top:-' + (Math.random() * 20) + '%',
+      'animation-duration:' + (5 + Math.random() * 6) + 's',
+      'animation-delay:-' + (Math.random() * 6).toFixed(2) + 's',
+      'font-size:' + (7 + Math.random() * 14) + 'px',
+      'opacity:' + (0.10 + Math.random() * 0.18),
+    ].join(';');
+    canvasEl.appendChild(flake);
+  }
+}
+
+function renderThunderstorm() {
+  renderRain();
+  const flash = document.createElement('div');
+  flash.className = 'wd-flash';
+  flash.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(flash);
+}
+
+function renderFog() {
+  for (let i = 0; i < 4; i++) {
+    const fog = document.createElement('div');
+    fog.className = 'wd-cloud wa-animate';
+    fog.style.cssText = [
+      'z-index:-1', 'pointer-events:none',
+      'top:' + (8 + i * 22) + '%',
+      'width:' + (280 + i * 80) + 'px', 'height:28px',
+      'opacity:' + (0.03 + i * 0.006),
+      'filter:blur(' + (6 + i * 3) + 'px)',
+      'animation-duration:' + (90 + i * 15) + 's',
+      'animation-delay:-' + (Math.random() * 90).toFixed(1) + 's',
+    ].join(';');
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '400'); svg.setAttribute('height', '28');
+    svg.setAttribute('viewBox', '0 0 400 28');
+    svg.style.color = 'var(--color-text-muted)';
+    const rect = makeSvgEl('rect', { width: '400', height: '28', rx: '14', fill: 'currentColor' });
+    svg.appendChild(rect);
+    fog.appendChild(svg);
+    canvasEl.appendChild(fog);
+  }
+}
+
+const RENDERERS: Record<string, () => void> = {
+  clear: renderSun, clouds: renderClouds, fog: renderFog,
+  rain: renderRain, drizzle: renderRain, snow: renderSnow,
+  thunderstorm: renderThunderstorm,
+};
+
+// Main flow
+async function loadWeather(lat?: string, lon?: string) {
+  showLoading();
+  clearCanvas();
+
+  let url: string;
+  if (lat && lon) {
+    url = '/api/v1/weather-theme.json?lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lon);
+  } else {
+    url = '/api/v1/weather-theme.json';
+  }
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('API returned ' + res.status);
+
+    const data = await res.json();
+    const w = data.weather;
+    const t = data.theme;
+
+    const cityName = w.city || Number(w.location.lat).toFixed(2) + ', ' + Number(w.location.lon).toFixed(2);
+    $('wd-city')!.textContent = cityName;
+    $('wd-coords')!.textContent = Number(w.location.lat).toFixed(2) + ', ' + Number(w.location.lon).toFixed(2);
+    $('wd-icon')!.textContent = WEATHER_ICONS[w.type] || '🌈';
+    $('wd-temp')!.textContent = w.temperature || '--';
+    $('wd-desc')!.textContent = WEATHER_LABELS[w.type] || w.description;
+
+    const info = $('wd-theme-info')!;
+    info.textContent = '';
+    const strong = document.createElement('strong');
+    strong.textContent = t.presetName;
+    info.appendChild(document.createTextNode('当前应用主题 '));
+    info.appendChild(strong);
+    info.appendChild(document.createElement('br'));
+    const span = document.createElement('span');
+    span.style.fontSize = '0.72rem';
+    span.textContent = '主题预设: ' + t.preset;
+    info.appendChild(span);
+
+    applyCssVars(t.cssVars);
+    applyCustomCss(t.customCss);
+
+    const renderer = RENDERERS[w.type];
+    if (renderer) renderer();
+
+    showCard();
+  } catch (err: any) {
+    console.error('Weather load failed:', err);
+    showError(err.message || '无法获取天气数据');
+  }
+}
+
+// Geolocation
+function requestGeoAndLoad() {
+  if (!navigator.geolocation) { loadWeather(); return; }
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => { loadWeather(pos.coords.latitude.toString(), pos.coords.longitude.toString()); },
+    (err) => { console.warn('Geolocation denied:', err.message); loadWeather(); },
+    { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 },
+  );
+}
+
+$('wd-retry')!.addEventListener('click', requestGeoAndLoad);
+
+$('wd-manual-go')!.addEventListener('click', () => {
+  const lat = ($('wd-manual-lat') as HTMLInputElement).value.trim();
+  const lon = ($('wd-manual-lon') as HTMLInputElement).value.trim();
+  if (lat && lon) loadWeather(lat, lon);
+});
+
+requestGeoAndLoad();
+</script>

@@ -1,0 +1,660 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout>
+  <div id="lab-root">
+    <header class="lab-header">
+      <h1>ThemeDist <span class="lab-badge">LAB</span></h1>
+      <p>全场景高级 API 综合展厅 — 所有模块基于单一实时主题联动</p>
+    </header>
+
+    <div class="lab-grid">
+      <section class="lab-card" id="card-weather">
+        <div class="lab-card-hd">
+          <span class="lab-card-icon">&#9925;</span>
+          <div><h2>天气感知</h2><p>/api/v1/weather-theme.json</p></div>
+        </div>
+        <div class="lab-card-bd" id="weather-body">
+          <div class="lab-loading">正在获取天气<span class="wd-dots"></span></div>
+        </div>
+      </section>
+
+      <section class="lab-card lab-card--pattern" id="card-pattern">
+        <div class="lab-card-hd">
+          <span class="lab-card-icon">&#9703;</span>
+          <div><h2>动态纹理</h2><p>/api/v1/today/pattern.css</p></div>
+        </div>
+        <div class="lab-card-bd" id="pattern-body">
+          <p>此卡片的背景由当前主题色实时生成的 SVG 纹理构成。</p>
+          <div class="lab-pattern-preview" id="pattern-preview"></div>
+        </div>
+      </section>
+
+      <section class="lab-card" id="card-shiki">
+        <div class="lab-card-hd">
+          <span class="lab-card-icon">&#9000;</span>
+          <div><h2>代码高亮</h2><p>/api/v1/theme/{'{id}'}/shiki.json</p></div>
+        </div>
+        <div class="lab-card-bd">
+          <p id="shiki-preset-info">主题变量映射为 VS Code / Shiki TextMate Token 颜色</p>
+          <pre class="lab-code" id="shiki-code"><code><span class="tk-keyword">export</span> <span class="tk-keyword">async function</span> <span class="tk-function">GET</span>(<span class="tk-param">&#123; params &#125;</span>) <span class="tk-punct">&#123;</span>
+  <span class="tk-keyword">const</span> <span class="tk-var">theme</span> = <span class="tk-function">await getThemeById</span>(<span class="tk-var">params</span>.<span class="tk-var">id</span>)<span class="tk-punct">;</span>
+  <span class="tk-keyword">return</span> <span class="tk-function">new Response</span>(<span class="tk-string">JSON.stringify</span>(<span class="tk-punct">&#123;</span>
+    <span class="tk-var">colors</span>: <span class="tk-var">theme</span>.<span class="tk-var">cssVars</span><span class="tk-punct">,</span>
+    <span class="tk-var">type</span>: <span class="tk-string">'dark'</span>
+  <span class="tk-punct">&#125;</span>))<span class="tk-punct">;</span>
+<span class="tk-punct">&#125;</span></code></pre>
+          <p class="lab-legend" id="shiki-legend"></p>
+        </div>
+      </section>
+
+      <section class="lab-card" id="card-motion">
+        <div class="lab-card-hd">
+          <span class="lab-card-icon">&#9889;</span>
+          <div><h2>智能缓动</h2><p>基于 tags 的动态 Easing</p></div>
+        </div>
+        <div class="lab-card-bd">
+          <p>Hover 触发小球。缓动曲线根据主题 <code>tags</code> 自动切换。</p>
+          <div class="lab-motion-track" id="motion-track">
+            <div class="lab-motion-ball" id="motion-ball"></div>
+          </div>
+          <p class="lab-motion-label" id="motion-label">easeInOut</p>
+          <p class="lab-motion-tags" id="motion-tags"></p>
+        </div>
+      </section>
+
+      <section class="lab-card" id="card-wcag">
+        <div class="lab-card-hd">
+          <span class="lab-card-icon">&#9864;</span>
+          <div><h2>WCAG 对比度</h2><p>/api/v1/theme/{'{id}'}/wcag.json</p></div>
+        </div>
+        <div class="lab-card-bd">
+          <div class="lab-wcag-grid" id="wcag-grid">
+            <div class="lab-wcag-swatch" id="wcag-bad">
+              <div class="lab-wcag-chip" style="background:#71717a;color:#d4d4d8">低对比度</div>
+              <span class="lab-wcag-ratio" style="color:#ef4444">&#10007; 失败</span>
+            </div>
+            <div class="lab-wcag-swatch" id="wcag-good">
+              <div class="lab-wcag-chip" id="wcag-good-chip">安全配色</div>
+              <span class="lab-wcag-ratio" id="wcag-good-ratio"></span>
+            </div>
+          </div>
+          <div id="wcag-detail"></div>
+        </div>
+      </section>
+    </div>
+
+    <div id="td-extensions" aria-hidden="true"></div>
+  </div>
+</Layout>
+
+<style>
+#lab-root { max-width: 1100px; margin: 0 auto; padding: 32px 24px 80px; }
+.lab-header { text-align: center; margin-bottom: 36px; }
+.lab-header h1 { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.03em; margin: 0; }
+.lab-header p  { color: var(--color-text-muted); font-size: 0.9rem; margin: 6px 0 0; }
+.lab-badge {
+  display: inline-block; font-size: 0.7rem; font-weight: 800;
+  padding: 2px 10px; border-radius: 99px;
+  background: var(--color-primary); color: #fff;
+  vertical-align: middle; margin-left: 6px; letter-spacing: 0.06em;
+}
+.lab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+.lab-card {
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: var(--radii); padding: 0; overflow: hidden;
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+.lab-card:hover { border-color: var(--color-primary); box-shadow: var(--shadow-md); }
+.lab-card-hd { display: flex; align-items: center; gap: 12px; padding: 18px 22px 0; }
+.lab-card-hd h2 { font-size: 1rem; font-weight: 700; margin: 0; }
+.lab-card-hd p  { font-size: 0.7rem; color: var(--color-text-muted); margin: 2px 0 0; font-family: var(--font-mono); }
+.lab-card-icon { font-size: 1.6rem; line-height: 1; flex-shrink: 0; }
+.lab-card-bd { padding: 14px 22px 22px; font-size: 0.85rem; color: var(--color-text-muted); line-height: 1.65; }
+.lab-card-bd p { margin: 0 0 8px; }
+.lab-loading { text-align: center; padding: 20px; color: var(--color-text-muted); }
+
+.lab-weather-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.lab-weather-icon { font-size: 2.5rem; line-height: 1; }
+.lab-weather-temp { font-size: 2rem; font-weight: 800; color: var(--color-text); }
+.lab-weather-desc { font-size: 0.9rem; }
+.lab-weather-city { font-size: 0.78rem; opacity: 0.7; }
+
+.lab-card--pattern { position: relative; }
+.lab-card--pattern::before {
+  content: ''; position: absolute; inset: 0;
+  background-image: inherit; opacity: 0.3; pointer-events: none; z-index: 0;
+}
+.lab-card--pattern .lab-card-hd,
+.lab-card--pattern .lab-card-bd { position: relative; z-index: 1; }
+.lab-pattern-preview { margin-top: 10px; height: 60px; border-radius: 8px; border: 1px solid var(--color-border); }
+
+.lab-code {
+  background: #0d1117; border-radius: 10px; padding: 16px 18px;
+  overflow-x: auto; font-size: 0.8rem; line-height: 1.75; margin: 10px 0;
+}
+.lab-code code { background: none; padding: 0; color: #c9d1d9; }
+.lab-legend { font-size: 0.72rem; margin-top: 4px; }
+
+.lab-motion-track {
+  height: 60px; border-radius: 10px;
+  background: color-mix(in srgb, var(--color-bg) 70%, transparent);
+  border: 1px solid var(--color-border);
+  margin: 10px 0; position: relative; overflow: hidden; cursor: pointer;
+}
+.lab-motion-ball {
+  position: absolute; top: 10px; left: 8px;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--color-primary); transition: transform 0.7s;
+}
+.lab-motion-track:hover .lab-motion-ball { transform: translateX(calc(100% + 200px)); }
+.lab-motion-label { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600; margin: 4px 0; }
+.lab-motion-tags { font-size: 0.7rem; opacity: 0.7; }
+
+.lab-wcag-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0; }
+.lab-wcag-swatch { text-align: center; }
+.lab-wcag-chip { padding: 20px 12px; border-radius: 10px; font-size: 0.8rem; font-weight: 600; margin-bottom: 6px; }
+.lab-wcag-ratio { font-size: 0.75rem; font-weight: 700; }
+#wcag-detail { font-size: 0.72rem; line-height: 1.7; margin-top: 8px; }
+
+.wd-dots::after { content: ''; animation: wd-ellipsis 1.5s steps(4, end) infinite; }
+@keyframes wd-ellipsis {
+  0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } 100% { content: ''; }
+}
+
+@media (max-width: 700px) {
+  .lab-grid { grid-template-columns: 1fr; }
+  .lab-wcag-grid { grid-template-columns: 1fr; }
+}
+</style>
+
+<!-- ═══════════════════════════════════════════════
+  Weather ambiance — is:global for JS-created DOM.
+  Double-layer: outer = position/scale/opacity,
+  inner = pure animation (no transform conflicts).
+  ═══════════════════════════════════════════════ -->
+<style is:global>
+#td-extensions {
+  position: fixed !important; inset: 0 !important;
+  z-index: 0 !important; pointer-events: none !important; overflow: hidden !important;
+}
+
+/* Outer wrapper: position, scale, opacity, z-index — NO animation */
+.wd-asset-outer {
+  position: absolute; left: 0; z-index: -1; pointer-events: none;
+}
+
+/* Inner wrapper: pure animation — no positioning conflicts */
+.wd-asset-inner { width: 100%; height: 100%; }
+
+@keyframes wa-drift {
+  0%   { transform: translateX(-20vw); }
+  100% { transform: translateX(120vw); }
+}
+@keyframes wa-fall {
+  0%   { transform: translateY(-10vh); opacity: 0; }
+  15%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateY(108vh); opacity: 0; }
+}
+@keyframes wa-snowfall {
+  0%   { transform: translateY(-5vh); }
+  100% { transform: translateY(108vh); }
+}
+@keyframes wa-sway {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(16px); }
+}
+@keyframes wa-rotate {
+  0%   { transform: rotate(0deg) scale(1); }
+  50%  { transform: rotate(180deg) scale(1.06); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+@keyframes wa-flash {
+  0%, 91%, 100% { opacity: 0; }
+  92% { opacity: 1; }
+  94% { opacity: 0; }
+  96% { opacity: 0.4; }
+  98% { opacity: 0; }
+}
+
+.wd-sun {
+  position: fixed; top: 80px; right: 8%;
+  pointer-events: none; z-index: 0;
+  font-size: 3rem; opacity: 0.45;
+  filter: drop-shadow(0 0 40px rgba(255,200,60,0.35));
+  animation: wa-rotate 24s linear infinite;
+}
+.wd-flash {
+  position: fixed; inset: 0;
+  background: rgba(255,255,255,0.04);
+  pointer-events: none; z-index: 0;
+  animation: wa-flash 7s ease-out infinite;
+}
+
+@media (max-width: 700px) {
+  .wd-sun { font-size: 2rem; top: 4%; right: 4%; }
+}
+</style>
+
+<script>
+const $ = function(id) { return document.getElementById(id); };
+
+var WEATHER_ICONS = {
+  clear: '☀️', clouds: '☁️', fog: '🌫️',
+  rain: '🌧️', drizzle: '🌦️', snow: '❄️', thunderstorm: '⛈️',
+};
+var WEATHER_LABELS = {
+  clear: '晴', clouds: '多云', fog: '雾', rain: '雨',
+  drizzle: '毛毛雨', snow: '雪', thunderstorm: '雷暴',
+};
+
+// ── Utils ──
+function applyCssVars(vars) {
+  Object.entries(vars).forEach(function(kv) {
+    document.documentElement.style.setProperty(kv[0], kv[1]);
+  });
+}
+
+function makeSvgEl(tag, attrs) {
+  var el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  Object.keys(attrs).forEach(function(k) { el.setAttribute(k, attrs[k]); });
+  return el;
+}
+
+// ═══════════════════════════════════════════════════════
+//  MASTER CONTROLLER — single source of truth
+// ═══════════════════════════════════════════════════════
+async function bootLab() {
+  // Step A: always start with today's base theme (non-blocking baseline)
+  var baseTheme;
+  try {
+    var todayRes = await fetch('/api/v1/today.json');
+    baseTheme = await todayRes.json();
+    applyCssVars(baseTheme.cssVars);
+  } catch (e) {
+    console.error('Lab: base theme failed', e);
+    return;
+  }
+
+  // Step B: attempt weather — if it succeeds, override with weather theme
+  var activeTheme = baseTheme;
+  var weatherData = null;
+
+  try {
+    var url = '/api/v1/weather-theme.json';
+    if (navigator.geolocation) {
+      try {
+        var pos = await new Promise(function(resolve, reject) {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 4000 });
+        });
+        url += '?lat=' + pos.coords.latitude + '&lon=' + pos.coords.longitude;
+      } catch (geoErr) { /* use IP fallback */ }
+    }
+    var wRes = await fetch(url);
+    if (wRes.ok) {
+      var wData = await wRes.json();
+      weatherData = wData.weather;
+      activeTheme = wData.theme;
+      applyCssVars(activeTheme.cssVars);
+    }
+  } catch (e) {
+    console.log('Lab: weather skipped, using base theme');
+  }
+
+  // Step C: update weather card UI
+  renderWeatherUI(weatherData, activeTheme);
+
+  // Step D: weather particles (only adds to #td-extensions, never replaces vars)
+  renderWeatherAssets(weatherData ? weatherData.type : 'clear');
+
+  // Step E: derive presetId from the ACTIVE theme (no hardcoding)
+  var presetId = activeTheme.preset;
+
+  // Step F: fire sub-modules in parallel — all receive the same source-of-truth
+  initPattern();
+  initShiki(presetId);
+  initMotion(activeTheme);
+  initWcag(presetId);
+}
+
+// ═══════════════════════════════════════════════════════
+//  MODULE: Weather UI (card content only — no CSS vars)
+// ═══════════════════════════════════════════════════════
+function renderWeatherUI(w, t) {
+  var body = $('weather-body');
+  if (!body) return;
+  body.textContent = '';
+
+  if (!w) {
+    var p = document.createElement('p');
+    p.textContent = '使用今日默认主题: ' + t.presetName + ' (' + t.preset + ')';
+    body.appendChild(p);
+    return;
+  }
+
+  var row = document.createElement('div'); row.className = 'lab-weather-row';
+  var icon = document.createElement('span'); icon.className = 'lab-weather-icon';
+  icon.textContent = WEATHER_ICONS[w.type] || '🌈';
+  var temp = document.createElement('span'); temp.className = 'lab-weather-temp';
+  temp.textContent = w.temperature || '--';
+  var desc = document.createElement('span'); desc.className = 'lab-weather-desc';
+  desc.textContent = WEATHER_LABELS[w.type] || w.description;
+  row.appendChild(icon); row.appendChild(temp); row.appendChild(desc);
+  body.appendChild(row);
+
+  var cityEl = document.createElement('p'); cityEl.className = 'lab-weather-city';
+  var coords = Number(w.location.lat).toFixed(2) + ', ' + Number(w.location.lon).toFixed(2);
+  cityEl.textContent = w.city ? w.city + ' (' + coords + ')' : coords;
+  body.appendChild(cityEl);
+
+  var themeInfo = document.createElement('p');
+  themeInfo.textContent = '当前主题: ' + t.presetName + ' (' + t.preset + ')';
+  body.appendChild(themeInfo);
+}
+
+// ═══════════════════════════════════════════════════════
+//  MODULE: Weather Particles (double-layer DOM)
+//  Outer = position/scale/opacity. Inner = pure animation.
+// ═══════════════════════════════════════════════════════
+function renderWeatherAssets(type) {
+  var canvas = $('td-extensions');
+  if (!canvas) return;
+  canvas.textContent = '';
+
+  // Clean up standalone elements
+  var oldSun = document.querySelector('.wd-sun'); if (oldSun) oldSun.remove();
+  var oldFlash = document.querySelector('.wd-flash'); if (oldFlash) oldFlash.remove();
+
+  var frag = document.createDocumentFragment();
+
+  if (type === 'clear' || type === 'sunny') {
+    var sun = document.createElement('div'); sun.className = 'wd-sun';
+    sun.textContent = '☀️'; sun.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(sun);
+
+  } else if (type === 'clouds' || type === 'fog' || type === 'mist' || type === 'haze') {
+    var isFog = type === 'fog';
+    var cloudCount = 5;
+    for (var i = 0; i < cloudCount; i++) {
+      var scale = 0.4 + Math.random() * 0.9;
+      var topPct = 6 + Math.random() * 32;
+      var dur = 45 + Math.random() * 55;
+      var delay = -(Math.random() * dur);
+      var opacity = isFog ? 0.015 + Math.random() * 0.02 : 0.02 + Math.random() * 0.04;
+      var blur = isFog ? (6 + Math.random() * 6) : (scale < 0.6 ? 2 + Math.random() * 2 : 0);
+
+      // Outer: position / scale / opacity (NO animation)
+      var outer = document.createElement('div');
+      outer.className = 'wd-asset-outer';
+      outer.style.cssText =
+        'top:' + topPct + '%;' +
+        'transform:scale(' + scale.toFixed(2) + ');' +
+        'opacity:' + opacity.toFixed(3) + ';' +
+        (blur > 0 ? 'filter:blur(' + blur.toFixed(0) + 'px);' : '');
+
+      // Inner: pure animation
+      var inner = document.createElement('div');
+      inner.className = 'wd-asset-inner';
+      inner.style.cssText =
+        'animation:wa-drift ' + dur.toFixed(0) + 's linear infinite;' +
+        'animation-delay:' + delay.toFixed(1) + 's;' +
+        'width:200px;';
+
+      // SVG cloud shape — inherits theme color via currentColor
+      var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('width', '200'); svg.setAttribute('height', '100');
+      svg.style.color = 'var(--color-text-muted)';
+      svg.innerHTML = '<path d="M17.5 19c-2.485 0-4.5-2.015-4.5-4.5 0-.168.01-.333.028-.495A4.485 4.485 0 0110.5 13a4.5 4.5 0 01-3.136-1.229 3.5 3.5 0 11.137-5.711C7.818 4.295 9.453 3 11.5 3c2.58 0 4.747 1.761 5.343 4.14A4.5 4.5 0 0122 10.5c0 2.485-2.015 4.5-4.5 4.5h-5z" fill="currentColor"/>';
+
+      inner.appendChild(svg);
+      outer.appendChild(inner);
+      frag.appendChild(outer);
+    }
+  } else if (type === 'rain' || type === 'drizzle') {
+    for (var ri = 0; ri < 40; ri++) {
+      var outer = document.createElement('div');
+      outer.className = 'wd-asset-outer';
+      outer.style.cssText =
+        'left:' + (Math.random() * 98) + '%;' +
+        'top:-' + (Math.random() * 15) + '%;' +
+        'opacity:' + (0.10 + Math.random() * 0.16).toFixed(3) + ';';
+
+      var inner = document.createElement('div');
+      inner.className = 'wd-asset-inner';
+      inner.textContent = '|';
+      inner.style.cssText =
+        'animation:wa-fall ' + (0.55 + Math.random() * 0.7).toFixed(2) + 's linear infinite;' +
+        'animation-delay:-' + (Math.random() * 2).toFixed(2) + 's;' +
+        'font-size:' + (10 + Math.random() * 10) + 'px;' +
+        'color:var(--color-text-muted);';
+
+      outer.appendChild(inner);
+      frag.appendChild(outer);
+    }
+  } else if (type === 'snow') {
+    for (var si = 0; si < 32; si++) {
+      var outer = document.createElement('div');
+      outer.className = 'wd-asset-outer';
+      outer.style.cssText =
+        'left:' + (Math.random() * 98) + '%;' +
+        'top:-' + (Math.random() * 20) + '%;' +
+        'opacity:' + (0.10 + Math.random() * 0.18).toFixed(3) + ';';
+
+      var inner = document.createElement('div');
+      inner.className = 'wd-asset-inner';
+      inner.textContent = Math.random() > 0.5 ? '❄' : '❅';
+      inner.style.cssText =
+        'animation:wa-snowfall ' + (5 + Math.random() * 6).toFixed(1) + 's linear infinite,' +
+                  'wa-sway 4s ease-in-out infinite;' +
+        'animation-delay:-' + (Math.random() * 6).toFixed(2) + 's;' +
+        'font-size:' + (7 + Math.random() * 14) + 'px;' +
+        'color:var(--color-text-muted);';
+
+      outer.appendChild(inner);
+      frag.appendChild(outer);
+    }
+  } else if (type === 'thunderstorm') {
+    // Rain + flash (reuse rain code)
+    for (var ti = 0; ti < 40; ti++) {
+      var outer = document.createElement('div');
+      outer.className = 'wd-asset-outer';
+      outer.style.cssText =
+        'left:' + (Math.random() * 98) + '%;' +
+        'top:-' + (Math.random() * 15) + '%;' +
+        'opacity:' + (0.14 + Math.random() * 0.18).toFixed(3) + ';';
+
+      var inner = document.createElement('div');
+      inner.className = 'wd-asset-inner';
+      inner.textContent = '|';
+      inner.style.cssText =
+        'animation:wa-fall ' + (0.5 + Math.random() * 0.6).toFixed(2) + 's linear infinite;' +
+        'animation-delay:-' + (Math.random() * 1.5).toFixed(2) + 's;' +
+        'font-size:' + (11 + Math.random() * 12) + 'px;' +
+        'color:var(--color-text-muted);';
+
+      outer.appendChild(inner);
+      frag.appendChild(outer);
+    }
+    var flash = document.createElement('div'); flash.className = 'wd-flash';
+    flash.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(flash);
+  }
+
+  // Single paint: batch-insert all particles via DocumentFragment
+  if (frag.childNodes.length > 0) {
+    canvas.appendChild(frag);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  MODULE 2: Dynamic Pattern (reads current CSS vars)
+// ═══════════════════════════════════════════════════════
+async function initPattern() {
+  try {
+    var res = await fetch('/api/v1/today/pattern.css');
+    if (!res.ok) return;
+    var css = await res.text();
+    var m = css.match(/url\("([^"]+)"\)/);
+    if (m) {
+      var preview = $('pattern-preview');
+      if (preview) {
+        preview.style.backgroundImage = 'url("' + m[1] + '")';
+        preview.style.backgroundColor = 'var(--color-bg)';
+      }
+    }
+    var m2 = css.match(/background-image:\s*url\("([^"]+)"\)/);
+    if (m2) {
+      var card = $('card-pattern');
+      if (card) card.style.setProperty('background-image', 'url("' + m2[1] + '")', 'important');
+    }
+  } catch (e) { /* silent */ }
+}
+
+// ═══════════════════════════════════════════════════════
+//  MODULE 3: Shiki Code Highlight (dynamic presetId)
+// ═══════════════════════════════════════════════════════
+async function initShiki(presetId) {
+  try {
+    var res = await fetch('/api/v1/theme/' + presetId + '/shiki.json');
+    if (!res.ok) return;
+    var shiki = await res.json();
+    var tc = shiki.tokenColors || [];
+
+    var findColor = function() {
+      var scopes = Array.prototype.slice.call(arguments);
+      for (var i = 0; i < tc.length; i++) {
+        var t = tc[i];
+        if (t.scope && scopes.some(function(s) { return t.scope.includes(s); })) {
+          return t.settings.foreground || '';
+        }
+      }
+      return '';
+    };
+    var kw  = findColor('keyword') || '#ff7b72';
+    var fn  = findColor('entity.name.function') || '#d2a8ff';
+    var str = findColor('string') || '#a5d6ff';
+    var num = findColor('constant.numeric') || '#ffa657';
+    var fg  = (shiki.colors && shiki.colors['editor.foreground']) || '#c9d1d9';
+
+    var style = document.createElement('style');
+    style.textContent =
+      '.tk-keyword { color: ' + kw + '; }\n' +
+      '.tk-function { color: ' + fn + '; }\n' +
+      '.tk-string  { color: ' + str + '; }\n' +
+      '.tk-param   { color: ' + num + '; }\n' +
+      '.tk-var     { color: ' + fg + '; }';
+    document.head.appendChild(style);
+
+    // Update preset info line
+    var info = $('shiki-preset-info');
+    if (info) info.textContent = '基于实时主题 ' + presetId + ' 的 TextMate Token 颜色映射';
+
+    var legend = $('shiki-legend');
+    if (!legend) return;
+    legend.textContent = '';
+    function addSwatch(label, color) {
+      var span = document.createElement('span');
+      span.style.cssText = 'display:inline-block;margin-right:12px;font-weight:600';
+      var dot = document.createElement('span');
+      dot.style.cssText = 'display:inline-block;width:10px;height:10px;border-radius:50%;background:' + color + ';margin-right:4px;vertical-align:middle';
+      span.appendChild(dot);
+      span.appendChild(document.createTextNode(label));
+      legend.appendChild(span);
+    }
+    addSwatch('keyword', kw);
+    addSwatch('function', fn);
+    addSwatch('string', str);
+    addSwatch('constant', num);
+  } catch (e) { /* silent */ }
+}
+
+// ═══════════════════════════════════════════════════════
+//  MODULE 4: Motion Preset (receives theme directly)
+// ═══════════════════════════════════════════════════════
+function initMotion(theme) {
+  try {
+    var vars = theme.cssVars || {};
+    var tags = (theme.tags && theme.tags.length) ? theme.tags.slice() : [];
+
+    // If no tags, infer from CSS vars
+    if (tags.length === 0) {
+      var bg = vars['--color-bg'] || '#000';
+      var primary = vars['--color-primary'] || '#6366f1';
+      var isDark = !/^#(?:f|e|d|c|b|a|[1-9])/.test(bg.replace('#', '').toLowerCase());
+      tags.push(isDark ? 'dark' : 'light');
+      var c = primary.replace('#', '');
+      if (c.length >= 6) {
+        var r = parseInt(c.slice(0,2), 16), g = parseInt(c.slice(2,4), 16), b = parseInt(c.slice(4,6), 16);
+        var max = Math.max(r,g,b), min = Math.min(r,g,b);
+        tags.push(max > 0 && (max - min) / max > 0.5 ? 'vibrant' : 'minimal');
+      }
+    }
+
+    var easing = 'cubic-bezier(0.25, 0.1, 0.25, 1)';
+    var label = 'easeInOut (默认)';
+    if (tags.indexOf('vibrant') >= 0) {
+      easing = 'cubic-bezier(0.34, 1.56, 0.64, 1)';
+      label = 'spring (vibrant)';
+    } else if (tags.indexOf('minimal') >= 0 || tags.indexOf('nature') >= 0) {
+      label = 'easeInOut (minimal/nature)';
+    }
+
+    var ball = $('motion-ball');
+    if (ball) ball.style.transition = 'transform 0.7s ' + easing;
+    var ml = $('motion-label');
+    if (ml) ml.textContent = label;
+    var mt = $('motion-tags');
+    if (mt) mt.textContent = 'tags: ' + tags.join(', ');
+  } catch (e) { /* silent */ }
+}
+
+// ═══════════════════════════════════════════════════════
+//  MODULE 5: WCAG Contrast (dynamic presetId)
+// ═══════════════════════════════════════════════════════
+async function initWcag(presetId) {
+  try {
+    var res = await fetch('/api/v1/theme/' + presetId + '/wcag.json');
+    if (!res.ok) return;
+    var data = await res.json();
+    var r = data.ratios;
+
+    var goodChip = $('wcag-good-chip');
+    if (goodChip) {
+      var style = getComputedStyle(document.documentElement);
+      var primary = style.getPropertyValue('--color-primary').trim() || '#6366f1';
+      var bg = style.getPropertyValue('--color-bg').trim() || '#0f0f23';
+      goodChip.style.background = bg;
+      goodChip.style.color = primary;
+    }
+
+    var textOnBg = (r && r.text_on_bg) ? r.text_on_bg : { ratio: 0, AA_normal: 'fail' };
+    var goodRatio = $('wcag-good-ratio');
+    if (goodRatio) {
+      goodRatio.textContent = textOnBg.ratio.toFixed(1) + ':1 — AA ' + (textOnBg.AA_normal === 'pass' ? '✓' : '✗');
+      goodRatio.style.color = textOnBg.AA_normal === 'pass' ? '#22c55e' : '#ef4444';
+    }
+
+    var detail = $('wcag-detail');
+    if (!detail) return;
+    detail.textContent = '';
+    var lines = [
+      '主题: ' + presetId,
+      '对比度评估: ' + (data.compliant ? '✓ 合规' : '✗ 不合规'),
+      '最差: ' + data.summary.worst + ':1 / 最佳: ' + data.summary.best + ':1 / 平均: ' + data.summary.average + ':1',
+    ];
+    if (data.warnings && data.warnings.length) {
+      lines.push('⚠ ' + data.warnings.length + ' 个警告');
+    }
+    lines.forEach(function(l) {
+      var p = document.createElement('p'); p.textContent = l; p.style.margin = '2px 0';
+      detail.appendChild(p);
+    });
+  } catch (e) { /* silent */ }
+}
+
+// ── Single entry point ──
+bootLab();
+</script>

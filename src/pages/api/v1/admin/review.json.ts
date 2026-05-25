@@ -21,12 +21,7 @@ export async function GET({ cookies }: { cookies: any }) {
 
   // Ensure CSRF cookie exists (repair sessions created before CSRF was added)
   if (!cookies.get('csrf_token')) {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let token = '';
-    for (let i = 0; i < 32; i++) {
-      token += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    cookies.set('csrf_token', token, {
+    cookies.set('csrf_token', crypto.randomUUID(), {
       httpOnly: false,
       path: '/',
       maxAge: 60 * 60 * 24,

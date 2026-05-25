@@ -221,10 +221,138 @@ function tryParseFloating(html: string): ThemeExtension | null {
   return ext;
 }
 
+// ─── Decorative HTML allowlist ───
+// Tags not in this set are stripped entirely.
+const ALLOWED_TAGS = new Set([
+  // structural
+  'div', 'span', 'p', 'a', 'br', 'hr', 'wbr',
+  'section', 'article', 'header', 'footer', 'nav', 'main', 'aside',
+  'figure', 'figcaption', 'details', 'summary',
+  // headings & text
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'ul', 'ol', 'li', 'dl', 'dt', 'dd',
+  'strong', 'em', 'b', 'i', 'u', 's', 'small', 'mark', 'del', 'ins',
+  'code', 'pre', 'kbd', 'samp', 'var',
+  'blockquote', 'q', 'cite', 'abbr', 'sub', 'sup', 'time',
+  // table
+  'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'caption', 'colgroup', 'col',
+  // media / visual
+  'img', 'picture', 'svg', 'path', 'circle', 'rect', 'ellipse', 'line',
+  'polyline', 'polygon', 'g', 'defs', 'linearGradient', 'radialGradient',
+  'stop', 'filter', 'feDropShadow', 'feGaussianBlur', 'feColorMatrix',
+  'feBlend', 'feMerge', 'feMergeNode', 'feOffset', 'feFlood', 'feComposite',
+  'pattern', 'use', 'clipPath', 'mask', 'text', 'tspan', 'title', 'desc',
+  'symbol', 'view', 'foreignObject',
+  // style (CSS content sanitized separately)
+  'style',
+]);
+
+// Tags that MUST be stripped — no legitimate decorative use.
+const DANGEROUS_TAGS_RE = /<\/?(script|iframe|object|embed|applet|frame|frameset|form|input|button|select|textarea|option|optgroup|label|fieldset|legend|meta|base|link|audio|video|source|track|canvas)\b[^>]*\/?>/gi;
+
+// Allowed attributes (prefix-based) — everything else stripped.
+const ALLOWED_ATTR_PREFIXES = [
+  'class', 'id', 'style',
+  'src', 'alt', 'width', 'height', 'loading',
+  'href', 'target', 'rel', 'title',
+  'type', 'media',
+  'viewBox', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin',
+  'd', 'cx', 'cy', 'r', 'rx', 'ry', 'x', 'y', 'x1', 'x2', 'y1', 'y2',
+  'points', 'transform', 'opacity',
+  'cx', 'cy', 'fx', 'fy', 'gradientUnits', 'gradientTransform', 'spreadMethod',
+  'offset', 'stop-color', 'stop-opacity',
+  'filterUnits', 'stdDeviation', 'in', 'in2', 'result', 'mode', 'values',
+  'patternUnits', 'patternTransform', 'patternContentUnits',
+  'clip-path', 'clip-rule', 'fill-rule', 'stroke-dasharray', 'stroke-dashoffset',
+  'stroke-linejoin', 'stroke-miterlimit', 'stroke-opacity',
+  'font-family', 'font-size', 'font-weight', 'text-anchor', 'dominant-baseline',
+  'dx', 'dy', 'rotate', 'textLength', 'lengthAdjust',
+  'xmlns',
+  'aria-hidden', 'role', 'data-',
+];
+
+const ALLOWED_ATTR_RE = new RegExp(
+  '^(?:' + ALLOWED_ATTR_PREFIXES.map(p => p.endsWith('-') ? p.slice(0, -1) + '(?:-[a-zA-Z][\\w-]*)?' : p).join('|') + ')$'
+);
+
+function sanitizeAttributes(tagContent: string): string {
+  // Strip on* event handlers
+  let cleaned = tagContent.replace(/\s+on\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]*)/gi, '');
+  // Strip javascript: protocol from attribute values
+  cleaned = cleaned.replace(/=\s*["'][^"']*javascript\s*:[^"']*["']/gi, '="banned:"');
+  return cleaned;
+}
+
 function sanitizeDecorativeHtml(html: string): string {
-  return html
-    .replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '')
+  // 1. Strip dangerous tags (script, iframe, form elements, media, meta, etc.)
+  let cleaned = html.replace(DANGEROUS_TAGS_RE, '');
+
+  // 2. Sanitize <style> blocks — extract CSS, run through sanitizeCustomCss, re-wrap
+  cleaned = cleaned.replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gi, (_m: string, css: string) => {
+    const safeCss = sanitizeCustomCss(css);
+    return safeCss ? `<style>${safeCss}</style>` : '';
+  });
+
+  // 3. Strip event handlers and javascript: protocol from all remaining tags
+  cleaned = cleaned.replace(/<(\/?)(\w+)([^>]*)>/g, (_m: string, slash: string, tag: string, attrs: string) => {
+    // Strip non-allowed tags
+    if (!ALLOWED_TAGS.has(tag.toLowerCase())) return '';
+    const cleanAttrs = sanitizeAttributes(attrs);
+    return `<${slash}${tag}${cleanAttrs}>`;
+  });
+
+  // 4. Pass-through strip of any remaining javascript: URIs in the text
+  cleaned = cleaned.replace(/javascript\s*:/gi, '');
+
+  return cleaned;
+}
+
+// ─── Query parameter override parsing ───
+
+const OVERRIDE_KEY_RE = /^--[a-zA-Z0-9_-]+$/;
+
+/**
+ * Validate and sanitize a single override key-value pair.
+ * Returns null if the key is invalid or value contains dangerous patterns.
+ */
+export function sanitizeOverridePair(key: string, value: string): { k: string; v: string } | null {
+  if (!OVERRIDE_KEY_RE.test(key)) return null;
+
+  const cleanVal = String(value)
+    .slice(0, 256)
+    .replace(/[;{}]/g, '')
+    .replace(/url\s*\(\s*["']?\s*(?:https?|ftp|data):[^)]*\)?/gi, '')
+    .replace(/expression\s*\(/gi, '')
     .replace(/javascript\s*:/gi, '')
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '');
+    .replace(/@import\b/gi, '')
+    .replace(/\)/g, '')  // stray ) from stripped url()
+    .trim();
+
+  if (!cleanVal) return null;
+  return { k: key, v: cleanVal };
+}
+
+/**
+ * Parse ?overrides= query string and merge into cssVars.
+ * Format: --key1:val1;--key2:val2
+ * Max 20 overrides for abuse prevention.
+ */
+export function applyOverrides(cssVars: Record<string, string>, overridesQuery: string | null): Record<string, string> {
+  if (!overridesQuery) return cssVars;
+  const result = { ...cssVars };
+
+  const pairs = overridesQuery.split(';').slice(0, 20);
+  for (const pair of pairs) {
+    const colonIdx = pair.indexOf(':');
+    if (colonIdx <= 0) continue;
+    const rawKey = pair.slice(0, colonIdx).trim();
+    const rawVal = pair.slice(colonIdx + 1).trim();
+    if (!rawKey || !rawVal) continue;
+    const sanitized = sanitizeOverridePair(rawKey.startsWith('--') ? rawKey : `--${rawKey}`, rawVal);
+    if (sanitized) {
+      result[sanitized.k] = sanitized.v;
+    }
+  }
+
+  return result;
 }

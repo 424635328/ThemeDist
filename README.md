@@ -238,7 +238,66 @@ function renderExtensions(exts) {
 
 ## API 使用
 
-详细文档请访问部署后的 `/api/docs` 页面。以下为概览：
+详细文档请访问部署后的 `/api/docs` 页面。以下为完整端点概览：
+
+### 完整端点索引
+
+| 方法 | 路径 | 分类 | 说明 | 缓存 |
+|------|------|------|------|------|
+| GET | `/api/v1/today.json` | 核心 | 今日主题完整数据（cssVars + extensions + directory） | 浏览器 1h / CDN 24h |
+| GET | `/api/v1/today.css` | 核心 | 今日主题纯 CSS（`:root{}` 变量，消除 FOUC） | 浏览器 1h / CDN 24h |
+| GET | `/api/v1/date=MM-DD` | 核心 | 按日期查询主题（如 `/api/v1/date=02-14`） | 浏览器 1h |
+| GET | `/api/v1/theme/{id}.json` | 核心 | 指定预设/社区主题完整数据 | 预设 365d / 社区 1h |
+| GET | `/api/v1/theme/random.json` | 工具 | 随机主题（支持 `?pool=static\|community\|all` 和 `?seed=N`） | 不缓存 |
+| GET | `/api/v1/index-data.json` | 核心 | 构建时索引（日池/节日映射/目录） | 浏览器 1h / CDN 24h |
+| | | | | |
+| GET | `/api/v1/theme/{id}/wcag.json` | 诊断 | WCAG 无障碍诊断（AA/AAA 对比度评估） | 浏览器 1h |
+| GET | `/api/v1/theme/{id}/scale.json` | 诊断 | Tailwind 风格 50~950 色阶（4 组） | 365d immutable |
+| GET | `/api/v1/theme/{id}/export/shadcn.css` | 诊断 | Shadcn UI HSL 变量适配器 | 365d immutable |
+| GET | `/api/v1/theme/{id}/shiki.json` | 诊断 | Shiki/VS Code TextMate Token 颜色映射 | 365d immutable |
+| GET | `/api/v1/theme/{id}/og.svg` | 工具 | OG 社交分享卡片（1200×630 SVG） | 365d immutable |
+| | | | | |
+| GET | `/api/v1/weather-theme.json` | 环境 | 天气自适应主题（IP/Geolocation + Open-Meteo） | 30min |
+| GET | `/api/v1/status-override.json?status=` | 环境 | 系统状态覆盖（maintenance/mourning/incident） | 5min |
+| | | | | |
+| GET | `/api/v1/tailwind-config.json` | 工具 | Tailwind CSS 配置生成（RGB 通道 + `<alpha-value>`） | 浏览器 1h |
+| GET | `/api/v1/tokens.json` | 工具 | W3C DTCG 设计令牌 JSON 导出 | 浏览器 1h |
+| GET | `/api/v1/today/pattern.css` | 工具 | 动态 SVG 背景纹理（主题色几何图案） | 浏览器 1h |
+| GET | `/api/v1/today/weather.js` | 工具 | 天气粒子渲染脚本（云/雨/雪/太阳/闪电），`<script src>` 引入 | 浏览器 1h / CDN 24h |
+| GET | `/api/v1/today/favicon.svg` | 工具 | 动态 Favicon（主色圆角矩形 + Logo 首字） | 浏览器 1h |
+| GET | `/api/v1/today/fonts.css` | 工具 | 自动字体注入（Google Fonts @import） | 浏览器 1h |
+| GET | `/api/v1/today/palette.svg` | 工具 | 今日主题调色盘 SVG 徽章 | 浏览器 1h |
+| GET | `/api/v1/search/color.json?hex=&limit=` | 工具 | 颜色相似度搜索（RGB 欧几里得距离） | 浏览器 1h |
+| GET | `/api/v1/recommend/{id}.json` | 工具 | 智能推荐引擎（Jaccard + 颜色距离） | 浏览器 1h |
+| GET | `/api/v1/trending.json` | 工具 | 趋势排行榜（热度 = 点赞×10 + 使用量×1） | 5min |
+| GET | `/api/v1/badge/{username}.svg` | 工具 | GitHub 动态徽章（shields.io 风格） | 浏览器 1h |
+| POST | `/api/v1/extract-theme.json` | 工具 | 图片取色（K-means + UI 语义映射，纯 JS） | 不缓存 |
+| POST | `/api/v1/ai/describe.json` | AI | AI 逆向描述（CSS 变量→中文风格分析） | 不缓存 |
+| | | | | |
+| GET | `/api/v1/diy/themes.json` | 社区 | 社区主题列表（分页 + 排序 + 标签筛选） | 1min |
+| GET | `/api/v1/diy/theme.json?id=` | 社区 | 单个社区主题详情（含点赞数） | 5min |
+| POST | `/api/v1/diy/submit.json` | 社区 | 提交社区主题（进入审核队列） | 不缓存 |
+| POST | `/api/v1/diy/like.json` | 社区 | 点赞社区主题（IP+UA+UUID 三重去重） | 不缓存 |
+| | | | | |
+| POST | `/api/v1/ai/generate.json` | AI | AI 主题生成（规则引擎，或 DeepSeek 客户端直调） | 不缓存 |
+| | | | | |
+| POST | `/api/v1/telemetry/hit` | 遥测 | 匿名遥测上报（HyperLogLog + Sorted Set） | 不缓存 |
+| POST | `/api/v1/pool/create.json` | 池 | 创建自定义轮换池 | 不缓存 |
+| GET | `/api/v1/pool/{poolId}.json` | 池 | 自定义轮换池每日轮换查询 | 1h |
+| | | | | |
+| GET | `/api/v1/admin/health.json` | 管理 | Redis 健康检查（pending/approved 计数） | 不缓存 |
+| POST | `/api/v1/admin/login.json` | 管理 | 管理员登录（Cookie + CSRF） | 不缓存 |
+| GET/POST | `/api/v1/admin/review.json` | 管理 | 审核待审主题 / 批量批准 | 不缓存 |
+
+### 演示页面
+
+| 路径 | 说明 |
+|------|------|
+| `/weather-demo` | 天气感知演示 — 浏览器定位 + 实时天气视觉渲染（云/雨/雪/太阳） |
+| `/lab` | 全场景 API 展厅 — 天气/纹理/高亮/缓动/WCAG 五合一联动 |
+| `/theme-store` | 主题商店 — 浏览/搜索/筛选所有主题 |
+| `/theme-builder` | 主题构建器 — 实时编辑 CSS 变量/自定义 CSS/Extensions |
+| `/submit` | 社区投稿 — 三栏编辑器 + AI 生成 + LIVE SENSING 沙箱 |
 
 ### 获取今日主题
 
@@ -314,13 +373,15 @@ curl https://themedist.netlify.app/api/v1/today.json
 | `presetName` | 主题显示名称 |
 | `dailyIsCommunity` | `true` 表示今日主题来自社区投稿 |
 | `apiVersion` | API 版本号，当前为 `"v1"` |
-| `cssVars` | 34 个 CSS 自定义属性键值对 |
-| `customCss` | 节日专属 CSS 动画（非节日为 `null`） |
-| `extensions` | 声明式装饰元素数组，支持 `floating`（安全浮动字符）和 `decorative`（经清洗的 HTML 片段）。社区主题为 `null` 或数组，静态预设可能不含此字段 |
-| `logoText` | 节日 Emoji / 主题 Logo 文字 |
-| `logoColors` | Logo 渐变色对 |
+| `cssVars` | 34 个 CSS 自定义属性键值对（含自动生成的 `-rgb` 通道变体，共约 44 个） |
+| `customCss` | 主题专属 CSS 动画（无自定义 CSS 时为空字符串 `""`） |
+| `extensions` | 声明式装饰元素数组，支持 `floating`（安全浮动字符）和 `decorative`（经清洗的 HTML 片段）。始终为数组，无扩展时为空数组 `[]` |
+| `logoText` | 主题 Logo 文字标识 |
+| `logoColors` | Logo 渐变色 hex 字符串数组 |
 | `available` | 可用主题总数（预设 + 社区） |
-| `directory` | 主题目录列表（用于商店浏览） |
+| `directory` | 主题目录列表，每项含 `preset` / `name` / `primary` / `accent` / `logoText` |
+| `dailyIsCommunity` | `true` 表示今日主题来自社区投稿 |
+| `appliedOverrides` | 仅在使用 `?overrides=` 查询参数时出现，值为 `true` |
 
 ### 获取今日主题（安全代理）
 
@@ -644,6 +705,115 @@ curl https://themedist.netlify.app/api/v1/admin/health.json
 }
 ```
 
+### 便捷工具接口
+
+```bash
+# Tailwind CSS 配置生成（含 RGB 通道 + <alpha-value> 支持）
+curl https://themedist.netlify.app/api/v1/tailwind-config.json
+
+# 今日主题调色盘 SVG 徽章（可嵌入 README / 博客）
+curl https://themedist.netlify.app/api/v1/today/palette.svg
+
+# 随机主题
+curl https://themedist.netlify.app/api/v1/theme/random.json
+
+# OG 社交分享卡片（1200×630 SVG）
+curl https://themedist.netlify.app/api/v1/theme/yozakura-reverie/og.svg
+```
+
+### 高级功能接口 (NEW)
+
+```bash
+# W3C DTCG 设计令牌导出
+curl https://themedist.netlify.app/api/v1/tokens.json
+
+# 动态 Favicon
+curl https://themedist.netlify.app/api/v1/today/favicon.svg
+
+# 自动字体注入（Google Fonts @import）
+curl https://themedist.netlify.app/api/v1/today/fonts.css
+
+# 颜色相似度搜索
+curl "https://themedist.netlify.app/api/v1/search/color.json?hex=ff8fa3&limit=10"
+
+# 智能推荐引擎
+curl https://themedist.netlify.app/api/v1/recommend/yozakura-reverie.json
+
+# 趋势排行榜
+curl https://themedist.netlify.app/api/v1/trending.json
+
+# GitHub 动态徽章（作者统计）
+curl https://themedist.netlify.app/api/v1/badge/username.svg
+
+# AI 逆向描述（分析主题→中文描述）
+curl -X POST https://themedist.netlify.app/api/v1/ai/describe.json \
+  -H 'Content-Type: application/json' \
+  -d '{"cssVars":{"--color-primary":"#ff8fa3","--color-bg":"#030108"}}'
+
+# 匿名遥测上报
+curl -X POST https://themedist.netlify.app/api/v1/telemetry/hit \
+  -H 'Content-Type: application/json' \
+  -d '{"themeId":"yozakura-reverie","host":"example.com"}'
+
+# 自定义轮换池 — 创建
+curl -X POST https://themedist.netlify.app/api/v1/pool/create.json \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"My Pool","themeIds":["yozakura-reverie","abyss","flare"]}'
+
+# 自定义轮换池 — 每日轮换查询
+curl https://themedist.netlify.app/api/v1/pool/YOUR_POOL_ID.json
+```
+
+### 主题诊断与导出接口 (NEW)
+
+```bash
+# WCAG 无障碍诊断（对比度评估 + AA/AAA 合规检查）
+curl https://themedist.netlify.app/api/v1/theme/yozakura-reverie/wcag.json
+
+# Tailwind 风格色阶生成（50~950，含 primary/secondary/accent/bg）
+curl https://themedist.netlify.app/api/v1/theme/yozakura-reverie/scale.json
+
+# Shadcn UI 适配器（HSL 变量 + 前景色自动推断）
+curl https://themedist.netlify.app/api/v1/theme/yozakura-reverie/export/shadcn.css
+
+# 图片取色（K-means 聚类 + UI 语义映射，零原生依赖）
+curl -X POST https://themedist.netlify.app/api/v1/extract-theme.json \
+  -H 'Content-Type: application/json' \
+  -d '{"imageUrl":"https://example.com/poster.jpg"}'
+
+# Shiki / VS Code 代码高亮主题（TextMate Token 颜色映射）
+curl https://themedist.netlify.app/api/v1/theme/yozakura-reverie/shiki.json
+
+# 动态 SVG 背景纹理（主题色几何图案，可作 CSS background-image）
+curl https://themedist.netlify.app/api/v1/today/pattern.css
+
+# 天气粒子渲染脚本（云/雨/雪/太阳/闪电，自动定位 + 缓存）
+curl https://themedist.netlify.app/api/v1/today/weather.js
+```
+
+### 环境感知接口 (NEW)
+
+```bash
+# 天气自适应主题（基于 IP 经纬度 + Open-Meteo 免费 API）
+# 支持 ?lat=&lon= 查询参数覆盖 IP 检测，返回城市名 + 温度 + 天气类型
+curl https://themedist.netlify.app/api/v1/weather-theme.json
+curl "https://themedist.netlify.app/api/v1/weather-theme.json?lat=35.68&lon=139.76"
+
+# 在线演示:
+# /weather-demo — 天气感知演示页（浏览器定位 + 实时天气视觉渲染）
+# /lab — 全场景 API 展厅（天气/纹理/高亮/缓动/WCAG 五合一联动演示）
+
+# 系统状态覆盖主题（maintenance / mourning / incident）
+curl "https://themedist.netlify.app/api/v1/status-override.json?status=maintenance"
+```
+
+### 查询参数
+
+| 参数 | 适用于 | 说明 |
+|------|--------|------|
+| `?tz=America/New_York` | `today.json`, `today.css` | 按指定时区计算今日日期，如 `?tz=Asia/Shanghai` |
+| `?overrides=--radii:0px;--font-body:monospace` | `today.json`, `today.css` | 微调 CSS 变量值，按 `;` 分隔，最多 20 对 |
+
 ---
 
 ## CSS 变量参考
@@ -709,6 +879,85 @@ curl https://themedist.netlify.app/api/v1/admin/health.json
 | `--glass-bg` / `--glass-blur` | 毛玻璃背景色和模糊值 |
 | `--noise-opacity` | 噪点纹理透明度（0 = 关闭） |
 | `--ambient-1` / `--ambient-2` | 氛围光球颜色 |
+
+### RGB 通道变体
+
+所有以 `--color-` 开头的 CSS 变量均自动附带 `-rgb` 通道变体，格式为逗号分隔的 `R, G, B`：
+
+| 变量示例 | 值示例 |
+|----------|--------|
+| `--color-primary-rgb` | `66, 133, 244` |
+| `--color-bg-rgb` | `15, 15, 41` |
+| `--color-text-rgb` | `230, 230, 250` |
+| `--color-border-rgb` | `66, 133, 244` |
+
+### Tailwind CSS 集成
+
+使用 RGB 通道变量配合 Tailwind 不透明度修饰符：
+
+```js
+// tailwind.config.js
+module.exports = {
+  theme: {
+    extend: {
+      colors: {
+        primary: "rgb(var(--color-primary-rgb) / <alpha-value>)",
+        secondary: "rgb(var(--color-secondary-rgb) / <alpha-value>)",
+        accent: "rgb(var(--color-accent-rgb) / <alpha-value>)",
+      },
+    },
+  },
+};
+```
+
+或直接请求自动生成的配置：
+
+```bash
+curl https://themedist.netlify.app/api/v1/tailwind-config.json
+```
+
+### 暗色/亮色适配
+
+`/api/v1/today.css` 自动根据今日主题的背景亮度输出 `@media (prefers-color-scheme: dark)` 或 `@media (prefers-color-scheme: light)` 适配块。
+同时提供 `--color-bg-dark` / `--color-bg-light` / `--color-text-dark` / `--color-text-light` 便利变量。
+
+---
+
+## SDK / Web Component
+
+ThemeDist 提供官方轻量化 Web Component `<themedist-runner>`，一行标签即可完成 CSS 变量注入、装饰渲染、缓存降级。
+
+```html
+<!-- 一行标签，全自动主题接入 -->
+<themedist-runner api="/api/v1/today.json" save-shadow="true"></themedist-runner>
+<script src="https://themedist.netlify.app/sdk.js" defer></script>
+```
+
+**特性：**
+- **CSS 变量**注入全局 `:root`，全站自动适配
+- **装饰元素**隔离在 Shadow DOM，防止样式/DOM 污染宿主页面
+- **localStorage 缓存**，同日访问零网络开销
+- **网络降级**，fetch 失败时自动使用过期缓存
+- **XSS 安全**，`textContent` 设置字符，`<template>` 安全解析 HTML
+
+---
+
+## 天气粒子渲染
+
+ThemeDist 提供独立的天气粒子渲染脚本，可通过 `<script src>` 引入，自动获取用户地理位置并渲染对应的天气视觉特效（云层/雨滴/雪花/太阳/闪电）。
+
+```html
+<!-- 一行引入，自动渲染天气粒子 -->
+<script src="https://themedist.netlify.app/api/v1/today/weather.js" defer></script>
+```
+
+**特性：**
+- **自动定位** — 浏览器 Geolocation API 优先，IP fallback
+- **sessionStorage 缓存** — 30 分钟 TTL，减少 API 请求
+- **prefers-reduced-motion** — 尊重系统无障碍设置
+- **移动端自适应** — 减少粒子密度，降低性能开销
+- **纯 CSS 动画** — 云 drift / 雨 fall / 雪 snowfall+sway / 太阳 rotate / 闪电 flash
+- **DOM 安全** — `DocumentFragment` 批量插入，`textContent` 设置字符，零 innerHTML
 
 ---
 
@@ -853,7 +1102,9 @@ themeDist/
     │   └── fallback.ts                # 静态兜底主题注册表（Redis 全挂时使用）
     ├── middleware.ts                    # Astro 中间件（投稿/点赞滑动窗口限流）
     ├── pages/
-    │   ├── index.astro                 # 首页：Hero、三步接入、功能展示、代码示例
+    │   ├── index.astro                 # 首页：Hero、三步接入、功能展示、代码示例、智能天气氛围叠加
+    │   ├── weather-demo.astro         # 天气感知演示页（浏览器定位 + 实时天气视觉渲染）
+    │   ├── lab.astro                  # 全场景 API 展厅（5 模块联动演示）
     │   ├── theme-builder.astro         # 主题构建器：CSS 变量/自定义 CSS/Extensions 三栏编辑，实时校验，智能格式化，图片取色
     │   ├── theme-store.astro           # 主题商店：浏览/搜索/分类/标签筛选/社区标签页
     │   ├── submit.astro                # 社区投稿：三栏编辑器 + AI 生成（DeepSeek 客户端集成），extensions 实时校验 + 提交后 warnings
@@ -868,8 +1119,38 @@ themeDist/
     │           ├── today.css.ts            # ★ GET 今日主题 CSS（阻塞式 <link> 引入，消除 FOUC）
     │           ├── index-data.json.ts      # ★ 构建时数据快照（日池 ID、公历+农历节日映射、目录）
     │           ├── [param].ts              # GET 指定日期主题（/api/v1/date=MM-DD）
+    │           ├── weather-theme.json.ts   # GET 天气自适应主题（双平台 geo + Open-Meteo）
+    │           ├── status-override.json.ts # GET 系统状态覆盖（maintenance/mourning/incident）
+    │           ├── tokens.json.ts          # GET W3C DTCG 设计令牌导出
+    │           ├── tailwind-config.json.ts # GET Tailwind CSS 配置生成
+    │           ├── trending.json.ts        # GET 趋势排行榜
+    │           ├── extract-theme.json.ts   # POST 图片取色（K-means + UI 语义映射）
     │           ├── theme/
-    │           │   └── [preset].json.ts    # GET 指定预设/社区主题
+    │           │   ├── [preset].json.ts    # GET 指定预设/社区主题
+    │           │   ├── random.json.ts      # GET 随机主题
+    │           │   └── [id]/
+    │           │       ├── og.svg.ts       # GET OG 社交分享卡片
+    │           │       ├── wcag.json.ts    # GET WCAG 无障碍诊断
+    │           │       ├── scale.json.ts   # GET 色阶生成
+    │           │       ├── shiki.json.ts   # GET Shiki 代码高亮主题
+    │           │       └── export/
+    │           │           └── shadcn.css.ts # GET Shadcn UI 适配器
+    │           ├── today/
+    │           │   ├── palette.svg.ts      # GET 调色盘 SVG 徽章
+    │           │   ├── favicon.svg.ts      # GET 动态 Favicon
+    │           │   ├── fonts.css.ts        # GET 自动字体注入
+    │           │   └── pattern.css.ts      # GET 动态 SVG 背景纹理
+    │           ├── search/
+    │           │   └── color.json.ts       # GET 颜色相似度搜索
+    │           ├── recommend/
+    │           │   └── [preset].json.ts    # GET 智能推荐引擎
+    │           ├── badge/
+    │           │   └── [username].svg.ts   # GET GitHub 动态徽章
+    │           ├── telemetry/
+    │           │   └── hit.ts              # POST 匿名遥测上报
+    │           ├── pool/
+    │           │   ├── create.json.ts      # POST 创建自定义轮换池
+    │           │   └── [poolId].json.ts    # GET 轮换池每日查询
     │           ├── admin/
     │           │   ├── login.json.ts       # POST 登录/登出
     │           │   ├── review.json.ts      # GET 待审列表 / POST 批量审核
@@ -888,6 +1169,7 @@ themeDist/
     └── utils/
         ├── daily-theme.ts              # 统一导出入口（转发 omni-bridge 方法）
         ├── omni-bridge.ts              # ★ 唯一主题管道：OmniConfig/社区主题 → ComposedTheme 转换
+        ├── color.ts                    # 颜色数学工具（hex↔RGB 转换、HSL、对比度、色插值）
         └── sanitize.ts                 # 输入净化（去 HTML 标签/CSS expression/@import/url()）
 ```
 
@@ -945,6 +1227,7 @@ GET /api/v1/today.json（Vercel + Netlify 统一路由）
 | `/api/v1/theme/*.json`（预设） | 24 小时 | 365 天（`immutable`） |
 | `/api/v1/theme/community-*.json` | 1 小时 (`max-age=3600`) | 不使用 CDN 缓存 |
 | `/api/v1/index-data.json` | 1 小时 (`max-age=3600`) | 24 小时 (`s-maxage=86400`) |
+| `/api/v1/today/weather.js` | 1 小时 (`max-age=3600`) | 24 小时 (`s-maxage=86400`) |
 | `/api/v1/diy/theme.json?id=` | 5 分钟 (`max-age=300`) | 不使用 CDN 缓存 |
 | `/api/v1/diy/themes.json` | 1 分钟 (`max-age=60`) | 不使用 CDN 缓存 |
 | `/api/v1/diy/submit.json` | 不缓存（POST） | 不使用 CDN 缓存 |
@@ -1121,16 +1404,42 @@ Netlify Dashboard → Site settings → Environment variables → 添加：
 | **双平台同步部署** | 一套代码自动部署 Vercel + Netlify 双平台 | ✅ 已完成 |
 | **农历节日支持** | 35+ 农历节日，OmniConfig 运行时通过 Lunar.fromDate() 计算 | ✅ 已完成 |
 | **系统监控台** | themedist-monitor 独立监控站点，11 个 API 端点覆盖状态/安全/告警/拨测/徽章 | ✅ 已完成 |
+| **Shadcn UI 适配器** | HSL 变量转换 + 前景色自动推断 | ✅ 已完成 |
+| **WCAG 无障碍诊断** | 对比度评估 + AA/AAA 合规检查 | ✅ 已完成 |
+| **色阶生成** | 黑白插值法 Tailwind 风格 50~950 色阶 | ✅ 已完成 |
+| **天气自适应主题** | Open-Meteo 免费 API + IP 地理位置 | ✅ 已完成 |
+| **系统状态覆盖** | maintenance / mourning / incident 主题覆盖 | ✅ 已完成 |
+| **图片取色 API** | K-means 聚类提取 + UI 语义映射，纯 JS 零原生依赖 | ✅ 已完成 |
+| **Shiki 代码高亮主题** | TextMate Token 颜色映射，VS Code / Shiki 兼容 | ✅ 已完成 |
+| **动态 SVG 纹理** | 主题色生成几何图案 CSS background-image | ✅ 已完成 |
+| **全场景 API 展厅** | /lab 页面，5 模块联动演示 | ✅ 已完成 |
 | **RSS / Webhook 通知** | 每日主题更新后推送通知 | 待规划 |
 | **多管理员支持** | 审核权限分离，支持多个管理员账号协同操作 | 待规划 |
 | **主题使用统计** | 各主题被 API 请求的次数、点赞趋势等可视化数据 | 待规划 |
+| **设计令牌导出** | W3C DTCG 规范 JSON 导出 | ✅ 已完成 |
+| **动态 Favicon** | 主色 SVG 图标 | ✅ 已完成 |
+| **颜色相似度搜索** | RGB 欧几里得距离排序 | ✅ 已完成 |
+| **智能推荐引擎** | Jaccard + 颜色距离加权 | ✅ 已完成 |
+| **匿名遥测** | HyperLogLog + Sorted Set | ✅ 已完成 |
+| **趋势排行榜** | 热度聚合 Top 20 | ✅ 已完成 |
+| **自定义轮换池** | 创建/轮换双端点 | ✅ 已完成 |
+| **自动字体注入** | Google Fonts @import | ✅ 已完成 |
+| **GitHub 动态徽章** | shields.io 风格 | ✅ 已完成 |
+| **AI 逆向描述** | CSS→中文风格分析 | ✅ 已完成 |
 | **API 速率限制** | 投稿/点赞接口滑动窗口限流（投稿 3次/分钟，点赞 10次/分钟），超限 429 | ✅ 已完成 |
 | **Extensions 类型支持** | 支持 `floating`（浮动字符）和 `decorative`（装饰 HTML），`javascript` 类型拒绝并返回 warnings | ✅ 已完成 |
 | **智能格式化** | theme-builder 各编辑器独立格式化按钮，智能检测当前 tab 格式化对应内容 | ✅ 已完成 |
 | **Extensions 实时校验** | submit + theme-builder 两端实时检测不支持类型并提示，提交后 warnings 展示 | ✅ 已完成 |
 | **存储格式归一化** | `extensions` 字段统一为 `null` 或数组（不再出现 `undefined`），JSON 始终完整 | ✅ 已完成 |
 | **渲染一致性** | share 页 iframe、首页 Apply、theme-builder 预览、submit 预览四路径 extensions 渲染逻辑统一 | ✅ 已完成 |
-| **Theme Preview 截图** | 为主题自动生成可视化预览图 | 待规划 |
+| **SDK / Web Component** | 官方轻量化 `<themedist-runner>` 自定义元素，Shadow DOM 隔离装饰，一行标签接入 | ✅ 已完成 |
+| **Tailwind CSS 原生适配** | RGB 通道变量 + `/api/v1/tailwind-config.json` 一键生成 Tailwind 配置 | ✅ 已完成 |
+| **暗色/亮色协同适配** | `/api/v1/today.css` 自动输出 `@media (prefers-color-scheme)` 适配块 | ✅ 已完成 |
+| **时区感知** | 支持 `?tz=America/New_York` 查询参数，按目标时区计算今日主题 | ✅ 已完成 |
+| **主题参数覆盖** | 支持 `?overrides=--radii:0px` 查询参数，微调 CSS 变量 | ✅ 已完成 |
+| **调色盘 SVG 徽章** | `/api/v1/today/palette.svg` 返回可嵌入 README 的动态配色徽章 | ✅ 已完成 |
+| **OG 社交分享卡片** | `/api/v1/theme/[id]/og.svg` 返回 1200×630 主题展示卡片 | ✅ 已完成 |
+| **随机主题接口** | `/api/v1/theme/random.json` 从全池随机返回主题 | ✅ 已完成 |
 
 ---
 

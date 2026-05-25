@@ -177,6 +177,14 @@ fetch('${siteUrl}/api/v1/today.json')
       <span class="hp-pill-date" id="hp-date"></span>
     </div>
 
+    <!-- Weather ambiance toast (hidden until weather loads) -->
+    <div class="wa-toast" id="wa-toast" aria-live="polite">
+      <div class="wa-toast-inner">
+        <span class="wa-toast-icon" id="wa-toast-icon"></span>
+        <span id="wa-toast-text"></span>
+      </div>
+    </div>
+
     <!-- Headline -->
     <h1 class="hp-headline reveal reveal-d1">
       每天一个<br/>
@@ -985,6 +993,132 @@ fetch('${siteUrl}/api/v1/today.json')
 }
 </style>
 
+<!-- ═══════════════════════════════════════════════════════
+  WEATHER AMBIANCE — global styles (is:global required:
+  JS-created DOM nodes don't carry Astro scoping attributes)
+  ═══════════════════════════════════════════════════════ -->
+<style is:global>
+  /* ── Weather container: fixed wallpaper layer ── */
+  #td-extensions {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 0 !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+  }
+
+  /* ── Cloud: extreme subtlety, parallax depth ── */
+  .wa-cloud {
+    position: absolute; pointer-events: none; z-index: -1;
+    will-change: transform;
+  }
+  .wa-cloud.wa-animate { animation: wa-drift linear infinite; }
+  @keyframes wa-drift {
+    0%   { transform: translateX(-120px); }
+    100% { transform: translateX(calc(100vw + 200px)); }
+  }
+
+  /* ── Rain ── */
+  .wa-raindrop {
+    position: absolute; pointer-events: none; z-index: -1;
+    font-size: 16px; opacity: 0.18;
+    color: var(--color-text-muted);
+    will-change: transform;
+  }
+  .wa-raindrop.wa-animate { animation: wa-fall linear infinite; }
+  @keyframes wa-fall {
+    0%   { transform: translateY(-8vh); opacity: 0; }
+    8%   { opacity: 0.25; }
+    92%  { opacity: 0.25; }
+    100% { transform: translateY(108vh); opacity: 0; }
+  }
+
+  /* ── Sun ── */
+  .wa-sun {
+    position: fixed; top: 80px; right: 5%;
+    pointer-events: none; z-index: 0;
+    font-size: 3rem; opacity: 0.45;
+    filter: drop-shadow(0 0 40px rgba(255,200,60,0.35));
+  }
+  .wa-sun.wa-animate { animation: wa-rotate 24s linear infinite; }
+  @keyframes wa-rotate {
+    0%   { transform: rotate(0deg) scale(1); }
+    50%  { transform: rotate(180deg) scale(1.06); }
+    100% { transform: rotate(360deg) scale(1); }
+  }
+
+  /* ── Snow ── */
+  .wa-snowflake {
+    position: absolute; pointer-events: none; z-index: -1;
+    font-size: 13px; opacity: 0.22;
+    color: var(--color-text-muted);
+    will-change: transform;
+  }
+  .wa-snowflake.wa-animate { animation: wa-snowfall linear infinite, wa-sway 4s ease-in-out infinite; }
+  @keyframes wa-snowfall {
+    0%   { transform: translateY(-5vh); }
+    100% { transform: translateY(108vh); }
+  }
+  @keyframes wa-sway {
+    0%, 100% { transform: translateX(0); }
+    50%      { transform: translateX(16px); }
+  }
+
+  /* ── Thunderstorm flash ── */
+  .wa-flash {
+    position: fixed; inset: 0;
+    background: rgba(255,255,255,0.04);
+    pointer-events: none; z-index: 0;
+    animation: wa-flash 7s ease-out infinite;
+  }
+  @keyframes wa-flash {
+    0%, 91%, 100% { opacity: 0; }
+    92% { opacity: 1; }
+    94% { opacity: 0; }
+    96% { opacity: 0.4; }
+    98% { opacity: 0; }
+  }
+
+  /* Weather toast */
+  .wa-toast {
+    position: relative; z-index: 10;
+    max-width: 420px; margin: 0 auto 0;
+    text-align: center; opacity: 0; transform: translateY(8px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    pointer-events: none;
+  }
+  .wa-toast.wa-toast--visible { opacity: 1; transform: translateY(0); }
+  .wa-toast-inner {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 22px; border-radius: 99px;
+    font-size: 13px; font-weight: 500;
+    background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: var(--color-text);
+  }
+  .wa-toast-icon { font-size: 1.1rem; line-height: 1; }
+
+  @media (max-width: 768px) {
+    .wa-sun { font-size: 2.5rem; top: 4%; right: 4%; }
+  }
+</style>
+
+<!-- ═══════════════════════════════════════════════════════
+  CONTENT ELEVATION — protect against weather layer
+  ═══════════════════════════════════════════════════════ -->
+<style is:global>
+  /* Force content layer above the weather wallpaper */
+  .nav     { position: sticky !important; z-index: 100 !important; }
+  .content { position: relative !important; z-index: 1 !important; }
+  .footer  { position: relative !important; z-index: 1 !important; }
+  .hp-hero { position: relative !important; z-index: 1 !important; }
+</style>
+
 <script>
   // ── Today's date ──
   (function() {
@@ -1086,4 +1220,334 @@ fetch('${siteUrl}/api/v1/today.json')
       }
     })
     .catch(function(){});
+
+  // ═══════════════════════════════════════════════════════
+  // WEATHER AMBIANCE ENGINE — intelligent non-blocking overlay
+  // Runs AFTER core theme. Never replaces, only appends.
+  // ═══════════════════════════════════════════════════════
+  (function() {
+    var CACHE_KEY = 'td_weather_v1';
+    var CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+    var TOAST_SHOW_MS = 4000;
+
+    // ── Feature detection (runs once) ──
+    var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var isMobile = window.innerWidth < 768;
+
+    // ── Weather type metadata ──
+    var WEATHER_META = {
+      clear:        { icon: '☀️', label: '晴',    blend: function(v) { v['--ambient-1'] = warmGlow(v['--ambient-1']); } },
+      clouds:       { icon: '☁️', label: '多云',  blend: function(v) { v['--noise-opacity'] = '0.02'; } },
+      fog:          { icon: '🌫️', label: '雾',    blend: function(v) { v['--noise-opacity'] = clampNoise(v['--noise-opacity'], 0.03); } },
+      rain:         { icon: '🌧️', label: '雨',    blend: function(v) { v['--noise-opacity'] = clampNoise(v['--noise-opacity'], 0.04); } },
+      drizzle:      { icon: '🌦️', label: '毛毛雨', blend: function(v) { v['--noise-opacity'] = clampNoise(v['--noise-opacity'], 0.02); } },
+      snow:         { icon: '❄️', label: '雪',    blend: function(v) { v['--noise-opacity'] = clampNoise(v['--noise-opacity'], 0.03); } },
+      thunderstorm: { icon: '⛈️', label: '雷暴',  blend: function(v) { v['--noise-opacity'] = clampNoise(v['--noise-opacity'], 0.05); } },
+    };
+
+    function warmGlow(currentAmbient) {
+      // Add a subtle warm golden cast without replacing the primary
+      if (!currentAmbient || currentAmbient === 'rgba(0,0,0,0)') return currentAmbient;
+      var m = currentAmbient.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+      if (!m) return currentAmbient;
+      var r = Math.min(255, parseInt(m[1]) + 40);
+      var g = Math.min(255, parseInt(m[2]) + 20);
+      return 'rgba(' + r + ',' + g + ',' + m[3] + ',0.22)';
+    }
+
+    function clampNoise(current, boost) {
+      var v = parseFloat(current);
+      if (isNaN(v)) v = 0;
+      return String(Math.min(0.08, v + boost));
+    }
+
+    // ── Smart cache ──
+    function cacheGet() {
+      try {
+        var raw = sessionStorage.getItem(CACHE_KEY);
+        if (!raw) return null;
+        var entry = JSON.parse(raw);
+        if (Date.now() - entry.ts > CACHE_TTL) { sessionStorage.removeItem(CACHE_KEY); return null; }
+        return entry.data;
+      } catch { return null; }
+    }
+
+    function cacheSet(data) {
+      try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: data })); } catch {}
+    }
+
+    // ── Collision detection: count existing floating extensions ──
+    function countExistingParticles() {
+      var exts = document.querySelectorAll('#td-extensions > div, #td-extensions > *');
+      return exts.length;
+    }
+
+    // ── Toast UI ──
+    function showToast(icon, text) {
+      var toast = document.getElementById('wa-toast');
+      var iconEl = document.getElementById('wa-toast-icon');
+      var textEl = document.getElementById('wa-toast-text');
+      if (!toast || !iconEl || !textEl) return;
+      iconEl.textContent = icon;
+      textEl.textContent = text;
+      toast.classList.add('wa-toast--visible');
+      clearTimeout(toast._timer);
+      toast._timer = setTimeout(function() {
+        toast.classList.remove('wa-toast--visible');
+      }, TOAST_SHOW_MS);
+    }
+
+    // ── Apply ambient micro-adjustments ──
+    function applyBlend(weatherType) {
+      var meta = WEATHER_META[weatherType];
+      if (!meta || !meta.blend) return;
+      var patches = {};
+      // Read current ambient vars
+      var style = getComputedStyle(document.documentElement);
+      patches['--ambient-1'] = style.getPropertyValue('--ambient-1').trim();
+      patches['--noise-opacity'] = style.getPropertyValue('--noise-opacity').trim();
+      meta.blend(patches);
+      // Apply only the micro-adjustments
+      Object.keys(patches).forEach(function(k) {
+        document.documentElement.style.setProperty(k, patches[k]);
+      });
+    }
+
+    // ── Render weather particles ──
+    function clearWeatherParticles() {
+      var old = document.querySelectorAll('.wa-particle');
+      for (var i = 0; i < old.length; i++) old[i].remove();
+      var sun = document.querySelector('.wa-sun');
+      if (sun) sun.remove();
+      var flash = document.querySelector('.wa-flash');
+      if (flash) flash.remove();
+    }
+
+    function makeEl(tag, cls, text) {
+      var el = document.createElement(tag);
+      el.className = cls + ' wa-particle';
+      el.style.cssText = 'z-index:-1;pointer-events:none;';
+      if (text) el.textContent = text;
+      return el;
+    }
+
+    // ── Cloud SVG template (uses currentColor for theme blending) ──
+    function buildCloudSvg(w, h, rx1, ry1, cx1, cy1, rx2, ry2, cx2, cy2, rx3, ry3, cx3, cy3) {
+      var ns = 'http://www.w3.org/2000/svg';
+      var svg = document.createElementNS(ns, 'svg');
+      svg.setAttribute('width', String(w)); svg.setAttribute('height', String(h));
+      svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+      svg.style.color = 'var(--color-text-muted)';
+      var e1 = document.createElementNS(ns, 'ellipse');
+      e1.setAttribute('cx', cx1); e1.setAttribute('cy', cy1); e1.setAttribute('rx', rx1); e1.setAttribute('ry', ry1);
+      e1.setAttribute('fill', 'currentColor');
+      var e2 = document.createElementNS(ns, 'ellipse');
+      e2.setAttribute('cx', cx2); e2.setAttribute('cy', cy2); e2.setAttribute('rx', rx2); e2.setAttribute('ry', ry2);
+      e2.setAttribute('fill', 'currentColor');
+      var e3 = document.createElementNS(ns, 'ellipse');
+      e3.setAttribute('cx', cx3); e3.setAttribute('cy', cy3); e3.setAttribute('rx', rx3); e3.setAttribute('ry', ry3);
+      e3.setAttribute('fill', 'currentColor');
+      svg.appendChild(e1); svg.appendChild(e2); svg.appendChild(e3);
+      return svg;
+    }
+
+    function renderParticles(type) {
+      clearWeatherParticles();
+      var fragment = document.createDocumentFragment();
+      var container = document.getElementById('td-extensions');
+
+      // Ensure container has the fixed wallpaper-layer CSS
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'td-extensions';
+        document.body.appendChild(container);
+      }
+
+      var existingCount = countExistingParticles();
+      var densityScale = existingCount > 15 ? 0.35 : existingCount > 8 ? 0.6 : 1;
+      var motionClass = prefersReducedMotion ? '' : 'wa-animate';
+
+      if (type === 'clear' || type === 'sunny') {
+        var sun = makeEl('div', 'wa-sun ' + motionClass, '☀️');
+        sun.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(sun);
+
+      } else if (type === 'clouds') {
+        // 5 clouds with parallax depth layers
+        var cloudDefs = [
+          { w: 160, h: 70, scale: 0.45, dur: 85, opacity: 0.028, blur: 3, depth: 'far' },
+          { w: 200, h: 85, scale: 0.55, dur: 75, opacity: 0.032, blur: 2, depth: 'far' },
+          { w: 130, h: 55, scale: 0.70, dur: 60, opacity: 0.040, blur: 1, depth: 'mid' },
+          { w: 180, h: 75, scale: 0.85, dur: 50, opacity: 0.048, blur: 0, depth: 'mid' },
+          { w: 220, h: 90, scale: 1.05, dur: 38, opacity: 0.058, blur: 0, depth: 'near' },
+        ];
+
+        for (var ci = 0; ci < cloudDefs.length; ci++) {
+          var cd = cloudDefs[ci];
+          var c = makeEl('div', 'wa-cloud ' + motionClass);
+
+          // Y-axis: scattered between 8% and 42% from top
+          var topPct = 8 + (ci / (cloudDefs.length - 1)) * 34 + (Math.random() - 0.5) * 8;
+          c.style.top = Math.max(6, Math.min(45, topPct)) + '%';
+          c.style.width = cd.w + 'px';
+          c.style.height = cd.h + 'px';
+          c.style.opacity = String(cd.opacity * densityScale);
+          c.style.transform = 'scale(' + cd.scale + ')';
+          c.style.transformOrigin = 'center center';
+          if (cd.blur > 0) c.style.filter = 'blur(' + cd.blur + 'px)';
+
+          // Negative animation delay: clouds are already scattered on page load
+          var totalDur = cd.dur;
+          var negDelay = -(Math.random() * totalDur).toFixed(1);
+          c.style.animationDuration = totalDur + 's';
+          c.style.animationDelay = negDelay + 's';
+
+          // Build SVG with size-proportional ellipses
+          var svg = buildCloudSvg(
+            cd.w, cd.h,
+            Math.round(cd.w * 0.22), Math.round(cd.h * 0.28), Math.round(cd.w * 0.22), Math.round(cd.h * 0.68),
+            Math.round(cd.w * 0.28), Math.round(cd.h * 0.38), Math.round(cd.w * 0.48), Math.round(cd.h * 0.45),
+            Math.round(cd.w * 0.20), Math.round(cd.h * 0.26), Math.round(cd.w * 0.74), Math.round(cd.h * 0.62)
+          );
+          c.appendChild(svg);
+          fragment.appendChild(c);
+        }
+
+      } else if (type === 'fog' || type === 'mist' || type === 'haze') {
+        for (var fi = 0; fi < 4; fi++) {
+          var f = makeEl('div', 'wa-cloud ' + motionClass);
+          f.style.top = (8 + fi * 22) + '%';
+          f.style.width = (280 + fi * 80) + 'px';
+          f.style.height = '28px';
+          f.style.opacity = String((0.03 + fi * 0.006) * densityScale);
+          f.style.filter = 'blur(' + (6 + fi * 3) + 'px)';
+          f.style.animationDuration = (90 + fi * 15) + 's';
+          f.style.animationDelay = '-' + (Math.random() * 90).toFixed(1) + 's';
+          var nsF = 'http://www.w3.org/2000/svg';
+          var svgF = document.createElementNS(nsF, 'svg');
+          svgF.setAttribute('width', '400'); svgF.setAttribute('height', '28');
+          svgF.setAttribute('viewBox', '0 0 400 28');
+          svgF.style.color = 'var(--color-text-muted)';
+          var rect = document.createElementNS(nsF, 'rect');
+          rect.setAttribute('width', '400'); rect.setAttribute('height', '28');
+          rect.setAttribute('rx', '14'); rect.setAttribute('fill', 'currentColor');
+          svgF.appendChild(rect);
+          f.appendChild(svgF);
+          fragment.appendChild(f);
+        }
+
+      } else if (type === 'rain' || type === 'drizzle') {
+        var rainCount = Math.round((isMobile ? 22 : 40) * densityScale);
+        for (var ri = 0; ri < rainCount; ri++) {
+          var d = makeEl('div', 'wa-raindrop ' + motionClass, '|');
+          d.style.left = (Math.random() * 98) + '%';
+          d.style.top = -(Math.random() * 15) + '%';
+          d.style.animationDuration = (0.55 + Math.random() * 0.7) + 's';
+          d.style.animationDelay = '-' + (Math.random() * 2).toFixed(2) + 's';
+          d.style.fontSize = (10 + Math.random() * 10) + 'px';
+          d.style.opacity = String(0.10 + Math.random() * 0.18);
+          fragment.appendChild(d);
+        }
+
+      } else if (type === 'snow') {
+        var snowCount = Math.round((isMobile ? 18 : 32) * densityScale);
+        for (var si = 0; si < snowCount; si++) {
+          var fl = makeEl('div', 'wa-snowflake ' + motionClass);
+          fl.textContent = Math.random() > 0.5 ? '❄' : '❅';
+          fl.style.left = (Math.random() * 98) + '%';
+          fl.style.top = -(Math.random() * 20) + '%';
+          fl.style.animationDuration = (5 + Math.random() * 6) + 's';
+          fl.style.animationDelay = '-' + (Math.random() * 6).toFixed(2) + 's';
+          fl.style.fontSize = (7 + Math.random() * 14) + 'px';
+          fl.style.opacity = String(0.10 + Math.random() * 0.20);
+          fragment.appendChild(fl);
+        }
+
+      } else if (type === 'thunderstorm') {
+        // Rain + flash
+        var trCount = Math.round((isMobile ? 22 : 40) * densityScale);
+        for (var ti = 0; ti < trCount; ti++) {
+          var td = makeEl('div', 'wa-raindrop ' + motionClass, '|');
+          td.style.left = (Math.random() * 98) + '%';
+          td.style.top = -(Math.random() * 15) + '%';
+          td.style.animationDuration = (0.5 + Math.random() * 0.6) + 's';
+          td.style.animationDelay = '-' + (Math.random() * 1.5).toFixed(2) + 's';
+          td.style.fontSize = (11 + Math.random() * 12) + 'px';
+          td.style.opacity = String(0.14 + Math.random() * 0.20);
+          fragment.appendChild(td);
+        }
+        var flash = document.createElement('div'); flash.className = 'wa-flash wa-particle';
+        flash.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(flash);
+      }
+
+      if (fragment.childNodes.length > 0) {
+        container.appendChild(fragment);
+      }
+    }
+    // ── Core: fetch weather + apply ──
+    function loadAmbiance(lat, lon) {
+      var url = lat && lon
+        ? '/api/v1/weather-theme.json?lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lon)
+        : '/api/v1/weather-theme.json';
+
+      fetch(url).then(function(res) {
+        if (!res.ok) throw new Error('status ' + res.status);
+        return res.json();
+      }).then(function(data) {
+        var w = data.weather;
+        cacheSet({ type: w.type, city: w.city, temp: w.temperature, desc: w.description });
+
+        // Ambient blending (micro-adjust, never replace)
+        applyBlend(w.type);
+
+        // Render weather particles
+        renderParticles(w.type);
+
+        // Toast
+        var meta = WEATHER_META[w.type] || { icon: '🌈', label: w.description };
+        var cityName = w.city || '';
+        var toastText = cityName ? '已为您叠加 ' + cityName + ' 的' + meta.label + '氛围' : '已为您叠加' + meta.label + '氛围';
+        showToast(meta.icon, toastText);
+      }).catch(function(err) {
+        // Silent — never disturb the visitor
+        console.warn('ThemeDist weather ambiance: skipped (' + (err.message || 'unknown') + ')');
+      });
+    }
+
+    // ── Entry point: cache-first, then geolocation ──
+    function init() {
+      // 1. Try cache
+      var cached = cacheGet();
+      if (cached) {
+        applyBlend(cached.type);
+        renderParticles(cached.type);
+        var cm = WEATHER_META[cached.type] || { icon: '🌈', label: cached.desc || cached.type };
+        var cCity = cached.city || '';
+        var cToast = cCity ? '已为您叠加 ' + cCity + ' 的' + cm.label + '氛围' : '已为您叠加' + cm.label + '氛围';
+        showToast(cm.icon, cToast);
+        return;
+      }
+
+      // 2. Try geolocation → API
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function(pos) {
+            loadAmbiance(pos.coords.latitude.toString(), pos.coords.longitude.toString());
+          },
+          function() { loadAmbiance(); }, // denied → IP fallback
+          { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 }
+        );
+      } else {
+        loadAmbiance(); // no geo API → IP fallback
+      }
+    }
+
+    // ── Fire on idle to never block core rendering ──
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(init, { timeout: 3000 });
+    } else {
+      setTimeout(init, 1200);
+    }
+  })();
 </script>

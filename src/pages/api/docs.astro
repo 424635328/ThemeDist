@@ -207,6 +207,160 @@ function applyTheme(d) {
               <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/ai/generate.json</td>
               <td style="padding:12px 18px;font-size:13px">AI 主题生成（规则引擎，或客户端 DeepSeek 直调）</td>
             </tr>
+            <tr><td colspan="3" style="padding:8px 18px;font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 4%, transparent)">高级功能 (NEW)</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/tokens.json</td>
+              <td style="padding:12px 18px;font-size:13px">W3C DTCG 设计令牌导出（color / typography / space / effects 层级结构）</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/today/favicon.svg</td>
+              <td style="padding:12px 18px;font-size:13px">动态 Favicon（主色圆角矩形 + Logo 首字母）</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/today/fonts.css</td>
+              <td style="padding:12px 18px;font-size:13px">自动字体注入（提取主题字体 → Google Fonts @import）</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/search/color.json?hex=&limit=</td>
+              <td style="padding:12px 18px;font-size:13px">颜色相似度搜索（RGB 欧几里得距离排序）</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/recommend/{'{preset}'}.json</td>
+              <td style="padding:12px 18px;font-size:13px">智能推荐引擎（Jaccard 标签 + 颜色距离加权）</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/trending.json</td>
+              <td style="padding:12px 18px;font-size:13px">趋势排行榜（热度 = 点赞×10 + 使用量×1）</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/badge/{'{username}'}.svg</td>
+              <td style="padding:12px 18px;font-size:13px">GitHub 动态徽章（shields.io 风格作者统计）</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag post">POST</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/ai/describe.json</td>
+              <td style="padding:12px 18px;font-size:13px">AI 逆向描述（分析 CSS 变量→中文风格描述）</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag post">POST</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/telemetry/hit</td>
+              <td style="padding:12px 18px;font-size:13px">匿名遥测上报（HyperLogLog 独立域名 + 主题使用计数）</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag post">POST</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/pool/create.json</td>
+              <td style="padding:12px 18px;font-size:13px">创建自定义轮换池</td>
+            </tr>
+            <tr>
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/pool/{'{poolId}'}.json</td>
+              <td style="padding:12px 18px;font-size:13px">自定义轮换池每日轮换查询</td>
+            </tr>
+            <tr><td colspan="3" style="padding:8px 18px;font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 4%, transparent)">主题诊断与导出 (NEW)</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/theme/{'{id}'}/wcag.json</td>
+              <td style="padding:12px 18px;font-size:13px">WCAG 无障碍诊断（对比度评估、合规性检查）</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/theme/{'{id}'}/scale.json</td>
+              <td style="padding:12px 18px;font-size:13px">Tailwind 风格色阶生成（50~950，含 primary/secondary/accent/bg）</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/theme/{'{id}'}/export/shadcn.css</td>
+              <td style="padding:12px 18px;font-size:13px">Shadcn UI 适配器（HSL 变量 + 前景色自动推断）</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag post">POST</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/extract-theme.json</td>
+              <td style="padding:12px 18px;font-size:13px">图片取色（K-means 聚类 + UI 语义映射，零原生依赖）</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/theme/{'{id}'}/shiki.json</td>
+              <td style="padding:12px 18px;font-size:13px">Shiki / VS Code 代码高亮主题（TextMate Token 颜色映射）</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/today/pattern.css</td>
+              <td style="padding:12px 18px;font-size:13px">动态 SVG 背景纹理（主题色几何图案，可作 CSS background-image）</td>
+            </tr>
+            <tr>
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/today/weather.js</td>
+              <td style="padding:12px 18px;font-size:13px">天气粒子渲染脚本（云/雨/雪/太阳/闪电），<code>&lt;script src&gt;</code> 引入即可自动渲染</td>
+            </tr>
+            <tr><td colspan="3" style="padding:8px 18px;font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 4%, transparent)">展厅</td></tr>
+            <tr>
+              <td style="padding:12px 18px"><span class="ep-tag page">PAGE</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/lab</td>
+              <td style="padding:12px 18px;font-size:13px">全场景 API 展厅 — 5 大模块联动演示天气/纹理/高亮/缓动/WCAG</td>
+            </tr>
+            <tr><td colspan="3" style="padding:8px 18px;font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 4%, transparent)">环境感知</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/weather-theme.json</td>
+              <td style="padding:12px 18px;font-size:13px">天气自适应主题（基于 IP 经纬度 + Open-Meteo 免费天气 API）</td>
+            </tr>
+            <tr>
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/status-override.json?status=</td>
+              <td style="padding:12px 18px;font-size:13px">系统状态覆盖主题（maintenance / mourning / incident）</td>
+            </tr>
+            <tr><td colspan="3" style="padding:8px 18px;font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 4%, transparent)">便捷工具</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/tailwind-config.json</td>
+              <td style="padding:12px 18px;font-size:13px">Tailwind CSS 配置片段生成（含 RGB 通道 + <code>&lt;alpha-value&gt;</code>）</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/today/palette.svg</td>
+              <td style="padding:12px 18px;font-size:13px">今日主题调色盘 SVG 徽章（可嵌入 README / 博客 Footer）</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/theme/random.json</td>
+              <td style="padding:12px 18px;font-size:13px">随机主题（支持 <code>?pool=static|community|all</code> 和 <code>?seed=N</code>）</td>
+            </tr>
+            <tr>
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/theme/{'{id}'}/og.svg</td>
+              <td style="padding:12px 18px;font-size:13px">OG 社交分享卡片（1200×630 SVG，含主题色板与名称）</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ====== QUERY PARAMS ====== -->
+      <h2 id="query-params" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">查询参数</h2>
+      <div class="card card-glass" style="padding:0;overflow:hidden;margin-bottom:36px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead><tr style="border-bottom:1px solid var(--color-border)">
+            <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:100px">参数</th>
+            <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:60px">适用于</th>
+            <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">说明</th>
+          </tr></thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">?tz=</td>
+              <td style="padding:9px 16px;font-size:12px">today.json<br/>today.css</td>
+              <td style="padding:9px 16px;font-size:13px">指定时区计算"今天"的日期。如 <code>?tz=America/New_York</code>、<code>?tz=Asia/Shanghai</code>。无效时区自动回退到服务器时间。</td>
+            </tr>
+            <tr>
+              <td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">?overrides=</td>
+              <td style="padding:9px 16px;font-size:12px">today.json<br/>today.css</td>
+              <td style="padding:9px 16px;font-size:13px">微调 CSS 变量值。格式：<code>--key:val;--key2:val2</code>。如 <code>?overrides=--radii:0px;--font-body:monospace</code>。最多 20 对，自动 XSS 清洗。</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -225,13 +379,15 @@ function applyTheme(d) {
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">generatedAt</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">ISO 8601 生成时间戳</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">preset</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">预设标识符 (kebab-case)</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">presetName</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">人类可读名称</td></tr>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">cssVars</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object</td><td style="padding:9px 16px">34 个 CSS 自定义属性键值对（5 组：Colors / Typography / Spacing / Effects / Ambient）</td></tr>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">customCss</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string|null</td><td style="padding:9px 16px">主题专属 CSS（动画 keyframes、特效样式），注入为 <code>&lt;style&gt;</code></td></tr>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">extensions</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array|null</td><td style="padding:9px 16px">声明式装饰元素数组，支持 <code>floating</code> 和 <code>decorative</code> 两种类型。null 表示无扩展。最多 20 个。</td></tr>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">logoText</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string|null</td><td style="padding:9px 16px">Logo 文字</td></tr>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">logoColors</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array|null</td><td style="padding:9px 16px">Logo 渐变色 hex 数组</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">cssVars</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object</td><td style="padding:9px 16px">34 个 CSS 自定义属性键值对（5 组：Colors / Typography / Spacing / Effects / Ambient）。颜色变量自动附带 <code>-rgb</code> 通道变体</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">customCss</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">主题专属 CSS（动画 keyframes、特效样式）。无自定义 CSS 时为空字符串 <code>""</code></td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">extensions</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array</td><td style="padding:9px 16px">声明式装饰元素数组，支持 <code>floating</code> 和 <code>decorative</code> 两种类型。无扩展时为空数组 <code>[]</code>。最多 20 个。</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">logoText</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">主题 Logo 文字标识</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">logoColors</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array</td><td style="padding:9px 16px">Logo 渐变色 hex 字符串数组。无 Logo 颜色时为空数组 <code>[]</code></td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">available</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">number</td><td style="padding:9px 16px">可用主题总数</td></tr>
-            <tr><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">directory</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array</td><td style="padding:9px 16px">轻量索引 <code>[{'\{'}preset, name, primary, accent, logoText{'}\}'}]</code></td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">directory</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array</td><td style="padding:9px 16px">轻量索引 <code>[{'\{'}preset, name, primary, accent, logoText{'}\}'}]</code></td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">dailyIsCommunity</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">boolean</td><td style="padding:9px 16px"><code>true</code> 表示今日主题来自社区投稿</td></tr>
+            <tr><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">apiVersion</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">API 版本号，当前为 <code>"v1"</code></td></tr>
           </tbody>
         </table>
       </div>
@@ -357,13 +513,94 @@ function applyTheme(d) {
       <h3 style="font-size:14px;font-weight:700;letter-spacing:-0.01em;margin-bottom:10px">特殊说明</h3>
       <div class="card" style="margin-bottom:24px;padding:18px 24px">
         <ul style="font-size:12px;color:var(--color-text-muted);line-height:1.8;padding-left:18px;margin:0">
-          <li><strong>社区主题</strong>（Redis 存储）的 <code>extensions</code> 字段始终存在（<code>null</code> 或数组），不会缺失。</li>
-          <li><strong>静态预设主题</strong>（<code>index_config.js</code>）可能不含 <code>extensions</code> 字段。</li>
-          <li><code>/api/v1/theme/{'{preset}'}.json</code>：社区主题返回 <code>logoText: null, logoColors: null</code>（社区主题无 Logo）。</li>
+          <li><strong>所有主题端点</strong>的 <code>customCss</code>、<code>extensions</code> 字段始终存在（字符串/数组），不会缺失。无内容时为空字符串 <code>""</code> 或空数组 <code>[]</code>。</li>
+          <li><strong>社区主题</strong>通过 <code>/api/v1/theme/community-*.json</code> 访问时，<code>logoText</code> / <code>logoColors</code> 为 <code>null</code>（社区主题无 Logo）。<code>/api/v1/diy/theme.json</code> 端点不含这些字段，而是返回 <code>id</code>、<code>author</code>、<code>likes</code>、<code>status</code>、<code>tags</code> 等社区特有字段。</li>
+          <li>使用 <code>?overrides=</code> 查询参数时，<code>today.json</code> 响应的 <code>cssVars</code> 已合并覆盖值，并额外返回 <code>appliedOverrides: true</code> 标记。</li>
           <li><strong>CSS 变量自动归一化</strong>：提交时所有键自动补齐 <code>--</code> 前缀，可防止 AI 生成未前缀化的键名。</li>
           <li><strong>customCss 中的动画类</strong>会被自动解析并生成对应 DOM 粒子元素（系统根据类名启发式决定数量：particle/dot/orb/bubble/spark/star → 20，float/drift/sway → 12，rain/snow/fall → 30，其他 → 8）。如已在 extensions 中手动声明该类元素，系统自动跳过以避免重复。</li>
           <li><strong>速率限制</strong>：GET 端点无限制（有 CDN 缓存）。写操作：投稿 3次/分钟，点赞 10次/分钟，超限返回 429。</li>
         </ul>
+      </div>
+
+      <h2 id="rgb-vars" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">RGB 通道变量 & Tailwind 集成</h2>
+      <div class="card" style="margin-bottom:36px;padding:24px 28px">
+        <p class="text-muted" style="font-size:13px;line-height:1.6;margin:0 0 18px 0">
+          所有以 <code>--color-</code> 开头的 CSS 变量均自动附带 <code>-rgb</code> 通道变体（如 <code>--color-primary-rgb: 66, 133, 244</code>），
+          支持在 Tailwind CSS 中使用不透明度修饰符。
+        </p>
+
+        <h3 style="font-size:14px;font-weight:700;letter-spacing:-0.01em;margin-bottom:10px">Tailwind v3 配置示例</h3>
+        <pre style="margin-bottom:18px"><code>{String.raw`// tailwind.config.js
+module.exports = {
+  theme: {
+    extend: {
+      colors: {
+        primary: "rgb(var(--color-primary-rgb) / <alpha-value>)",
+        secondary: "rgb(var(--color-secondary-rgb) / <alpha-value>)",
+        accent: "rgb(var(--color-accent-rgb) / <alpha-value>)",
+        background: "var(--color-bg)",
+        surface: "var(--color-surface)",
+      },
+      borderRadius: {
+        theme: "var(--radii)",
+      },
+    },
+  },
+};`}</code></pre>
+
+        <h3 style="font-size:14px;font-weight:700;letter-spacing:-0.01em;margin-bottom:10px">Tailwind v4 配置示例</h3>
+        <pre style="margin-bottom:18px"><code>{String.raw`/* app.css */
+@import "tailwindcss";
+
+@theme {
+  --color-primary: rgb(var(--color-primary-rgb) / <alpha-value>);
+  --color-secondary: rgb(var(--color-secondary-rgb) / <alpha-value>);
+  --color-background: var(--color-bg);
+  --color-surface: var(--color-surface);
+}`}</code></pre>
+
+        <div class="cmd-group" style="margin-bottom:0">
+          <div class="cmd-header"><span class="cmd-label">一键获取 Tailwind 配置</span></div>
+          <pre class="cmd-block"><code>curl {siteUrl}/api/v1/tailwind-config.json</code></pre>
+        </div>
+      </div>
+
+      <!-- ====== SDK ====== -->
+      <h2 id="sdk" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">SDK / Web Component</h2>
+      <div class="card" style="margin-bottom:36px;padding:24px 28px">
+        <p class="text-muted" style="font-size:13px;line-height:1.6;margin:0 0 18px 0">
+          ThemeDist 提供官方轻量化 Web Component <code>&lt;themedist-runner&gt;</code>，将 CSS 变量注入全局 <code>:root</code>，
+          并将装饰元素隔离在 Shadow DOM 中，防止样式污染宿主页面。内置 localStorage 缓存和网络降级。
+        </p>
+
+        <h3 style="font-size:14px;font-weight:700;letter-spacing:-0.01em;margin-bottom:10px">快速接入</h3>
+        <pre style="margin-bottom:18px"><code>{String.raw`<!-- 一行标签，自动完成 CSS 变量注入 + 装饰渲染 + 缓存降级 -->
+<themedist-runner api="/api/v1/today.json" save-shadow="true"></themedist-runner>
+<script src="${siteUrl}/sdk.js" defer></script>`}</code></pre>
+
+        <h3 style="font-size:14px;font-weight:700;letter-spacing:-0.01em;margin-bottom:10px">属性</h3>
+        <div class="card card-glass" style="padding:0;overflow:hidden;margin-bottom:16px">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="border-bottom:1px solid var(--color-border)">
+              <th style="text-align:left;padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:100px">属性</th>
+              <th style="text-align:left;padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:80px">默认值</th>
+              <th style="text-align:left;padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">说明</th>
+            </tr></thead>
+            <tbody>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">api</td><td style="padding:7px 14px;font-size:12px">/api/v1/today.json</td><td style="padding:7px 14px;font-size:12px">主题 API 端点 URL</td></tr>
+              <tr><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">save-shadow</td><td style="padding:7px 14px;font-size:12px">true</td><td style="padding:7px 14px;font-size:12px">是否启用 Shadow DOM 隔离</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="padding:14px 18px;border-radius:10px;background:color-mix(in srgb, var(--color-primary) 8%, transparent);border-left:3px solid var(--color-primary)">
+          <p style="font-size:13px;font-weight:600;margin:0 0 4px">安全设计</p>
+          <p style="font-size:12px;color:var(--color-text-muted);line-height:1.6;margin:0">
+            <strong>CSS 变量</strong>：注入到全局 <code>:root</code>，确保全站样式生效。<br/>
+            <strong>装饰元素</strong>：隔离在 Shadow DOM 中，通过 <code>textContent</code> 和 <code>&lt;template&gt;</code> 安全渲染，绝无 innerHTML 注入风险。<br/>
+            <strong>缓存降级</strong>：同日访问零网络开销，fetch 失败时自动使用过期缓存。
+          </p>
+        </div>
       </div>
 
       <!-- ====== ROTATION ====== -->
@@ -395,8 +632,19 @@ function applyTheme(d) {
             <th style="text-align:left;padding:8px 0;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">CDN</th>
           </tr></thead>
           <tbody>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">/api/v1/today.json</td><td style="padding:6px 0">1 小时</td><td style="padding:6px 0">24 小时</td></tr>
-            <tr><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">/api/v1/theme/*.json</td><td style="padding:6px 0">24 小时</td><td style="padding:6px 0">永久 (immutable)</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">/api/v1/today.json</td><td style="padding:6px 0">1 小时</td><td style="padding:6px 0">24 小时 (stale-while-revalidate)</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">/api/v1/today.css</td><td style="padding:6px 0">1 小时</td><td style="padding:6px 0">24 小时</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">/api/v1/theme/*.json（预设）</td><td style="padding:6px 0">24 小时</td><td style="padding:6px 0">365 天 (immutable)</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">/api/v1/theme/*/wcag.json</td><td style="padding:6px 0">1 小时</td><td style="padding:6px 0">—</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">/api/v1/theme/*/scale.json</td><td style="padding:6px 0">365 天</td><td style="padding:6px 0">365 天 (immutable)</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">/api/v1/weather-theme.json</td><td style="padding:6px 0">30 分钟</td><td style="padding:6px 0">—</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">/api/v1/today/weather.js</td><td style="padding:6px 0">1 小时</td><td style="padding:6px 0">24 小时</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">/api/v1/diy/themes.json</td><td style="padding:6px 0">1 分钟</td><td style="padding:6px 0">—</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">/api/v1/diy/theme.json</td><td style="padding:6px 0">5 分钟</td><td style="padding:6px 0">—</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">POST /api/v1/diy/*</td><td style="padding:6px 0">不缓存</td><td style="padding:6px 0">—</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">POST /api/v1/extract-theme.json</td><td style="padding:6px 0">不缓存</td><td style="padding:6px 0">—</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">POST /api/v1/telemetry/hit</td><td style="padding:6px 0">不缓存</td><td style="padding:6px 0">—</td></tr>
+            <tr><td style="padding:6px 0;font-family:'JetBrains Mono',monospace;font-size:12px">/api/v1/admin/*</td><td style="padding:6px 0">不缓存</td><td style="padding:6px 0">—</td></tr>
           </tbody>
         </table>
         <div style="padding:14px 18px;border-radius:10px;background:color-mix(in srgb, var(--color-primary) 8%, transparent);border-left:3px solid var(--color-primary)">
@@ -484,6 +732,132 @@ function applyTheme(d) {
           <code>javascript:</code> 协议和 CSS <code>expression()</code>。清洗后的数据可直接注入 DOM，无需额外净化。
           <code>_meta.sanitized</code> 标识清洗状态，<code>_meta.schemaValid</code> 标识结构校验结果。
         </p>
+      </div>
+
+      <!-- ====== THEME DIAGNOSTICS ====== -->
+      <h2 id="diagnostics" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">主题诊断与导出</h2>
+
+      <h3 id="wcag" style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px;margin-top:20px">WCAG 无障碍诊断</h3>
+      <div class="card" style="margin-bottom:24px;padding:24px 28px">
+        <p class="text-muted" style="font-size:13px;line-height:1.6;margin:0 0 14px 0">评估主题的颜色对比度是否符合 WCAG 2.1 无障碍标准。检查正文、主色、辅色在背景上的可读性。</p>
+        <div class="cmd-group" style="margin-bottom:0">
+          <div class="cmd-header"><span class="cmd-label">curl</span></div>
+          <pre class="cmd-block"><code>curl {siteUrl}/api/v1/theme/yozakura-reverie/wcag.json</code></pre>
+        </div>
+        <p class="text-muted" style="font-size:12px;margin-top:10px">返回每条颜色组合的对比度数值及 AA/AAA 级别通过情况，含 <code>compliant</code> 总览标记和 <code>warnings</code> 修复建议。</p>
+      </div>
+
+      <h3 id="scale" style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px;margin-top:20px">色阶生成</h3>
+      <div class="card" style="margin-bottom:24px;padding:24px 28px">
+        <p class="text-muted" style="font-size:13px;line-height:1.6;margin:0 0 14px 0">基于主题主色/辅色/强调色/背景色，通过黑白色插值法生成完整的 Tailwind 风格 50~950 色阶。</p>
+        <div class="cmd-group" style="margin-bottom:0">
+          <div class="cmd-header"><span class="cmd-label">curl</span></div>
+          <pre class="cmd-block"><code>curl {siteUrl}/api/v1/theme/yozakura-reverie/scale.json</code></pre>
+        </div>
+        <p class="text-muted" style="font-size:12px;margin-top:10px">返回 <code>scales.primary</code>、<code>scales.secondary</code>、<code>scales.accent</code>、<code>scales.background</code> 四组色阶，每组含 50/100/200/300/400/500/600/700/800/900/950 共 11 级。</p>
+      </div>
+
+      <h3 id="shadcn" style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px;margin-top:20px">Shadcn UI 适配器</h3>
+      <div class="card" style="margin-bottom:24px;padding:24px 28px">
+        <p class="text-muted" style="font-size:13px;line-height:1.6;margin:0 0 14px 0">将主题 CSS 变量转换为 Shadcn UI 所需的 HSL 通道变量体系（<code>--background</code>、<code>--primary</code>、<code>--foreground</code> 等），前景色自动根据背景亮度推断。</p>
+        <div class="cmd-group" style="margin-bottom:0">
+          <div class="cmd-header"><span class="cmd-label">curl</span></div>
+          <pre class="cmd-block"><code>curl {siteUrl}/api/v1/theme/yozakura-reverie/export/shadcn.css</code></pre>
+        </div>
+        <p class="text-muted" style="font-size:12px;margin-top:10px">返回完整 CSS（<code>@layer base {'{'} :root {'{'}'}'}</code>），可直接复制到 Shadcn UI 项目的 <code>globals.css</code> 中使用。365 天 CDN 缓存。</p>
+      </div>
+
+      <h3 id="extract-theme" style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px;margin-top:20px">图片取色 API</h3>
+      <div class="card" style="margin-bottom:24px;padding:24px 28px">
+        <p class="text-muted" style="font-size:13px;line-height:1.6;margin:0 0 14px 0">
+          传入图片 URL，服务端下载后用纯 JavaScript 解码（jpeg-js / pngjs，零原生依赖），
+          K-means 聚类提取 Top 5 主色调，再通过色彩语义引擎映射为标准 UI 变量（背景两极化、主色对比度筛选、正文自动适配）。
+        </p>
+        <div class="cmd-group" style="margin-bottom:0">
+          <div class="cmd-header"><span class="cmd-label">curl</span></div>
+          <pre class="cmd-block"><code>curl -X POST {siteUrl}/api/v1/extract-theme.json \
+  -H 'Content-Type: application/json' \
+  -d '{'{'}"imageUrl":"https://example.com/poster.jpg"{'}'}'</code></pre>
+        </div>
+        <p class="text-muted" style="font-size:12px;margin-top:10px">
+          <strong>限制：</strong>仅支持 JPEG/PNG，最大 5MB，抓取超时 5s。<br/>
+          <strong>返回：</strong><code>sourcePalette</code>（提取的 5 个 hex）、<code>isDark</code>（暗色/亮色标记）、
+          <code>cssVars</code>（34 个标准 CSS 变量）、<code>customCss</code>（自动生成的渐变背景）。
+        </p>
+      </div>
+
+      <h3 id="shiki" style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px;margin-top:20px">代码高亮主题 (Shiki)</h3>
+      <div class="card" style="margin-bottom:24px;padding:24px 28px">
+        <p class="text-muted" style="font-size:13px;line-height:1.6;margin:0 0 14px 0">
+          将主题的 CSS 变量映射为 Shiki / VS Code 的 TextMate Token 颜色，可直接作为代码高亮主题使用。
+        </p>
+        <div class="cmd-group" style="margin-bottom:0">
+          <div class="cmd-header"><span class="cmd-label">curl</span></div>
+          <pre class="cmd-block"><code>curl {siteUrl}/api/v1/theme/yozakura-reverie/shiki.json</code></pre>
+        </div>
+      </div>
+
+      <h3 id="pattern" style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px;margin-top:20px">动态 SVG 背景纹理</h3>
+      <div class="card" style="margin-bottom:24px;padding:24px 28px">
+        <p class="text-muted" style="font-size:13px;line-height:1.6;margin:0 0 14px 0">
+          根据今日主题色实时生成几何图案 SVG，转为 data URI 嵌入 CSS，可直接作为 <code>&lt;link&gt;</code> 或 <code>background-image</code> 使用。
+        </p>
+        <div class="cmd-group" style="margin-bottom:0">
+          <div class="cmd-header"><span class="cmd-label">curl</span></div>
+          <pre class="cmd-block"><code>curl {siteUrl}/api/v1/today/pattern.css</code></pre>
+        </div>
+      </div>
+
+      <h3 id="lab-page" style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px;margin-top:20px">全场景 API 展厅</h3>
+      <div class="card" style="margin-bottom:24px;padding:24px 28px">
+        <p class="text-muted" style="font-size:13px;line-height:1.6;margin:0 0 14px 0">
+          一个页面同时展示 5 个高级 API 的联动能力：天气感知 → 动态纹理 → 代码高亮 → 智能缓动 → WCAG 对比度。
+          访问 <a href="/lab" style="color:var(--color-primary);font-weight:600">/lab</a> 查看。
+        </p>
+      </div>
+
+      <!-- ====== ENV AWARE ====== -->
+      <h2 id="env-aware" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">环境感知 API</h2>
+
+      <h3 id="weather" style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px">天气自适应主题</h3>
+      <div class="card" style="margin-bottom:24px;padding:24px 28px">
+        <p class="text-muted" style="font-size:13px;line-height:1.6;margin:0 0 14px 0">
+          嗅探式跨平台地理位置检测，自动适配 <strong>Vercel</strong>（<code>x-vercel-ip-latitude/longitude</code> Header）、
+          <strong>Netlify</strong>（<code>locals.netlify.context.geo</code> 或 <code>x-nf-geo</code> Base64 Header），
+          调用免费 Open-Meteo API 获取实时天气，自动匹配对应氛围的主题。
+          支持 <code>?lat=</code> 和 <code>?lon=</code> 查询参数覆盖 IP 检测（用于客户端 Geolocation API）。
+          返回城市名（OpenStreetMap Nominatim 逆地理编码）。
+        </p>
+        <div class="cmd-group" style="margin-bottom:14px">
+          <div class="cmd-header"><span class="cmd-label">curl — IP 自动检测</span></div>
+          <pre class="cmd-block"><code>curl {siteUrl}/api/v1/weather-theme.json</code></pre>
+        </div>
+        <div class="cmd-group" style="margin-bottom:0">
+          <div class="cmd-header"><span class="cmd-label">curl — 指定经纬度</span></div>
+          <pre class="cmd-block"><code>curl "{siteUrl}/api/v1/weather-theme.json?lat=35.68&lon=139.76"</code></pre>
+        </div>
+        <p class="text-muted" style="font-size:12px;margin-top:10px">天气映射：晴天 → sunny-day / 阴天 → cloudy-grey / 雨 → rainy-mood / 雪 → snow-white / 雷暴 → thunderstorm。API 超时 3s，失败时降级为 Clear Sky + 今日主题。缓存 30 分钟。</p>
+        <p class="text-muted" style="font-size:12px;margin-top:6px">
+          <a href="/weather-demo" style="color:var(--color-primary);font-weight:600">→ 在线演示页面</a> — 浏览器定位 + 实时天气视觉渲染
+        </p>
+      </div>
+
+      <h3 id="status-override" style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px;margin-top:20px">系统状态覆盖</h3>
+      <div class="card" style="margin-bottom:36px;padding:24px 28px">
+        <p class="text-muted" style="font-size:13px;line-height:1.6;margin:0 0 14px 0">根据系统运行状态返回覆盖主题，用于维护页、哀悼日、故障降级等场景。</p>
+        <div class="cmd-group" style="margin-bottom:14px">
+          <div class="cmd-header"><span class="cmd-label">curl — 维护模式</span></div>
+          <pre class="cmd-block"><code>curl "{siteUrl}/api/v1/status-override.json?status=maintenance"</code></pre>
+        </div>
+        <div class="cmd-group" style="margin-bottom:14px">
+          <div class="cmd-header"><span class="cmd-label">curl — 哀悼模式</span></div>
+          <pre class="cmd-block"><code>curl "{siteUrl}/api/v1/status-override.json?status=mourning"</code></pre>
+        </div>
+        <div class="cmd-group" style="margin-bottom:0">
+          <div class="cmd-header"><span class="cmd-label">curl — 故障模式</span></div>
+          <pre class="cmd-block"><code>curl "{siteUrl}/api/v1/status-override.json?status=incident"</code></pre>
+        </div>
+        <p class="text-muted" style="font-size:12px;margin-top:10px">有效状态：<code>maintenance</code>（纯灰）、<code>mourning</code>（暗黑灰调 + grayscale 滤镜标记）、<code>incident</code>（红色警示）。缓存 5 分钟。</p>
       </div>
 
       <!-- ====== COMMUNITY API ====== -->
@@ -695,8 +1069,12 @@ export function useThemeDist() {
         <a href="#overview" class="toc-link" data-target="overview" role="menuitem" tabindex="-1">概述</a>
         <a href="#quickstart" class="toc-link" data-target="quickstart" role="menuitem" tabindex="-1">快速开始</a>
         <a href="#endpoints" class="toc-link" data-target="endpoints" role="menuitem" tabindex="-1">端点</a>
+        <a href="#query-params" class="toc-link" data-target="query-params" role="menuitem" tabindex="-1">查询参数</a>
         <a href="#schema" class="toc-link" data-target="schema" role="menuitem" tabindex="-1">响应结构</a>
         <a href="#css-vars" class="toc-link" data-target="css-vars" role="menuitem" tabindex="-1">CSS 变量</a>
+      </div>
+      <div class="toc-group">
+        <a href="#rgb-vars" class="toc-link" data-target="rgb-vars" role="menuitem" tabindex="-1">RGB 变量 & Tailwind</a>
       </div>
       <div class="toc-group toc-group-parent">
         <a href="#extensions-ref" class="toc-link toc-parent" data-target="extensions-ref" role="menuitem" tabindex="-1">Extensions</a>
@@ -710,6 +1088,16 @@ export function useThemeDist() {
         <a href="#today-safe" class="toc-link" data-target="today-safe" role="menuitem" tabindex="-1">安全代理</a>
       </div>
       <div class="toc-group toc-group-parent">
+        <a href="#diagnostics" class="toc-link toc-parent" data-target="diagnostics" role="menuitem" tabindex="-1">主题诊断与导出</a>
+        <a href="#wcag" class="toc-link toc-sub" data-target="wcag" role="menuitem" tabindex="-1">WCAG 诊断</a>
+        <a href="#scale" class="toc-link toc-sub" data-target="scale" role="menuitem" tabindex="-1">色阶生成</a>
+        <a href="#shadcn" class="toc-link toc-sub" data-target="shadcn" role="menuitem" tabindex="-1">Shadcn UI 适配</a>
+        <a href="#extract-theme" class="toc-link toc-sub" data-target="extract-theme" role="menuitem" tabindex="-1">图片取色</a>
+      </div>
+      <div class="toc-group">
+        <a href="#env-aware" class="toc-link" data-target="env-aware" role="menuitem" tabindex="-1">环境感知 API</a>
+      </div>
+      <div class="toc-group toc-group-parent">
         <a href="#community" class="toc-link toc-parent" data-target="community" role="menuitem" tabindex="-1">社区 API</a>
         <a href="#community-list" class="toc-link toc-sub" data-target="community-list" role="menuitem" tabindex="-1">获取列表</a>
         <a href="#community-single" class="toc-link toc-sub" data-target="community-single" role="menuitem" tabindex="-1">单个主题</a>
@@ -718,6 +1106,7 @@ export function useThemeDist() {
       </div>
       <div class="toc-group">
         <a href="#steps" class="toc-link" data-target="steps" role="menuitem" tabindex="-1">接入步骤</a>
+        <a href="#sdk" class="toc-link" data-target="sdk" role="menuitem" tabindex="-1">SDK / Web Component</a>
         <a href="#code" class="toc-link" data-target="code" role="menuitem" tabindex="-1">代码示例</a>
         <a href="#faq" class="toc-link" data-target="faq" role="menuitem" tabindex="-1">常见问题</a>
         <a href="#errors" class="toc-link" data-target="errors" role="menuitem" tabindex="-1">错误处理</a>
@@ -739,6 +1128,7 @@ export function useThemeDist() {
     .ep-tag { font-weight:800; font-size:10px; padding:3px 10px; border-radius:5px; color:#fff; white-space:nowrap; }
     .ep-tag.get  { background:#16a34a; }
     .ep-tag.post { background:#2563eb; }
+    .ep-tag.page { background:#9333ea; }
     .tag {
       font-size:11px;padding:3px 10px;border-radius:99px;
       background:color-mix(in srgb, var(--color-primary) 10%, transparent);

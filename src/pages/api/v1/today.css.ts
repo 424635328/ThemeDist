@@ -1,5 +1,7 @@
 import { getDailyTheme, getAllThemes } from '../../../utils/daily-theme';
-import { getDailyCommunityTheme } from '../../../utils/omni-bridge';
+import { getDailyCommunityTheme, getDateTheme, getMMDDForTimezone } from '../../../utils/omni-bridge';
+import { applyOverrides } from '../../../utils/sanitize';
+import { isLightColor } from '../../../utils/color';
 
 export const prerender = false;
 
@@ -7,16 +9,70 @@ const CACHE = {
   'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=3600',
 };
 
-export async function GET() {
+export async function GET({ url }: { url: URL }) {
   try {
-    const communityDaily = await getDailyCommunityTheme();
-    const theme = communityDaily || getDailyTheme();
+    const tz = url.searchParams.get('tz');
+    const overridesRaw = url.searchParams.get('overrides');
+
+    let theme;
+    if (tz) {
+      const dateStr = getMMDDForTimezone(tz);
+      theme = await getDateTheme(dateStr);
+    } else {
+      const communityDaily = await getDailyCommunityTheme();
+      theme = communityDaily || getDailyTheme();
+    }
+
+    let cssVars = theme.cssVars;
+    if (overridesRaw) {
+      cssVars = applyOverrides(cssVars, overridesRaw);
+    }
 
     let css = ':root {\n';
-    for (const [k, v] of Object.entries(theme.cssVars)) {
+    for (const [k, v] of Object.entries(cssVars)) {
       css += `  ${k}: ${v};\n`;
     }
     css += '}\n';
+
+    // Dark/Light mode adaptation
+    const bgColor = cssVars['--color-bg'] || '#000000';
+    if (isLightColor(bgColor)) {
+      css += '\n@media (prefers-color-scheme: dark) {\n';
+      css += '  :root {\n';
+      css += '    --color-bg: #121212;\n';
+      css += '    --color-surface: #1e1e1e;\n';
+      css += '    --color-text: #e2e8f0;\n';
+      css += '    --color-text-muted: #94a3b8;\n';
+      css += '    --color-border: rgba(255,255,255,0.1);\n';
+      css += '    --color-bg-dark: #121212;\n';
+      css += '    --color-text-dark: #e2e8f0;\n';
+      css += '  }\n';
+      css += '}\n';
+      css += '\n:root {\n';
+      css += '  --color-bg-light: ' + bgColor + ';\n';
+      css += '  --color-bg-dark: #121212;\n';
+      css += '  --color-text-light: ' + (cssVars['--color-text'] || '#1e293b') + ';\n';
+      css += '  --color-text-dark: #e2e8f0;\n';
+      css += '}\n';
+    } else {
+      css += '\n@media (prefers-color-scheme: light) {\n';
+      css += '  :root {\n';
+      css += '    --color-bg: #f8fafc;\n';
+      css += '    --color-surface: #ffffff;\n';
+      css += '    --color-text: #1e293b;\n';
+      css += '    --color-text-muted: #64748b;\n';
+      css += '    --color-border: rgba(0,0,0,0.1);\n';
+      css += '    --color-bg-light: #f8fafc;\n';
+      css += '    --color-text-light: #1e293b;\n';
+      css += '  }\n';
+      css += '}\n';
+      css += '\n:root {\n';
+      css += '  --color-bg-dark: ' + bgColor + ';\n';
+      css += '  --color-bg-light: #f8fafc;\n';
+      css += '  --color-text-dark: ' + (cssVars['--color-text'] || '#e2e8f0') + ';\n';
+      css += '  --color-text-light: #1e293b;\n';
+      css += '}\n';
+    }
 
     if (theme.customCss) {
       css += `\n/* customCss */\n${theme.customCss}\n`;
