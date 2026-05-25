@@ -1032,7 +1032,7 @@ fetch('${siteUrl}/api/v1/today.json')
       if (tag) { tag.className = 'hp-sec-tag ' + cls; tag.textContent = text; }
     }
 
-    fetch(BASE + '/api/status')
+    fetch(BASE + '/api/v1/status')
       .then(function(r) { return r.ok ? r.json() : null; })
       .then(function(data) {
         if (!data) {
@@ -1060,7 +1060,7 @@ fetch('${siteUrl}/api/v1/today.json')
         setCard('sec-netlify', 'sec-danger', '不可达', '');
       });
 
-    fetch(BASE + '/api/security-status')
+    fetch(BASE + '/api/v1/security-status')
       .then(function(r) { return r.ok ? r.json() : null; })
       .then(function(data) {
         if (!data) { setCard('sec-theme', 'sec-warning', '未知', '无法获取安全状态'); return; }

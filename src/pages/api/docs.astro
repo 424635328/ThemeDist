@@ -60,7 +60,7 @@ const vanillaJS = String.raw`// 完整集成示例 — 含缓存、降级、特�
 
   if (cached?.date === today) return applyTheme(cached);
 
-  const res = await fetch('{siteUrl}/api/v1/today.json');
+  const res = await fetch('${siteUrl}/api/v1/today.json');
   const t = await res.json();
 
   const data = { date: t.date, cssVars: t.cssVars, customCss: t.customCss, exts: t.extensions };
@@ -167,7 +167,7 @@ function applyTheme(d) {
             </tr>
             <tr style="border-bottom:1px solid var(--color-border)">
               <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
-              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/today-safe</td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/today-safe</td>
               <td style="padding:12px 18px;font-size:13px">安全主题代理 — Vercel 优先，Netlify 备用，XSS 清洗后输出</td>
             </tr>
             <tr style="border-bottom:1px solid var(--color-border)">
@@ -282,7 +282,7 @@ function applyTheme(d) {
           系统支持两种类型，<strong>不支持 JavaScript</strong>（安全原因，提交时如果类型不匹配会被自动移除并返回警告）。
         </p>
 
-        <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:12px;margin-top:20px">类型 1: floating — 浮动字符</h3>
+        <h3 id="ext-floating" style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:12px;margin-top:20px">类型 1: floating — 浮动字符</h3>
         <p class="text-muted" style="font-size:12px;margin:0 0 10px">通过 <code>document.createElement('div')</code> 安全创建，绝无 innerHTML。适合 emoji 装饰。</p>
         <div class="card card-glass" style="padding:0;overflow:hidden;margin-bottom:16px">
           <table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -306,7 +306,7 @@ function applyTheme(d) {
         <div class="cmd-block" style="margin-bottom:8px"><code>{String.raw`// 示例
       { "type": "floating", "char": "🪷", "top": "20%", "left": "5%", "fontSize": "30px", "opacity": 0.3, "animation": "swing 4s ease-in-out infinite" }`}</code></div>
 
-        <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:12px;margin-top:24px">类型 2: decorative — 装饰 HTML</h3>
+        <h3 id="ext-decorative" style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:12px;margin-top:24px">类型 2: decorative — 装饰 HTML</h3>
         <p class="text-muted" style="font-size:12px;margin:0 0 10px">使用 <code>&lt;template&gt;</code> + <code>DocumentFragment</code> 安全解析，渲染前剥离 <code>on*</code> 事件。适合复杂粒子层、叠层、氛围元素。</p>
         <div class="card card-glass" style="padding:0;overflow:hidden;margin-bottom:16px">
           <table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -409,7 +409,7 @@ function applyTheme(d) {
       </div>
 
       <!-- ====== TODAY-SAFE ====== -->
-      <h2 id="today-safe" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">安全主题代理 /api/today-safe</h2>
+      <h2 id="today-safe" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">安全主题代理 /api/v1/today-safe</h2>
       <div class="card" style="margin-bottom:36px;padding:24px 28px">
         <p class="text-muted" style="font-size:13px;line-height:1.6;margin:0 0 18px 0">
           从 ThemeDist 代理获取最新的 <code>/api/v1/today.json</code> 数据（<strong>Vercel 优先，Netlify 备用</strong>），并应用 XSS 清洗。
@@ -418,7 +418,7 @@ function applyTheme(d) {
 
         <div class="cmd-group" style="margin-bottom:0">
           <div class="cmd-header"><span class="cmd-label">curl</span></div>
-          <pre class="cmd-block"><code>curl https://themedist-monitor.vercel.app/api/today-safe</code></pre>
+          <pre class="cmd-block"><code>curl https://themedist-monitor.vercel.app/api/v1/today-safe</code></pre>
         </div>
       </div>
 
@@ -489,23 +489,23 @@ function applyTheme(d) {
       <!-- ====== COMMUNITY API ====== -->
       <h2 id="community" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">社区主题 API</h2>
       <div class="card" style="margin-bottom:36px;padding:24px 28px">
-        <h3 style="font-size:14px;font-weight:700;margin:0 0 12px">获取列表</h3>
+        <h3 id="community-list" style="font-size:14px;font-weight:700;margin:0 0 12px">获取列表</h3>
         <div class="cmd-group"><div class="cmd-header"><span class="cmd-label">curl — 最新（分页）</span></div><pre class="cmd-block"><code>curl {siteUrl}/api/v1/diy/themes.json?sort=new&page=1&size=20</code></pre></div>
         <div class="cmd-group"><div class="cmd-header"><span class="cmd-label">curl — 最热</span></div><pre class="cmd-block"><code>curl {siteUrl}/api/v1/diy/themes.json?sort=hot</code></pre></div>
         <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl — 按标签筛选</span></div><pre class="cmd-block"><code>curl {siteUrl}/api/v1/diy/themes.json?tag=dark</code></pre></div>
         <p class="text-muted" style="font-size:12px;margin-top:10px">参数: <code>sort</code>=new|hot, <code>page</code>=1, <code>size</code>=20(max50), <code>tag</code>=dark|light|warm|cool|vibrant|minimal|nature|tech</p>
 
-        <h3 style="font-size:14px;font-weight:700;margin:20px 0 12px">获取单个主题</h3>
+        <h3 id="community-single" style="font-size:14px;font-weight:700;margin:20px 0 12px">获取单个主题</h3>
         <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl</span></div><pre class="cmd-block"><code>curl {siteUrl}/api/v1/diy/theme.json?id=abc12345</code></pre></div>
 
-        <h3 style="font-size:14px;font-weight:700;margin:20px 0 12px">提交主题</h3>
+        <h3 id="community-submit" style="font-size:14px;font-weight:700;margin:20px 0 12px">提交主题</h3>
         <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl</span></div><pre class="cmd-block"><code>curl -X POST {siteUrl}/api/v1/diy/submit.json \
   -H 'Content-Type: application/json' \
   -d '{'{'}"name":"My Theme","author":"You","cssVars":{'{'}"--color-primary":"#ff6b6b","--color-bg":"#1a1a2e"{'}'},"customCss":"body {'{'} ... {'}'}","extensions":[{'{'}"type":"floating","char":"✨"{'}'}],"tags":["dark","vibrant"]{'}'}'</code></pre></div>
         <p class="text-muted" style="font-size:12px;margin-top:6px">必填: <code>name</code>, <code>author</code>, <code>cssVars</code>（必须含 <code>--color-primary</code> 和 <code>--color-bg</code>）。可选: <code>customCss</code>, <code>extensions</code>, <code>tags</code>（最多 5 个）。提交后进入审核队列。</p>
         <p class="text-muted" style="font-size:12px;margin-top:4px">成功响应 <code style="color:#22c55e">201</code>：<code>{'{'} success: true, theme: {'{'} id, name, ... {'}'}, warnings?: [...] {'}'}</code>。如果有 <code>warnings</code> 数组，说明部分字段被自动调整（如不支持的类型被移除）。</p>
 
-        <h3 style="font-size:14px;font-weight:700;margin:20px 0 12px">点赞</h3>
+        <h3 id="community-like" style="font-size:14px;font-weight:700;margin:20px 0 12px">点赞</h3>
         <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl</span></div><pre class="cmd-block"><code>curl -X POST {siteUrl}/api/v1/diy/like.json \
   -H 'Content-Type: application/json' \
   -d '{'{'}"id":"abc12345"{'}'}'</code></pre></div>
@@ -691,22 +691,38 @@ export function useThemeDist() {
       <svg width="18" height="18" viewBox="0 0 18 18" fill="none" class="toc-icon-close"><line x1="5" y1="5" x2="13" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="13" y1="5" x2="5" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
     </button>
     <nav class="toc-menu" id="toc-menu" role="menu" aria-label="页面目录">
-      <a href="#overview" class="toc-link" data-target="overview" role="menuitem" tabindex="-1">概述</a>
-      <a href="#quickstart" class="toc-link" data-target="quickstart" role="menuitem" tabindex="-1">快速开始</a>
-      <a href="#endpoints" class="toc-link" data-target="endpoints" role="menuitem" tabindex="-1">端点</a>
-      <a href="#schema" class="toc-link" data-target="schema" role="menuitem" tabindex="-1">响应结构</a>
-      <a href="#css-vars" class="toc-link" data-target="css-vars" role="menuitem" tabindex="-1">CSS 变量</a>
-      <a href="#extensions-ref" class="toc-link" data-target="extensions-ref" role="menuitem" tabindex="-1">Extensions</a>
-      <a href="#limits" class="toc-link" data-target="limits" role="menuitem" tabindex="-1">字段限制</a>
-      <a href="#rotation" class="toc-link" data-target="rotation" role="menuitem" tabindex="-1">轮换策略</a>
-      <a href="#caching" class="toc-link" data-target="caching" role="menuitem" tabindex="-1">缓存策略</a>
-      <a href="#today-safe" class="toc-link" data-target="today-safe" role="menuitem" tabindex="-1">安全代理</a>
-      <a href="#community" class="toc-link" data-target="community" role="menuitem" tabindex="-1">社区 API</a>
-      <a href="#steps" class="toc-link" data-target="steps" role="menuitem" tabindex="-1">接入步骤</a>
-      <a href="#code" class="toc-link" data-target="code" role="menuitem" tabindex="-1">代码示例</a>
-      <a href="#faq" class="toc-link" data-target="faq" role="menuitem" tabindex="-1">常见问题</a>
-      <a href="#errors" class="toc-link" data-target="errors" role="menuitem" tabindex="-1">错误处理</a>
-      <a href="#full" class="toc-link" data-target="full" role="menuitem" tabindex="-1">完整响应</a>
+      <div class="toc-group">
+        <a href="#overview" class="toc-link" data-target="overview" role="menuitem" tabindex="-1">概述</a>
+        <a href="#quickstart" class="toc-link" data-target="quickstart" role="menuitem" tabindex="-1">快速开始</a>
+        <a href="#endpoints" class="toc-link" data-target="endpoints" role="menuitem" tabindex="-1">端点</a>
+        <a href="#schema" class="toc-link" data-target="schema" role="menuitem" tabindex="-1">响应结构</a>
+        <a href="#css-vars" class="toc-link" data-target="css-vars" role="menuitem" tabindex="-1">CSS 变量</a>
+      </div>
+      <div class="toc-group toc-group-parent">
+        <a href="#extensions-ref" class="toc-link toc-parent" data-target="extensions-ref" role="menuitem" tabindex="-1">Extensions</a>
+        <a href="#ext-floating" class="toc-link toc-sub" data-target="ext-floating" role="menuitem" tabindex="-1">floating 浮动字符</a>
+        <a href="#ext-decorative" class="toc-link toc-sub" data-target="ext-decorative" role="menuitem" tabindex="-1">decorative 装饰 HTML</a>
+      </div>
+      <div class="toc-group">
+        <a href="#limits" class="toc-link" data-target="limits" role="menuitem" tabindex="-1">字段限制</a>
+        <a href="#rotation" class="toc-link" data-target="rotation" role="menuitem" tabindex="-1">轮换策略</a>
+        <a href="#caching" class="toc-link" data-target="caching" role="menuitem" tabindex="-1">缓存策略</a>
+        <a href="#today-safe" class="toc-link" data-target="today-safe" role="menuitem" tabindex="-1">安全代理</a>
+      </div>
+      <div class="toc-group toc-group-parent">
+        <a href="#community" class="toc-link toc-parent" data-target="community" role="menuitem" tabindex="-1">社区 API</a>
+        <a href="#community-list" class="toc-link toc-sub" data-target="community-list" role="menuitem" tabindex="-1">获取列表</a>
+        <a href="#community-single" class="toc-link toc-sub" data-target="community-single" role="menuitem" tabindex="-1">单个主题</a>
+        <a href="#community-submit" class="toc-link toc-sub" data-target="community-submit" role="menuitem" tabindex="-1">提交主题</a>
+        <a href="#community-like" class="toc-link toc-sub" data-target="community-like" role="menuitem" tabindex="-1">点赞</a>
+      </div>
+      <div class="toc-group">
+        <a href="#steps" class="toc-link" data-target="steps" role="menuitem" tabindex="-1">接入步骤</a>
+        <a href="#code" class="toc-link" data-target="code" role="menuitem" tabindex="-1">代码示例</a>
+        <a href="#faq" class="toc-link" data-target="faq" role="menuitem" tabindex="-1">常见问题</a>
+        <a href="#errors" class="toc-link" data-target="errors" role="menuitem" tabindex="-1">错误处理</a>
+        <a href="#full" class="toc-link" data-target="full" role="menuitem" tabindex="-1">完整响应</a>
+      </div>
     </nav>
   </div>
 
@@ -719,6 +735,7 @@ export function useThemeDist() {
   <style>
     .docs-header { margin-bottom: 28px; }
     h2[id] { scroll-margin-top: 80px; }
+    h3[id] { scroll-margin-top: 80px; }
     .ep-tag { font-weight:800; font-size:10px; padding:3px 10px; border-radius:5px; color:#fff; white-space:nowrap; }
     .ep-tag.get  { background:#16a34a; }
     .ep-tag.post { background:#2563eb; }
@@ -783,12 +800,12 @@ export function useThemeDist() {
     .toc-fab.open .toc-icon-close {display:block;}
     .toc-menu {
       position:absolute;bottom:56px;right:0;
-      display:flex;flex-direction:column;gap:2px;
-      background:color-mix(in srgb, var(--color-surface) 88%, transparent);
+      display:flex;flex-direction:column;gap:0;
+      background:color-mix(in srgb, var(--color-surface) 92%, transparent);
       backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
       border-radius:16px;border:1px solid var(--color-border);
-      box-shadow:0 12px 40px rgba(0,0,0,0.2);
-      padding:8px;min-width:140px;
+      box-shadow:0 12px 40px rgba(0,0,0,0.22);
+      padding:6px;min-width:170px;max-height:70vh;overflow-y:auto;
       opacity:0;pointer-events:none;
       transform:translateY(8px) scale(0.92);
       transform-origin:bottom right;
@@ -797,11 +814,18 @@ export function useThemeDist() {
     .toc-fab.open .toc-menu {
       opacity:1;pointer-events:auto;transform:translateY(0) scale(1);
     }
+    .toc-group {
+      display:flex;flex-direction:column;gap:1px;
+      padding:3px 0;
+    }
+    .toc-group + .toc-group {
+      border-top:1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
+    }
     .toc-link {
       display:flex;align-items:center;justify-content:space-between;gap:10px;
-      padding:8px 14px;font-size:13px;font-weight:500;
+      padding:7px 12px;font-size:13px;font-weight:500;
       color:var(--color-text-muted);text-decoration:none;
-      border-radius:10px;transition:all 0.2s;white-space:nowrap;
+      border-radius:8px;transition:all 0.2s;white-space:nowrap;
     }
     .toc-link:hover {
       background:color-mix(in srgb, var(--color-primary) 8%, transparent);
@@ -812,11 +836,24 @@ export function useThemeDist() {
     }
     .toc-link.active {
       color:var(--color-primary);font-weight:600;
-      background:color-mix(in srgb, var(--color-primary) 6%, transparent);
+      background:color-mix(in srgb, var(--color-primary) 8%, transparent);
     }
     .toc-link.active::after {
-      content:'';width:6px;height:6px;border-radius:50%;
+      content:'';width:5px;height:5px;border-radius:50%;
       background:var(--color-primary);flex-shrink:0;
+    }
+    .toc-sub {
+      font-size:12px;padding:5px 12px 5px 24px;
+      font-weight:400;opacity:0.85;
+    }
+    .toc-sub.active {
+      opacity:1;font-weight:600;
+    }
+    .toc-sub.active::after {
+      width:4px;height:4px;
+    }
+    .toc-parent {
+      font-weight:600;font-size:13px;
     }
 
     .copy-all-fab {
@@ -837,8 +874,9 @@ export function useThemeDist() {
 
     @media (max-width:768px) {
       .toc-fab {bottom:180px;right:16px;}
-      .toc-menu {min-width:130px;}
-      .toc-link {font-size:12px;padding:7px 12px;}
+      .toc-menu {min-width:160px;max-height:60vh;}
+      .toc-link {font-size:12px;padding:6px 10px;}
+      .toc-sub {font-size:11px;padding:4px 10px 4px 22px;}
       .copy-all-fab {bottom:80px;right:16px;padding:0 16px;height:40px;font-size:12px;}
     }
   </style>
@@ -865,7 +903,7 @@ export function useThemeDist() {
     const tocTrigger = document.getElementById('toc-trigger');
     const tocMenu = document.getElementById('toc-menu');
     const dots = Array.from(document.querySelectorAll('.toc-link'));
-    const headings = Array.from(document.querySelectorAll('h2[id]'));
+    const headings = Array.from(document.querySelectorAll('h2[id], h3[id]'));
 
     function openToc() { tocFab.classList.add('open'); tocTrigger.setAttribute('aria-expanded', 'true'); dots[0]?.focus(); }
     function closeToc() { tocFab.classList.remove('open'); tocTrigger.setAttribute('aria-expanded', 'false'); tocTrigger.focus(); }

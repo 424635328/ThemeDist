@@ -518,7 +518,7 @@ function navClass(path: string) {
        ============================================ */
     .content {
       position: relative; z-index: 1;
-      min-height: calc(100vh - 64px - 200px);
+      min-height: calc(100vh - 64px);
     }
 
     .section {
@@ -539,18 +539,56 @@ function navClass(path: string) {
     .footer {
       position: relative; z-index: 1;
       border-top: 1px solid var(--color-border);
-      padding: 40px 32px;
-      text-align: center;
-      color: var(--color-text-muted);
-      font-size: 13px;
-      line-height: 1.8;
+      padding: 14px 32px;
+      background: color-mix(in srgb, var(--color-surface) 18%, transparent);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
-    .footer a {
+    .footer-inner {
+      max-width: 1120px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .footer-brand {
+      display: flex; align-items: baseline; gap: 8px;
+      flex-shrink: 0;
+    }
+    .footer-logo {
+      font-size: 14px; font-weight: 800; letter-spacing: -0.03em;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .footer-tagline {
+      font-size: 11px; color: var(--color-text-muted); font-weight: 500; opacity: 0.45;
+      white-space: nowrap;
+    }
+    .footer-links {
+      display: flex; gap: 2px; flex-wrap: wrap; justify-content: center;
+    }
+    .footer-links a {
+      font-size: 12px; font-weight: 500; color: var(--color-text-muted);
+      text-decoration: none; padding: 4px 10px; border-radius: 6px;
+      transition: all 0.25s ease;
+    }
+    .footer-links a:hover {
       color: var(--color-primary);
-      text-decoration: none;
-      transition: opacity 0.2s;
+      background: color-mix(in srgb, var(--color-primary) 8%, transparent);
     }
-    .footer a:hover { opacity: 0.8; }
+    .footer-bottom {
+      display: flex; gap: 12px; align-items: center; flex-shrink: 0;
+      font-size: 11px; color: var(--color-text-muted); opacity: 0.4;
+    }
+    .footer-bottom a {
+      color: var(--color-text-muted); text-decoration: none;
+      transition: color 0.2s;
+    }
+    .footer-bottom a:hover { color: var(--color-primary); opacity: 1; }
+
+    @media (max-width: 768px) {
+      .footer { padding: 16px 20px; }
+      .footer-inner { flex-direction: column; gap: 10px; }
+      .footer-links { gap: 2px; }
+      .footer-links a { padding: 6px 10px; }
+    }
 
     /* ============================================
        TYPOGRAPHY
@@ -865,11 +903,23 @@ function navClass(path: string) {
   </div>
 
   <footer class="footer">
-    <p>ThemeDist — 每日主题分发 API</p>
-    <p style="margin-top:4px">
-      <a href="/api/docs">API 文档</a> · <a href="/theme-store">主题商店</a> · <a href="/submit">提交主题</a>
-    </p>
-    <p style="margin-top:8px;opacity:0.5">Powered by Astro</p>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span class="footer-logo">ThemeDist</span>
+        <span class="footer-tagline">每日主题分发 API</span>
+      </div>
+      <nav class="footer-links">
+        <a href="/api/docs">API 文档</a>
+        <a href="/theme-store">主题商店</a>
+        <a href="/theme-builder">构建器</a>
+        <a href="/theme-preview">主题预览</a>
+        <a href="/submit">提交主题</a>
+      </nav>
+      <div class="footer-bottom">
+        <span>Powered by Astro</span>
+        <a href="https://github.com/424635328/ThemeDist" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
   </footer>
 
   <div id="preview-bar" style="display:none;position:fixed;top:64px;left:0;right:0;z-index:99;padding:10px 24px;text-align:center;font-size:13px;font-weight:600;background:color-mix(in srgb, var(--color-primary) 15%, var(--color-bg) 90%);border-bottom:1px solid var(--color-primary);color:var(--color-text);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">

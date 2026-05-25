@@ -19,117 +19,176 @@ import Layout from '../layouts/Layout.astro';
         </div>
       </div>
 
-      <!-- Editor -->
-      <div class="tp-editor-card">
-        <div class="tp-editor-header">
-          <span class="tp-editor-label">JSON 配置</span>
-          <span id="tp-char-count" class="tp-char-count"></span>
+      <!-- Two-column grid -->
+      <div class="tp-grid">
+        <!-- LEFT: Editor + Status -->
+        <div class="tp-left">
+          <div class="tp-editor-card">
+            <div class="tp-editor-header">
+              <span class="tp-editor-label">JSON 配置</span>
+              <span id="tp-char-count" class="tp-char-count"></span>
+            </div>
+            <textarea
+              id="tp-json-input"
+              class="tp-textarea"
+              placeholder='粘贴完整主题 JSON …'
+              spellcheck="false"
+            ></textarea>
+            <div id="tp-errors" class="tp-errors" style="display:none"></div>
+          </div>
+          <div class="tp-status-bar">
+            <span id="tp-status-badge" class="tp-status-badge idle">等待输入</span>
+            <span id="tp-status-detail" class="tp-status-detail"></span>
+          </div>
         </div>
-        <textarea
-          id="tp-json-input"
-          class="tp-textarea"
-          placeholder='粘贴完整主题 JSON …'
-          spellcheck="false"
-        ></textarea>
-        <div id="tp-errors" class="tp-errors" style="display:none"></div>
-      </div>
 
-      <!-- Status -->
-      <div class="tp-status-bar">
-        <span id="tp-status-badge" class="tp-status-badge idle">等待输入</span>
-        <span id="tp-status-detail" class="tp-status-detail"></span>
-      </div>
+        <!-- RIGHT: Showcase + Actions + Submit -->
+        <div class="tp-right">
+          <div id="tp-showcase" class="tp-showcase">
+            <!-- Placeholder when no theme -->
+            <div id="tp-showcase-empty" class="tp-showcase-empty">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+              <span>粘贴 JSON 以预览主题</span>
+              <p>你也可以拖放 .json 文件到左侧编辑器</p>
+            </div>
+            <!-- Theme preview content -->
+            <div id="tp-showcase-content" style="display:none">
+              <div class="tp-showcase-header">
+                <span class="tp-showcase-label">主题预览</span>
+                <span class="tp-showcase-name" id="tp-showcase-name"></span>
+              </div>
+              <div class="tp-showcase-body">
+                <div class="tp-showcase-colors" id="tp-showcase-swatches"></div>
+                <div class="tp-showcase-panels">
+                  <div class="tp-showcase-card">
+                    <div class="tp-showcase-card-bar"></div>
+                    <div class="tp-showcase-card-content">
+                      <h4 class="tp-showcase-heading">标题文本 Heading</h4>
+                      <p class="tp-showcase-body-text">正文段落展示 <strong>--color-text</strong> 与 <span class="tp-showcase-muted">--color-text-muted</span> 的对比，以及 <a href="#" onclick="return false" class="tp-showcase-link">--color-primary 链接</a> 的颜色。</p>
+                      <div class="tp-showcase-buttons">
+                        <span class="tp-showcase-btn-primary">Primary</span>
+                        <span class="tp-showcase-btn-ghost">Ghost</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tp-showcase-meta">
+                    <div class="tp-showcase-stat" id="tp-stat-vars">34 CSS 变量</div>
+                    <div class="tp-showcase-stat" id="tp-stat-name">—</div>
+                    <div class="tp-showcase-stat" id="tp-stat-exts">0 扩展</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      <!-- Theme showcase (visible when theme applied) -->
-      <div id="tp-showcase" class="tp-showcase" style="display:none">
-        <div class="tp-showcase-swatches" id="tp-showcase-swatches"></div>
-        <div class="tp-showcase-card">
-          <h4 class="tp-showcase-heading">标题文本 Heading</h4>
-          <p class="tp-showcase-body">正文段落展示 <strong>--color-text</strong> 与 <span class="tp-showcase-muted">--color-text-muted</span> 的对比，以及 <a href="#" onclick="return false" class="tp-showcase-link">--color-primary 链接</a> 的颜色。</p>
-          <div class="tp-showcase-buttons">
-            <span class="tp-showcase-btn-primary">Primary</span>
-            <span class="tp-showcase-btn-ghost">Ghost</span>
+          <!-- Actions: grouped by intent -->
+          <div class="tp-actions" id="tp-actions">
+            <div class="tp-action-group">
+              <button class="tp-btn tp-btn-primary" id="tp-apply" type="button" disabled>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                持久化到本站
+              </button>
+              <button class="tp-btn tp-btn-accent" id="tp-screenshot" type="button" disabled>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="3.5" width="13" height="10" rx="1.5" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="8.5" r="2.5" stroke="currentColor" stroke-width="1.4"/></svg>
+                导出预览图
+              </button>
+            </div>
+            <div class="tp-action-sep"></div>
+            <div class="tp-action-group">
+              <button class="tp-btn tp-btn-outline" id="tp-copy-json" type="button" disabled>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M2 12V4a2 2 0 012-2h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                复制 JSON
+              </button>
+              <button class="tp-btn tp-btn-outline" id="tp-copy-ai" type="button">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                复制给 AI
+              </button>
+            </div>
+            <div class="tp-action-sep"></div>
+            <div class="tp-action-group">
+              <button class="tp-btn tp-btn-destructive" id="tp-restore" type="button" disabled>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 0111.3-3.7M14 8a6 6 0 01-11.3 3.7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 4v4h4M14 12v-4h-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                还原
+              </button>
+            </div>
+          </div>
+
+          <!-- Submit (hidden until theme applied) -->
+          <div class="tp-submit-section" id="tp-submit-section" style="display:none">
+            <div class="tp-submit-card">
+              <div class="tp-submit-header">
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M8 1l2 5h5l-4 3 2 5-5-3-5 3 2-5-4-3h5l2-5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+                <span>提交到社区商店</span>
+              </div>
+              <div class="tp-submit-row">
+                <input id="tp-author" class="tp-input" type="text" placeholder="你的昵称（必填）" maxlength="30" autocomplete="off" disabled />
+                <input id="tp-tags" class="tp-input" type="text" placeholder="标签，逗号分隔：dark,vibrant,cool" maxlength="100" autocomplete="off" disabled />
+                <button class="tp-btn tp-btn-primary" id="tp-submit" type="button" disabled>
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  提交
+                </button>
+              </div>
+              <div id="tp-submit-result" class="tp-submit-result" style="display:none"></div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Actions -->
-      <div class="tp-actions" id="tp-actions">
-        <button class="tp-btn tp-btn-primary" id="tp-apply" type="button" disabled>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          持久化到本站
-        </button>
-        <button class="tp-btn tp-btn-outline" id="tp-copy-json" type="button" disabled>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="4" y="4" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M2 12V4a2 2 0 012-2h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-          复制 JSON
-        </button>
-        <button class="tp-btn tp-btn-outline" id="tp-copy-ai" type="button">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          复制给 AI
-        </button>
-        <button class="tp-btn tp-btn-destructive" id="tp-restore" type="button" disabled>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 0111.3-3.7M14 8a6 6 0 01-11.3 3.7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 4v4h4M14 12v-4h-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          还原今日主题
-        </button>
-      </div>
-
-      <!-- Submit -->
-      <div class="tp-submit-section" id="tp-submit-section">
-        <div class="tp-submit-card">
-          <div class="tp-submit-header">
-            <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M8 1l2 5h5l-4 3 2 5-5-3-5 3 2-5-4-3h5l2-5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
-            <span>提交到社区商店</span>
-          </div>
-          <div class="tp-submit-row">
-            <input id="tp-author" class="tp-input" type="text" placeholder="你的昵称（必填）" maxlength="30" autocomplete="off" disabled />
-            <input id="tp-tags" class="tp-input" type="text" placeholder="标签，逗号分隔：dark,vibrant,cool" maxlength="100" autocomplete="off" disabled />
-            <button class="tp-btn tp-btn-primary" id="tp-submit" type="button" disabled>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              提交
-            </button>
-          </div>
-          <div id="tp-submit-result" class="tp-submit-result" style="display:none"></div>
-        </div>
-      </div>
+      <!-- Hidden canvas for screenshot generation -->
+      <canvas id="tp-screenshot-canvas" width="800" height="500" style="position:fixed;top:-9999px;left:-9999px;visibility:hidden"></canvas>
     </div>
   </section>
 </Layout>
 
 <style>
-  .tp-section { padding: 24px 32px 60px; }
-  .tp-container { max-width: 820px; margin: 0 auto; }
+  .tp-section { padding: 32px 32px 40px; }
+  .tp-container { max-width: 1300px; margin: 0 auto; }
 
-  /* Compact top bar */
+  /* ── Grid layout ── */
+  .tp-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  /* ── Top bar ── */
   .tp-topbar {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 16px; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 24px; gap: 12px; flex-wrap: wrap;
+    padding: 0 0 16px;
+    border-bottom: 1px solid var(--color-border);
   }
-  .tp-topbar-left {
-    display: flex; align-items: baseline; gap: 8px;
-  }
+  .tp-topbar-left { display: flex; align-items: baseline; gap: 10px; }
   .tp-topbar-title {
-    font-size: 13px; font-weight: 700; letter-spacing: -0.01em;
+    font-size: 18px; font-weight: 800; letter-spacing: -0.03em;
     color: var(--color-text);
   }
-  .tp-topbar-sep { color: var(--color-text-muted); opacity: 0.35; font-weight: 300; }
+  .tp-topbar-sep { color: var(--color-text-muted); opacity: 0.2; font-weight: 300; }
   .tp-topbar-desc {
-    font-size: 12px; color: var(--color-text-muted);
-    font-weight: 400; letter-spacing: -0.01em;
+    font-size: 13px; color: var(--color-text-muted);
+    font-weight: 500; letter-spacing: -0.01em;
   }
   .tp-topbar-right { display: flex; gap: 4px; }
 
-  /* Editor card */
+  /* ── Editor card ── */
   .tp-editor-card {
     background: var(--color-surface);
-    border: 1px solid var(--color-border);
+    border: 1.5px solid var(--color-border);
     border-radius: 16px;
     overflow: hidden;
-    margin-bottom: 14px;
-    transition: border-color 0.4s ease, box-shadow 0.4s ease;
+    margin-bottom: 10px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.03);
+    position: relative;
   }
   .tp-editor-card:focus-within {
-    border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 10%, transparent);
+    border-color: color-mix(in srgb, var(--color-primary) 50%, var(--color-border));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 8%, transparent), 0 4px 20px rgba(0,0,0,0.06);
+  }
+  .tp-editor-card.drag-over {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent), 0 8px 32px color-mix(in srgb, var(--color-primary) 12%, transparent);
   }
   .tp-editor-header {
     display: flex; align-items: center;
@@ -138,214 +197,336 @@ import Layout from '../layouts/Layout.astro';
     background: color-mix(in srgb, var(--color-bg) 50%, transparent);
   }
   .tp-editor-label {
-    font-size: 11px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
     color: var(--color-text-muted);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tp-editor-label::before {
+    content: ''; width: 8px; height: 8px; border-radius: 3px;
+    background: var(--color-primary);
+    opacity: 0.6;
   }
 
   .tp-textarea {
     display: block;
-    width: 100%; min-height: 340px;
+    width: 100%; min-height: 480px;
     background: var(--color-bg);
     color: var(--color-text);
     border: none;
-    padding: 18px 20px;
+    padding: 18px 20px 18px 48px;
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    font-size: 12px; line-height: 1.6;
+    font-size: 12.5px; line-height: 1.75;
     resize: vertical; outline: none;
     box-sizing: border-box;
     tab-size: 2;
+    background-image:
+      linear-gradient(to right, color-mix(in srgb, var(--color-border) 40%, transparent) 1px, transparent 1px);
+    background-position: 28px 0;
+    background-size: 1px 100%;
+    background-repeat: no-repeat;
   }
-  .tp-textarea::placeholder { color: var(--color-text-muted); opacity: 0.25; }
+  .tp-textarea::placeholder { color: var(--color-text-muted); opacity: 0.18; }
 
   .tp-errors {
-    padding: 10px 20px; font-size: 12px; line-height: 1.8;
+    padding: 12px 22px; font-size: 12px; line-height: 1.9;
     color: #f87171;
-    background: rgba(239,68,68,0.06);
-    border-top: 1px solid rgba(239,68,68,0.18);
+    background: rgba(239,68,68,0.05);
+    border-top: 1px solid rgba(239,68,68,0.15);
   }
 
-  /* Status bar */
+  /* ── Status bar ── */
   .tp-status-bar {
-    display: flex; align-items: center; gap: 12px;
-    margin-bottom: 18px;
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 24px; min-height: 28px;
   }
   .tp-status-badge {
-    font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 99px;
-    letter-spacing: 0.04em; flex-shrink: 0;
+    font-size: 10px; font-weight: 700; padding: 5px 14px; border-radius: 99px;
+    letter-spacing: 0.05em; flex-shrink: 0;
     text-transform: uppercase;
   }
   .tp-status-badge.idle    { background: color-mix(in srgb, var(--color-text-muted) 8%, transparent); color: var(--color-text-muted); }
-  .tp-status-badge.applied {
-    background: rgba(34,197,94,0.1); color: #22c55e;
-  }
+  .tp-status-badge.applied { background: rgba(34,197,94,0.1); color: #22c55e; }
   .tp-status-badge.error   { background: rgba(239,68,68,0.1); color: #f87171; }
   .tp-status-detail {
     font-size: 12px; color: var(--color-text-muted);
     font-weight: 500; letter-spacing: -0.01em;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
 
-  /* Theme showcase */
+  /* ── Theme Showcase ── */
   .tp-showcase {
-    display: flex; gap: 18px; align-items: stretch;
-    margin-bottom: 20px; flex-wrap: wrap;
-  }
-  .tp-showcase-swatches {
-    display: flex; gap: 8px; align-items: center;
-    padding: 14px 18px;
+    display: flex; flex-direction: column;
+    margin-bottom: 16px;
     background: var(--color-surface);
+    border: 1.5px solid var(--color-border);
+    border-radius: 16px;
+    overflow: hidden;
+    min-height: 240px;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.03);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  .tp-showcase:has(#tp-showcase-content[style*="display: flex"]) {
+    border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border));
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  }
+  .tp-showcase-empty {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 48px 24px; gap: 14px;
+    color: var(--color-text-muted); opacity: 0.3;
+    font-size: 13px; font-weight: 500;
+    flex: 1;
+    text-align: center;
+  }
+  .tp-showcase-empty svg { opacity: 0.6; }
+  .tp-showcase-empty p { margin: 0; font-size: 12px; opacity: 0.6; max-width: 220px; line-height: 1.6; }
+  #tp-showcase-content {
+    display: flex; flex-direction: column;
+  }
+  #tp-showcase-content.tp-showcase-enter {
+    animation: tpShowcaseIn 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  @keyframes tpShowcaseIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .tp-showcase-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-bg) 50%, transparent);
+  }
+  .tp-showcase-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+  .tp-showcase-name {
+    font-size: 13px; font-weight: 700; letter-spacing: -0.02em;
+    color: var(--color-primary);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .tp-showcase-body {
+    display: flex; gap: 16px; padding: 16px;
+    align-items: stretch; flex-wrap: wrap;
+  }
+  .tp-showcase-colors {
+    display: flex; gap: 8px; align-items: center;
+    padding: 14px 16px;
+    background: color-mix(in srgb, var(--color-bg) 60%, transparent);
     border: 1px solid var(--color-border);
-    border-radius: 14px;
+    border-radius: 12px;
     flex-shrink: 0;
+    flex-wrap: wrap;
   }
   .tp-showcase-swatch {
     display: inline-block;
-    width: 28px; height: 28px; border-radius: 8px;
+    width: 30px; height: 30px; border-radius: 9px;
     border: 2px solid var(--color-border);
-    transition: transform 0.2s;
-    cursor: default;
-    flex-shrink: 0;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s;
+    cursor: default; flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
   }
-  .tp-showcase-swatch:hover { transform: scale(1.25); z-index: 2; }
+  .tp-showcase-swatch:hover { transform: scale(1.4); z-index: 3; box-shadow: 0 6px 18px rgba(0,0,0,0.18); }
+
+  .tp-showcase-panels { flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 10px; }
+
   .tp-showcase-card {
-    flex: 1; min-width: 240px;
-    background: var(--color-surface);
+    flex: 1;
+    background: color-mix(in srgb, var(--color-bg) 70%, transparent);
     border: 1px solid var(--color-border);
-    border-radius: 14px;
-    padding: 18px 20px;
-    display: flex; flex-direction: column; gap: 10px;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .tp-showcase-card:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 25%, var(--color-border));
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  }
+  .tp-showcase-card-bar {
+    height: 4px;
+    background: linear-gradient(90deg, var(--color-primary), var(--color-secondary), var(--color-accent));
+  }
+  .tp-showcase-card-content {
+    padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 8px;
   }
   .tp-showcase-heading {
-    font-size: 15px; font-weight: 700; letter-spacing: -0.02em;
+    font-size: 15px; font-weight: 700; letter-spacing: -0.03em;
     color: var(--color-primary); margin: 0;
   }
-  .tp-showcase-body {
-    font-size: 12.5px; line-height: 1.65; margin: 0;
+  .tp-showcase-body-text {
+    font-size: 12px; line-height: 1.65; margin: 0;
     color: var(--color-text);
   }
   .tp-showcase-muted { color: var(--color-text-muted); }
-  .tp-showcase-link { color: var(--color-primary); text-decoration: underline; cursor: default; }
-  .tp-showcase-buttons { display: flex; gap: 8px; }
+  .tp-showcase-link { color: var(--color-primary); text-decoration: underline; cursor: default; font-weight: 500; }
+  .tp-showcase-buttons { display: flex; gap: 8px; margin-top: 2px; }
   .tp-showcase-btn-primary {
     display: inline-flex; align-items: center;
-    height: 30px; padding: 0 16px; border-radius: 8px;
+    height: 28px; padding: 0 14px; border-radius: 8px;
     font-size: 11px; font-weight: 600;
     background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
     color: #fff;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--color-primary) 30%, transparent);
   }
   .tp-showcase-btn-ghost {
     display: inline-flex; align-items: center;
-    height: 30px; padding: 0 16px; border-radius: 8px;
+    height: 28px; padding: 0 14px; border-radius: 8px;
     font-size: 11px; font-weight: 600;
     background: transparent; color: var(--color-text-muted);
-    border: 1px solid var(--color-border);
+    border: 1.5px solid var(--color-border);
   }
 
-  /* Character count */
+  .tp-showcase-meta {
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .tp-showcase-stat {
+    padding: 6px 12px; border-radius: 8px;
+    font-size: 11px; font-weight: 600;
+    background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+    color: var(--color-primary);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 12%, transparent);
+  }
+
+  /* ── Character count ── */
   .tp-char-count {
     font-size: 10px; color: var(--color-text-muted);
     font-family: 'JetBrains Mono', monospace;
-    margin-left: auto;
+    margin-left: auto; opacity: 0.5;
   }
 
-  /* Actions */
+  /* ── Actions ── */
   .tp-actions {
-    display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
-    margin-bottom: 32px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    margin-bottom: 16px;
+    padding: 16px 18px;
+    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+  }
+  .tp-action-group {
+    display: flex; gap: 6px;
+  }
+  .tp-action-sep {
+    width: 1px; height: 24px;
+    background: var(--color-border);
+    margin: 0 6px; flex-shrink: 0;
   }
 
   .tp-btn {
     display: inline-flex; align-items: center; gap: 7px;
-    height: 42px; padding: 0 22px;
-    border-radius: 12px;
-    font-size: 13px; font-weight: 600; letter-spacing: -0.01em;
+    height: 38px; padding: 0 18px;
+    border-radius: 11px;
+    font-size: 12px; font-weight: 600; letter-spacing: -0.01em;
     cursor: pointer; border: none;
     font-family: inherit;
-    transition: all 0.2s cubic-bezier(0.22, 0.61, 0.36, 1);
+    transition: all 0.25s cubic-bezier(0.22, 0.61, 0.36, 1);
+    position: relative; overflow: hidden;
+    white-space: nowrap;
   }
+  .tp-btn::after {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at center, rgba(255,255,255,0.12) 0%, transparent 70%);
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .tp-btn:hover::after { opacity: 1; }
   .tp-btn:active { transform: scale(0.96); }
   .tp-btn:disabled {
-    opacity: 0.35; cursor: not-allowed; pointer-events: none;
-    filter: grayscale(0.4);
+    opacity: 0.3; cursor: not-allowed; pointer-events: none;
+    filter: grayscale(0.5);
   }
-  .tp-btn:disabled:hover { transform: none; box-shadow: none; border-color: var(--color-border); }
+  .tp-btn:disabled::after { display: none; }
   .tp-btn-primary {
     background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
     color: #fff;
-    box-shadow: 0 4px 16px color-mix(in srgb, var(--color-primary) 30%, transparent);
+    box-shadow: 0 2px 12px color-mix(in srgb, var(--color-primary) 30%, transparent);
   }
-  .tp-btn-primary:hover {
+  .tp-btn-primary:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 8px 24px color-mix(in srgb, var(--color-primary) 45%, transparent);
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--color-primary) 40%, transparent);
   }
   .tp-btn-outline {
     background: transparent; color: var(--color-text);
     border: 1.5px solid var(--color-border);
   }
-  .tp-btn-outline:hover {
+  .tp-btn-outline:hover:not(:disabled) {
     border-color: var(--color-primary); color: var(--color-primary);
-    background: color-mix(in srgb, var(--color-primary) 4%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 5%, transparent);
     transform: translateY(-1px);
+  }
+  .tp-btn-accent {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border: none;
+    box-shadow: 0 2px 12px rgba(99,102,241,0.25);
+  }
+  .tp-btn-accent:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(99,102,241,0.4);
   }
   .tp-btn-destructive {
     background: transparent; color: var(--color-text-muted);
     border: 1.5px solid var(--color-border);
   }
-  .tp-btn-destructive:hover {
+  .tp-btn-destructive:hover:not(:disabled) {
     border-color: #f87171; color: #f87171;
     background: rgba(239,68,68,0.06);
     transform: translateY(-1px);
   }
   .tp-ghost-btn {
     background: transparent; color: var(--color-text-muted);
-    border: none; padding: 4px 12px; height: 28px; font-size: 11px;
-    border-radius: 7px; cursor: pointer; font-family: inherit; font-weight: 500;
-    transition: all 0.15s;
+    border: 1px solid transparent; padding: 4px 12px; height: 28px; font-size: 11px;
+    border-radius: 7px; cursor: pointer; font-family: inherit; font-weight: 600;
+    transition: all 0.2s;
   }
-  .tp-ghost-btn:hover { color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 8%, transparent); }
+  .tp-ghost-btn:hover {
+    color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+    border-color: color-mix(in srgb, var(--color-primary) 15%, transparent);
+  }
 
-  /* Submit section */
-  .tp-submit-section { margin-bottom: 40px; }
+  /* ── Submit section ── */
+  .tp-submit-section { margin-bottom: 16px; animation: tpFadeIn 0.3s ease; }
   .tp-submit-card {
     background: var(--color-surface);
-    border: 1px solid var(--color-border);
+    border: 1.5px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
     border-radius: 16px;
-    padding: 20px 24px;
+    padding: 18px 22px;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.03);
   }
   .tp-submit-header {
     display: flex; align-items: center; gap: 8px;
     font-size: 13px; font-weight: 700; letter-spacing: -0.02em;
-    margin-bottom: 14px; color: var(--color-primary);
+    margin-bottom: 12px; color: var(--color-primary);
   }
   .tp-submit-row {
     display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
   }
   .tp-input {
-    height: 40px; padding: 0 14px;
+    height: 38px; padding: 0 14px;
     border-radius: 10px;
     border: 1.5px solid var(--color-border);
     background: var(--color-bg);
     color: var(--color-text);
     font-size: 13px; font-family: inherit;
-    outline: none; transition: border-color 0.2s, box-shadow 0.2s;
-    min-width: 150px;
+    outline: none; transition: border-color 0.25s, box-shadow 0.25s;
+    min-width: 140px; flex: 1;
   }
   .tp-input:focus {
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 10%, transparent);
   }
-  .tp-input:disabled { opacity: 0.35; cursor: not-allowed; }
-  .tp-input::placeholder { color: var(--color-text-muted); opacity: 0.45; }
-  .tp-input:disabled::placeholder { opacity: 0.2; }
+  .tp-input:disabled { opacity: 0.3; cursor: not-allowed; }
+  .tp-input::placeholder { color: var(--color-text-muted); opacity: 0.4; }
 
   .tp-submit-result {
-    margin-top: 12px; padding: 14px 18px; border-radius: 12px;
-    font-size: 13px; line-height: 1.7;
+    margin-top: 12px; padding: 12px 18px; border-radius: 10px;
+    font-size: 13px; line-height: 1.6;
     animation: tpFadeIn 0.3s ease;
   }
-  @keyframes tpFadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes tpFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
   .tp-submit-result.success {
     background: rgba(34,197,94,0.08);
-    border: 1.5px solid rgba(34,197,94,0.25);
+    border: 1.5px solid rgba(34,197,94,0.2);
   }
   .tp-submit-result.error {
     background: rgba(239,68,68,0.06);
@@ -353,14 +534,19 @@ import Layout from '../layouts/Layout.astro';
   }
   .tp-submit-result a { color: var(--color-primary); font-weight: 600; text-decoration: underline; }
 
-  /* Responsive */
-  @media (max-width: 640px) {
-    .tp-section { padding: 16px 16px 40px; }
-    .tp-topbar { flex-direction: column; align-items: flex-start; }
-    .tp-actions { gap: 8px; }
-    .tp-btn { height: 40px; padding: 0 18px; font-size: 12px; }
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .tp-section { padding: 16px 14px 32px; }
+    .tp-grid { grid-template-columns: 1fr; }
+    .tp-topbar { flex-direction: column; align-items: flex-start; padding: 0 0 12px; }
+    .tp-textarea { min-height: 360px; padding: 14px 14px 14px 36px; background-position: 22px 0; }
+    .tp-actions { padding: 12px 14px; gap: 6px; }
+    .tp-action-sep { display: none; }
+    .tp-btn { height: 36px; padding: 0 14px; font-size: 12px; border-radius: 10px; }
+    .tp-showcase-body { flex-direction: column; padding: 12px; }
+    .tp-showcase-colors { justify-content: center; }
     .tp-submit-row { flex-direction: column; }
-    .tp-input { width: 100%; box-sizing: border-box; }
+    .tp-input { width: 100%; box-sizing: border-box; min-width: 0; }
     #tp-submit { width: 100%; justify-content: center; }
   }
 </style>
@@ -532,9 +718,27 @@ import Layout from '../layouts/Layout.astro';
   const COLOR_KEYS = ['--color-primary','--color-secondary','--color-accent','--color-bg','--color-surface','--color-text'];
 
   function updateShowcase(theme) {
-    if (!theme) { showcase.style.display = 'none'; return; }
-    showcase.style.display = 'flex';
+    const empty = document.getElementById('tp-showcase-empty');
+    const content = document.getElementById('tp-showcase-content');
+    if (!theme) {
+      empty.style.display = 'flex';
+      content.style.display = 'none';
+      content.classList.remove('tp-showcase-enter');
+      return;
+    }
+    empty.style.display = 'none';
+    content.style.display = 'flex';
+    // Re-trigger entrance animation
+    content.classList.remove('tp-showcase-enter');
+    void content.offsetWidth;
+    content.classList.add('tp-showcase-enter');
     const vars = theme.cssVars;
+
+    // Update name
+    const nameEl = document.getElementById('tp-showcase-name');
+    if (nameEl) nameEl.textContent = theme.presetName || '未命名主题';
+
+    // Color swatches
     showcaseSwatches.innerHTML = '';
     COLOR_KEYS.forEach(k => {
       const v = vars[k] || '#888';
@@ -544,11 +748,17 @@ import Layout from '../layouts/Layout.astro';
       el.title = `${k}: ${v}`;
       showcaseSwatches.appendChild(el);
     });
+
+    // Stats
+    const extsCount = theme.extensions ? theme.extensions.length : 0;
+    document.getElementById('tp-stat-name').textContent = theme.presetName || '—';
+    document.getElementById('tp-stat-exts').textContent = extsCount > 0 ? `${extsCount} 扩展` : '0 扩展';
   }
 
   function setButtonsEnabled(on) {
     document.getElementById('tp-apply').disabled = !on;
     document.getElementById('tp-copy-json').disabled = !on;
+    document.getElementById('tp-screenshot').disabled = !on;
     document.getElementById('tp-restore').disabled = !on;
     document.getElementById('tp-submit').disabled = !on;
     document.getElementById('tp-author').disabled = !on;
@@ -582,6 +792,7 @@ import Layout from '../layouts/Layout.astro';
         currentTheme = null;
         setStatus('idle', '等待输入');
         setButtonsEnabled(false);
+        submitSection.style.display = 'none';
         errors.style.display = 'none';
         return;
       }
@@ -602,6 +813,7 @@ import Layout from '../layouts/Layout.astro';
             updateShowcase(null);
             setStatus('error', '数据不完整');
             setButtonsEnabled(false);
+            submitSection.style.display = 'none';
               }
         } else {
           applyThemeToPage(obj);
@@ -611,6 +823,9 @@ import Layout from '../layouts/Layout.astro';
           errors.style.display = 'none';
           setButtonsEnabled(true);
           submitSection.style.display = 'block';
+          if (window.innerWidth < 769) {
+            showcase.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
         }
       } catch (e) {
         showErrors([`JSON 解析失败: ${e.message}`]);
@@ -619,6 +834,7 @@ import Layout from '../layouts/Layout.astro';
         updateShowcase(null);
         setStatus('error', 'JSON 无效');
         setButtonsEnabled(false);
+        submitSection.style.display = 'none';
       }
     }, 250);
   });
@@ -643,7 +859,7 @@ import Layout from '../layouts/Layout.astro';
     charCount.textContent = '';
     setStatus('idle', '等待输入');
     setButtonsEnabled(false);
-    // submitSection always visible
+    submitSection.style.display = 'none';
     errors.style.display = 'none';
     document.getElementById('tp-submit-result').style.display = 'none';
   });
@@ -683,7 +899,7 @@ import Layout from '../layouts/Layout.astro';
     charCount.textContent = '';
     setStatus('idle', '已还原');
     setButtonsEnabled(false);
-    // submitSection always visible
+    submitSection.style.display = 'none';
     errors.style.display = 'none';
     document.getElementById('tp-submit-result').style.display = 'none';
   });
@@ -732,7 +948,474 @@ import Layout from '../layouts/Layout.astro';
     logoText: null, logoColors: null,
   };
 
-  // ── Copy for AI ──
+  // ── Screenshot: theme style tile → direct PNG download ──
+  function parseHex(hex) {
+    var c = String(hex || '#888').replace('#','');
+    if (c.length < 6) return [128,128,128];
+    return [parseInt(c.slice(0,2),16), parseInt(c.slice(2,4),16), parseInt(c.slice(4,6),16)];
+  }
+  function rgbA(hex, a) { var r = parseHex(hex); return 'rgba(' + r[0] + ',' + r[1] + ',' + r[2] + ',' + a + ')'; }
+  function lighten(hex, amt) { var r = parseHex(hex); return 'rgba(' + Math.min(255,r[0]+amt) + ',' + Math.min(255,r[1]+amt) + ',' + Math.min(255,r[2]+amt) + ',1)'; }
+  function darken(hex, amt) { var r = parseHex(hex); return 'rgba(' + Math.max(0,r[0]-amt) + ',' + Math.max(0,r[1]-amt) + ',' + Math.max(0,r[2]-amt) + ',1)'; }
+
+  function crt(ctx, x, y, w, h, r) {
+    r = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  function generateScreenshot(theme) {
+    var canvas = document.getElementById('tp-screenshot-canvas');
+    var W = canvas.width = 800;
+    var H = canvas.height = 500;
+    var ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas 2D context unavailable');
+    var V = theme.cssVars || {};
+
+    var pri    = V['--color-primary']    || '#6366f1';
+    var sec    = V['--color-secondary']  || '#818cf8';
+    var accent = V['--color-accent']     || sec;
+    var bg     = V['--color-bg']         || '#0f0f23';
+    var surf   = V['--color-surface']    || '#1a1a2e';
+    var txt    = V['--color-text']       || '#f4f4f5';
+    var muted  = V['--color-text-muted'] || '#a1a1aa';
+    var border = V['--color-border']     || rgbA(txt, 0.12);
+    var name   = theme.presetName || 'Untitled Theme';
+    var css    = theme.customCss || '';
+    var isDark = (function() {
+      var c = bg.replace('#',''); if (c.length < 6) return true;
+      var r = parseInt(c.slice(0,2),16)/255, g = parseInt(c.slice(2,4),16)/255, b = parseInt(c.slice(4,6),16)/255;
+      return (0.2126*r + 0.7152*g + 0.0722*b) < 0.5;
+    })();
+
+    // ── Background ──
+    var bgG = ctx.createLinearGradient(0, 0, W, H);
+    bgG.addColorStop(0, bg);
+    bgG.addColorStop(1, surf);
+    ctx.fillStyle = bgG;
+    ctx.fillRect(0, 0, W, H);
+
+    // ── Ambient orbs ──
+    ctx.save();
+    var o1 = ctx.createRadialGradient(W*0.7, 60, 30, W*0.7, 60, 300);
+    o1.addColorStop(0, rgbA(pri, 0.12)); o1.addColorStop(1, 'transparent');
+    ctx.fillStyle = o1; ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+    ctx.save();
+    var o2 = ctx.createRadialGradient(W*0.25, H*0.75, 20, W*0.25, H*0.75, 280);
+    o2.addColorStop(0, rgbA(sec, 0.08)); o2.addColorStop(1, 'transparent');
+    ctx.fillStyle = o2; ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+
+    // ── Subtle grid pattern ──
+    ctx.save();
+    ctx.globalAlpha = 0.03;
+    ctx.strokeStyle = txt;
+    ctx.lineWidth = 0.5;
+    for (var gx = 0; gx < W; gx += 40) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke(); }
+    for (var gy = 0; gy < H; gy += 40) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke(); }
+    ctx.restore();
+
+    // ═══════════════════════════════════════
+    // PARTICLES: parse extensions & customCss, render sakura petals, stardust, glow, vignette
+    // ═══════════════════════════════════════
+
+    // Helper: draw a sakura petal shape (teardrop pointing upper-right, matches border-radius:50% 0 50% 50%)
+    function drawSakuraPetal(ctx, x, y, size, angle, petalPri, petalSec, opacity, blurPx, glowPx) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, Math.max(0, opacity));
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      var s = size;
+      var r = s / 2;
+      // Path matching CSS border-radius: 50% 0 50% 50%
+      ctx.beginPath();
+      ctx.moveTo(s, 0);                // sharp top-right
+      ctx.lineTo(s, s - r);            // right edge down
+      ctx.arcTo(s, s, s - r, s, r);    // bottom-right curve
+      ctx.arcTo(0, s, 0, s - r, r);    // bottom-left curve
+      ctx.arcTo(0, 0, r, 0, r);        // top-left curve
+      ctx.closePath();
+      // Gradient: white highlight → light pink → deeper pink
+      var petalGrad = ctx.createLinearGradient(0, 0, s, s * 0.7);
+      petalGrad.addColorStop(0, 'rgba(255,255,255,0.95)');
+      petalGrad.addColorStop(0.25, petalSec);
+      petalGrad.addColorStop(1, petalPri);
+      ctx.fillStyle = petalGrad;
+      if (blurPx > 0) { ctx.shadowBlur = blurPx; ctx.shadowColor = rgbA(petalPri, 0.35); }
+      if (glowPx > 0) { ctx.shadowBlur = glowPx; ctx.shadowColor = rgbA(petalPri, 0.7); }
+      ctx.fill();
+      // Inner highlight speck
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.beginPath();
+      ctx.arc(r * 0.5, r * 0.5, r * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Parse decorative extension HTML to extract particle elements
+    var petalDefs = [];   // {leftPct, size, opacity, layer: 'bg'|'mid'|'fg'}
+    var dustDefs = [];    // {leftPct, topPct, opacity}
+    var glowDefs = [];    // {topPct, leftPct, rightPct, color}
+
+    try {
+      var allHtml = '';
+      exts.forEach(function(ext) {
+        if (ext.type === 'decorative' && ext.html) allHtml += ext.html;
+      });
+      if (allHtml) {
+        var parser = new DOMParser();
+        var doc = parser.parseFromString('<div>' + allHtml + '</div>', 'text/html');
+        var root = doc.body;
+
+        // Extract petals
+        var petalEls = root.querySelectorAll('.omni-petal');
+        petalEls.forEach(function(el) {
+          var style = el.getAttribute('style') || '';
+          var leftMatch = style.match(/left:\s*([\d.]+)%/);
+          var sMatch = style.match(/--s:\s*([\d.]+)/);
+          var oMatch = style.match(/--o:\s*([\d.]+)/);
+          var isBg = el.classList.contains('bg-blur');
+          var isFg = el.classList.contains('fg-sharp');
+          petalDefs.push({
+            leftPct: leftMatch ? parseFloat(leftMatch[1]) : Math.random() * 90 + 5,
+            size: sMatch ? parseFloat(sMatch[1]) : 1,
+            opacity: oMatch ? parseFloat(oMatch[1]) : 0.8,
+            layer: isBg ? 'bg' : (isFg ? 'fg' : 'mid')
+          });
+        });
+
+        // Extract stardust
+        var dustEls = root.querySelectorAll('.omni-stardust');
+        dustEls.forEach(function(el) {
+          var style = el.getAttribute('style') || '';
+          var leftMatch = style.match(/left:\s*([\d.]+)%/);
+          var topMatch = style.match(/top:\s*([\d.]+)%/);
+          var oMatch = style.match(/--o:\s*([\d.]+)/);
+          dustDefs.push({
+            leftPct: leftMatch ? parseFloat(leftMatch[1]) : 50,
+            topPct: topMatch ? parseFloat(topMatch[1]) : 50,
+            opacity: oMatch ? parseFloat(oMatch[1]) : 0.6
+          });
+        });
+
+        // Extract glow orbs
+        var glowEls = root.querySelectorAll('.yozakura-glow');
+        glowEls.forEach(function(el) {
+          var style = el.getAttribute('style') || '';
+          var topMatch = style.match(/top:\s*([\d.]+)vh/);
+          var leftMatch = style.match(/left:\s*([-\d.]+)vw/);
+          var rightMatch = style.match(/right:\s*([-\d.]+)vw/);
+          var bgMatch = style.match(/background:\s*([^;]+)/);
+          glowDefs.push({
+            topVh: topMatch ? parseFloat(topMatch[1]) : -20,
+            leftVw: leftMatch ? parseFloat(leftMatch[1]) : null,
+            rightVw: rightMatch ? parseFloat(rightMatch[1]) : null,
+            bg: bgMatch ? bgMatch[1] : null
+          });
+        });
+      }
+    } catch(e) { /* fall back to defaults if parsing fails */ }
+
+    // If no elements found from parsing, create defaults based on CSS analysis
+    if (petalDefs.length === 0 && /petal|sakura/.test(css)) {
+      for (var pi = 0; pi < 12; pi++) {
+        var layer = pi < 4 ? 'bg' : (pi < 9 ? 'mid' : 'fg');
+        petalDefs.push({
+          leftPct: Math.random() * 85 + 5,
+          size: layer === 'bg' ? Math.random() * 0.3 + 0.3 : (layer === 'fg' ? Math.random() * 0.5 + 1.4 : Math.random() * 0.4 + 0.6),
+          opacity: layer === 'bg' ? Math.random() * 0.2 + 0.2 : (layer === 'fg' ? Math.random() * 0.1 + 0.85 : Math.random() * 0.2 + 0.6),
+          layer: layer
+        });
+      }
+    }
+    if (dustDefs.length === 0 && /stardust|star|twinkle/.test(css)) {
+      for (var di = 0; di < 6; di++) {
+        dustDefs.push({ leftPct: Math.random() * 80 + 10, topPct: Math.random() * 70 + 15, opacity: Math.random() * 0.4 + 0.4 });
+      }
+    }
+    if (glowDefs.length === 0 && /glow|moonlight/.test(css)) {
+      glowDefs.push({ topVh: -20, leftVw: null, rightVw: -10, bg: null });
+      glowDefs.push({ topVh: 50, leftVw: -20, rightVw: null, bg: null });
+    }
+
+    // ── Layer 0: yozakura glow orbs (behind everything) ──
+    glowDefs.forEach(function(gd) {
+      var gCx, gCy;
+      if (gd.rightVw != null) gCx = W + (gd.rightVw / 100 * W);
+      else if (gd.leftVw != null) gCx = (gd.leftVw / 100 * W);
+      else gCx = W * 0.7;
+      gCy = (gd.topVh / 100 * H);
+      var gR = Math.max(W, H) * 0.45;
+      var glowGrad = ctx.createRadialGradient(gCx, gCy, gR * 0.1, gCx, gCy, gR);
+      glowGrad.addColorStop(0, rgbA(pri, 0.08));
+      glowGrad.addColorStop(0.5, rgbA(sec, 0.04));
+      glowGrad.addColorStop(1, 'transparent');
+      ctx.save();
+      ctx.fillStyle = glowGrad;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    });
+
+    // ── Layer 1: background blur petals (small, dim, subtle) ──
+    petalDefs.filter(function(p) { return p.layer === 'bg'; }).forEach(function(pd) {
+      var px = pd.leftPct / 100 * W;
+      var py = Math.random() * H * 0.5 + H * 0.05; // upper half
+      var sz = pd.size * 14;
+      var ang = Math.random() * Math.PI * 2;
+      drawSakuraPetal(ctx, px, py, sz, ang, pri, sec, pd.opacity * 0.5, sz * 0.5, 0);
+    });
+
+    // ── Layer 2: standard petals (midground) ──
+    petalDefs.filter(function(p) { return p.layer === 'mid'; }).forEach(function(pd) {
+      var px = pd.leftPct / 100 * W;
+      var py = Math.random() * H * 0.55 + H * 0.1;
+      var sz = pd.size * 16;
+      var ang = Math.random() * Math.PI * 2;
+      drawSakuraPetal(ctx, px, py, sz, ang, pri, sec, pd.opacity, 0, sz * 0.25);
+    });
+
+    // ── Layer 3: stardust dots ──
+    dustDefs.forEach(function(dd) {
+      var dx = dd.leftPct / 100 * W;
+      var dy = dd.topPct / 100 * H;
+      var dr = 2;
+      var dOp = dd.opacity;
+      ctx.save();
+      ctx.globalAlpha = dOp;
+      ctx.fillStyle = '#fff';
+      ctx.shadowColor = pri;
+      ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(dx, dy, dr, 0, Math.PI * 2); ctx.fill();
+      // outer glow ring
+      ctx.globalAlpha = dOp * 0.25;
+      ctx.shadowBlur = 0;
+      var dustGlow = ctx.createRadialGradient(dx, dy, dr * 0.5, dx, dy, dr * 4);
+      dustGlow.addColorStop(0, pri);
+      dustGlow.addColorStop(1, 'transparent');
+      ctx.fillStyle = dustGlow;
+      ctx.beginPath(); ctx.arc(dx, dy, dr * 4, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    });
+
+    // ── Layer 4: foreground sharp petals (large, bright, strong neon glow) ──
+    petalDefs.filter(function(p) { return p.layer === 'fg'; }).forEach(function(pd) {
+      var px = pd.leftPct / 100 * W;
+      var py = Math.random() * H * 0.5 + H * 0.2;
+      var sz = pd.size * 18;
+      var ang = Math.random() * Math.PI * 2;
+      drawSakuraPetal(ctx, px, py, sz, ang, pri, sec, pd.opacity, 0, sz * 0.8);
+    });
+
+    // ── Layer 5: cinematic vignette (dark edges → center transparent) ──
+    var vignette = ctx.createRadialGradient(W/2, H/2, Math.min(W,H) * 0.35, W/2, H/2, Math.max(W,H) * 0.75);
+    vignette.addColorStop(0, 'transparent');
+    vignette.addColorStop(1, rgbA(bg, 0.55));
+    ctx.save();
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+
+    // ═══════════════════════════════════════
+    // HEADER: Theme name + decorative bar
+    // ═══════════════════════════════════════
+    var headerY = 44;
+    ctx.save();
+    // Decorative gradient bar
+    var barG = ctx.createLinearGradient(40, 0, 300, 0);
+    barG.addColorStop(0, pri); barG.addColorStop(0.5, sec); barG.addColorStop(1, accent);
+    ctx.fillStyle = barG;
+    crt(ctx, 40, headerY - 26, 60, 4, 2); ctx.fill();
+    // Theme name
+    ctx.fillStyle = txt;
+    ctx.font = 'bold 36px Inter, system-ui, sans-serif';
+    ctx.fillText(name.slice(0, 40), 40, headerY + 16);
+    // Preset ID
+    ctx.fillStyle = muted;
+    ctx.font = '13px Inter, system-ui, sans-serif';
+    ctx.fillText((theme.preset || 'custom') + '  ·  ThemeDist', 44, headerY + 38);
+    ctx.restore();
+
+    // ═══════════════════════════════════════
+    // COLOR SWATCHES — left side
+    // ═══════════════════════════════════════
+    var swatchAreaX = 40, swatchAreaY = 108;
+    var swatchDefs = [
+      {key: '--color-primary',   color: pri,    label: 'Primary'},
+      {key: '--color-secondary', color: sec,    label: 'Secondary'},
+      {key: '--color-accent',    color: accent, label: 'Accent'},
+      {key: '--color-bg',        color: bg,     label: 'Background'},
+      {key: '--color-surface',   color: surf,   label: 'Surface'},
+      {key: '--color-text',      color: txt,    label: 'Text'},
+    ];
+    var swCols = 3, swRows = 2;
+    var swW = 110, swH = 90, swGapX = 14, swGapY = 14;
+
+    ctx.save();
+    // Section label
+    ctx.fillStyle = muted;
+    ctx.font = '600 10px Inter, system-ui, sans-serif';
+    ctx.fillText('COLOR PALETTE', swatchAreaX, swatchAreaY - 8);
+
+    swatchDefs.forEach(function(sw, i) {
+      var col = i % swCols, row = Math.floor(i / swCols);
+      var sx = swatchAreaX + col * (swW + swGapX);
+      var sy = swatchAreaY + row * (swH + swGapY);
+
+      // Card bg
+      ctx.fillStyle = rgbA(surf, 0.4);
+      ctx.strokeStyle = rgbA(txt, 0.06); ctx.lineWidth = 1;
+      crt(ctx, sx, sy, swW, swH, 12); ctx.fill(); ctx.stroke();
+
+      // Color circle
+      var cx = sx + swW/2, cy = sy + 30, cr = 22;
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.beginPath(); ctx.arc(cx + 1, cy + 1, cr, 0, Math.PI*2); ctx.fill();
+      // Color
+      var swG = ctx.createRadialGradient(cx - cr*0.3, cy - cr*0.3, cr*0.1, cx, cy, cr);
+      swG.addColorStop(0, lighten(sw.color, 30)); swG.addColorStop(1, sw.color);
+      ctx.fillStyle = swG;
+      ctx.beginPath(); ctx.arc(cx, cy, cr, 0, Math.PI*2); ctx.fill();
+      // Ring
+      ctx.strokeStyle = rgbA(txt, 0.12); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(cx, cy, cr, 0, Math.PI*2); ctx.stroke();
+
+      // Label
+      ctx.fillStyle = txt;
+      ctx.font = '600 11px Inter, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(sw.label, cx, sy + 68);
+      // CSS var name
+      ctx.fillStyle = muted;
+      ctx.font = '9px JetBrains Mono, monospace';
+      ctx.fillText(sw.key, cx, sy + 82);
+      ctx.textAlign = 'start';
+    });
+    ctx.restore();
+
+    // ═══════════════════════════════════════
+    // TYPOGRAPHY + PREVIEW — right side
+    // ═══════════════════════════════════════
+    var typX = swatchAreaX + swCols * (swW + swGapX) + 20, typY = 108, typW = W - typX - 40;
+
+    ctx.save();
+    ctx.fillStyle = muted;
+    ctx.font = '600 10px Inter, system-ui, sans-serif';
+    ctx.fillText('TYPOGRAPHY', typX, typY - 8);
+
+    // Card
+    ctx.fillStyle = rgbA(surf, 0.5);
+    ctx.strokeStyle = rgbA(txt, 0.06); ctx.lineWidth = 1;
+    var cardH = 194;
+    crt(ctx, typX, typY, typW, cardH, 12); ctx.fill(); ctx.stroke();
+
+    // Gradient top bar on card
+    var cardBarG = ctx.createLinearGradient(typX, 0, typX + typW, 0);
+    cardBarG.addColorStop(0, pri); cardBarG.addColorStop(1, sec);
+    ctx.fillStyle = cardBarG;
+    ctx.fillRect(typX, typY, typW, 3);
+
+    var tx = typX + 18;
+    // Heading
+    ctx.fillStyle = pri;
+    ctx.font = 'bold 18px Inter, system-ui, sans-serif';
+    ctx.fillText('Heading text for this theme', tx, typY + 36);
+    // Body
+    ctx.fillStyle = txt;
+    ctx.font = '13px/1.6 Inter, system-ui, sans-serif';
+    ctx.fillText('Body text flows naturally. The quick brown fox', tx, typY + 66);
+    ctx.fillText('jumps over the lazy dog. A well-designed color', tx, typY + 86);
+    ctx.fillText('system creates visual hierarchy and guides.', tx, typY + 106);
+    // Muted
+    ctx.fillStyle = muted;
+    ctx.font = '12px Inter, system-ui, sans-serif';
+    ctx.fillText('Secondary caption text  ·  Muted information', tx, typY + 136);
+    // Link
+    ctx.fillStyle = pri;
+    ctx.font = '600 12px Inter, system-ui, sans-serif';
+    ctx.fillText('Link text example →', tx, typY + 160);
+    // Button mock
+    var btnG = ctx.createLinearGradient(0, typY + 148, 0, typY + 180);
+    btnG.addColorStop(0, pri); btnG.addColorStop(1, sec);
+    ctx.fillStyle = btnG;
+    crt(ctx, tx, typY + 148, 80, 28, 8); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px Inter, system-ui, sans-serif';
+    ctx.fillText('Primary', tx + 18, typY + 167);
+    ctx.restore();
+
+    // ═══════════════════════════════════════
+    // STATS BAR
+    // ═══════════════════════════════════════
+    var statY = swatchAreaY + swRows * (swH + swGapY) + 8;
+    var statH = 52;
+
+    ctx.save();
+    ctx.fillStyle = rgbA(surf, 0.5);
+    ctx.strokeStyle = rgbA(txt, 0.06); ctx.lineWidth = 1;
+    crt(ctx, 40, statY, W - 80, statH, 12); ctx.fill(); ctx.stroke();
+
+    var extsCount = Array.isArray(theme.extensions) ? theme.extensions.length : 0;
+    var stats = [
+      {label: 'CSS Variables', val: '34'},
+      {label: 'Extensions', val: String(extsCount)},
+      {label: 'Preset', val: theme.preset || 'custom'},
+      {label: 'Dark Theme', val: isDark ? 'Yes' : 'No'},
+    ];
+    var stW = (W - 80 - 40) / 4;
+    stats.forEach(function(s, i) {
+      var sx = 56 + i * stW;
+      ctx.fillStyle = txt;
+      ctx.font = 'bold 16px Inter, system-ui, sans-serif';
+      ctx.fillText(s.val, sx, statY + 24);
+      ctx.fillStyle = muted;
+      ctx.font = '10px Inter, system-ui, sans-serif';
+      ctx.fillText(s.label, sx, statY + 40);
+    });
+    ctx.restore();
+
+    // ═══════════════════════════════════════
+    // FOOTER BRANDING
+    // ═══════════════════════════════════════
+    var footY = H - 36;
+    ctx.save();
+    ctx.fillStyle = muted;
+    ctx.font = '11px Inter, system-ui, sans-serif';
+    ctx.fillText('ThemeDist  ·  每日主题分发', 40, footY);
+    ctx.fillStyle = pri;
+    ctx.font = 'bold 11px Inter, system-ui, sans-serif';
+    var fw = ctx.measureText('themedist.app').width;
+    ctx.fillText('themedist.app', W - 40 - fw, footY);
+    ctx.restore();
+
+    return canvas;
+  }
+
+  document.getElementById('tp-screenshot').addEventListener('click', function() {
+    if (!currentTheme) return;
+    try {
+      var canvas = generateScreenshot(currentTheme);
+      var dataUrl = canvas.toDataURL('image/png');
+      var filename = 'theme-' + ((currentTheme.presetName || 'preview').replace(/[^a-zA-Z0-9一-鿿]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'preview') + '.png';
+      var a = document.createElement('a');
+      a.download = filename;
+      a.href = dataUrl;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast('预览图已下载: ' + filename);
+    } catch (err) {
+      console.error('Screenshot failed:', err);
+      toast('截图生成失败: ' + (err.message || '未知错误'));
+    }
+  });
   document.getElementById('tp-copy-ai').addEventListener('click', async () => {
     const theme = currentTheme || THEME_TEMPLATE;
     const presetName = currentTheme ? currentTheme.presetName || '未命名' : '全新主题';
@@ -740,41 +1423,60 @@ import Layout from '../layouts/Layout.astro';
     const primary = theme.cssVars['--color-primary'] || '';
     const bg = theme.cssVars['--color-bg'] || '';
 
-    const prompt = `你是一个顶级的 UI 设计师兼前端开发者，专精于创造独特且实用的网页主题。请根据以下设计指南和示例，生成一个完整的主题 JSON 对象。
+    const prompt = `你是一个顶级的 UI 设计师兼前端开发者，专精于创造独特且实用的网页主题。请根据以下规范和示例，生成一个完整的主题 JSON 对象。严格遵守所有约束，尤其是坐标规则和类型约束——违反这些是导致主题效果不可见的最常见原因。
 
-【输出格式】
-\`\`\`json
-${JSON.stringify(theme, null, 2)}
-\`\`\`
+【JSON 结构】
+必须包含以下顶层字段：
+- preset: 字符串，英文短标识符，如 "starry-night"（必填）
+- presetName: 字符串，显示名称，可含 emoji，≤100 字符，如 "🌌 星夜"（必填）
+- cssVars: 对象，34 个 CSS 变量（必填，见下）
+- customCss: 字符串，CSS 动画和样式（选填，≤16384 字符）
+- extensions: 数组，浮动/装饰元素（选填，≤20 个元素）
+- logoText: 字符串或 null
+- logoColors: 颜色数组或 null
 
-字段约束：
-- cssVars：34 个 CSS 变量，必须全部包含，不可缺省：
+【cssVars — 34 个变量，全部必填】
   色板：--color-primary --color-secondary --color-accent --color-bg --color-surface --color-text --color-text-muted --color-border
   排版：--font-heading --font-body --font-mono --text-base --text-lg --text-xl --text-2xl --text-sm
   间距：--space-unit --space-1 --space-2 --space-3 --space-4 --space-6 --space-8 --space-12 --radii --content-max
   效果：--shadow-sm --shadow-md --shadow-lg --glass-bg --glass-blur --noise-opacity
   氛围：--ambient-1 --ambient-2
-- customCss：仅写 CSS 动画 @keyframes 和主题专属样式，禁止 @import / url() / expression() / behavior / -moz-binding
-- extensions：数组，每个元素必须包含 "type" 字段，仅允许以下两种：
-  · floating — 浮动装饰字符，由 createElement 安全渲染：
-    type: "floating"（必填）
-    char: 显示字符，≤4 个 Unicode 码点（必填）
-    top / left / right / bottom: CSS 定位值，如 "10%" "20px"
-    fontSize: CSS 字号，如 "24px"
-    opacity: 0.0~1.0
-    animation: CSS animation 简写，如 "drift 6s ease-in-out infinite"
-    zIndex: 层级，-1~99999
-  · decorative — 装饰 HTML 片段，由 DocumentFragment 安全解析（on* 事件自动剥离）：
+  注意：值中禁止使用 ; { } 字符，禁止 @import / url() / expression() / javascript: / behavior / -moz-binding
+
+【customCss 规则】
+- 仅写 @keyframes 动画定义和主题专属 .class 样式
+- 禁止：@import / url() / expression() / javascript: / behavior / -moz-binding / <script> / <style 闭合标签
+- ≤16384 字符，超出会被截断
+
+  ⚠ 粒子动画坐标规则（最易出错，必须遵守）：
+  粒子元素用 position:fixed 定位，@keyframes 控制 transform 移动。两者的叠加结果必须让粒子经过 0~100vh 的可视范围。
+  · 下落效果：元素设 top: -Xvh，@keyframes 的 translateY 从 0 增长到 110vh+
+  · 上升效果：元素设 top: 110vh，@keyframes 的 translateY 从 0 减小到 -120vh+
+  · 错误示范：bottom: -10vh + translateY(110vh) → 实际位置 = 视口底部下方 110vh，粒子永远不可见
+  · 自检：定位值 + @keyframes Y 值 的和，在动画过程中必须覆盖 0~100vh 区间
+
+【extensions 规则 — 仅允许两种 type】
+  · floating — 浮动装饰字符（createElement 渲染，只支持以下属性，其他属性会被静默丢弃）：
+    type: "floating"（必填，字符串）
+    char: 显示字符，≤4 个 Unicode 码点（必填，字符串）
+    top / left / right / bottom: CSS 定位值，如 "10%" "20px"（字符串，仅支持数字+CSS单位格式）
+    fontSize: CSS 字号，如 "24px"（字符串）
+    opacity: 0.0~1.0（必须是 number 类型，写 0.7 而非 "0.7"，字符串会被丢弃）
+    animation: CSS animation 简写（字符串，如 "drift 6s ease-in-out infinite"）
+    zIndex: 整数，-1~99999（必须是 number 类型，写 0 而非 "0"，字符串会被丢弃）
+    ❌ 不支持的字段（会被丢弃）：color, background, width, height, border, class, style 等
+
+  · decorative — 装饰 HTML 片段（DocumentFragment 安全解析，on* 事件和 <script>/<iframe> 会被剥离）：
     type: "decorative"（必填）
-    html: 完整 HTML 字符串（必填），可使用内联 style 和 class
-- 禁止使用 "javascript" 或任何其他 type 值
-- 直接输出 JSON，不要额外解释
-- 要有动态视觉效果，例如粒子掉落、火焰喷发、花瓣飘落、星空流转、光晕呼吸等，具体效果由你主导设计
+    html: 完整 HTML 字符串（必填），可使用内联 style 和 class，遵守上述坐标规则
+    注意：html 中的粒子元素同样必须遵守坐标规则
 
 【参考示例 — 一个高质量的完整主题】
 \`\`\`json
 ${JSON.stringify(EXAMPLE, null, 2)}
 \`\`\`
+
+${currentTheme ? `【当前主题 — 可在此基础上修改】\n\`\`\`json\n${JSON.stringify(theme, null, 2)}\n\`\`\`` : ''}
 
 请你仔细查看我的主题描述、参考我给出的图片，生成json代码：`;
 
@@ -857,8 +1559,11 @@ ${JSON.stringify(EXAMPLE, null, 2)}
   let dragCounter = 0;
 
   function highlightDropZone(on) {
-    editorCard.style.borderColor = on ? 'var(--color-primary)' : '';
-    editorCard.style.boxShadow = on ? '0 0 0 3px color-mix(in srgb, var(--color-primary) 20%, transparent)' : '';
+    if (on) {
+      editorCard.classList.add('drag-over');
+    } else {
+      editorCard.classList.remove('drag-over');
+    }
   }
 
   editorCard.addEventListener('dragenter', (e) => {

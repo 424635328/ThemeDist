@@ -2,7 +2,7 @@
 
 **每日轮换的主题 CSS 变量分发服务** — 一个 GET 请求，整套网站视觉主题。
 
-ThemeDist 是基于 Astro SSR 的主题分发平台，通过 **OmniConfig 主题数据库**（227+ 套节日 + 日池主题）每日由 Astro SSR 实时计算并输出 34 个 CSS 自定义属性。同时提供主题商店、在线构建器、社区投稿与审核、AI 辅助生成、主题标签分类等完整功能。
+ThemeDist 是基于 Astro SSR 的主题分发平台，通过 **OmniConfig 主题数据库**（150+ 套节日 + 日池主题，含 35+ 农历节日、90+ 公历节日）每日由 Astro SSR 实时计算并输出 34 个 CSS 自定义属性。同时提供主题商店、在线构建器、社区投稿与审核、AI 辅助生成、主题标签分类、JSON 即装预览等完整功能。
 
 支持 **Vercel + Netlify** 双平台部署，一份代码，同时运行。
 
@@ -37,7 +37,7 @@ ThemeDist 是基于 Astro SSR 的主题分发平台，通过 **OmniConfig 主题
 如果你把这个服务接入到你自己的网站中，你的网站就能实现**每日自动换肤**：
 * **节日自动变装**：如果是农历春节，你的网站会自动变成红色调，甚至飘起红灯笼（Emoji 装饰）；如果是端午节，自动切换成青绿色的龙舟氛围；如果是地球日，自动变为绿色自然风。
 * **周四特殊梗**：到了星期四，网站能自动切入恶搞的“疯四”KFC 红色主题。
-* **日常不重样**：在没有节日的普通日子里，它会在拥有的 227+ 套主题池（或经过审核的社区投稿主题）中每日轮换，让用户每天访问你的网站都有新鲜感。
+* **日常不重样**：在没有节日的普通日子里，它会在拥有的 150+ 套预设主题池（或经过审核的社区投稿主题）中每日轮换，让用户每天访问你的网站都有新鲜感。
 
 ---
 
@@ -210,11 +210,11 @@ function renderExtensions(exts) {
 ### 核心功能
 
 - **每日自动轮换** — Astro SSR 实时计算，无需定时构建。农历节日 → 公历节日 → Crazy Thursday → 社区主题（约 30% 天数）→ 日池兜底
-- **农历节日支持** — 基于 `lunar-javascript` 实现，覆盖春节、元宵、端午、中秋、重阳等 30+ 传统农历节日。运行时通过 `OmniConfig.getThemeConfig('auto')` 直接调用 `Lunar.fromDate()` 计算
+- **农历节日支持** — 基于 `lunar-javascript` 实现，覆盖春节、元宵、端午、中秋、重阳等 35+ 传统农历节日（含二十四节气）。运行时通过 `Lunar.fromDate()` 直接计算当前农历日期并匹配对应主题
 - **社区主题投稿与审核** — 用户投稿后进入待审队列，管理员审核通过后自动发布至社区商店。通过后可点赞、可分享，长期有效。API 返回 `warnings` 提示不支持的扩展类型（如 `javascript`）
 - **RESTful API** — `GET /api/v1/today.json` 返回完整主题数据；所有接口支持 CORS 跨域
 - **CDN 友好缓存** — 浏览器 1h / CDN 24h（今日主题，含 `stale-while-revalidate=3600` 降级），365 天不可变缓存（预设主题端点）
-- **CSS 变量体系** — 34 个语义化 CSS 自定义属性（颜色 8 + 排版 8 + 间距 9 + 效果 8 + 氛围 2），覆盖完整 UI 语义
+- **CSS 变量体系** — 34 个语义化 CSS 自定义属性（颜色 8 + 排版 8 + 间距 10 + 效果 6 + 氛围 2），覆盖完整 UI 语义
 - **双平台部署** — Vercel + Netlify 同时分发，同一份代码自动适配
 - **优雅降级** — Redis 不可用时社区功能自动降级为只读，站点核心功能不受影响
 
@@ -225,6 +225,7 @@ function renderExtensions(exts) {
 - **社区投稿（Submit）** — 三栏编辑器（CSS 变量 / 自定义 CSS / Extensions），实时校验 extensions 类型（floating / decorative）并警告不支持的类型（如 javascript）。右侧 16:9 LIVE SENSING 沙箱实时预览。提交后 API 返回 warnings 提示被移除的字段。本地历史记录含数据库状态检测
 - **AI 主题生成** — 输入文字描述，使用 DeepSeek（用户自带 Key，客户端直接调用，max_tokens: 10000）或内置规则引擎生成完整 CSS 变量主题
 - **主题分享页（Share）** — 社区主题详情展示，支持点赞、复制链接、一键应用，含桌面/平板/手机视口切换预览
+- **主题预览（Theme Preview）** — 粘贴 JSON 配置即刻变装预览，支持格式化、载入示例、清空还原，无需提交即可实时体验任意主题
 
 ### 管理端
 
@@ -249,20 +250,21 @@ curl https://themedist.netlify.app/api/v1/today.json
 
 ```json
 {
-  "date": "2026-02-17",
-  "generatedAt": "2026-02-17T00:00:00.000Z",
-  "preset": "holiday-l01-01",
-  "presetName": "Spring Festival (L01-01)",
+  "date": "2026-05-25",
+  "generatedAt": "2026-05-25T08:41:18.181Z",
+  "preset": "holiday-145",
+  "presetName": "DONT PANIC",
   "dailyIsCommunity": false,
+  "apiVersion": "v1",
   "cssVars": {
-    "--color-primary": "#C84B31",
-    "--color-secondary": "#2D6A4F",
-    "--color-accent": "#FFB347",
-    "--color-bg": "#1A1410",
-    "--color-surface": "#2D2218",
-    "--color-text": "#F5E6D3",
-    "--color-text-muted": "#B8A088",
-    "--color-border": "rgba(255,179,71,0.18)",
+    "--color-primary": "#000080",
+    "--color-secondary": "#4285F4",
+    "--color-accent": "#4285f4",
+    "--color-bg": "#00001a",
+    "--color-surface": "#0f0f29",
+    "--color-text": "#e6e6fa",
+    "--color-text-muted": "#87ceeb",
+    "--color-border": "rgba(66,133,244,0.18)",
     "--font-heading": "'Inter', system-ui, sans-serif",
     "--font-body": "'Inter', system-ui, sans-serif",
     "--font-mono": "'JetBrains Mono', monospace",
@@ -287,25 +289,19 @@ curl https://themedist.netlify.app/api/v1/today.json
     "--glass-bg": "color-mix(in srgb, var(--color-bg) 85%, transparent)",
     "--glass-blur": "blur(16px)",
     "--noise-opacity": "0",
-    "--ambient-1": "#C84B31",
-    "--ambient-2": "#FFB347"
+    "--ambient-1": "rgba(0,0,128,0.18)",
+    "--ambient-2": "rgba(66,133,244,0.08)"
   },
-  "customCss": ".spring-festival { /* ... */ }",
+  "customCss": "\n  .text-logo { font-weight: 900; }\n",
   "extensions": [
-    { "type": "floating", "char": "🏮", "top": "20%", "left": "5%", "fontSize": "30px", "opacity": 0.3, "animation": "swing 4s ease-in-out infinite" }
+    { "type": "floating", "char": "🧻", "top": "15%", "left": "5%", "fontSize": "30px", "opacity": 0.3, "animation": "swing 4s ease-in-out infinite" }
   ],
-  "logoText": "🧧",
-  "logoColors": ["#C84B31", "#FFB347"],
-  "available": 248,
+  "logoText": "DONT PANIC",
+  "logoColors": ["#4285F4", "#34A853", "#FBBC05", "#EA4335"],
+  "available": 151,
   "directory": [
-    { "preset": "spring", "name": "Spring Blossom", "primary": "#ec4899", "accent": "#10b981", "logoText": null },
-    {
-      "preset": "arknights-babel-epic",
-      "name": "ARKNIGHTS",
-      "primary": "#2c3540",
-      "accent": "#b34747",
-      "logoText": "ARKNIGHTS"
-    },
+    { "preset": "yozakura-reverie", "name": "🌸 Yozakura", "primary": "#ff8fa3", "accent": "#ff8fa3", "logoText": "YOZAKURA" },
+    { "preset": "arknights-babel-epic", "name": "ARKNIGHTS", "primary": "#2c3540", "accent": "#b34747", "logoText": "ARKNIGHTS" }
   ]
 }
 ```
@@ -317,6 +313,7 @@ curl https://themedist.netlify.app/api/v1/today.json
 | `preset` | 主题预设 ID（如 `holiday-l01-01` 表示农历春节） |
 | `presetName` | 主题显示名称 |
 | `dailyIsCommunity` | `true` 表示今日主题来自社区投稿 |
+| `apiVersion` | API 版本号，当前为 `"v1"` |
 | `cssVars` | 34 个 CSS 自定义属性键值对 |
 | `customCss` | 节日专属 CSS 动画（非节日为 `null`） |
 | `extensions` | 声明式装饰元素数组，支持 `floating`（安全浮动字符）和 `decorative`（经清洗的 HTML 片段）。社区主题为 `null` 或数组，静态预设可能不含此字段 |
@@ -328,28 +325,32 @@ curl https://themedist.netlify.app/api/v1/today.json
 ### 获取今日主题（安全代理）
 
 ```bash
-curl https://themedist-monitor.vercel.app/api/today-safe
+curl https://themedist-monitor.vercel.app/api/v1/today-safe
 ```
 
-从 ThemeDist 代理获取最新 `today.json` 数据（**Vercel 优先，Netlify 备用**），并应用 XSS 清洗。下游主题渲染器可直接安全消费，无需自行处理输入净化。
+从 ThemeDist 代理获取最新 `today.json` 数据（**Vercel 优先，Netlify 备用**），经安全处理流水线（HTML 剥离 → XSS 扫描 → Schema 校验）后输出。下游主题渲染器可直接安全消费，无需自行处理输入净化。
 
 **响应格式：** `application/json`
 
 ```json
 {
-  "date": "2026-05-24",
-  "preset": "minimal-blue",
-  "presetName": "Minimal Blue",
-  "author": "themedist",
-  "available": 12,
-  "cssVars": { "--color-primary": "#3b82f6" },
-  "customCss": "...",
-  "extensions": [ ... ],
-  "directory": [ ... ],
+  "date": "2026-05-25",
+  "generatedAt": "2026-05-25T07:29:19.537Z",
+  "preset": "holiday-145",
+  "presetName": "DONT PANIC",
+  "cssVars": { "--color-primary": "#000080", "--color-bg": "#00001a" },
+  "customCss": "\n  .text-logo { font-weight: 900; }\n",
+  "extensions": [{ "type": "floating", "char": "🧻", "top": "15%" }],
+  "logoText": "DONT PANIC",
+  "logoColors": ["#4285F4", "#34A853", "#FBBC05", "#EA4335"],
+  "available": 151,
+  "directory": [{ "preset": "yozakura-reverie", "name": "🌸 Yozakura" }],
+  "dailyIsCommunity": false,
+  "apiVersion": "v1",
   "_meta": {
     "sanitized": true,
     "schemaValid": true,
-    "timestamp": "2026-05-24T12:00:00.000Z"
+    "timestamp": "2026-05-25T08:24:52.742Z"
   }
 }
 ```
@@ -358,14 +359,104 @@ curl https://themedist-monitor.vercel.app/api/today-safe
 
 | 字段 | 说明 |
 |------|------|
-| `author` | 主题作者（`"themedist"` 或社区作者名） |
-| `_meta.sanitized` | `true` 表示所有字符串字段已完成 XSS 清洗 |
+| `_meta.sanitized` | `true` 表示所有字符串字段已完成 XSS 清洗（HTML 标签、事件处理器、`javascript:` 协议） |
 | `_meta.schemaValid` | `true` 表示响应结构通过 schema 校验 |
+| `_meta.fallback` | 仅回退时存在，`true` 表示当前主题校验失败，已回退至上次安全快照 |
+| `_meta.reason` | 回退原因（如 `"Current theme failed validation"`） |
 | `_meta.timestamp` | 代理处理时间戳 |
 
-**异常处理：** 两个上游平台（Vercel、Netlify）均不可达时返回 `502 Bad Gateway`。
+**异常处理：** 两个上游平台（Vercel、Netlify）均不可达时返回 `502 Bad Gateway`。安全扫描未通过时自动回退至 KV 中缓存的上次安全快照。
 
 **XSS 清洗范围：** 移除 HTML 标签、事件处理器（`onerror`、`onload` 等）、`javascript:` 协议、CSS `expression()`。清洗后的数据可直接注入 DOM。
+
+### 系统监控 API（themedist-monitor）
+
+ThemeDist 提供独立的监控站点 [themedist-monitor](https://themedist-monitor.vercel.app/)，持续监控双平台健康状态与主题安全。以下为对外提供的 API：
+
+#### 平台实时状态 — `/api/v1/status`
+
+```bash
+curl https://themedist-monitor.vercel.app/api/v1/status
+```
+
+返回双平台（Vercel / Netlify）实时状态、延迟、缓存命中率，以及最新主题快照。支持 CORS 跨域，含 OPTIONS 预检。缓存 30s。
+
+**响应示例：**
+```json
+{
+  "overall": "healthy",
+  "platforms": {
+    "vercel": { "status": "online", "latencyMs": 486, "cacheStatus": "MISS", "error": null },
+    "netlify": { "status": "online", "latencyMs": 866, "cacheStatus": "HIT", "error": null }
+  },
+  "theme": { "date": "2026-05-25", "presetName": "DONT PANIC", "themeCount": 151, "isSafe": true },
+  "checkedAt": "2026-05-25T08:23:28.072Z"
+}
+```
+
+#### 综合仪表盘数据 — `/api/v1/data`
+
+```bash
+curl https://themedist-monitor.vercel.app/api/v1/data
+```
+
+返回完整仪表盘数据：平台状态、24h 延迟时序、SLA（7 天/30 天可用率）、CDN 命中率、性能日志、未解决告警、安全事件。缓存 30s。
+
+**关键指标示例：**
+```json
+{
+  "status": { "vercel": { "status": "online", "latencyMs": 890 }, "netlify": { "status": "online", "latencyMs": 1563 }, "db": "healthy" },
+  "metrics": {
+    "avgLatency24h": { "vercel": 1245, "netlify": 1829 },
+    "cdnHitRate": 50,
+    "themeCount": 151,
+    "sla": {
+      "vercel": { "d7": 90.24, "d30": 90.24 },
+      "netlify": { "d7": 90.24, "d30": 90.24 }
+    }
+  },
+  "alerts": { "unresolved": 1, "recent": 20 },
+  "securityIncidents": 50,
+  "metricsHistory": { "vercel": 28, "netlify": 28 },
+  "timestamp": "2026-05-25T08:51:02.001Z"
+}
+```
+
+#### 主题安全状态 — `/api/v1/security-status`
+
+```bash
+curl https://themedist-monitor.vercel.app/api/v1/security-status
+```
+
+返回当前主题的安全扫描结果。支持 CORS 跨域。
+
+**响应示例：**
+```json
+{
+  "status": "safe",
+  "message": "Current theme is safe to use",
+  "securityStatus": "safe",
+  "flaggedReasons": [],
+  "schemaValid": true,
+  "themeName": "DONT PANIC",
+  "checkedAt": "2026-05-25",
+  "timestamp": "2026-05-25T08:41:20.915Z"
+}
+```
+
+#### 其他监控端点
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/v1/monitor` | GET, POST, DELETE | 触发全量监控检查（含限流/Cron鉴权） |
+| `/api/v1/probe` | GET | 多区域拨测（Edge Runtime，Vercel Cron 06:00 UTC） |
+| `/api/v1/telemetry` | POST | RUM 用户端页面加载耗时上报 |
+| `/api/v1/alerts/resolve` | POST | 告警处理（单条或批量） |
+| `/api/v1/badges/[type]` | GET | SVG 状态徽章（支持 vercel/netlify/theme/database/uptime） |
+| `/api/v1/diagnose` | GET | 服务端网络连通性诊断（含限流） |
+| `/api/v1/debug-kv` | GET | KV 存储读写测试（运维调试） |
+
+> 完整监控 API 文档见 [themedist-monitor API 文档](https://themedist-monitor.vercel.app/api/v1/status)。
 
 ### 获取指定预设主题
 
@@ -411,7 +502,20 @@ curl "https://themedist.netlify.app/api/v1/diy/theme.json?id=La59KWMz"
 curl https://themedist.netlify.app/api/v1/index-data.json
 ```
 
-返回日池 ID 列表、公历节日映射、农历节日映射（农历→公历日期转换）和主题目录。
+返回日池 ID 列表（当前 10 个预设）、97 个公历节日映射、38 个农历节日映射（农历→公历日期转换）和主题目录（前 20 个）。
+
+**响应示例：**
+```json
+{
+  "pool": ["yozakura-reverie", "arknights-babel-epic", "crimson-abyss", "abyss", "hyperspace-cinema", "retro-os-1995-ultimate", "retro-mirage", "cosmos-pro", "aurora-ethereal-pro", "flare"],
+  "poolLength": 10,
+  "totalThemes": 147,
+  "gregorianHolidays": { "01-01": "holiday-01-01", "02-14": "holiday-02-14", "..." : "..." },
+  "lunarHolidays": { "02-18": "holiday-l01-01", "..." : "..." },
+  "directory": [{ "preset": "yozakura-reverie", "name": "🌸 Yozakura", "primary": "#ff8fa3", "..." : "..." }],
+  "apiVersion": "v1"
+}
+```
 
 ### 社区主题投稿
 
@@ -530,6 +634,16 @@ curl -X POST https://themedist.netlify.app/api/v1/admin/review.json \
 curl https://themedist.netlify.app/api/v1/admin/health.json
 ```
 
+**健康检查响应：**
+```json
+{
+  "redis": "connected",
+  "pending": 6,
+  "approved": 4,
+  "apiVersion": "v1"
+}
+```
+
 ---
 
 ## CSS 变量参考
@@ -642,7 +756,7 @@ curl https://themedist.netlify.app/api/v1/admin/health.json
 
 选择优先级：
 
-1. **农历节日优先** 🏮 — `OmniConfig.getThemeConfig('auto')` 运行时通过 `Lunar.fromDate()` 直接计算当前农历日期，匹配 30+ 农历节日（春节、元宵、端午、中秋、重阳等）
+1. **农历节日优先** 🏮 — `OmniConfig.getThemeConfig('auto')` 运行时通过 `Lunar.fromDate()` 直接计算当前农历日期，匹配 35+ 农历节日（春节、元宵、端午、中秋、重阳等）
 2. **公历节日其次** 📅 — 匹配元旦、情人节、Pi Day、圣诞等公历节日（来自 OmniConfig 配置）
 3. **Crazy Thursday** 🍗 — 每周四的特殊覆盖主题
 4. **社区主题轮换** 👥 — 约 30% 天数（每 3 天）从已审核社区主题池中按 `dayOfYear % count` 选中一个作为今日主题
@@ -717,7 +831,7 @@ ThemeDist 提供两级 AI 主题生成能力，帮助用户快速创建配色方
 themeDist/
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml                  # GitHub Actions：每月 1 号自动构建部署到 Netlify
+│       └── deploy.yml                  # GitHub Actions：定时（每月 1 号）+ 手动触发，构建并部署到 Netlify
 ├── astro.config.mjs                    # Astro 配置（SSR + ADAPTER 环境变量切换 Vercel/Netlify）
 ├── vercel.json                         # Vercel 部署 + CORS 头
 ├── netlify.toml                        # Netlify 部署 + CORS 头
@@ -783,7 +897,7 @@ themeDist/
 
 ### 单一主题管道
 
-**OmniConfig（数据源）** — `src/api/index_config.js` 包含全部节日规则（公历 + 农历 30+ 条）、日池主题（227+ 套）和轮换逻辑。源自独立项目 OMNI-MATRIX，以纯数据格式存储。
+**OmniConfig（数据源）** — `src/api/index_config.js` 包含全部节日规则（公历 90+ 条 + 农历 35+ 条，含二十四节气）、日池主题（10 套）和轮换逻辑。源自独立项目 OMNI-MATRIX，以纯数据格式存储。
 
 **ComposedTheme（统一输出）** — 所有主题（OmniConfig 预设、社区投稿、AI 生成）通过 `omni-bridge.ts` 转换为唯一的 `ComposedTheme` 格式，确保 API 输出的一致性和类型安全。无论来源，输出的 `cssVars`、`extensions`、`tags` 等字段结构完全对齐。
 
@@ -1005,7 +1119,8 @@ Netlify Dashboard → Site settings → Environment variables → 添加：
 | **客户端缓存优化** | sessionStorage（5min TTL）+ localStorage（10min TTL）减少重复请求 | ✅ 已完成 |
 | **LIVE SENSING 沙箱** | 提交页 16:9 比例全屏沙箱实时预览 | ✅ 已完成 |
 | **双平台同步部署** | 一套代码自动部署 Vercel + Netlify 双平台 | ✅ 已完成 |
-| **农历节日支持** | 30+ 农历节日，OmniConfig 运行时通过 Lunar.fromDate() 计算 | ✅ 已完成 |
+| **农历节日支持** | 35+ 农历节日，OmniConfig 运行时通过 Lunar.fromDate() 计算 | ✅ 已完成 |
+| **系统监控台** | themedist-monitor 独立监控站点，11 个 API 端点覆盖状态/安全/告警/拨测/徽章 | ✅ 已完成 |
 | **RSS / Webhook 通知** | 每日主题更新后推送通知 | 待规划 |
 | **多管理员支持** | 审核权限分离，支持多个管理员账号协同操作 | 待规划 |
 | **主题使用统计** | 各主题被 API 请求的次数、点赞趋势等可视化数据 | 待规划 |
