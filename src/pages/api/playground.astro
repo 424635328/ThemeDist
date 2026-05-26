@@ -110,8 +110,7 @@ const rawGroups = [
     name: 'Tools & Assets',
     items: [
       { id:'tailwind-config', method:'GET', path:'/api/v1/tailwind-config.json', label:'Tailwind Conf', desc:'生成 Tailwind CSS v3/v4 配置片段，处理 RGB 通道不透明度支持。', usage:'直接集成至 tailwind.config.js。', cache:'浏览器 1h',
-        notes:'将 HEX 颜色转换为 RGB 通道格式（如 #ff6b6b → 255 107 107），以支持 Tailwind 的 opacity 修饰符（bg-primary/50 → rgba(255,107,107,0.5)）。同时生成对应的 CSS 变量声明和 Tailwind extend.colors 配置。兼容 v3 的 tailwind.config.js 和 v4 的 CSS-first 配置两种格式，通过 ?version= 参数切换。',
-        params:[{name:'version',type:'select',label:'版本',options:['','3','4'],optional:true}]
+        notes:'将 HEX 颜色转换为 RGB 通道格式（如 #ff6b6b → 255 107 107），以支持 Tailwind 的 opacity 修饰符（bg-primary/50 → rgba(255,107,107,0.5)）。同时生成对应的 CSS 变量声明和 Tailwind extend.colors 配置。'
       },
       { id:'tokens', method:'GET', path:'/api/v1/tokens.json', label:'Design Tokens', desc:'导出符合 W3C DTCG 规范的 JSON 设计令牌。', usage:'用于导入 Figma 或 Style Dictionary。', cache:'浏览器 1h',
         notes:'输出格式遵循 W3C Design Tokens Community Group 规范（DTCG Format）。每个 token 包含 $type（color、dimension、shadow 等）、$value、$description。可直接导入 Figma Tokens 插件、Style Dictionary 构建流程、或 Amazon Style Dictionary。包含所有 34 个 CSS 变量及其语义分组（color、spacing、typography、shadow）。'
@@ -122,13 +121,11 @@ const rawGroups = [
       { id:'weather-js', method:'GET', path:'/api/v1/today/weather.js', label:'Weather Particles', desc:'天气粒子动画脚本。云/雨/雪/雷暴特效。', usage:'引入 <script src="...">，自动定位并渲染 Canvas/DOM 粒子。', cache:'浏览器 1h / CDN 24h',
         notes:'脚本自执行，无需手动初始化。自动创建 position:fixed 的全屏 Canvas 层，根据当日天气代码选择动画：晴天（浮动光点）、多云（漂移云朵）、雨天（下落雨滴+溅射）、雪天（飘落雪花+堆积）、雷暴（雨+随机闪电闪烁）。粒子数量随视口大小自适应，使用 requestAnimationFrame 保证 60fps。'
       },
-      { id:'favicon', method:'GET', path:'/api/v1/today/favicon.svg', label:'Dynamic Favicon', desc:'动态 Favicon。根据今日主题主色和字母实时生成 SVG。', usage:'在 <head> 中作为 icon 引入。', cache:'浏览器 1h',
-        notes:'生成 32x32 的 SVG favicon：圆角矩形背景使用今日主题主色，前景白色文字为首字母（中文节日取首字，国际节日取英文首字母）。支持通过 ?text= 自定义文字、?bg= 自定义背景色。返回 Content-Type: image/svg+xml，可直接作为 <link rel="icon"> 的 href。',
-        params:[{name:'text',type:'text',label:'自定义文字',placeholder:'A',optional:true},{name:'bg',type:'text',label:'背景色',placeholder:'ff6b6b',optional:true}]
+      { id:'favicon', method:'GET', path:'/api/v1/today/favicon.svg', label:'Dynamic Favicon', desc:'动态 Favicon。根据今日主题主色和首字母实时生成 SVG。', usage:'在 <head> 中作为 icon 引入。', cache:'浏览器 1h',
+        notes:'生成 32x32 的 SVG favicon：圆角矩形背景使用今日主题主色，前景白色文字为首字母（中文节日取首字，国际节日取英文首字母）。返回 Content-Type: image/svg+xml，可直接作为 <link rel="icon"> 的 href。'
       },
       { id:'palette-badge', method:'GET', path:'/api/v1/today/palette.svg', label:'Palette Badge', desc:'今日主题调色盘 SVG 徽章，用于嵌入 README。', usage:'作为 <img> 标签引入即可。', cache:'浏览器 1h',
-        notes:'生成 200x40 的横向调色盘徽章：5-6 个圆角色块并排展示今日主题的核心颜色，右侧显示主题名称。适合嵌入 GitHub README、个人主页、博客侧栏。支持 ?theme=dark 切换深色背景模式。返回 Content-Type: image/svg+xml。',
-        params:[{name:'theme',type:'select',label:'主题模式',options:['','dark'],optional:true}]
+        notes:'生成 440x110 的横向调色盘徽章：PRI/SEC/ACC/BG/TXT/SUR 六个圆角色块并排展示今日主题的核心颜色，附带色号标注和主题名称。适合嵌入 GitHub README、个人主页、博客侧栏。返回 Content-Type: image/svg+xml。'
       },
       { id:'search-color', method:'GET', path:'/api/v1/search/color.json', label:'Color Search', desc:'RGB 欧几里得距离计算相似颜色主题。', usage:'传入 hex 寻找最匹配的主题。', cache:'浏览器 1h',
         notes:'将输入 HEX 转为 RGB 向量，与所有预设主题的主色计算三维欧几里得距离，按距离升序排列。支持 ?limit= 控制返回数量（默认 10，最大 50）。返回的每个结果附带 distance 数值（越小越相似，0 为精确匹配）和匹配主题的完整元数据。适用场景："这个品牌色有什么现成的主题？"',
@@ -147,7 +144,8 @@ const rawGroups = [
         params:[{name:'lat',type:'text',label:'纬度',placeholder:'35.68',optional:true}, {name:'lon',type:'text',label:'经度',placeholder:'139.76',optional:true}]
       },
       { id:'status-override', method:'GET', path:'/api/v1/status-override.json', label:'Status Override', desc:'系统状态主题。维护(纯灰)/哀悼(暗黑+滤镜)/故障(红色警示)。', usage:'用于兜底页及重大状态提示。', cache:'5min',
-        notes:'三种全局状态模式：maintenance — 所有颜色替换为灰色阶，页面添加 "系统维护中" 横幅提示，所有 API 继续正常响应；mourning — 全局去饱和 + 灰度滤镜 + 降低亮度，适用于全国哀悼日等场景；incident — 主色替换为警示红色，页面顶部显示故障公告栏。状态由运营人员通过管理后台切换，所有客户端 5 分钟内生效。'
+        notes:'三种全局状态模式：maintenance — 所有颜色替换为灰色阶，页面添加 "系统维护中" 横幅提示，所有 API 继续正常响应；mourning — 全局去饱和 + 灰度滤镜 + 降低亮度，适用于全国哀悼日等场景；incident — 主色替换为警示红色，页面顶部显示故障公告栏。状态由运营人员通过管理后台切换，所有客户端 5 分钟内生效。',
+        params:[{name:'status',type:'select',label:'状态模式',options:['','maintenance','mourning','incident'],optional:false}]
       }
     ]
   },
