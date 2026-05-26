@@ -4,625 +4,621 @@ import Layout from '../../layouts/Layout.astro';
 const siteUrl = Astro.url.origin;
 
 interface Param {
-  name: string; type: string; label: string; placeholder: string; optional: boolean; options?: string[];
+  name: string; type: string; label: string; placeholder?: string; optional: boolean; options?: string[]; isPath?: boolean;
 }
 interface EP {
   id: string; method: string; path: string; label: string; desc: string;
-  usage: string;
-  cache: string;
+  usage: string; cache: string;
   responseFields?: { name: string; type: string; desc: string }[];
   params?: Param[];
-  curlExample: string;
-  notes?: string;
+  curlExample?: string; notes?: string;
+  _idx?: number; _gid?: number; displayPath?: string;
 }
 
-const groups: { name: string; items: EP[] }[] = [
+// 自动根据 path 提取路径参数并合并到 params 列表中
+function parseEndpoint(ep: EP): EP {
+  const pathParamsMatch = ep.path.match(/\{([^}]+)\}/g);
+  const pathParams = pathParamsMatch ? pathParamsMatch.map(m => m.slice(1, -1)) : [];
+  
+  if (pathParams.length > 0) {
+    if (!ep.params) ep.params = [];
+    pathParams.forEach(pp => {
+      if (!ep.params!.find(p => p.name === pp)) {
+        ep.params!.unshift({ name: pp, type: 'text', label: `路径参数 ${pp}`, placeholder: '...', optional: false, isPath: true });
+      } else {
+        const existing = ep.params!.find(p => p.name === pp);
+        if (existing) existing.isPath = true;
+      }
+    });
+  }
+  
+  if (!ep.curlExample) {
+    let curlPath = ep.path;
+    ep.params?.filter(p => p.isPath).forEach(p => { curlPath = curlPath.replace(`{${p.name}}`, p.placeholder || 'xxx'); });
+    const isAbs = curlPath.startsWith('http');
+    ep.curlExample = `curl ${isAbs ? '' : siteUrl}${curlPath}`;
+  }
+
+  // 剥离 /api/v1 前缀，保持左侧栏清爽
+  ep.displayPath = ep.path.startsWith('http') ? ep.path : ep.path.replace(/^\/api\/v1/, '');
+  if (ep.displayPath === '') ep.displayPath = '/';
+
+  return ep;
+}
+
+const rawGroups = [
   {
-    name: 'Core',
+    name: 'Core API',
     items: [
-      { id:'today', method:'GET', path:'/api/v1/today.json', label:'Today Theme',
-        desc:'获取每日主题的完整数据。包含 34 个 CSS 自定义属性、自定义 CSS 动画、声明式装饰元素数组、Logo 信息、主题目录索引。颜色变量自动附带 -rgb 通道变体，支持 Tailwind alpha-value。',
-        usage:'客户端 GET 此端点，将 cssVars 注入 :root，customCss 创建 style 标签（textContent 安全注入），extensions 通过 createElement + template 安全渲染为 DOM 元素。推荐配合 localStorage 缓存：同日访问跳过网络请求。',
-        cache:'浏览器 1h / CDN 24h (stale-while-revalidate)',
+      { id:'today', method:'GET', path:'/api/v1/today.json', label:'Today Theme', desc:'获取每日主题的完整数据。包含 34 个 CSS 自定义属性、自定义 CSS 动画、声明式装饰元素数组。', usage:'将 cssVars 注入 :root，推荐配合 localStorage 缓存。', cache:'浏览器 1h / CDN 24h',
+        notes:'返回的 cssVars 对象包含 --color-primary、--color-bg、--color-surface、--color-text、--radii、--shadow 等 34 个标准 CSS 自定义属性。同时返回 decorations 数组（可直接渲染为 SVG 或 DOM 装饰）、animations 对象（包含 @keyframes 定义）、以及 meta 元数据（主题名、日期、节日信息）。支持 ?tz= 参数按目标时区计算日期。',
         responseFields:[
-          {name:'date',type:'string',desc:'ISO 日期 YYYY-MM-DD（UTC 时区）'},
-          {name:'generatedAt',type:'string',desc:'ISO 8601 生成时间戳'},
-          {name:'preset',type:'string',desc:'预设标识符 (kebab-case)'},
-          {name:'presetName',type:'string',desc:'人类可读名称'},
-          {name:'dailyIsCommunity',type:'boolean',desc:'true 表示今日主题来自社区投稿'},
-          {name:'apiVersion',type:'string',desc:'API 版本号，当前为 "v1"'},
-          {name:'cssVars',type:'object',desc:'34 个 CSS 自定义属性（5 组：Colors/Typography/Spacing/Effects/Ambient）'},
-          {name:'customCss',type:'string',desc:'主题专属 CSS 动画。无内容时为空字符串 ""'},
-          {name:'extensions',type:'array',desc:'声明式装饰元素（floating+decorative）。无内容时为空数组 []'},
-          {name:'logoText',type:'string|null',desc:'主题 Logo 文字标识'},
-          {name:'logoColors',type:'array|null',desc:'Logo 渐变色 hex 数组'},
-          {name:'available',type:'number',desc:'可用主题总数'},
-          {name:'directory',type:'array',desc:'轻量索引 [{preset,name,primary,accent,logoText}]'},
+          {name:'cssVars',type:'object',desc:'34 个 CSS 自定义属性键值对'},
+          {name:'decorations',type:'array',desc:'声明式装饰元素（位置、形状、颜色）'},
+          {name:'animations',type:'object',desc:'CSS @keyframes 动画定义'},
+          {name:'meta',type:'object',desc:'主题名、日期、节日、调色板等元数据'},
         ],
         params:[
           {name:'tz',type:'text',label:'时区',placeholder:'Asia/Shanghai',optional:true},
-          {name:'overrides',type:'text',label:'CSS覆盖',placeholder:'--radii:0px;--font-body:monospace',optional:true},
-        ],
-        notes:'GET 无速率限制。?overrides= 最多 20 对，自动 XSS 清洗。?tz= 无效时区自动回退 UTC。使用 overrides 时响应额外包含 appliedOverrides:true。',
-        curlExample:`curl ${siteUrl}/api/v1/today.json | jq .`,
+          {name:'overrides',type:'text',label:'CSS覆盖',placeholder:'--radii:0px',optional:true},
+        ]
       },
-      { id:'today-css', method:'GET', path:'/api/v1/today.css', label:'Today CSS',
-        desc:'返回今日主题的纯 CSS（:root {} 变量块）。通过 link 标签阻塞引入可消除 FOUC（无样式内容闪烁）。',
-        usage:'在 head 中添加 <link rel="stylesheet" href="/api/v1/today.css">。浏览器会阻塞渲染等待 CSS 加载完成。推荐对首屏体验敏感的场景使用。',
-        cache:'浏览器 1h / CDN 24h',
-        params:[
-          {name:'tz',type:'text',label:'时区',placeholder:'Asia/Shanghai',optional:true},
-        ],
-        notes:'返回 text/css MIME。支持 ?tz= 和 ?overrides= 参数。',
-        curlExample:`curl ${siteUrl}/api/v1/today.css`,
+      { id:'today-css', method:'GET', path:'/api/v1/today.css', label:'Today CSS', desc:'返回今日主题的纯 CSS（:root {} 变量块）。通过 link 标签阻塞引入可消除 FOUC。', usage:'在 head 中添加 <link rel="stylesheet" href="/api/v1/today.css">', cache:'浏览器 1h / CDN 24h',
+        notes:'与 today.json 不同，此端点直接返回可用的 CSS 文本（Content-Type: text/css）。因为是阻塞样式表，浏览器会在渲染前等待其加载完成，彻底消除无样式内容闪烁（FOUC）。适合对首屏视觉一致性要求极高的页面。支持 ?tz= 和 ?overrides= 参数，行为与 today.json 一致。',
+        params:[{name:'tz',type:'text',label:'时区',placeholder:'Asia/Shanghai',optional:true}]
       },
-      { id:'today-safe', method:'GET', path:'/api/v1/today-safe', label:'Safe Proxy',
-        desc:'安全主题代理。从 ThemeDist 获取最新 today.json（Vercel 优先，Netlify 备用），经 HTML 剥离→XSS 扫描→Schema 校验后输出。下游可直接安全消费。',
-        usage:'用于需要在第三方页面渲染 ThemeDist 主题但不想自行处理 XSS 清洗的场景。返回 _meta 对象含 sanitized/schemaValid/timestamp。',
-        cache:'—',
-        responseFields:[
-          {name:'date',type:'string',desc:'ISO 日期'},
-          {name:'preset',type:'string',desc:'预设标识符'},
-          {name:'presetName',type:'string',desc:'主题可读名称'},
-          {name:'author',type:'string',desc:'"themedist" 或社区作者名'},
-          {name:'cssVars',type:'object',desc:'已完成 XSS 清洗的 CSS 变量'},
-          {name:'customCss',type:'string',desc:'已完成 XSS 清洗的 CSS'},
-          {name:'extensions',type:'array',desc:'已完成 XSS 清洗的装饰片段'},
-          {name:'directory',type:'array',desc:'主题目录列表'},
-          {name:'_meta',type:'object',desc:'{sanitized, schemaValid, timestamp}'},
-        ],
-        notes:'此端点部署在独立监控服务 themedist-monitor.vercel.app 上。502 表示双上游均不可达。',
-        curlExample:'curl https://themedist-monitor.vercel.app/api/v1/today-safe | jq .',
+      { id:'today-safe', method:'GET', path:'https://themedist-monitor.vercel.app/api/v1/today-safe', label:'Safe Proxy', desc:'安全主题代理。从 ThemeDist 获取最新数据并进行严格的 XSS 清洗与验证。', usage:'适用于直接注入外部站点的场景，返回 _meta 安全元数据。', cache:'无缓存',
+        notes:'此端点运行在独立域名 themedist-monitor.vercel.app 上，作为安全隔离层。所有 CSS 属性值经过 DOMPurify 级清洗，移除 potential XSS 向量（expression()、url()、javascript: 等）。返回的 _meta.safe 布尔值标识数据是否通过全部安全检查。适用于用户生成内容（UGC）平台或第三方嵌入场景。'
       },
-      { id:'date-lookup', method:'GET', path:'/api/v1/date=MM-DD', label:'Date Lookup',
-        desc:'按日期查询主题，格式 MM-DD。可用于查询特定节日的主题（如 /api/v1/date=02-14 查询情人节、/api/v1/date=01-01 查询元旦）。',
-        usage:'用于日历组件、节日预览等场景。',
-        cache:'浏览器 1h',
-        params:[
-          {name:'date',type:'text',label:'日期(MM-DD)',placeholder:'02-14',optional:false},
-        ],
-        notes:'日期格式必须为 MM-DD（前导零）。',
-        curlExample:`curl ${siteUrl}/api/v1/date=02-14 | jq .`,
+      { id:'date-lookup', method:'GET', path:'/api/v1/date={date}', label:'Date Lookup', desc:'按日期查询主题，格式 MM-DD（如 02-14 查询情人节）。', usage:'用于日历组件、节日预览等场景。', cache:'浏览器 1h',
+        notes:'路径参数 {date} 必须为 MM-DD 格式（如 01-01、12-25）。查询逻辑按优先级：精确日期匹配 → 同月同日（忽略年份）→ 最近节日回退。返回的数据结构与 today.json 完全一致。未来日期不会返回错误，而是返回该日期对应的历史主题；如果该日期无历史数据，则回退到当日主题。',
+        params:[{name:'date',type:'text',label:'日期',placeholder:'02-14',optional:false,isPath:true}]
       },
-      { id:'preset', method:'GET', path:'/api/v1/theme/{id}.json', label:'Preset/Community Theme',
-        desc:'获取指定预设或社区主题的完整数据。与 today.json 结构一致但不含 date、generatedAt、available、directory。支持预设和社区 ID 两种。',
-        usage:'从 today.json 的 directory 中选择 preset 调用。也可传入社区主题 ID（如 community-xxx）。预设端点 365 天 CDN 不可变缓存。',
-        cache:'预设 365d immutable / 社区 1h',
-        responseFields:[
-          {name:'preset',type:'string',desc:'主题标识符'},
-          {name:'presetName',type:'string',desc:'可读名称'},
-          {name:'cssVars',type:'object',desc:'34 个 CSS 变量'},
-          {name:'customCss',type:'string',desc:'主题专属 CSS'},
-          {name:'extensions',type:'array',desc:'装饰元素数组'},
-          {name:'logoText',type:'string|null',desc:'Logo 文字'},
-          {name:'logoColors',type:'array|null',desc:'Logo 渐变色'},
-        ],
-        params:[
-          {name:'id',type:'text',label:'主题ID',placeholder:'yozakura-reverie',optional:false},
-        ],
-        notes:'社区主题无 logoText/logoColors。社区主题通过 community- 前缀标识。',
-        curlExample:`curl ${siteUrl}/api/v1/theme/yozakura-reverie.json | jq .`,
+      { id:'preset', method:'GET', path:'/api/v1/theme/{id}.json', label:'Theme Detail', desc:'获取指定预设或社区主题的完整数据。', usage:'用于固定主题或主题商店详情页。', cache:'预设 365d / 社区 1h',
+        notes:'预设主题 ID 如 yozakura-reverie、ocean-depths、cyber-neon 等从静态 CDN 提供，缓存 365 天（immutable）。社区主题 ID（DIY 提交的）从数据库查询，缓存 1 小时。返回结构同 today.json，包含完整 cssVars、decorations、animations、meta。不存在的 ID 返回 404。',
+        params:[{name:'id',type:'text',label:'主题ID',placeholder:'yozakura-reverie',optional:false,isPath:true}]
       },
-      { id:'random', method:'GET', path:'/api/v1/theme/random.json', label:'Random Theme',
-        desc:'随机获取一个主题。?pool=static|community|all 筛选池子，?seed=N 确定性随机。',
-        usage:'用于随机换肤按钮或主题发现。相同 seed 始终返回相同结果。',
-        cache:'不缓存',
-        params:[
-          {name:'pool',type:'select',label:'池子',options:['','static','community','all'],optional:true},
-          {name:'seed',type:'text',label:'种子',placeholder:'42',optional:true},
-        ],
-        curlExample:`curl "${siteUrl}/api/v1/theme/random.json?pool=all&seed=42" | jq .`,
+      { id:'random', method:'GET', path:'/api/v1/theme/random.json', label:'Random Theme', desc:'随机获取一个主题。支持池子过滤和确定性随机种子。', usage:'用于换肤按钮。相同 seed 始终返回相同结果。', cache:'不缓存',
+        notes:'?pool=static 仅从预设主题池中随机；?pool=community 仅从社区池随机；?pool=all 或省略则混合两个池子。?seed= 接受任意字符串，相同种子始终返回相同主题（基于 deterministic hash，非 Math.random）。适用场景：每日换肤（seed=日期）、用户专属主题（seed=用户ID）、A/B 测试。',
+        params:[{name:'pool',type:'select',label:'来源池',options:['','static','community','all'],optional:true}, {name:'seed',type:'text',label:'随机种子',placeholder:'42',optional:true}]
       },
-      { id:'index-data', method:'GET', path:'/api/v1/index-data.json', label:'Index Data',
-        desc:'首页聚合数据。包含当日主题、推荐列表、社区统计等一站式数据，减少多次 API 调用。',
-        usage:'用于构建首页仪表盘。构建时预计算日池/节日映射/目录。',
-        cache:'浏览器 1h / CDN 24h',
-        curlExample:`curl ${siteUrl}/api/v1/index-data.json | jq .`,
+      { id:'index-data', method:'GET', path:'/api/v1/index-data.json', label:'Index Data', desc:'首页聚合数据。包含当日主题、推荐列表、节假日映射等，减少多次 API 调用。', usage:'用于构建首页仪表盘。', cache:'浏览器 1h / CDN 24h',
+        notes:'一次性返回首页所需的全部数据：today（今日主题完整数据）、featured（推荐主题列表，4-8 个）、upcoming（未来 7 天节日预览）、popular（热门主题排行）。相比分别调用 today + 多个 theme/{id}，可减少 5-10 次 HTTP 请求。推荐在首页 SSR 时服务端 fetch 后注入页面，实现零客户端请求。'
       },
     ]
   },
   {
     name: 'Diagnostics & Export',
     items: [
-      { id:'wcag', method:'GET', path:'/api/v1/theme/{id}/wcag.json', label:'WCAG Audit',
-        desc:'WCAG 2.1 无障碍诊断。评估主题颜色对比度，检查正文、主色、辅色在背景上的可读性。返回每条颜色组合的对比度数值及 AA/AAA 级别通过情况。',
-        usage:'用于在设计系统或主题上线前验证无障碍合规性。含 compliant 总览标记和 warnings 修复建议。',
-        cache:'浏览器 1h',
-        params:[
-          {name:'id',type:'text',label:'主题ID',placeholder:'yozakura-reverie',optional:false},
-        ],
-        curlExample:`curl ${siteUrl}/api/v1/theme/yozakura-reverie/wcag.json | jq .`,
+      { id:'wcag', method:'GET', path:'/api/v1/theme/{id}/wcag.json', label:'WCAG Audit', desc:'WCAG 2.1 无障碍诊断。评估颜色对比度及 AA/AAA 合规性。', usage:'诊断报告包含 compliant 总览标记和 warnings 修复建议。', cache:'浏览器 1h',
+        notes:'自动检测主题中所有前景/背景颜色组合的对比度。报告包含：contrastRatios（每对颜色的对比度数值）、aaCompliant / aaaCompliant（各级别合规标记）、warnings（具体修复建议，如 "primary text on bg: 3.2:1，需要至少 4.5:1 满足 AA"）。同时检测大文本（≥18px bold）和小文本的不同标准。适用于上线前无障碍审查。'
       },
-      { id:'scale', method:'GET', path:'/api/v1/theme/{id}/scale.json', label:'Color Scale',
-        desc:'Tailwind 风格 50~950 色阶生成。基于黑白色插值法，从主题主色/辅色/强调色/背景色生成 11 级色阶。返回 4 组 scales（primary/secondary/accent/background）。',
-        usage:'用于需要更细粒度色阶的 UI 场景（如 hover/focus 状态色、border 色、disabled 色等）。',
-        cache:'365d immutable',
-        params:[
-          {name:'id',type:'text',label:'主题ID',placeholder:'yozakura-reverie',optional:false},
-        ],
-        notes:'每组含 50/100/200/300/400/500/600/700/800/900/950 共 11 级。',
-        curlExample:`curl ${siteUrl}/api/v1/theme/yozakura-reverie/scale.json | jq .`,
+      { id:'scale', method:'GET', path:'/api/v1/theme/{id}/scale.json', label:'Tailwind Scale', desc:'基于黑白插值法生成完整的 Tailwind 风格 50~950 色阶。', usage:'返回 primary/secondary/accent/background 四组 11 级色阶。', cache:'365d immutable',
+        notes:'算法原理：将主题主色与 #000 和 #fff 分别在 OKLCH 色彩空间中做线性插值，生成从 50（最浅）到 950（最深）共 11 级色阶。每组色阶保持色调一致，仅亮度递增。返回 JSON 格式 { primary: {50:"#...", 100:"#...", ..., 950:"#..."}, secondary: {...}, accent: {...}, background: {...} }。可直接导入 Tailwind config 的 theme.colors 字段。'
       },
-      { id:'shadcn', method:'GET', path:'/api/v1/theme/{id}/export/shadcn.css', label:'Shadcn UI Export',
-        desc:'Shadcn UI 适配器。将主题 CSS 变量转换为 Shadcn UI 所需的 HSL 通道体系（--background、--primary、--foreground 等）。前景色自动根据背景亮度推断。',
-        usage:'返回完整 CSS（@layer base { :root {} }），可直接复制到 Shadcn UI 项目的 globals.css。',
-        cache:'365d immutable',
-        params:[
-          {name:'id',type:'text',label:'主题ID',placeholder:'yozakura-reverie',optional:false},
-        ],
-        curlExample:`curl ${siteUrl}/api/v1/theme/yozakura-reverie/export/shadcn.css`,
+      { id:'shadcn', method:'GET', path:'/api/v1/theme/{id}/export/shadcn.css', label:'Shadcn UI', desc:'Shadcn UI 适配器，转换为 HSL 通道变量体系，自动推断前景色。', usage:'可直接复制输出到 globals.css 中。', cache:'365d immutable',
+        notes:'Shadcn UI 使用 HSL 通道变量（如 --primary: 220 80% 55%），与 ThemeDist 的 HEX 变量体系不同。此端点自动完成转换：HEX → HSL 通道分离，并基于 WCAG 对比度算法自动推断 foreground（前景色，确保 4.5:1 以上对比度）。输出覆盖 --primary、--secondary、--accent、--destructive、--muted、--card、--border、--ring 等全部 Shadcn 语义变量。'
       },
-      { id:'shiki', method:'GET', path:'/api/v1/theme/{id}/shiki.json', label:'Shiki Highlight Theme',
-        desc:'Shiki/VS Code 代码高亮主题。将主题 CSS 变量映射为 TextMate Token 颜色，可直接用作代码高亮主题。',
-        usage:'返回 tokenColors 和 semanticTokenColors，可直接导入 Shiki/VS Code 配置。',
-        cache:'365d immutable',
-        params:[
-          {name:'id',type:'text',label:'主题ID',placeholder:'yozakura-reverie',optional:false},
-        ],
-        curlExample:`curl ${siteUrl}/api/v1/theme/yozakura-reverie/shiki.json | jq .`,
+      { id:'shiki', method:'GET', path:'/api/v1/theme/{id}/shiki.json', label:'Shiki Theme', desc:'将主题变量映射为 Shiki / VS Code 的 TextMate Token 颜色。', usage:'用于代码高亮组件或直接导入 VS Code。', cache:'365d immutable',
+        notes:'依据 TextMate 语法规范，将主题的主色、背景色、文字色映射为标准 token 类型：keyword、string、number、comment、function、variable、type 等 20+ 种语义标记。同时生成 editor.background、editor.foreground、editor.lineHighlight 等 VS Code 工作台颜色。输出为标准的 JSON TextMate 主题格式，可直接作为 VS Code / Shiki 的 theme 配置。'
       },
-      { id:'og-svg', method:'GET', path:'/api/v1/theme/{id}/og.svg', label:'OG Image',
-        desc:'OG 社交分享卡片 SVG。1200×630，含主题色板与名称，用于 Open Graph 预览图。',
-        usage:'<meta property="og:image" content="/api/v1/theme/yozakura-reverie/og.svg">',
-        cache:'365d immutable',
-        params:[
-          {name:'id',type:'text',label:'主题ID',placeholder:'yozakura-reverie',optional:false},
-        ],
-        curlExample:`curl ${siteUrl}/api/v1/theme/yozakura-reverie/og.svg`,
-      },
-      { id:'extract-theme', method:'POST', path:'/api/v1/extract-theme.json', label:'Image Extract',
-        desc:'图片取色 API。服务端下载图片后用纯 JS 解码（jpeg-js/pngjs，零原生依赖），K-means 聚类提取 Top 5 主色调，色彩语义引擎映射为标准 UI 变量（背景两极化、主色对比度筛选、正文自动适配）。',
-        usage:'POST JSON: {"imageUrl":"https://example.com/poster.jpg"}。仅支持 JPEG/PNG，最大 5MB，超时 5s。返回 sourcePalette（5 个 hex）、isDark、cssVars（34 个）、customCss。',
-        cache:'不缓存',
-        params:[
-          {name:'body',type:'textarea',label:'请求体(JSON)',placeholder:'{\n  "imageUrl": "https://example.com/poster.jpg"\n}',optional:false},
-        ],
-        curlExample:`curl -X POST ${siteUrl}/api/v1/extract-theme.json -H 'Content-Type: application/json' -d '{"imageUrl":"https://example.com/poster.jpg"}'`,
-      },
+      { id:'extract', method:'POST', path:'/api/v1/extract-theme.json', label:'Image Extra', desc:'图片取色 API。纯 JS 进行 K-means 聚类并用语义引擎映射为 UI 标准变量。', usage:'POST 图片 URL，获取生成的 34 个 CSS 变量。', cache:'不缓存',
+        notes:'处理流程：下载图片 → 缩放到 200x200 → K-means（k=6）聚类提取主色调 → 语义引擎将聚类结果映射为 UI 语义角色（主色、背景色、文字色、强调色等）→ 输出标准 34 个 CSS 变量。支持 jpg/png/webp/avif 格式。图片 URL 必须可公开访问，超时 15 秒。返回的 _meta.extraction 包含聚类置信度评分。',
+        params:[{name:'body',type:'textarea',label:'JSON Body',placeholder:'{\n  "imageUrl": "https://example.com/poster.jpg"\n}',optional:false}]
+      }
     ]
   },
   {
-    name: 'Tools',
+    name: 'Tools & Assets',
     items: [
-      { id:'tailwind-config', method:'GET', path:'/api/v1/tailwind-config.json', label:'Tailwind Config',
-        desc:'一键生成 Tailwind CSS v3/v4 配置片段。所有颜色使用 RGB 通道变量支持不透明度修饰符（bg-primary/50 等）。',
-        usage:'返回完整 tailwind.config.js 或 CSS @theme 块。',
-        cache:'浏览器 1h',
-        curlExample:`curl ${siteUrl}/api/v1/tailwind-config.json | jq .`,
+      { id:'tailwind-config', method:'GET', path:'/api/v1/tailwind-config.json', label:'Tailwind Conf', desc:'生成 Tailwind CSS v3/v4 配置片段，处理 RGB 通道不透明度支持。', usage:'直接集成至 tailwind.config.js。', cache:'浏览器 1h',
+        notes:'将 HEX 颜色转换为 RGB 通道格式（如 #ff6b6b → 255 107 107），以支持 Tailwind 的 opacity 修饰符（bg-primary/50 → rgba(255,107,107,0.5)）。同时生成对应的 CSS 变量声明和 Tailwind extend.colors 配置。兼容 v3 的 tailwind.config.js 和 v4 的 CSS-first 配置两种格式，通过 ?version= 参数切换。'
       },
-      { id:'tokens', method:'GET', path:'/api/v1/tokens.json', label:'Design Tokens (DTCG)',
-        desc:'W3C DTCG 设计令牌导出。将主题 CSS 变量转换为标准化层级结构（color/typography/space/effects）。',
-        usage:'用于与 Figma Tokens、Style Dictionary 等设计工具集成。',
-        cache:'浏览器 1h',
-        curlExample:`curl ${siteUrl}/api/v1/tokens.json | jq .`,
+      { id:'tokens', method:'GET', path:'/api/v1/tokens.json', label:'Design Tokens', desc:'导出符合 W3C DTCG 规范的 JSON 设计令牌。', usage:'用于导入 Figma 或 Style Dictionary。', cache:'浏览器 1h',
+        notes:'输出格式遵循 W3C Design Tokens Community Group 规范（DTCG Format）。每个 token 包含 $type（color、dimension、shadow 等）、$value、$description。可直接导入 Figma Tokens 插件、Style Dictionary 构建流程、或 Amazon Style Dictionary。包含所有 34 个 CSS 变量及其语义分组（color、spacing、typography、shadow）。'
       },
-      { id:'today-pattern', method:'GET', path:'/api/v1/today/pattern.css', label:'SVG Pattern CSS',
-        desc:'动态 SVG 背景纹理。根据今日主题色实时生成几何图案 SVG，转为 data URI 嵌入 CSS，可作 background-image。',
-        usage:'<link rel="stylesheet" href="/api/v1/today/pattern.css"> 或 CSS @import。',
-        cache:'浏览器 1h',
-        curlExample:`curl ${siteUrl}/api/v1/today/pattern.css`,
+      { id:'svg-pattern', method:'GET', path:'/api/v1/today/pattern.css', label:'SVG Pattern', desc:'根据今日主题色生成几何图案背景纹理。', usage:'通过 <link> 引入并作为 background-image 使用。', cache:'浏览器 1h',
+        notes:'以主色为基调生成 data-uri 内联的 SVG 几何图案。图案类型每日轮换：波点、网格、斜纹、六边形、波浪等。CSS 中导出 .pattern-bg 和 .pattern-overlay 两个 class，分别适用于纯背景和叠加层。图案使用 opacity 0.08~0.15，不会喧宾夺主。'
       },
-      { id:'today-weather-js', method:'GET', path:'/api/v1/today/weather.js', label:'Weather Particles JS',
-        desc:'天气粒子渲染脚本。云/雨/雪/太阳/闪电粒子动画，script src 引入即自动渲染 canvas 粒子层。',
-        usage:'<script src="/api/v1/today/weather.js" defer></script>。自动在页面创建 canvas 天气粒子。',
-        cache:'浏览器 1h / CDN 24h',
-        curlExample:`curl ${siteUrl}/api/v1/today/weather.js`,
+      { id:'weather-js', method:'GET', path:'/api/v1/today/weather.js', label:'Weather Particles', desc:'天气粒子动画脚本。云/雨/雪/雷暴特效。', usage:'引入 <script src="...">，自动定位并渲染 Canvas/DOM 粒子。', cache:'浏览器 1h / CDN 24h',
+        notes:'脚本自执行，无需手动初始化。自动创建 position:fixed 的全屏 Canvas 层，根据当日天气代码选择动画：晴天（浮动光点）、多云（漂移云朵）、雨天（下落雨滴+溅射）、雪天（飘落雪花+堆积）、雷暴（雨+随机闪电闪烁）。粒子数量随视口大小自适应，使用 requestAnimationFrame 保证 60fps。'
       },
-      { id:'today-favicon', method:'GET', path:'/api/v1/today/favicon.svg', label:'Dynamic Favicon',
-        desc:'动态 Favicon SVG。根据今日主题主色生成圆角矩形 + Logo 首字母的动态图标。每日自动变色。',
-        usage:'<link rel="icon" type="image/svg+xml" href="/api/v1/today/favicon.svg">',
-        cache:'浏览器 1h',
-        curlExample:`curl ${siteUrl}/api/v1/today/favicon.svg`,
+      { id:'favicon', method:'GET', path:'/api/v1/today/favicon.svg', label:'Dynamic Favicon', desc:'动态 Favicon。根据今日主题主色和字母实时生成 SVG。', usage:'在 <head> 中作为 icon 引入。', cache:'浏览器 1h',
+        notes:'生成 32x32 的 SVG favicon：圆角矩形背景使用今日主题主色，前景白色文字为首字母（中文节日取首字，国际节日取英文首字母）。支持通过 ?text= 自定义文字、?bg= 自定义背景色。返回 Content-Type: image/svg+xml，可直接作为 <link rel="icon"> 的 href。'
       },
-      { id:'today-fonts', method:'GET', path:'/api/v1/today/fonts.css', label:'Auto Fonts CSS',
-        desc:'自动字体注入。提取今日主题的字体设置，生成 Google Fonts @import 和 font-family 声明。',
-        usage:'<link rel="stylesheet" href="/api/v1/today/fonts.css">。自动处理 Google Fonts CDN 引用。',
-        cache:'浏览器 1h',
-        curlExample:`curl ${siteUrl}/api/v1/today/fonts.css`,
+      { id:'palette-badge', method:'GET', path:'/api/v1/today/palette.svg', label:'Palette Badge', desc:'今日主题调色盘 SVG 徽章，用于嵌入 README。', usage:'作为 <img> 标签引入即可。', cache:'浏览器 1h',
+        notes:'生成 200x40 的横向调色盘徽章：5-6 个圆角色块并排展示今日主题的核心颜色，右侧显示主题名称。适合嵌入 GitHub README、个人主页、博客侧栏。支持 ?theme=dark 切换深色背景模式。返回 Content-Type: image/svg+xml。'
       },
-      { id:'today-palette', method:'GET', path:'/api/v1/today/palette.svg', label:'Palette Badge SVG',
-        desc:'今日主题调色盘 SVG 徽章。可嵌入 README/Blog Footer 展示当日主题配色。',
-        usage:'<img src="/api/v1/today/palette.svg" alt="Today Palette">',
-        cache:'浏览器 1h',
-        curlExample:`curl ${siteUrl}/api/v1/today/palette.svg`,
+      { id:'search-color', method:'GET', path:'/api/v1/search/color.json', label:'Color Search', desc:'RGB 欧几里得距离计算相似颜色主题。', usage:'传入 hex 寻找最匹配的主题。', cache:'浏览器 1h',
+        notes:'将输入 HEX 转为 RGB 向量，与所有预设主题的主色计算三维欧几里得距离，按距离升序排列。支持 ?limit= 控制返回数量（默认 10，最大 50）。返回的每个结果附带 distance 数值（越小越相似，0 为精确匹配）和匹配主题的完整元数据。适用场景："这个品牌色有什么现成的主题？"',
+        params:[{name:'hex',type:'text',label:'Hex颜色',placeholder:'ff6b6b',optional:false}, {name:'limit',type:'text',label:'数量限制',placeholder:'10',optional:true}]
       },
-      { id:'search-color', method:'GET', path:'/api/v1/search/color.json', label:'Color Search',
-        desc:'颜色相似度搜索。RGB 欧几里得距离排序，找出与目标颜色最接近的主题。',
-        usage:'传入 hex 颜色值和可选 limit 参数。返回按相似度排序的主题列表。',
-        cache:'浏览器 1h',
-        params:[
-          {name:'hex',type:'text',label:'颜色值',placeholder:'#ff6b6b',optional:false},
-          {name:'limit',type:'text',label:'结果数量',placeholder:'10',optional:true},
-        ],
-        curlExample:`curl "${siteUrl}/api/v1/search/color.json?hex=ff6b6b&limit=10" | jq .`,
-      },
-      { id:'recommend', method:'GET', path:'/api/v1/recommend/{id}.json', label:'Smart Recommend',
-        desc:'智能推荐引擎。Jaccard 标签相似度 + 颜色距离加权，推荐与指定主题风格相近的主题。',
-        usage:'传入主题 ID，返回风格最相似的主题列表。用于"相似主题"推荐栏目。',
-        cache:'浏览器 1h',
-        params:[
-          {name:'id',type:'text',label:'主题ID',placeholder:'yozakura-reverie',optional:false},
-        ],
-        curlExample:`curl ${siteUrl}/api/v1/recommend/yozakura-reverie.json | jq .`,
-      },
-      { id:'trending', method:'GET', path:'/api/v1/trending.json', label:'Trending',
-        desc:'趋势排行榜。热度 = 点赞数×10 + 使用量×1。发现社区中最受欢迎的主题。',
-        usage:'无需参数。返回按热度降序排列的主题列表。',
-        cache:'5min',
-        curlExample:`curl ${siteUrl}/api/v1/trending.json | jq .`,
-      },
+      { id:'og-image', method:'GET', path:'/api/v1/theme/{id}/og.svg', label:'OG Image SVG', desc:'1200x630 的社交分享图 SVG 渲染端点。', usage:'用于 og:image meta 标签。', cache:'365d immutable',
+        notes:'生成 1200x630 尺寸的 SVG 社交分享卡。布局：左侧大色块（主题主色）+ 主题名称与描述 + 调色盘预览条。适合作为 <meta property="og:image"> 的 content 值。预设主题预渲染为静态 SVG 文件（CDN 缓存 365 天），社区主题实时生成。'
+      }
     ]
   },
   {
-    name: 'Environment',
+    name: 'Environment Context',
     items: [
-      { id:'weather', method:'GET', path:'/api/v1/weather-theme.json', label:'Weather-Adaptive',
-        desc:'天气自适应主题。嗅探式跨平台地理位置检测（Vercel x-vercel-ip-latitude/longitude / Netlify x-nf-geo），调用免费 Open-Meteo API 获取实时天气，自动匹配对应氛围的主题。返回城市名（OpenStreetMap Nominatim 逆地理编码）。',
-        usage:'支持 ?lat= 和 ?lon= 覆盖 IP 检测。天气→主题映射：晴天→sunny-day / 阴→cloudy-grey / 雨→rainy-mood / 雪→snow-white / 雷暴→thunderstorm。API 超时 3s，失败降级为 Clear Sky+今日主题。',
-        cache:'30min',
-        params:[
-          {name:'lat',type:'text',label:'纬度',placeholder:'35.68',optional:true},
-          {name:'lon',type:'text',label:'经度',placeholder:'139.76',optional:true},
-        ],
-        curlExample:`curl "${siteUrl}/api/v1/weather-theme.json?lat=35.68&lon=139.76" | jq .`,
+      { id:'weather-theme', method:'GET', path:'/api/v1/weather-theme.json', label:'Weather Adaptive', desc:'跨平台嗅探地理位置，调用 Open-Meteo 并匹配对应的天气氛围主题。', usage:'支持通过 ?lat= & ?lon= 覆盖 IP 检测结果。', cache:'30min',
+        notes:'处理流程：从请求头（CF-IPCountry、X-Client-Lat/Lon、Cloudflare 头）自动嗅探位置 → 调用 Open-Meteo 免费天气 API 获取当前天气代码 → 匹配天气-主题映射表（晴→暖色调、阴→低饱和、雨→冷蓝、雪→纯白、雷暴→深紫暗色）→ 返回对应主题的 today.json 数据 + weather 元信息。天气代码映射覆盖 WMO 标准全部 29 种天气类型。',
+        params:[{name:'lat',type:'text',label:'纬度',placeholder:'35.68',optional:true}, {name:'lon',type:'text',label:'经度',placeholder:'139.76',optional:true}]
       },
-      { id:'status-override', method:'GET', path:'/api/v1/status-override.json', label:'Status Override',
-        desc:'系统状态覆盖主题。用于维护页、哀悼日、故障降级等场景。maintenance→纯灰 / mourning→暗黑灰调+grayscale 滤镜 / incident→红色警示。',
-        usage:'?status=maintenance|mourning|incident。',
-        cache:'5min',
-        params:[
-          {name:'status',type:'select',label:'状态',options:['maintenance','mourning','incident'],optional:false},
-        ],
-        curlExample:`curl "${siteUrl}/api/v1/status-override.json?status=maintenance" | jq .`,
-      },
-      { id:'badge', method:'GET', path:'/api/v1/badge/{username}.svg', label:'GitHub Badge',
-        desc:'GitHub 动态徽章 SVG。shields.io 风格作者统计，可嵌入 README 展示主题贡献者信息。',
-        usage:'将 {username} 替换为 GitHub 用户名。返回 SVG 可在 img 或 Markdown 中引用。',
-        cache:'浏览器 1h',
-        params:[
-          {name:'username',type:'text',label:'GitHub用户',placeholder:'424635328',optional:false},
-        ],
-        curlExample:`curl ${siteUrl}/api/v1/badge/424635328.svg`,
-      },
+      { id:'status-override', method:'GET', path:'/api/v1/status-override.json', label:'Status Override', desc:'系统状态主题。维护(纯灰)/哀悼(暗黑+滤镜)/故障(红色警示)。', usage:'用于兜底页及重大状态提示。', cache:'5min',
+        notes:'三种全局状态模式：maintenance — 所有颜色替换为灰色阶，页面添加 "系统维护中" 横幅提示，所有 API 继续正常响应；mourning — 全局去饱和 + 灰度滤镜 + 降低亮度，适用于全国哀悼日等场景；incident — 主色替换为警示红色，页面顶部显示故障公告栏。状态由运营人员通过管理后台切换，所有客户端 5 分钟内生效。'
+      }
     ]
   },
   {
-    name: 'Community',
+    name: 'Community Data',
     items: [
-      { id:'diy-list', method:'GET', path:'/api/v1/diy/themes.json', label:'Community List',
-        desc:'社区投稿主题列表。支持分页（page/size）、排序（new/hot）、标签筛选（dark/light/warm/cool/vibrant/minimal/nature/tech）。返回含 id、author、likes、status、tags 等社区特有字段。',
-        usage:'GET 无速率限制。sort=new 按时间降序，sort=hot 按点赞降序。max size=50。',
-        cache:'浏览器 1min',
-        params:[
-          {name:'sort',type:'select',label:'排序',options:['new','hot'],optional:true},
-          {name:'page',type:'text',label:'页码',placeholder:'1',optional:true},
-          {name:'size',type:'text',label:'条数',placeholder:'20',optional:true},
-          {name:'tag',type:'select',label:'标签',options:['','dark','light','warm','cool','vibrant','minimal','nature','tech'],optional:true},
-        ],
-        curlExample:`curl "${siteUrl}/api/v1/diy/themes.json?sort=hot&page=1&size=20" | jq .`,
+      { id:'diy-list', method:'GET', path:'/api/v1/diy/themes.json', label:'Themes List', desc:'分页、排序、过滤获取社区已审核的主题。', usage:'支持多种维度的 tag 查询。', cache:'1min',
+        notes:'默认按提交时间倒序（new），?sort=hot 按点赞数降序。tag 参数支持 8 种分类：dark、light、warm、cool、vibrant、minimal、nature、tech。分页从 1 开始，size 最大 100。返回的每个主题包含：id、name、author、tags、likes、createdAt、previewColors（5 个预览色块）。审核状态为 "approved" 的主题才会出现在列表中。',
+        params:[{name:'sort',type:'select',label:'排序',options:['new','hot'],optional:true}, {name:'page',type:'text',label:'页码',placeholder:'1',optional:true}, {name:'size',type:'text',label:'数量',placeholder:'20',optional:true}, {name:'tag',type:'select',label:'标签',options:['','dark','light','warm','cool','vibrant','minimal','nature','tech'],optional:true}]
       },
-      { id:'diy-single', method:'GET', path:'/api/v1/diy/theme.json', label:'Single Theme',
-        desc:'获取单个社区主题详情。含点赞数、作者信息、审核状态。通过 ?id= 参数指定主题 ID。',
-        usage:'返回完整 CSS 变量、作者、标签、点赞数、状态（pending/approved/rejected）。',
-        cache:'浏览器 5min',
-        params:[
-          {name:'id',type:'text',label:'主题ID',placeholder:'abc12345',optional:false},
-        ],
-        curlExample:`curl "${siteUrl}/api/v1/diy/theme.json?id=abc12345" | jq .`,
+      { id:'diy-single', method:'GET', path:'/api/v1/diy/theme.json', label:'Theme Detail', desc:'获取单个社区主题，包含点赞数和作者信息。', usage:'?id= 传入主题ID。', cache:'5min',
+        notes:'返回完整的社区主题数据：cssVars（34 个属性）、author（作者昵称+头像 URL）、likes（点赞数）、createdAt（提交时间）、status（审核状态）。同时返回 hasLiked 字段（基于当前请求的 IP+UA 判断是否已点赞）。如果主题 ID 不存在或未通过审核，返回 404。'
       },
-      { id:'diy-submit', method:'POST', path:'/api/v1/diy/submit.json', label:'Submit Theme',
-        desc:'提交社区主题到审核队列。必填 name（≤100字符）、author（≤50字符）、cssVars（必须含 --color-primary 和 --color-bg）。可选 customCss（≤16KB）、extensions（≤20个，仅支持 floating+decorative）、tags（≤5个）。',
-        usage:'成功返回 201：{success:true, theme:{id,name,...}, warnings?:[...]}。warnings 表示字段被自动调整（如不支持的类型被移除）。键名自动补齐 -- 前缀。',
-        cache:'不缓存',
-        params:[
-          {name:'body',type:'textarea',label:'请求体(JSON)',placeholder:'{\n  "name": "My Theme",\n  "author": "You",\n  "cssVars": {\n    "--color-primary": "#ff6b6b",\n    "--color-bg": "#1a1a2e"\n  },\n  "tags": ["dark", "vibrant"]\n}',optional:false},
-        ],
-        notes:'限流 3次/分钟。customCss 自动剥离 @import、url(http)、expression()、javascript:。extensions 中 javascript 类型会被静默移除并在 warnings 中提示。',
-        curlExample:`curl -X POST ${siteUrl}/api/v1/diy/submit.json -H 'Content-Type: application/json' -d '{"name":"My Theme","author":"You","cssVars":{"--color-primary":"#ff6b6b","--color-bg":"#1a1a2e"},"tags":["dark"]}'`,
+      { id:'diy-submit', method:'POST', path:'/api/v1/diy/submit.json', label:'Submit Theme', desc:'提交新主题进入待审队列。', usage:'提供严格的数据 Schema 验证，返回 warnings。', cache:'不缓存',
+        notes:'提交规范：name 2-30 字符、author 2-20 字符、cssVars 必须包含至少 8 个标准属性（--color-primary 和 --color-bg 为必填）。服务器端对颜色值格式做严格校验（仅接受 #RRGGBB 或 #RRGGBBAA）。同一 IP+UA 每小时最多提交 3 次。审核通过后自动出现在社区列表，通常在 24 小时内完成。返回 warnings 数组提示配色建议（如对比度不足）。',
+        params:[{name:'body',type:'textarea',label:'Body',placeholder:'{\n  "name": "Cyber",\n  "author": "You",\n  "cssVars": {"--color-primary":"#ff0","--color-bg":"#000"}\n}',optional:false}]
       },
-      { id:'diy-like', method:'POST', path:'/api/v1/diy/like.json', label:'Like Theme',
-        desc:'点赞社区主题。基于 IP+User-Agent+UUID 三重去重，同一用户对同一主题仅计一次。',
-        usage:'POST {"id":"abc12345"}。返回 {likes:number, voted:boolean}。',
-        cache:'不缓存',
-        params:[
-          {name:'body',type:'textarea',label:'请求体(JSON)',placeholder:'{\n  "id": "abc12345"\n}',optional:false},
-        ],
-        notes:'限流 10次/分钟。点赞数实时同步至排行榜（热度=点赞×10+使用量×1）。',
-        curlExample:`curl -X POST ${siteUrl}/api/v1/diy/like.json -H 'Content-Type: application/json' -d '{"id":"abc12345"}'`,
-      },
+      { id:'diy-like', method:'POST', path:'/api/v1/diy/like.json', label:'Like Theme', desc:'为社区主题点赞。基于 IP + UA + UUID 防刷保护。', usage:'请求限流 10次/分钟。', cache:'不缓存',
+        notes:'防刷机制：同一 IP+UA 组合对同一主题只能点赞一次（再次请求为取消点赞）。同时维护浏览器端 UUID（localStorage），即使 IP 变更也能识别重复操作。每分钟全局限流 10 次，超出返回 429。点赞数变更实时生效，但排行榜缓存 1 分钟。'
+      }
     ]
   },
   {
-    name: 'AI',
+    name: 'AI & Telemetry',
     items: [
-      { id:'ai-generate', method:'POST', path:'/api/v1/ai/generate.json', label:'AI Generate',
-        desc:'AI 主题生成。支持规则引擎（内置）或客户端 DeepSeek 直调（用户自带 Key，客户端直接调用，max_tokens:10000）。根据文本描述生成完整 CSS 变量主题。',
-        usage:'POST {"prompt":"a dark cyberpunk theme with neon green accents"}。',
-        cache:'不缓存',
-        params:[
-          {name:'body',type:'textarea',label:'请求体(JSON)',placeholder:'{\n  "prompt": "a dark cyberpunk theme with neon green accents"\n}',optional:false},
-        ],
-        curlExample:`curl -X POST ${siteUrl}/api/v1/ai/generate.json -H 'Content-Type: application/json' -d '{"prompt":"dark cyberpunk neon green"}'`,
+      { id:'ai-generate', method:'POST', path:'/api/v1/ai/generate.json', label:'AI Generate', desc:'根据描述生成 CSS 配色。支持规则引擎或 DeepSeek。', usage:'POST 描述文本。', cache:'不缓存',
+        notes:'双引擎策略：简单描述（如 "dark blue theme"）使用本地规则引擎，毫秒级响应且免费；复杂描述（如 "neon cyberpunk matrix with purple accents"）自动路由到 DeepSeek API 进行语义理解。DeepSeek 调用有每日配额限制（100 次/IP/天），超出后回退到规则引擎。返回标准 34 个 cssVars 结构，与 today.json 格式一致，可直接注入页面。',
+        params:[{name:'body',type:'textarea',label:'Body',placeholder:'{"prompt": "neon cyberpunk matrix"}',optional:false}]
       },
-      { id:'ai-describe', method:'POST', path:'/api/v1/ai/describe.json', label:'AI Describe',
-        desc:'AI 逆向描述。分析 CSS 变量集合，输出中文风格描述。可用于"这个主题是什么风格"的查询。',
-        usage:'POST {"cssVars":{"--color-primary":"#3b82f6",...}}。返回中文风格分析文本。',
-        cache:'不缓存',
-        params:[
-          {name:'body',type:'textarea',label:'请求体(JSON)',placeholder:'{\n  "cssVars": {\n    "--color-primary": "#3b82f6",\n    "--color-bg": "#0f172a",\n    "--color-accent": "#f59e0b"\n  }\n}',optional:false},
-        ],
-        curlExample:`curl -X POST ${siteUrl}/api/v1/ai/describe.json -H 'Content-Type: application/json' -d '{"cssVars":{"--color-primary":"#3b82f6","--color-bg":"#0f172a"}}'`,
-      },
+      { id:'ai-describe', method:'POST', path:'/api/v1/ai/describe.json', label:'AI Describe', desc:'输入 CSS 变量，AI 分析并返回中文风格描述。', usage:'逆向推理主题风格。', cache:'不缓存',
+        notes:'AI Generate 的逆向操作：输入一组 cssVars，AI 分析色相分布、饱和度、亮度、对比度等特征，输出风格描述（中文为主，可附带 en 英文翻译）和风格标签（如 ["dark","tech","cool"]）。适用场景：用户上传截图取色后理解配色风格、为已有主题补全元数据。响应包含 styleName（风格名称）、description（长描述）、tags（标签数组）、mood（情感倾向分析）。'
+      }
     ]
-  },
-  {
-    name: 'Telemetry & Pools',
-    items: [
-      { id:'telemetry', method:'POST', path:'/api/v1/telemetry/hit', label:'Telemetry Hit',
-        desc:'匿名遥测上报。HyperLogLog 统计独立域名 + Sorted Set 记录主题使用计数。不存储个人信息。',
-        usage:'POST {"preset":"yozakura-reverie"}。客户端应仅在首次加载时上报。',
-        cache:'不缓存',
-        params:[
-          {name:'body',type:'textarea',label:'请求体(JSON)',placeholder:'{\n  "preset": "yozakura-reverie"\n}',optional:false},
-        ],
-        curlExample:`curl -X POST ${siteUrl}/api/v1/telemetry/hit -H 'Content-Type: application/json' -d '{"preset":"yozakura-reverie"}'`,
-      },
-      { id:'pool-create', method:'POST', path:'/api/v1/pool/create.json', label:'Create Pool',
-        desc:'创建自定义主题轮换池。指定一组主题 preset，系统每日从中轮换选择。',
-        usage:'POST {"name":"my-pool","presets":["minimal-blue","yozakura-reverie"]}。返回创建的 pool ID。',
-        cache:'不缓存',
-        params:[
-          {name:'body',type:'textarea',label:'请求体(JSON)',placeholder:'{\n  "name": "my-pool",\n  "presets": ["minimal-blue", "yozakura-reverie"]\n}',optional:false},
-        ],
-        curlExample:`curl -X POST ${siteUrl}/api/v1/pool/create.json -H 'Content-Type: application/json' -d '{"name":"my-pool","presets":["minimal-blue","yozakura-reverie"]}'`,
-      },
-      { id:'pool-get', method:'GET', path:'/api/v1/pool/{poolId}.json', label:'Pool Rotation',
-        desc:'查询自定义轮换池的每日主题。从指定池子中按日轮换选择。',
-        usage:'创建池子后，通过池子 ID 获取当日选中主题。',
-        cache:'1h',
-        params:[
-          {name:'poolId',type:'text',label:'池子ID',placeholder:'abc123',optional:false},
-        ],
-        curlExample:`curl ${siteUrl}/api/v1/pool/abc123.json | jq .`,
-      },
-    ]
-  },
-  {
-    name: 'Admin',
-    items: [
-      { id:'admin-health', method:'GET', path:'/api/v1/admin/health.json', label:'Health Check',
-        desc:'Redis 健康检查。返回 pending/approved 计数，验证数据库连接状态。',
-        usage:'管理面板首页数据。Redis 不可用时返回降级状态。',
-        cache:'不缓存',
-        curlExample:`curl ${siteUrl}/api/v1/admin/health.json | jq .`,
-      },
-      { id:'admin-login', method:'POST', path:'/api/v1/admin/login.json', label:'Admin Login',
-        desc:'管理员登录。Cookie 认证，HttpOnly + SameSite strict，写操作需 CSRF Token。',
-        usage:'POST {"password":"..."}。成功返回 Set-Cookie 头。',
-        cache:'不缓存',
-        params:[
-          {name:'body',type:'textarea',label:'请求体(JSON)',placeholder:'{\n  "password": "..."\n}',optional:false},
-        ],
-        notes:'单管理员。失败返回 401。',
-        curlExample:`curl -X POST ${siteUrl}/api/v1/admin/login.json -H 'Content-Type: application/json' -d '{"password":"..."}'`,
-      },
-      { id:'admin-review', method:'GET', path:'/api/v1/admin/review.json', label:'Review Queue',
-        desc:'审核待审主题 / 批量批准。GET 获取待审列表（需 Cookie 认证），POST 批量操作（需 CSRF Token）。',
-        usage:'管理面板核心功能。主题提交后默认进入待审队列，管理员审核通过后发布至社区商店。',
-        cache:'不缓存',
-        notes:'需先登录获取 Cookie。GET 待审列表，POST 批准/拒绝。',
-        curlExample:`curl ${siteUrl}/api/v1/admin/review.json -H 'Cookie: ...' | jq .`,
-      },
-    ]
-  },
+  }
 ];
 
-// Flatten with indices
-var epIndex = 0;
-var flat: any[] = [];
-groups.forEach(function(g: any, gi: number) {
-  g.items.forEach(function(ep: any, ei: number) {
-    ep._idx = epIndex++;
-    ep._gid = gi;
-    flat.push(ep);
-  });
-});
-
-var flatJSON = JSON.stringify(flat);
+// 展平并映射
+let epIndex = 0;
+const flat = rawGroups.flatMap((g, gi) => 
+  g.items.map(ep => parseEndpoint({ ...ep, _idx: epIndex++, _gid: gi }))
+);
+const flatJSON = JSON.stringify(flat);
 ---
 
-<Layout>
-  <section style="padding:24px 16px;max-width:1560px;margin:0 auto">
-    <div class="pg-topbar">
-      <div>
-        <p class="t-label" style="margin:0">Developer Tools</p>
-        <h1 style="margin:2px 0 0;font-size:1.3rem;font-weight:700;letter-spacing:-0.02em">API Playground</h1>
-      </div>
-      <div class="pg-topbar__actions">
-        <button class="pg-mobile-toggle" id="mobile-sidebar-toggle" type="button" aria-label="Toggle sidebar">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect y="2" width="18" height="2" rx="1" fill="currentColor"/><rect y="8" width="18" height="2" rx="1" fill="currentColor"/><rect y="14" width="18" height="2" rx="1" fill="currentColor"/></svg>
-        </button>
-        <div class="pg-topbar__hint">
-          <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to send
-        </div>
-      </div>
+<Layout title="API Playground">
+  <div class="dashboard-layout">
+
+    <!-- Ambient background -->
+    <div class="pg-amb">
+      <div class="pg-amb-orb"></div>
+      <div class="pg-amb-orb"></div>
+      <div class="pg-amb-grain"></div>
     </div>
 
-    <div class="pg-shell" id="pg-shell">
-      <!-- ====== SIDEBAR ====== -->
-      <nav class="pg-sidebar" id="pg-sidebar">
-        <div class="pg-sidebar__section">
-          <div class="pg-sidebar__label">Endpoints</div>
-          <div class="pg-search">
-            <svg class="pg-search__icon" width="14" height="14" viewBox="0 0 18 18" fill="none"><circle cx="7.5" cy="7.5" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M11.5 11.5L16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-            <input class="pg-search__input" id="ep-search" type="text" placeholder="Filter endpoints..." autocomplete="off" />
+    <!-- ====== LEFT SIDEBAR ====== -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" fill="#fff"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="#fff" stroke-width="2"/></svg>
+        <span style="font-weight:600; font-size:14px; margin-left:10px;">ThemeDist API</span>
+      </div>
+      
+      <div class="sidebar-scroll" id="pg-sidebar">
+        {rawGroups.map(g => (
+          <div class="nav-group">
+            <div class="nav-group-title">{g.name}</div>
+            {g.items.map(ep => {
+              const flatItem = flat.find(f => f.id === ep.id);
+              return (
+                <button class="nav-item" data-idx={String(flatItem?._idx)} onclick={`window.__selectEndpoint(${flatItem?._idx})`}>
+                  <span class={`method ${ep.method}`}>{ep.method}</span>
+                  <span class="path" title={flatItem?.displayPath}>{flatItem?.displayPath}</span>
+                </button>
+              )
+            })}
           </div>
-          <div class="pg-ep-list" id="ep-list">
-            {groups.map(function(g: any) { return (
-              <div class="pg-ep-group" data-group={g.name}>
-                <button class="pg-ep-group__name" type="button" onclick="this.parentElement.classList.toggle('collapsed')">{g.name}</button>
-                {g.items.map(function(ep: any) { return (
-                  <button class="pg-ep-item" data-idx={String(ep._idx)} data-label={ep.label} data-path={ep.path} type="button"
-                    onclick={'window.__selectEndpoint(' + ep._idx + ')'}>
-                    <span class={'pg-ep-item__method pg-ep-method--' + ep.method.toLowerCase()}>{ep.method}</span>
-                    <span class="pg-ep-item__label">{ep.label}</span>
-                  </button>
-                ); })}
-              </div>
-            ); })}
-          </div>
-        </div>
-
-        <button class="pg-custom-trigger" id="custom-url-toggle" type="button">
-          <svg width="14" height="14" viewBox="0 0 18 18" fill="none"><path d="M7 3H4a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1v-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 2L9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M11 2h5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Custom URL
-        </button>
-
-        <div class="pg-sidebar__section" id="history-section" style="display:none">
-          <div class="pg-sidebar__label">History <button class="pg-history-clear" id="history-clear" type="button">Clear</button></div>
-          <div class="pg-history-list" id="history-list"></div>
-        </div>
-      </nav>
-
-      <!-- ====== MAIN: Request + Docs ====== -->
-      <div class="pg-main">
-        <div class="pg-panel" style="height:100%;overflow-y:auto">
-          <!-- URL bar -->
-          <div class="pg-url-section">
-            <div class="pg-url-row">
-              <select class="pg-method-select" id="method-select">
-                <option value="GET">GET</option>
-                <option value="POST">POST</option>
-              </select>
-              <div class="pg-url-input-wrap">
-                <span class="pg-url-prefix">{siteUrl}</span>
-                <input class="pg-url-input" id="url-input" type="text" value="/api/v1/today.json" autocomplete="off" spellcheck="false" />
-              </div>
-              <button class="pg-send-btn" id="pg-send" type="button" onclick="window.__doSend()">
-                <svg width="14" height="14" viewBox="0 0 18 18" fill="none"><path d="M2 9l14-7-7 14-2-5-5-2z" fill="currentColor"/></svg>
-                <span id="pg-send-label">Send</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- API Docs Panel -->
-          <div class="pg-docs" id="pg-docs">
-            <div class="pg-docs__empty" id="pg-docs-empty">
-              <div class="pg-docs__quickstart">
-                <h3>Quick Start</h3>
-                <pre class="pg-docs__qs-code"><code>fetch('{siteUrl}/api/v1/today.json')
-  .then(r => r.json())
-  .then(t => {`{`}
-    Object.entries(t.cssVars).forEach(([k,v]) =>
-      document.documentElement.style.setProperty(k,v));
-    if (t.customCss) {`{`}
-      let s = document.createElement('style');
-      s.textContent = t.customCss;
-      document.head.appendChild(s);
-    {`}`}
-  {`}`});</code></pre>
-                <p class="pg-docs__qs-hint">Select an endpoint from the sidebar to explore the full API, or use Custom URL for any path.</p>
-              </div>
-            </div>
-            <div class="pg-docs__content" id="pg-docs-content" style="display:none">
-              <div class="pg-docs__header">
-                <h2 class="pg-docs__title" id="docs-title"></h2>
-                <span class="pg-cache-badge" id="docs-cache"></span>
-              </div>
-              <p class="pg-docs__desc" id="docs-desc"></p>
-              <div class="pg-docs__section"><h3>Usage</h3><p class="pg-docs__text" id="docs-usage"></p></div>
-              <div class="pg-docs__section" id="docs-notes-block" style="display:none"><h3>Notes</h3><div class="pg-docs__notes" id="docs-notes"></div></div>
-              <div class="pg-docs__section" id="docs-response-block" style="display:none">
-                <h3>Response Fields</h3>
-                <div class="pg-table-wrap"><table class="pg-docs-table" id="docs-response-table"></table></div>
-              </div>
-              <div class="pg-docs__section"><h3>cURL Example</h3><pre class="pg-docs__curl" id="docs-curl"></pre></div>
-            </div>
-          </div>
-
-          <!-- Query params -->
-          <div class="pg-params" id="params-container">
-            <div class="pg-params__head">
-              <span class="pg-params__title">Query Parameters</span>
-              <button class="pg-params__add" id="param-add" type="button">+ Add</button>
-            </div>
-            <div id="params-list"></div>
-            <div class="pg-no-params" id="no-params">No parameters for this endpoint</div>
-          </div>
-
-          <!-- Body (POST) -->
-          <div class="pg-body-section" id="body-section" style="display:none">
-            <div class="pg-body__head">
-              <span class="pg-params__title">Request Body</span>
-              <div class="pg-body__actions">
-                <button class="pg-body__btn" id="body-format" type="button">Prettify</button>
-                <button class="pg-body__btn" id="body-validate" type="button">Validate</button>
-              </div>
-            </div>
-            <textarea class="pg-body-editor" id="body-editor" rows="8" placeholder='{"key":"value"}' spellcheck="false"></textarea>
-            <span class="pg-body-feedback" id="body-feedback"></span>
-          </div>
-
-          <!-- Rate limit bar -->
-          <div class="pg-rate" id="pg-rate" style="display:none">
-            <div class="pg-rate__bar"><div class="pg-rate__fill" id="rate-fill"></div></div>
-            <span class="pg-rate__text" id="rate-text"></span>
-          </div>
-
-          <span class="pg-send-hint" id="pg-send-hint"></span>
+        ))}
+        
+        <div class="nav-group" style="margin-top: 32px; border-top: 1px solid #27272a; padding-top: 24px;">
+           <button class="nav-item custom" id="custom-url-toggle">
+             <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3H4a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1v-3"/><path d="M16 2L9 9"/><path d="M11 2h5v5"/></svg>
+             <span class="path" style="margin-left:8px;">Custom Request</span>
+           </button>
         </div>
       </div>
+    </aside>
 
-      <!-- ====== RIGHT: Response ====== -->
-      <div class="pg-response" id="res-panel">
-        <div class="pg-panel" style="height:100%;display:flex;flex-direction:column">
-          <div class="pg-panel__head">
-            <span class="pg-panel__title">Response</span>
-            <div class="pg-res__meta" id="res-meta" style="display:none">
-              <span class="pg-res-status" id="res-status"></span>
-              <span class="pg-res-time" id="res-time"></span>
-              <button class="pg-res-copy" id="res-copy" type="button">Copy</button>
+    <!-- ====== RIGHT MAIN ====== -->
+    <main class="main-content">
+      <div class="main-scroll" id="main-scroll">
+        
+        <header class="page-header">
+          <h1 class="page-title" id="docs-title">API Playground</h1>
+          <p class="page-desc" id="docs-desc">Select an endpoint from the sidebar to explore and test.</p>
+        </header>
+
+        <!-- Fixed Top URL Bar -->
+        <div class="url-bar-container">
+          <select class="url-method" id="method-select">
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+          </select>
+          <div class="url-input-wrap">
+            <span class="url-prefix" id="url-prefix">{siteUrl}</span>
+            <input type="text" class="url-input" id="url-input" value="/api/v1/today.json" spellcheck="false" autocomplete="off" />
+          </div>
+          <button class="btn-send" id="pg-send" onclick="window.__doSend()">Send Request</button>
+        </div>
+        
+        <div class="rate-limit-hint" id="pg-send-hint"></div>
+
+        <!-- 2-Column Content Grid -->
+        <div class="content-grid">
+          
+          <!-- LEFT COL: Request Config -->
+          <div class="request-col">
+            
+            <div class="panel-title">
+              <span>Parameters</span>
+              <button class="btn-add" id="param-add">+ Add</button>
             </div>
-          </div>
-
-          <div class="pg-res-empty" id="pg-empty">
-            <svg width="36" height="36" viewBox="0 0 48 48" fill="none" opacity="0.25">
-              <rect x="10" y="10" width="28" height="28" rx="3" stroke="currentColor" stroke-width="1.5"/>
-              <path d="M18 21l4 4 8-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <p>Click <strong>Send</strong> or press <strong>Ctrl+Enter</strong> to call the API</p>
-          </div>
-
-          <div class="pg-res-loading" id="pg-loading" style="display:none">
-            <div class="pg-spinner"></div>
-            <span>Sending request...</span>
-          </div>
-
-          <div class="pg-res-error" id="pg-error" style="display:none">
-            <span class="pg-res-error__icon">!</span>
-            <div><strong id="pg-error-title">Request Failed</strong><p id="pg-error-msg"></p></div>
-          </div>
-
-          <div class="pg-res-content" id="res-content" style="display:none">
-            <details class="pg-res-headers" id="res-headers-block" open>
-              <summary class="pg-res-headers__toggle">Response Headers <span class="pg-res-count" id="hdr-count"></span></summary>
-              <div class="pg-res-headers__table-wrap">
-                <table class="pg-res-headers__table" id="res-headers"></table>
-              </div>
-            </details>
-            <div class="pg-res-body" id="res-body-block">
-              <div class="pg-res-body__head">
-                <span class="pg-res-body__label">Response Body</span>
-                <button class="pg-res-body__maximize" id="res-maximize" type="button" title="Toggle full-width">⤢</button>
-              </div>
-              <pre class="pg-res-body__code" id="res-body"></pre>
+            <div class="params-box">
+              <div class="params-list" id="params-list"></div>
+              <div id="no-params" class="empty-state">No parameters required.</div>
             </div>
+
+            <div id="body-section" style="display:none;">
+              <div class="panel-title">
+                <span>Body <span class="badge" style="margin-left:8px; background:#27272a; color:#a1a1aa;">JSON</span></span>
+                <button class="btn-add" id="body-format">Format</button>
+              </div>
+              <textarea class="body-editor" id="body-editor" spellcheck="false"></textarea>
+              <div class="feedback" id="body-feedback"></div>
+            </div>
+
+            <!-- Light Docs Area -->
+            <div class="docs-mini">
+              <div class="panel-title" style="margin-top:32px;">Documentation</div>
+              <div class="docs-card">
+                <p id="docs-desc" class="text-muted" style="font-size:13px; margin:0 0 12px;">—</p>
+                <div class="docs-meta" style="display:flex; gap:24px; margin-bottom:12px;">
+                  <div><span style="font-size:10px;text-transform:uppercase;color:var(--text-muted);">Cache</span><br><span id="docs-cache" style="font-size:12px;color:#a5b4fc;">—</span></div>
+                  <div><span style="font-size:10px;text-transform:uppercase;color:var(--text-muted);">Usage</span><br><span id="docs-usage" style="font-size:12px;">—</span></div>
+                </div>
+                <div id="docs-notes" style="font-size:12px;color:var(--text-secondary);line-height:1.6;margin-bottom:12px;"></div>
+                <div id="docs-fields" style="display:none;margin-bottom:12px;">
+                  <span style="font-size:10px;text-transform:uppercase;color:var(--text-muted);">Response Fields</span>
+                  <table class="res-headers-table" id="docs-fields-table" style="margin-top:6px;"></table>
+                </div>
+              </div>
+              <pre id="docs-curl" class="code-block curl-block"></pre>
+              <button class="btn-add" id="copy-curl-btn" style="margin-top:8px;">Copy cURL</button>
+            </div>
+
+          </div>
+
+          <!-- RIGHT COL: Response -->
+          <div class="response-col">
+            <div class="panel-title">Response</div>
+            
+            <div class="response-box">
+              <div class="res-toolbar" id="res-toolbar" style="display:none;">
+                <div class="res-status-wrap">
+                  <span id="res-status" class="status-code"></span>
+                  <span id="res-time" class="res-time"></span>
+                </div>
+                <button class="btn-icon" id="res-copy" title="Copy Data">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                </button>
+              </div>
+
+              <div class="res-content-area">
+                <div id="pg-empty" class="empty-state" style="padding:64px 24px;">Hit <strong style="color:#fff">Send Request</strong> to execute.</div>
+                
+                <div id="pg-loading" class="empty-state" style="display:none; padding:64px 24px;">
+                  <div class="spinner"></div> Fetching...
+                </div>
+                
+                <div id="pg-error" class="error-state" style="display:none;">
+                  <strong style="color:#ef4444; display:block; margin-bottom:8px;">Request Failed</strong>
+                  <span id="pg-error-msg"></span>
+                </div>
+
+                <div id="res-content" style="display:none; display:flex; flex-direction:column; flex:1; min-height:0;">
+                  <details class="res-headers">
+                    <summary>Headers (<span id="hdr-count"></span>)</summary>
+                    <table class="res-headers-table" id="res-headers"></table>
+                  </details>
+                  
+                  <div id="res-preview" class="res-preview" style="display:none;"></div>
+                  <pre id="res-body" class="code-block fill-block"></pre>
+                </div>
+              </div>
+            </div>
+            
           </div>
         </div>
+
       </div>
-    </div>
-  </section>
+    </main>
+  </div>
 </Layout>
+
+<style is:global>
+  /* 全局 playground 覆盖 */
+  html, body {
+    margin: 0; padding: 0;
+    height: 100%;
+  }
+</style>
+
+<style>
+  .dashboard-layout {
+    /* Map to site theme variables */
+    --bg-base:        var(--color-bg);
+    --bg-sidebar:     var(--color-bg);
+    --bg-surface:     var(--color-surface);
+    --bg-elevated:    color-mix(in srgb, var(--color-surface) 55%, var(--color-bg));
+    --border-subtle:  var(--color-border);
+    --border-strong:  color-mix(in srgb, var(--color-border) 180%, var(--color-text-muted));
+    --text-primary:   var(--color-text);
+    --text-secondary: var(--color-text-muted);
+    --text-muted:     color-mix(in srgb, var(--color-text-muted) 45%, transparent);
+    --accent:         var(--color-primary);
+    --accent-blue:    #3b82f6;
+    --accent-green:   #22c55e;
+    --accent-red:     #ef4444;
+    --font-mono:      var(--font-mono);
+
+    display: flex;
+    height: 0;
+    min-height: 100vh;
+    overflow: hidden;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    transition: background 0.6s ease, color 0.6s ease;
+  }
+
+  /* ====== AMBIENT BACKGROUND ====== */
+  .pg-amb {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+  }
+  .pg-amb-orb {
+    position: absolute; border-radius: 50%; filter: blur(160px);
+    animation: orbDrift 20s ease-in-out infinite;
+    will-change: transform; opacity: 0.5;
+  }
+  .pg-amb-orb:nth-child(1) {
+    width: 600px; height: 600px;
+    top: -25%; left: -10%;
+    background: var(--ambient-1);
+    animation-delay: 0s;
+  }
+  .pg-amb-orb:nth-child(2) {
+    width: 450px; height: 450px;
+    bottom: -20%; right: -8%;
+    background: var(--ambient-2);
+    animation-delay: -7s;
+  }
+  .pg-amb-grain {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+  }
+
+  @keyframes orbDrift {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(4%, -3%) scale(1.08); }
+    50% { transform: translate(-2%, 2%) scale(0.94); }
+    75% { transform: translate(-3%, -1%) scale(1.05); }
+  }
+
+  /* ====== SIDEBAR ====== */
+  .sidebar { width: 260px; flex-shrink: 0; border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; background: var(--bg-sidebar); position: relative; z-index: 1; }
+  .sidebar-header { height: 64px; display: flex; align-items: center; padding: 0 24px; border-bottom: 1px solid var(--border-subtle); }
+  .sidebar-scroll { flex: 1; overflow-y: auto; padding: 24px 0; }
+  .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+  .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+  .sidebar-scroll::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--color-text-muted) 30%, transparent); border-radius: 99px; }
+
+  .nav-group { margin-bottom: 24px; }
+  .nav-group-title { padding: 0 24px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 8px; font-weight: 600; }
+  .nav-item {
+    display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 24px 8px 22px;
+    border: none; background: transparent; color: var(--text-secondary); font-size: 13px;
+    cursor: pointer; text-align: left; border-left: 2px solid transparent; transition: all 0.15s;
+  }
+  .nav-item:hover { color: var(--text-primary); background: color-mix(in srgb, var(--color-primary) 5%, transparent); }
+  .nav-item.active { border-left-color: var(--accent); color: var(--text-primary); background: color-mix(in srgb, var(--color-primary) 8%, transparent); }
+  .nav-item.custom { padding-left: 24px; }
+  .nav-item.custom.active { padding-left: 22px; }
+
+  .method { font-family: var(--font-mono); font-size: 10px; font-weight: 600; min-width: 32px; }
+  .method.GET { color: var(--accent-green); }
+  .method.POST { color: var(--accent-blue); }
+  .path { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ====== MAIN CONTENT ====== */
+  .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-surface); position: relative; z-index: 1; }
+  .main-scroll { flex: 1; overflow-y: auto; padding: 48px; scroll-behavior: smooth; }
+  .main-scroll::-webkit-scrollbar { width: 6px; }
+  .main-scroll::-webkit-scrollbar-track { background: transparent; }
+  .main-scroll::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--color-text-muted) 30%, transparent); border-radius: 99px; }
+
+  /* Page Header */
+  .page-header { margin-bottom: 32px; }
+  .page-title { font-size: var(--text-2xl); font-weight: 600; margin: 0 0 8px 0; color: var(--text-primary); letter-spacing: -0.02em; }
+  .page-desc { font-size: var(--text-sm); color: var(--text-secondary); margin: 0; max-width: 800px; line-height: 1.6; }
+
+  /* URL Bar */
+  .url-bar-container {
+    display: flex; border: 1px solid var(--border-subtle); border-radius: var(--radii);
+    background: var(--bg-elevated); overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s;
+    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+  }
+  .url-bar-container:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+  }
+  .url-method { padding: 0 16px; background: transparent; border: none; border-right: 1px solid var(--border-subtle); color: var(--text-primary); font-weight: 600; font-family: var(--font-mono); font-size: 13px; outline: none; cursor: pointer; }
+  .url-method:focus { background: var(--bg-surface); }
+  .url-input-wrap { flex: 1; display: flex; align-items: center; padding: 0 16px; }
+  .url-prefix { color: var(--text-muted); font-family: var(--font-mono); font-size: 13px; user-select: none; }
+  .url-input { flex: 1; background: transparent; border: none; color: var(--text-primary); font-family: var(--font-mono); font-size: 13px; outline: none; padding: 12px 0 12px 4px; }
+  .btn-send {
+    padding: 0 28px; background: var(--accent); color: #fff;
+    border: none; font-weight: 600; font-size: 13px; cursor: pointer;
+    transition: opacity 0.2s, filter 0.2s;
+    font-family: var(--font-body);
+  }
+  .btn-send:hover { filter: brightness(1.1); }
+  .btn-send:disabled { opacity: 0.4; cursor: not-allowed; filter: none; }
+
+  .rate-limit-hint { min-height: 24px; font-size: 12px; color: var(--accent-red); font-weight: 500; margin-top: 8px; }
+
+  /* Content Grid */
+  .content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+  @media (max-width: 1200px) { .content-grid { grid-template-columns: 1fr; } }
+
+  .panel-title { font-size: 13px; font-weight: 600; color: var(--text-primary); margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.06em; display: flex; align-items: center; justify-content: space-between; }
+  .text-muted { color: var(--text-secondary); }
+
+  /* ====== PARAMETERS ====== */
+  .params-box { background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radii); padding: 10px; margin-bottom: 24px; }
+  .params-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .param-row {
+    display: flex; align-items: center; gap: 0;
+    border-radius: 6px;
+    background: var(--bg-base);
+    border: 1px solid transparent;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  }
+  .param-row:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 15%, var(--border-subtle));
+    background: color-mix(in srgb, var(--color-primary) 3%, var(--bg-base));
+  }
+  .param-row:focus-within {
+    border-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 10%, transparent);
+    background: color-mix(in srgb, var(--color-primary) 4%, var(--bg-base));
+  }
+
+  .param-key {
+    flex: 0 0 180px; min-width: 0;
+    background: transparent; border: none;
+    color: var(--color-primary); font-family: var(--font-mono);
+    font-size: 12.5px; font-weight: 500; outline: none;
+    padding: 9px 0 9px 12px;
+    letter-spacing: 0.01em;
+  }
+  .param-key::placeholder { color: color-mix(in srgb, var(--color-primary) 25%, transparent); }
+  .param-key:read-only { color: var(--color-primary); }
+
+  .param-eq {
+    color: var(--text-muted); font-family: var(--font-mono);
+    font-size: 12px; font-weight: 400;
+    padding: 0 6px; flex-shrink: 0; user-select: none;
+    opacity: 0.4;
+  }
+
+  .param-val {
+    flex: 1; min-width: 0;
+    background: transparent; border: none;
+    color: var(--text-primary); font-family: var(--font-mono);
+    font-size: 12.5px; outline: none;
+    padding: 9px 12px 9px 0;
+  }
+  .param-val::placeholder { color: color-mix(in srgb, var(--color-text-muted) 30%, transparent); }
+
+  .param-val-sel {
+    flex: 1; min-width: 0;
+    background: transparent; border: none;
+    color: var(--text-secondary); font-family: var(--font-mono);
+    font-size: 12.5px; outline: none;
+    padding: 9px 12px 9px 0;
+    cursor: pointer; appearance: none;
+  }
+
+  .param-del {
+    flex-shrink: 0; width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent; border: none;
+    color: var(--text-muted); border-radius: 5px;
+    cursor: pointer; opacity: 0; transition: opacity 0.15s, color 0.15s, background 0.15s;
+    margin-right: 2px;
+  }
+  .param-row:hover .param-del,
+  .param-row:focus-within .param-del { opacity: 1; }
+  .param-del:hover { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+
+  .btn-icon { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; color: var(--text-muted); border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+  .btn-icon:hover { background: color-mix(in srgb, var(--color-primary) 8%, transparent); color: var(--text-primary); }
+
+  .btn-add {
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--border-subtle));
+    color: var(--color-primary); font-size: 11.5px; font-weight: 500;
+    padding: 5px 14px; border-radius: 6px; cursor: pointer;
+    transition: all 0.2s; font-family: var(--font-body);
+  }
+  .btn-add:hover {
+    background: color-mix(in srgb, var(--color-primary) 15%, transparent);
+    border-color: color-mix(in srgb, var(--color-primary) 35%, var(--border-subtle));
+    color: var(--text-primary);
+  }
+
+  .empty-state { text-align: center; color: var(--text-muted); font-size: 13px; padding: 24px; }
+  .error-state { padding: 24px; background: rgba(239, 68, 68, 0.05); color: var(--accent-red); font-size: 13px; border-bottom: 1px solid rgba(239, 68, 68, 0.1); }
+
+  /* Body Editor */
+  .body-editor { width: 100%; height: 220px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radii); color: var(--text-primary); font-family: var(--font-mono); font-size: 13px; padding: 16px; resize: vertical; outline: none; transition: border-color 0.2s; }
+  .body-editor:focus { border-color: var(--accent); }
+  .feedback { font-size: 12px; margin-top: 8px; min-height: 18px; } .feedback.ok { color: var(--accent-green); } .feedback.err { color: var(--accent-red); }
+
+  /* Light Docs */
+  .docs-card { background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radii); padding: 16px; margin-bottom: 16px; }
+  .curl-block { white-space: pre-wrap; word-break: break-all; margin: 0; padding: 16px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radii); color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; line-height: 1.5; }
+
+  /* ====== RESPONSE AREA ====== */
+  .response-box { background: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: var(--radii); display: flex; flex-direction: column; overflow: hidden; min-height: 500px; max-height: calc(100vh - 200px); }
+  .res-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border-subtle); background: var(--bg-elevated); }
+  .res-status-wrap { display: flex; align-items: center; gap: 12px; }
+  .status-code { font-family: var(--font-mono); font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 4px; }
+  .status-code.ok { color: var(--accent-green); background: rgba(34, 197, 94, 0.1); }
+  .status-code.err { color: var(--accent-red); background: rgba(239, 68, 68, 0.1); }
+  .res-time { color: var(--text-muted); font-family: var(--font-mono); font-size: 12px; }
+
+  .res-content-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .res-headers { background: var(--bg-elevated); border-bottom: 1px solid var(--border-subtle); }
+  .res-headers summary { padding: 10px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); cursor: pointer; list-style: none; user-select: none; }
+  .res-headers summary::-webkit-details-marker { display: none; }
+  .res-headers-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11px; }
+  .res-headers-table td { padding: 4px 16px; border-top: 1px solid var(--border-subtle); color: var(--text-secondary); }
+  .res-headers-table td:first-child { color: var(--text-primary); font-weight: 500; width: 30%; }
+
+  .fill-block { flex: 1; margin: 0; padding: 16px; background: transparent; border: none; overflow-y: auto; color: var(--text-secondary); font-family: var(--font-mono); font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-all; }
+
+  .res-preview { padding: 24px; display: flex; justify-content: center; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="%23111"/><rect width="5" height="5" fill="%231a1a1a"/><rect x="5" y="5" width="5" height="5" fill="%231a1a1a"/></svg>'); border-bottom: 1px solid var(--border-subtle); }
+  .res-preview img { max-width: 100%; max-height: 300px; border-radius: var(--radii); box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+
+  .spinner { width: 24px; height: 24px; border: 2px solid var(--border-subtle); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Syntax Highlighting — driven by theme colors */
+  .hl-key { color: color-mix(in srgb, var(--color-primary) 70%, #93c5fd); }
+  .hl-str { color: color-mix(in srgb, var(--color-secondary) 60%, #86efac); }
+  .hl-num { color: color-mix(in srgb, var(--color-primary) 80%, #fca5a5); }
+  .hl-bool { color: color-mix(in srgb, var(--color-secondary) 70%, #c4b5fd); }
+</style>
 
 <script define:vars={{ siteUrl, flatJSON }}>
   window.__SITE_URL__ = siteUrl;
@@ -631,274 +627,210 @@ var flatJSON = JSON.stringify(flat);
 
 <script>
   var siteUrl = window.__SITE_URL__;
-  var RATE_WINDOW = 60000;
-  var RATE_LIMITS = { GET: 30, POST: 5 };
-  var STORAGE_KEY = 'td-pg-rate';
-  var HIST_KEY = 'td-pg-history';
   var FLAT = JSON.parse(window.__FLAT_JSON__);
   var activeEP = FLAT[0];
   var isCustom = false;
   var lastResBody = '';
   var lastResCT = '';
-  var retryTimer = 0;
-  var maxed = false;
 
-  // ── Rate helpers ──
-  function getHits() { try { return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { return []; } }
-  function recordHit(method) {
-    var now = Date.now();
-    var hist = getHits().filter(function(h) { return h.method === method && now - h.ts < RATE_WINDOW; });
-    hist.push({ method: method, ts: now });
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(hist));
-    return hist;
-  }
-  function checkRate(method) {
-    var hist = getHits().filter(function(h) { return h.method === method && Date.now() - h.ts < RATE_WINDOW; });
-    var limit = RATE_LIMITS[method] || 30;
-    var rem = Math.max(0, limit - hist.length);
-    var blocked = rem === 0;
-    var ws = 0;
-    if (blocked) { var o = hist.reduce(function(m,h) { return h.ts < m ? h.ts : m; }, Infinity); ws = Math.ceil((RATE_WINDOW - (Date.now() - o)) / 1000); }
-    return { count: hist.length, limit: limit, remaining: rem, blocked: blocked, waitSec: ws };
-  }
-
-  // ── DOM access ──
   function getEl(s) { return document.getElementById(s); }
+  function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-  // ── Docs render ──
+  // ── Sync URL & Prefix ──
+  function syncURLPrefix() {
+    var path = getEl('url-input').value.trim();
+    var isAbs = path.startsWith('http://') || path.startsWith('https://');
+    getEl('url-prefix').style.display = isAbs ? 'none' : 'inline-block';
+  }
+  getEl('url-input').addEventListener('input', syncURLPrefix);
+
+  // ── Rendering Docs & Content ──
   function showDocs(ep) {
-    getEl('pg-docs-empty').style.display = 'none';
-    getEl('pg-docs-content').style.display = 'block';
-    getEl('docs-title').textContent = ep.method + ' ' + (ep.label || '');
-    getEl('docs-desc').textContent = ep.desc || '';
-    getEl('docs-usage').textContent = ep.usage || '';
-    getEl('docs-curl').textContent = ep.curlExample || buildURL();
-    // cache badge
-    var cb = getEl('docs-cache');
-    cb.textContent = ep.cache || '—';
-    cb.className = 'pg-cache-badge ' + (
-      ep.cache.indexOf('365') !== -1 ? 'pg-cache--immutable' :
-      ep.cache.indexOf('24h') !== -1 || ep.cache.indexOf('CDN') !== -1 ? 'pg-cache--long' :
-      ep.cache.indexOf('不缓存') !== -1 ? 'pg-cache--none' : 'pg-cache--medium'
-    );
-    // notes
-    if (ep.notes) { getEl('docs-notes-block').style.display = 'block'; getEl('docs-notes').textContent = ep.notes; }
-    else { getEl('docs-notes-block').style.display = 'none'; }
-    // response fields
-    var rf = ep.responseFields;
-    if (rf && rf.length) {
-      getEl('docs-response-block').style.display = 'block';
-      getEl('docs-response-table').innerHTML = '<thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody>' +
-        rf.map(function(f) { return '<tr><td class="pg-docs-field">' + esc(f.name) + '</td><td class="pg-docs-type">' + esc(f.type) + '</td><td>' + esc(f.desc) + '</td></tr>'; }).join('') + '</tbody>';
-    } else { getEl('docs-response-block').style.display = 'none'; }
+    getEl('docs-title').textContent = ep.label || 'Custom Request';
+    getEl('docs-desc').textContent = ep.desc || 'Send custom API request.';
+    getEl('docs-usage').textContent = ep.usage || '—';
+    getEl('docs-cache').textContent = ep.cache || '—';
+    getEl('docs-curl').textContent = ep.curlExample || `curl ${siteUrl}${ep.path}`;
+
+    var notesEl = getEl('docs-notes');
+    if (ep.notes) {
+      notesEl.textContent = ep.notes;
+      notesEl.style.display = '';
+    } else {
+      notesEl.style.display = 'none';
+    }
+
+    var fieldsEl = getEl('docs-fields');
+    var fieldsTable = getEl('docs-fields-table');
+    if (ep.responseFields && ep.responseFields.length) {
+      fieldsTable.innerHTML = ep.responseFields.map(f =>
+        `<tr><td><code>${esc(f.name)}</code> <span style="color:var(--text-muted);font-size:10px;">${esc(f.type)}</span></td><td>${esc(f.desc)}</td></tr>`
+      ).join('');
+      fieldsEl.style.display = '';
+    } else {
+      fieldsEl.style.display = 'none';
+    }
   }
 
-  // ── Select endpoint ──
+  getEl('copy-curl-btn').addEventListener('click', function() {
+    var curlCode = getEl('docs-curl').textContent;
+    navigator.clipboard.writeText(curlCode).then(() => {
+      this.textContent = 'Copied!';
+      setTimeout(() => { this.textContent = 'Copy cURL'; }, 1500);
+    });
+  });
+
+  // ── Selection Logic ──
   function selectEndpoint(idx) {
     isCustom = false;
     getEl('custom-url-toggle').classList.remove('active');
     activeEP = FLAT[idx];
+    
     getEl('method-select').value = activeEP.method;
-    getEl('method-select').disabled = false;
     getEl('url-input').value = activeEP.path;
-    getEl('url-input').readOnly = false;
+    syncURLPrefix();
+    
     renderParams();
     highlightSidebar();
-    updateRateUI();
     showDocs(activeEP);
+    
     getEl('body-section').style.display = activeEP.method === 'POST' ? 'block' : 'none';
     if (activeEP.method === 'POST') {
-      var bp = (activeEP.params || []).find(function(p) { return p.name === 'body'; });
-      if (bp && !getEl('body-editor').value) getEl('body-editor').value = bp.placeholder || '';
+      var bp = (activeEP.params || []).find(p => p.name === 'body');
+      if (bp) getEl('body-editor').value = bp.placeholder || '';
     }
-    if (window.innerWidth < 1150) getEl('pg-sidebar').classList.remove('open');
   }
   window.__selectEndpoint = selectEndpoint;
 
   function highlightSidebar() {
-    var items = document.querySelectorAll('.pg-ep-item');
-    for (var i = 0; i < items.length; i++) {
-      items[i].classList.toggle('active', items[i].getAttribute('data-idx') === String(activeEP._idx));
-    }
+    document.querySelectorAll('.nav-item').forEach(el => {
+      el.classList.toggle('active', el.getAttribute('data-idx') === String(activeEP._idx));
+    });
   }
 
-  // ── Filter endpoints ──
-  getEl('ep-search').addEventListener('input', function() {
-    var q = this.value.toLowerCase();
-    var groups = document.querySelectorAll('.pg-ep-group');
-    for (var i = 0; i < groups.length; i++) {
-      var g = groups[i];
-      var vis = false;
-      var items = g.querySelectorAll('.pg-ep-item');
-      for (var j = 0; j < items.length; j++) {
-        var it = items[j];
-        var ok = !q || (it.getAttribute('data-label') || '').toLowerCase().indexOf(q) !== -1 || (it.getAttribute('data-path') || '').toLowerCase().indexOf(q) !== -1;
-        it.style.display = ok ? '' : 'none';
-        if (ok) vis = true;
-      }
-      g.style.display = vis ? '' : 'none';
-    }
-  });
-
-  // ── Params ──
+  // ── Params Rendering ──
   function renderParams() {
     var list = getEl('params-list');
     list.innerHTML = '';
     var params = isCustom ? [] : (activeEP.params || []);
-    if (params.length === 0) { getEl('no-params').style.display = 'block'; getEl('body-section').style.display = activeEP.method === 'POST' ? 'block' : 'none'; return; }
-    getEl('no-params').style.display = 'none';
-    for (var i = 0; i < params.length; i++) {
-      (function(p) {
-        if (p.name === 'body') return;
-        var row = document.createElement('div');
-        row.className = 'pg-param-row';
-        var valHTML;
-        if (p.type === 'select') {
-          valHTML = '<select class="pg-param-val pg-input" data-param="' + p.name + '">' + (p.options || []).map(function(o) { return '<option value="' + o + '">' + (o || '—') + '</option>'; }).join('') + '</select>';
-        } else {
-          valHTML = '<input class="pg-param-val pg-input" type="text" data-param="' + p.name + '" placeholder="' + (p.placeholder || '') + '" />';
-        }
-        row.innerHTML = '<input class="pg-param-key" type="text" value="' + p.name + '" ' + (p.optional ? '' : 'data-required="true"') + ' readonly /><span class="pg-param-eq">=</span>' + valHTML + '<button class="pg-param-del" type="button">&times;</button>';
-        row.querySelector('.pg-param-del').addEventListener('click', function() { row.remove(); updateParamState(); });
-        list.appendChild(row);
-      })(params[i]);
+    
+    if (params.length === 0 || (params.length === 1 && params[0].name === 'body')) { 
+      getEl('no-params').style.display = 'block'; 
+      list.style.display = 'none';
+      return; 
     }
+    
+    getEl('no-params').style.display = 'none';
+    list.style.display = 'flex';
+    
+    params.forEach(p => {
+      if (p.name === 'body') return;
+      var row = document.createElement('div');
+      row.className = 'param-row';
+      var valHTML = p.type === 'select'
+        ? `<select class="param-val-sel" data-param="${p.name}">${(p.options||[]).map(o=>`<option value="${o}">${o||'—'}</option>`).join('')}</select>`
+        : `<input class="param-val" type="text" data-param="${p.name}" placeholder="${p.placeholder||''}" />`;
+
+      row.innerHTML = `
+        <input class="param-key" type="text" value="${p.name}" readonly />
+        <span class="param-eq">=</span>
+        ${valHTML}
+        <button class="param-del" title="Clear value">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        </button>
+      `;
+      row.querySelector('.param-del').addEventListener('click', function() {
+        const input = row.querySelector('.param-val, .param-val-sel');
+        if (input) {
+          if (input.tagName === 'SELECT') input.selectedIndex = 0; else input.value = '';
+        }
+      });
+      list.appendChild(row);
+    });
   }
-  function updateParamState() { getEl('no-params').style.display = getEl('params-list').querySelectorAll('.pg-param-row').length === 0 ? 'block' : 'none'; }
 
   getEl('param-add').addEventListener('click', function() {
     getEl('no-params').style.display = 'none';
+    getEl('params-list').style.display = 'flex';
     var row = document.createElement('div');
-    row.className = 'pg-param-row pg-param-row--custom';
-    row.innerHTML = '<input class="pg-param-key pg-input" type="text" placeholder="key" /><span class="pg-param-eq">=</span><input class="pg-param-val pg-input" type="text" placeholder="value" /><button class="pg-param-del" type="button">&times;</button>';
-    var fk = row.querySelector('.pg-param-key');
-    fk.readOnly = false; fk.classList.add('pg-input');
-    row.querySelector('.pg-param-del').addEventListener('click', function() { row.remove(); updateParamState(); });
+    row.className = 'param-row';
+    row.innerHTML = `
+      <input class="param-key" type="text" placeholder="Key" />
+      <span class="param-eq">=</span>
+      <input class="param-val" type="text" placeholder="Value" />
+      <button class="param-del" title="Remove">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+      </button>
+    `;
+    row.querySelector('.param-del').addEventListener('click', function() { 
+      row.remove(); 
+      if(getEl('params-list').children.length===0) {
+        getEl('no-params').style.display = 'block';
+        getEl('params-list').style.display = 'none';
+      }
+    });
     getEl('params-list').appendChild(row);
   });
 
   // ── Custom URL ──
   getEl('custom-url-toggle').addEventListener('click', function() {
-    isCustom = !isCustom;
-    this.classList.toggle('active', isCustom);
-    var items = document.querySelectorAll('.pg-ep-item');
-    for (var i = 0; i < items.length; i++) items[i].classList.remove('active');
-    if (isCustom) {
-      getEl('method-select').disabled = false;
-      getEl('url-input').value = '/api/v1/';
-      getEl('url-input').readOnly = false;
-      getEl('params-list').innerHTML = '';
-      getEl('no-params').style.display = 'block';
-      getEl('body-section').style.display = 'none';
-      getEl('pg-rate').style.display = 'none';
-      getEl('pg-docs-empty').style.display = 'block';
-      getEl('pg-docs-content').style.display = 'none';
-    } else { selectEndpoint(activeEP._idx); }
-    updateRateUI();
+    isCustom = true;
+    this.classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    this.classList.add('active');
+    
+    getEl('url-input').value = '/api/v1/';
+    syncURLPrefix();
+    
+    getEl('params-list').innerHTML = '';
+    getEl('no-params').style.display = 'block';
+    getEl('params-list').style.display = 'none';
+    getEl('body-section').style.display = 'block'; 
+    showDocs({ label: 'Custom Request', method: 'GET', path: '/api/v1/' });
   });
 
-  // ── Build URL ──
+  getEl('method-select').addEventListener('change', function() {
+    getEl('body-section').style.display = this.value === 'POST' ? 'block' : 'none';
+  });
+
   function buildURL() {
     var path = getEl('url-input').value.trim();
-    if (path.charAt(0) !== '/') path = '/' + path;
-    var rows = getEl('params-list').querySelectorAll('.pg-param-row');
+    var isAbs = path.startsWith('http://') || path.startsWith('https://');
+    if (!isAbs && path.charAt(0) !== '/') path = '/' + path;
+    
+    var rows = getEl('params-list').querySelectorAll('.param-row');
     var qp = [];
-    for (var i = 0; i < rows.length; i++) {
-      var key = (rows[i].querySelector('.pg-param-key') || {}).value || '';
-      var val = (rows[i].querySelector('.pg-param-val') || {}).value || '';
-      if (!key) continue;
-      if (path.indexOf('{' + key + '}') !== -1) { path = path.replace('{' + key + '}', encodeURIComponent(val)); }
-      else if (val) { qp.push(encodeURIComponent(key) + '=' + encodeURIComponent(val)); }
-    }
-    if (qp.length) path += '?' + qp.join('&');
-    return siteUrl + path;
+    rows.forEach(row => {
+      var keyInput = row.querySelector('.param-key');
+      var valInput = row.querySelector('.param-val, .param-val-sel');
+      var key = keyInput ? keyInput.value.trim() : '';
+      var val = valInput ? valInput.value.trim() : '';
+      
+      if (!key) return;
+      if (path.includes(`{${key}}`)) {
+        path = path.replace(`{${key}}`, encodeURIComponent(val));
+      } else if (val) {
+        qp.push(`${encodeURIComponent(key)}=${encodeURIComponent(val)}`);
+      }
+    });
+    
+    path = path.replace(/\{[^}]+\}/g, ''); // Clear unfulfilled
+    if (qp.length) path += (path.includes('?') ? '&' : '?') + qp.join('&');
+    return isAbs ? path : siteUrl + path;
   }
 
-  // ── Rate UI ──
-  function updateRateUI() {
-    var m = getEl('method-select').value;
-    var r = checkRate(m);
-    var pgRate = getEl('pg-rate');
-    if (r.count > 0) {
-      pgRate.style.display = 'flex';
-      var pct = Math.min(100, (r.count / r.limit) * 100);
-      getEl('rate-fill').style.width = pct + '%';
-      getEl('rate-fill').style.background = pct >= 90 ? '#ef4444' : pct >= 60 ? '#f59e0b' : 'var(--color-primary)';
-      getEl('rate-text').textContent = r.count + '/' + r.limit + ' · ' + (r.blocked ? 'blocked ' + r.waitSec + 's' : r.remaining + ' remaining');
-      getEl('rate-text').style.color = r.blocked ? '#ef4444' : '';
-    } else { pgRate.style.display = 'none'; }
-    var sendBtn = getEl('pg-send');
-    var hint = getEl('pg-send-hint');
-    if (r.blocked) { sendBtn.disabled = true; hint.textContent = 'Rate limited — retry in ' + r.waitSec + 's'; hint.style.color = '#ef4444'; scheduleRetry(r.waitSec); }
-    else { sendBtn.disabled = false; hint.textContent = ''; }
-  }
-
-  function scheduleRetry(sec) {
-    clearInterval(retryTimer);
-    retryTimer = setInterval(function() {
-      var r = checkRate(getEl('method-select').value);
-      if (r.blocked) { getEl('pg-send-hint').textContent = 'Rate limited — retry in ' + r.waitSec + 's'; }
-      else { clearInterval(retryTimer); updateRateUI(); }
-    }, 1000);
-  }
-  getEl('method-select').addEventListener('change', updateRateUI);
-
-  // ── History ──
-  function getHistory() { try { return JSON.parse(sessionStorage.getItem(HIST_KEY) || '[]'); } catch(e) { return []; } }
-  function saveHistory(entry) {
-    var h = getHistory(); h.unshift(entry); if (h.length > 20) h.length = 20;
-    sessionStorage.setItem(HIST_KEY, JSON.stringify(h)); renderHistory();
-  }
-  function renderHistory() {
-    var h = getHistory();
-    if (h.length === 0) { getEl('history-section').style.display = 'none'; return; }
-    getEl('history-section').style.display = 'block';
-    var html = '';
-    for (var i = 0; i < h.length; i++) {
-      var e = h[i];
-      html += '<button class="pg-history-item" data-idx="' + i + '" type="button">' +
-        '<span class="pg-history-method pg-ep-method--' + e.method.toLowerCase() + '">' + e.method + '</span>' +
-        '<span class="pg-history-status' + (e.status >= 400 ? ' pg-history-status--err' : '') + '">' + e.status + '</span>' +
-        '<span class="pg-history-url" title="' + esc(e.url) + '">' + esc(e.endpoint || e.url.slice(0, 35)) + '</span>' +
-        '<span class="pg-history-time">' + e.elapsed + 'ms</span></button>';
-    }
-    getEl('history-list').innerHTML = html;
-    var btns = getEl('history-list').querySelectorAll('.pg-history-item');
-    for (var j = 0; j < btns.length; j++) {
-      btns[j].addEventListener('click', function() {
-        var entry = h[parseInt(this.getAttribute('data-idx'))];
-        if (!entry) return;
-        if (entry.endpoint && !isCustom) {
-          var ep = FLAT.find(function(e) { return e.label === entry.endpoint; });
-          if (ep) selectEndpoint(ep._idx);
-        }
-        getEl('url-input').value = entry.url;
-        getEl('method-select').value = entry.method;
-        updateRateUI();
-        getEl('pg-send').scrollIntoView({ behavior: 'smooth', block: 'center' });
-      });
-    }
-  }
-  getEl('history-clear').addEventListener('click', function() { sessionStorage.removeItem(HIST_KEY); renderHistory(); });
-
-  // ── JSON utils ──
-  function tryFmt(t) { try { return JSON.stringify(JSON.parse(t), null, 2); } catch(e) { return null; } }
-  function isValid(t) { try { JSON.parse(t); return true; } catch(e) { return false; } }
-
+  // Body Formatter
   getEl('body-format').addEventListener('click', function() {
-    var f = tryFmt(getEl('body-editor').value);
-    if (f) { getEl('body-editor').value = f; getEl('body-feedback').textContent = 'Formatted'; getEl('body-feedback').className = 'pg-body-feedback ok'; }
-    else   { getEl('body-feedback').textContent = 'Invalid JSON'; getEl('body-feedback').className = 'pg-body-feedback err'; }
-    setTimeout(function() { getEl('body-feedback').textContent = ''; }, 2000);
-  });
-  getEl('body-validate').addEventListener('click', function() {
-    if (isValid(getEl('body-editor').value)) { getEl('body-feedback').textContent = 'Valid JSON'; getEl('body-feedback').className = 'pg-body-feedback ok'; }
-    else {
-      var msg = 'Invalid JSON';
-      try { JSON.parse(getEl('body-editor').value); } catch(e) { msg += ' — ' + e.message; }
-      getEl('body-feedback').textContent = msg; getEl('body-feedback').className = 'pg-body-feedback err';
+    try {
+      var val = getEl('body-editor').value;
+      getEl('body-editor').value = JSON.stringify(JSON.parse(val), null, 2);
+      getEl('body-feedback').textContent = 'Format OK';
+      getEl('body-feedback').className = 'feedback ok';
+    } catch(e) {
+      getEl('body-feedback').textContent = 'Invalid JSON';
+      getEl('body-feedback').className = 'feedback err';
     }
-    setTimeout(function() { getEl('body-feedback').textContent = ''; }, 3000);
+    setTimeout(() => { getEl('body-feedback').textContent = ''; }, 2000);
   });
 
   // ── Highlight ──
@@ -908,330 +840,81 @@ var flatJSON = JSON.stringify(flat);
       .replace(/\b(true|false|null)\b/g, '<span class="hl-bool">$1</span>')
       .replace(/:\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g, ': <span class="hl-num">$1</span>');
   }
-  function hlCSS(t) {
-    return t.replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="hl-comment">$1</span>')
-      .replace(/(@[a-z-]+)/g, '<span class="hl-atrule">$1</span>')
-      .replace(/([a-z-]+)\s*:/g, '<span class="hl-prop">$1</span>:')
-      .replace(/:\s*([^;{]+)/g, ': <span class="hl-val">$1</span>')
-      .replace(/(--[\w-]+)/g, '<span class="hl-var">$1</span>');
-  }
-  function fmtBody(t, ct) {
-    if (ct.indexOf('json') !== -1) { try { return hlJSON(JSON.stringify(JSON.parse(t), null, 2)); } catch(e) { return esc(t); } }
-    if (ct.indexOf('css') !== -1) return hlCSS(t);
-    if (ct.indexOf('html') !== -1) return esc(t);
-    try { return hlJSON(JSON.stringify(JSON.parse(t), null, 2)); } catch(e) { return esc(t); }
-  }
-  function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-  // ── Send ──
+  // ── Action: Send ──
   function doSend() {
     var m = getEl('method-select').value;
-    var r = checkRate(m);
-    if (r.blocked) { getEl('pg-send-hint').textContent = 'Rate limited — retry in ' + r.waitSec + 's'; getEl('pg-send-hint').style.color = '#ef4444'; return; }
     var url = buildURL();
-    hideAllRes();
-    getEl('pg-loading').style.display = 'flex';
+    
+    getEl('pg-empty').style.display = 'none';
+    getEl('res-content').style.display = 'none';
+    getEl('res-toolbar').style.display = 'none';
+    getEl('pg-error').style.display = 'none';
+    getEl('pg-loading').style.display = 'block';
     getEl('pg-send').disabled = true;
-    getEl('pg-send-label').textContent = 'Sending...';
-    getEl('pg-send-hint').textContent = '';
+    
     var t0 = performance.now();
     var bodyVal = getEl('body-editor').value.trim();
-    fetch(url, { method: m, headers: m === 'POST' && bodyVal ? { 'Content-Type': 'application/json' } : {}, body: m === 'POST' && bodyVal ? bodyVal : undefined }).then(function(res) {
+    var headers = {};
+    if (m === 'POST' && bodyVal) headers['Content-Type'] = 'application/json';
+
+    fetch(url, { method: m, headers, body: m === 'POST' && bodyVal ? bodyVal : undefined })
+    .then(async res => {
       var elapsed = Math.round(performance.now() - t0);
-      recordHit(m);
+
       var hdrRows = '', hdrNum = 0;
-      res.headers.forEach(function(v, k) { hdrRows += '<tr><td class="pg-hdr-key">' + esc(k) + '</td><td class="pg-hdr-val">' + esc(v) + '</td></tr>'; hdrNum++; });
+      res.headers.forEach((v, k) => { hdrRows += `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`; hdrNum++; });
       getEl('res-headers').innerHTML = hdrRows;
-      getEl('hdr-count').textContent = '(' + hdrNum + ')';
-      return res.text().then(function(text) {
-        lastResCT = res.headers.get('content-type') || '';
-        lastResBody = text;
-        getEl('res-body').innerHTML = fmtBody(text, lastResCT);
-        var cls = res.ok ? 'pg-res-status--ok' : 'pg-res-status--err';
-        getEl('res-status').className = 'pg-res-status ' + cls;
-        getEl('res-status').textContent = res.status + ' ' + res.statusText;
-        getEl('res-time').textContent = elapsed + 'ms';
-        hideAllRes();
-        getEl('res-meta').style.display = 'flex';
-        getEl('res-content').style.display = 'flex';
-        getEl('res-headers-block').setAttribute('open', '');
-        saveHistory({ method: m, url: url.replace(siteUrl, ''), status: res.status, elapsed: elapsed, ts: Date.now(), endpoint: isCustom ? null : activeEP.label });
-        if (window.innerWidth < 1150) getEl('res-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    }).catch(function(err) {
-      hideAllRes();
-      getEl('pg-error').style.display = 'flex';
-      getEl('pg-error-title').textContent = 'Network Error';
+      getEl('hdr-count').textContent = hdrNum;
+      
+      lastResCT = res.headers.get('content-type') || '';
+      const text = await res.text();
+      lastResBody = text;
+      
+      var preview = getEl('res-preview');
+      if (lastResCT.includes('image/')) {
+        const blob = new Blob([text], { type: lastResCT });
+        const blobUrl = URL.createObjectURL(blob);
+        preview.innerHTML = `<img src="${blobUrl}" alt="Preview" />`;
+        preview.style.display = 'flex';
+      } else {
+        preview.style.display = 'none';
+      }
+
+      let formattedText = esc(text);
+      if (lastResCT.includes('json')) {
+        try { formattedText = hlJSON(JSON.stringify(JSON.parse(text), null, 2)); } catch(e){}
+      }
+      getEl('res-body').innerHTML = formattedText;
+      
+      getEl('res-status').className = `status-code ${res.ok ? 'ok' : 'err'}`;
+      getEl('res-status').textContent = `${res.status} ${res.statusText}`;
+      getEl('res-time').textContent = `${elapsed}ms`;
+      
+      getEl('pg-loading').style.display = 'none';
+      getEl('res-toolbar').style.display = 'flex';
+      getEl('res-content').style.display = 'flex';
+      
+    }).catch(err => {
+      getEl('pg-loading').style.display = 'none';
+      getEl('pg-error').style.display = 'block';
       getEl('pg-error-msg').textContent = err.message || 'Failed to connect.';
-    }).then(function() {
+    }).finally(() => {
       getEl('pg-send').disabled = false;
-      getEl('pg-send-label').textContent = 'Send';
-      updateRateUI();
     });
   }
   window.__doSend = doSend;
 
-  function hideAllRes() {
-    getEl('pg-empty').style.display = 'none';
-    getEl('pg-loading').style.display = 'none';
-    getEl('pg-error').style.display = 'none';
-    getEl('res-content').style.display = 'none';
-    getEl('res-meta').style.display = 'none';
-  }
+  document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doSend(); } });
 
-  // ── Ctrl+Enter ──
-  document.addEventListener('keydown', function(e) { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doSend(); } });
-
-  // ── Copy ──
   getEl('res-copy').addEventListener('click', function() {
-    try { navigator.clipboard.writeText(lastResBody); } catch(e) {}
-    try { var ta = document.createElement('textarea'); ta.value = lastResBody; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); } catch(e) {}
-    this.textContent = 'Copied!'; this.classList.add('copied');
-    setTimeout(function() { getEl('res-copy').textContent = 'Copy'; getEl('res-copy').classList.remove('copied'); }, 1500);
+    navigator.clipboard.writeText(lastResBody).then(() => {
+      var icon = this.innerHTML;
+      this.innerHTML = '<span style="font-size:12px; font-weight:600; padding:0 4px;">Copied</span>';
+      setTimeout(() => { this.innerHTML = icon; }, 1500);
+    });
   });
 
-  // ── Maximize ──
-  getEl('res-maximize').addEventListener('click', function() {
-    maxed = !maxed;
-    var sidebar = getEl('pg-sidebar');
-    var main = document.querySelector('.pg-main');
-    var resp = getEl('res-panel');
-    if (maxed) { sidebar.style.display = 'none'; main.style.display = 'none'; resp.style.gridColumn = 'span 3'; }
-    else { sidebar.style.display = ''; main.style.display = ''; resp.style.gridColumn = ''; }
-  });
-
-  // ── Mobile sidebar ──
-  getEl('mobile-sidebar-toggle').addEventListener('click', function() { getEl('pg-sidebar').classList.toggle('open'); });
-  document.addEventListener('click', function(e) {
-    if (window.innerWidth >= 1150) return;
-    var sb = getEl('pg-sidebar');
-    var mt = getEl('mobile-sidebar-toggle');
-    if (!sb.contains(e.target) && e.target !== mt && !mt.contains(e.target)) { sb.classList.remove('open'); }
-  });
-
-  // ── Init ──
-  highlightSidebar();
-  updateRateUI();
-  renderHistory();
-  showDocs(activeEP);
+  // Init
+  selectEndpoint(0);
 </script>
-
-<style>
-  /* ===== TOP BAR ===== */
-  .pg-topbar { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:14px; gap:12px; flex-wrap:wrap; }
-  .pg-topbar__actions { display:flex; align-items:center; gap:8px; margin-top:4px; }
-  .pg-topbar__hint { display:flex; align-items:center; gap:4px; font-size:10px; color:var(--color-text-muted); }
-  .pg-topbar__hint kbd { display:inline-block; padding:2px 5px; border-radius:4px; font-size:9px; font-weight:600; font-family:"JetBrains Mono",monospace; background:color-mix(in srgb,var(--color-text-muted) 10%,transparent); border:1px solid var(--color-border); color:var(--color-text-muted); }
-  .pg-mobile-toggle { display:none; width:34px; height:34px; border-radius:7px; border:1.5px solid var(--color-border); background:transparent; color:var(--color-text); cursor:pointer; align-items:center; justify-content:center; }
-  @media (max-width:1150px) { .pg-mobile-toggle { display:flex; } }
-
-  /* ===== SHELL ===== */
-  .pg-shell { display:grid; grid-template-columns:270px 1fr 1fr; gap:0; border:1px solid var(--color-border); border-radius:14px; overflow:hidden; background:color-mix(in srgb,var(--color-surface) 40%,transparent); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); min-height:calc(100vh - 150px); }
-  @media (max-width:1150px) {
-    .pg-shell { grid-template-columns:1fr; }
-    .pg-sidebar { display:none; position:fixed; top:0; left:0; bottom:0; width:280px; z-index:500; border-right:1px solid var(--color-border); box-shadow:8px 0 32px rgba(0,0,0,0.3); overflow-y:auto; background:color-mix(in srgb,var(--color-bg) 92%,transparent); backdrop-filter:blur(24px); }
-    .pg-sidebar.open { display:flex; }
-    .pg-response { min-height:50vh; }
-    .pg-topbar__hint { display:none; }
-  }
-
-  /* ===== SIDEBAR ===== */
-  .pg-sidebar { border-right:1px solid var(--color-border); display:flex; flex-direction:column; background:color-mix(in srgb,var(--color-bg) 30%,transparent); overflow:hidden; }
-  .pg-sidebar__section { padding:10px; display:flex; flex-direction:column; overflow:hidden; }
-  .pg-sidebar__section:first-child { flex:1; min-height:0; }
-  .pg-sidebar__label { font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--color-text-muted); margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; }
-
-  .pg-search { position:relative; margin-bottom:4px; }
-  .pg-search__icon { position:absolute; left:8px; top:50%; transform:translateY(-50%); color:var(--color-text-muted); pointer-events:none; }
-  .pg-search__input { width:100%; height:30px; padding:0 8px 0 26px; border-radius:6px; border:1.5px solid var(--color-border); background:color-mix(in srgb,var(--color-bg) 50%,transparent); color:var(--color-text); font-size:11px; font-family:"Inter",sans-serif; outline:none; transition:border-color 0.2s; }
-  .pg-search__input:focus { border-color:var(--color-primary); }
-  .pg-search__input::placeholder { color:var(--color-text-muted); opacity:0.5; }
-
-  .pg-ep-list { overflow-y:auto; flex:1; min-height:0; }
-  .pg-ep-group { margin-bottom:1px; }
-  .pg-ep-group__name {
-    width:100%; padding:6px 8px;
-    font-size:9px; font-weight:700; letter-spacing:0.07em;
-    text-transform:uppercase; color:var(--color-primary);
-    background:transparent; border:none;
-    cursor:pointer; text-align:left;
-    display:flex; align-items:center; gap:4px;
-  }
-  .pg-ep-group__name::before { content:'▾'; font-size:8px; transition:transform 0.2s; }
-  .pg-ep-group.collapsed .pg-ep-item { display:none; }
-  .pg-ep-group.collapsed .pg-ep-group__name::before { transform:rotate(-90deg); }
-
-  .pg-ep-item {
-    display:flex; align-items:center; gap:6px;
-    width:100%; padding:5px 8px;
-    border:none; border-radius:5px;
-    background:transparent; color:var(--color-text-muted);
-    font-size:11px; font-family:"Inter",sans-serif;
-    cursor:pointer; transition:all 0.12s;
-    text-align:left;
-  }
-  .pg-ep-item:hover { background:color-mix(in srgb,var(--color-primary) 8%,transparent); color:var(--color-text); }
-  .pg-ep-item.active { background:color-mix(in srgb,var(--color-primary) 12%,transparent); color:var(--color-primary); font-weight:600; box-shadow:inset 3px 0 0 var(--color-primary); }
-  .pg-ep-item__method { font-size:8px; font-weight:800; letter-spacing:0.04em; padding:1px 5px; border-radius:3px; color:#fff; flex-shrink:0; min-width:28px; text-align:center; }
-  .pg-ep-method--get  { background:#16a34a; }
-  .pg-ep-method--post { background:#2563eb; }
-  .pg-ep-item__label { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-
-  .pg-custom-trigger { display:flex; align-items:center; gap:5px; width:calc(100% - 10px); margin:0 5px 5px; padding:6px 8px; border:1.5px dashed var(--color-border); border-radius:7px; background:transparent; color:var(--color-text-muted); font-size:10px; font-weight:600; font-family:"Inter",sans-serif; cursor:pointer; transition:all 0.2s; }
-  .pg-custom-trigger:hover { border-color:var(--color-primary); color:var(--color-primary); }
-  .pg-custom-trigger.active { border-style:solid; border-color:var(--color-primary); background:color-mix(in srgb,var(--color-primary) 8%,transparent); color:var(--color-primary); }
-
-  .pg-history-clear { font-size:9px; font-weight:600; letter-spacing:0.03em; background:none; border:none; color:var(--color-text-muted); cursor:pointer; font-family:inherit; padding:2px 5px; border-radius:4px; }
-  .pg-history-clear:hover { color:#ef4444; background:rgba(239,68,68,0.1); }
-  .pg-history-list { display:flex; flex-direction:column; gap:1px; overflow-y:auto; max-height:180px; }
-  .pg-history-item { display:flex; align-items:center; gap:4px; width:100%; padding:3px 5px; border:none; border-radius:4px; background:transparent; font-family:"JetBrains Mono",monospace; cursor:pointer; font-size:9px; color:var(--color-text-muted); text-align:left; transition:background 0.15s; }
-  .pg-history-item:hover { background:color-mix(in srgb,var(--color-primary) 6%,transparent); }
-  .pg-history-method { font-size:7px; font-weight:800; padding:1px 4px; border-radius:3px; color:#fff; min-width:24px; text-align:center; }
-  .pg-history-status { font-weight:700; color:#16a34a; min-width:20px; }
-  .pg-history-status--err { color:#ef4444; }
-  .pg-history-url { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .pg-history-time { font-size:8px; opacity:0.5; }
-
-  /* ===== MAIN ===== */
-  .pg-main { border-right:1px solid var(--color-border); display:flex; flex-direction:column; }
-  .pg-panel { display:flex; flex-direction:column; }
-  .pg-panel__head { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid var(--color-border); gap:8px; flex-shrink:0; }
-  .pg-panel__title { font-size:10px; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--color-text-muted); }
-
-  /* URL bar */
-  .pg-url-section { padding:12px 14px 8px; }
-  .pg-url-row { display:flex; gap:0; }
-  .pg-method-select { width:68px; height:36px; padding:0 5px; border:1.5px solid var(--color-border); border-right:none; border-radius:8px 0 0 8px; background:color-mix(in srgb,var(--color-bg) 60%,transparent); color:var(--color-text); font-size:10px; font-weight:700; font-family:"JetBrains Mono",monospace; cursor:pointer; outline:none; -webkit-appearance:none; appearance:none; }
-  .pg-method-select:focus { border-color:var(--color-primary); }
-  .pg-url-input-wrap { flex:1; display:flex; align-items:center; border:1.5px solid var(--color-border); border-right:none; background:color-mix(in srgb,var(--color-bg) 40%,transparent); overflow:hidden; }
-  .pg-url-prefix { font-size:10px; font-family:"JetBrains Mono",monospace; color:var(--color-text-muted); opacity:0.5; padding:0 0 0 8px; white-space:nowrap; user-select:none; }
-  .pg-url-input { flex:1; height:36px; padding:0 8px; border:none; background:transparent; color:var(--color-text); font-size:11px; font-family:"JetBrains Mono",monospace; outline:none; }
-  .pg-send-btn { display:flex; align-items:center; justify-content:center; gap:4px; height:36px; padding:0 14px; border-radius:0 8px 8px 0; border:none; background:linear-gradient(135deg,var(--color-primary),var(--color-secondary)); color:#fff; font-size:10px; font-weight:700; letter-spacing:0.01em; cursor:pointer; font-family:"Inter",sans-serif; transition:all 0.2s; white-space:nowrap; flex-shrink:0; box-shadow:0 2px 8px color-mix(in srgb,var(--color-primary) 25%,transparent); }
-  .pg-send-btn:hover:not(:disabled) { box-shadow:0 4px 16px color-mix(in srgb,var(--color-primary) 40%,transparent); transform:translateY(-1px); }
-  .pg-send-btn:active:not(:disabled) { transform:scale(0.97); }
-  .pg-send-btn:disabled { opacity:0.45; cursor:not-allowed; }
-  .pg-send-hint { display:block; text-align:center; font-size:9px; color:var(--color-text-muted); min-height:14px; padding:0 14px 4px; }
-
-  /* ===== DOCS ===== */
-  .pg-docs { padding:0 14px 4px; }
-  .pg-docs__empty { padding:12px 0; }
-  .pg-docs__quickstart { padding:16px; border-radius:10px; background:color-mix(in srgb,var(--color-primary) 4%,transparent); border:1px solid color-mix(in srgb,var(--color-primary) 12%,transparent); }
-  .pg-docs__quickstart h3 { font-size:12px; font-weight:700; margin:0 0 8px; color:var(--color-text); }
-  .pg-docs__qs-code { margin:0 0 10px; padding:12px; border-radius:8px; background:color-mix(in srgb,var(--color-text) 5%,var(--color-bg)); border:1px solid var(--color-border); font-size:10px; line-height:1.55; overflow-x:auto; }
-  .pg-docs__qs-hint { font-size:10px; color:var(--color-text-muted); margin:0; }
-  .pg-docs__header { display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap; }
-  .pg-docs__title { font-size:13px; font-weight:700; letter-spacing:-0.01em; margin:0; color:var(--color-text); }
-  .pg-docs__desc { color:var(--color-text-muted); margin:0 0 8px; font-size:11px; line-height:1.55; }
-  .pg-docs__section { margin-bottom:8px; }
-  .pg-docs__section h3 { font-size:9px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:var(--color-text-muted); margin:0 0 3px; }
-  .pg-docs__text { color:var(--color-text-muted); margin:0; font-size:10.5px; line-height:1.5; }
-  .pg-docs__notes { padding:7px 10px; border-radius:7px; background:color-mix(in srgb,var(--color-primary) 6%,transparent); border-left:3px solid var(--color-primary); font-size:10px; color:var(--color-text-muted); line-height:1.5; }
-  .pg-docs__curl { padding:8px 10px; border-radius:7px; background:color-mix(in srgb,var(--color-text) 5%,var(--color-bg)); border:1px solid var(--color-border); font-family:"JetBrains Mono",monospace; font-size:10px; line-height:1.5; margin:0; white-space:pre-wrap; word-break:break-all; overflow-x:auto; max-height:100px; overflow-y:auto; }
-
-  .pg-table-wrap { overflow-x:auto; }
-  .pg-docs-table { width:100%; border-collapse:collapse; font-size:10px; }
-  .pg-docs-table th { text-align:left; padding:4px 6px; font-size:8px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--color-text-muted); border-bottom:1px solid var(--color-border); }
-  .pg-docs-table td { padding:3px 6px; border-bottom:1px solid color-mix(in srgb,var(--color-border) 30%,transparent); color:var(--color-text-muted); }
-  .pg-docs-table tr:last-child td { border-bottom:none; }
-  .pg-docs-field { font-family:"JetBrains Mono",monospace; font-size:9px; font-weight:600; color:var(--color-primary); white-space:nowrap; }
-  .pg-docs-type { font-family:"JetBrains Mono",monospace; font-size:8px; color:var(--color-text-muted); white-space:nowrap; }
-
-  /* Cache badges */
-  .pg-cache-badge { font-size:9px; font-weight:600; padding:2px 8px; border-radius:99px; white-space:nowrap; }
-  .pg-cache--immutable { background:rgba(22,163,74,0.12); color:#16a34a; }
-  .pg-cache--long { background:rgba(37,99,235,0.12); color:#2563eb; }
-  .pg-cache--medium { background:rgba(245,158,11,0.12); color:#f59e0b; }
-  .pg-cache--none { background:rgba(239,68,68,0.1); color:#ef4444; }
-
-  /* ===== PARAMS ===== */
-  .pg-params { padding:0 14px; }
-  .pg-params__head { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
-  .pg-params__title { font-size:10px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:var(--color-text-muted); }
-  .pg-params__add { font-size:9px; font-weight:600; font-family:"Inter",sans-serif; padding:1px 7px; border-radius:4px; border:1.5px dashed var(--color-border); background:transparent; color:var(--color-text-muted); cursor:pointer; transition:all 0.15s; }
-  .pg-params__add:hover { border-color:var(--color-primary); color:var(--color-primary); }
-  .pg-no-params { font-size:10px; color:var(--color-text-muted); font-style:italic; padding:2px 0 6px; }
-  .pg-param-row { display:flex; align-items:center; gap:4px; margin-bottom:5px; }
-  .pg-param-key { width:75px; height:28px; padding:0 5px; border:1.5px solid var(--color-border); border-radius:5px; background:color-mix(in srgb,var(--color-primary) 5%,transparent); color:var(--color-primary); font-size:10px; font-family:"JetBrains Mono",monospace; text-align:right; cursor:default; }
-  .pg-param-key[data-required="true"] { border-color:color-mix(in srgb,#ef4444 30%,transparent); }
-  .pg-param-key.pg-input { cursor:text; background:color-mix(in srgb,var(--color-bg) 50%,transparent); color:var(--color-text); }
-  .pg-param-eq { font-size:10px; color:var(--color-text-muted); flex-shrink:0; }
-  .pg-param-val { flex:1; }
-  .pg-param-del { width:22px; height:22px; border-radius:4px; border:none; background:transparent; color:var(--color-text-muted); font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.12s; flex-shrink:0; }
-  .pg-param-del:hover { background:rgba(239,68,68,0.12); color:#ef4444; }
-  .pg-param-row--custom .pg-param-key { border-style:dashed; }
-
-  .pg-input { height:28px; padding:0 6px; border:1.5px solid var(--color-border); border-radius:5px; background:color-mix(in srgb,var(--color-bg) 50%,transparent); color:var(--color-text); font-size:10px; font-family:"JetBrains Mono",monospace; outline:none; transition:border-color 0.2s; }
-  .pg-input:focus { border-color:var(--color-primary); }
-
-  /* ===== BODY ===== */
-  .pg-body-section { padding:0 14px 6px; }
-  .pg-body__head { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
-  .pg-body__actions { display:flex; gap:3px; }
-  .pg-body__btn { font-size:9px; font-weight:600; font-family:"Inter",sans-serif; padding:1px 7px; border-radius:4px; border:1.5px solid var(--color-border); background:transparent; color:var(--color-text-muted); cursor:pointer; transition:all 0.15s; }
-  .pg-body__btn:hover { border-color:var(--color-primary); color:var(--color-primary); }
-  .pg-body-editor { width:100%; padding:7px 9px; border:1.5px solid var(--color-border); border-radius:8px; background:color-mix(in srgb,var(--color-bg) 50%,transparent); color:var(--color-text); font-size:10px; font-family:"JetBrains Mono",monospace; line-height:1.5; resize:vertical; outline:none; transition:border-color 0.2s; }
-  .pg-body-editor:focus { border-color:var(--color-primary); }
-  .pg-body-feedback { display:block; font-size:9px; min-height:12px; margin-top:2px; font-weight:500; }
-  .pg-body-feedback.ok { color:#16a34a; }
-  .pg-body-feedback.err { color:#ef4444; }
-
-  /* ===== RATE ===== */
-  .pg-rate { display:flex; align-items:center; gap:7px; padding:6px 14px; }
-  .pg-rate__bar { flex:1; height:3px; border-radius:2px; background:color-mix(in srgb,var(--color-text-muted) 10%,transparent); overflow:hidden; }
-  .pg-rate__fill { height:100%; border-radius:2px; transition:width 0.35s ease, background 0.35s ease; }
-  .pg-rate__text { font-size:8px; font-weight:600; white-space:nowrap; color:var(--color-text-muted); font-family:"JetBrains Mono",monospace; }
-
-  /* ===== RESPONSE ===== */
-  .pg-response { display:flex; flex-direction:column; }
-  .pg-res__meta { display:flex; align-items:center; gap:6px; }
-  .pg-res-status { font-size:10px; font-weight:700; font-family:"JetBrains Mono",monospace; padding:1px 6px; border-radius:4px; }
-  .pg-res-status--ok  { color:#16a34a; background:rgba(22,163,74,0.1); }
-  .pg-res-status--err { color:#ef4444; background:rgba(239,68,68,0.1); }
-  .pg-res-time { font-size:9px; color:var(--color-text-muted); font-family:"JetBrains Mono",monospace; }
-  .pg-res-copy { font-size:9px; font-weight:600; font-family:"Inter",sans-serif; padding:1px 7px; border-radius:4px; border:1.5px solid var(--color-border); background:transparent; color:var(--color-text-muted); cursor:pointer; transition:all 0.15s; }
-  .pg-res-copy:hover { border-color:var(--color-primary); color:var(--color-primary); }
-  .pg-res-copy.copied { border-color:var(--color-primary); color:var(--color-primary); background:color-mix(in srgb,var(--color-primary) 10%,transparent); }
-
-  .pg-res-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; flex:1; padding:40px 14px; color:var(--color-text-muted); font-size:11px; text-align:center; }
-  .pg-res-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; flex:1; padding:40px 14px; color:var(--color-text-muted); font-size:11px; }
-  .pg-spinner { width:22px; height:22px; border:2px solid color-mix(in srgb,var(--color-border) 50%,transparent); border-top-color:var(--color-primary); border-radius:50%; animation:pg-spin 0.6s linear infinite; }
-  @keyframes pg-spin { to { transform:rotate(360deg); } }
-
-  .pg-res-error { display:flex; align-items:flex-start; gap:8px; margin:12px; padding:10px 14px; border-radius:9px; background:rgba(239,68,68,0.07); border:1.5px solid rgba(239,68,68,0.2); }
-  .pg-res-error__icon { width:22px; height:22px; border-radius:50%; background:rgba(239,68,68,0.16); color:#ef4444; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-  .pg-res-error strong { font-size:11px; color:#ef4444; display:block; margin-bottom:1px; }
-  .pg-res-error p { font-size:10px; color:var(--color-text-muted); margin:0; word-break:break-all; }
-
-  .pg-res-content { flex:1; overflow:hidden; display:flex; flex-direction:column; min-height:0; }
-  .pg-res-headers { border-bottom:1px solid var(--color-border); }
-  .pg-res-headers__toggle { padding:8px 14px; font-size:9px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:var(--color-text-muted); cursor:pointer; user-select:none; list-style:none; display:flex; align-items:center; gap:4px; }
-  .pg-res-headers__toggle::-webkit-details-marker { display:none; }
-  .pg-res-headers__toggle::before { content:'▸'; font-size:7px; transition:transform 0.2s; }
-  details[open] .pg-res-headers__toggle::before { transform:rotate(90deg); }
-  .pg-res-count { font-weight:400; opacity:0.6; }
-  .pg-res-headers__table-wrap { overflow-x:auto; padding:0 14px 6px; max-height:140px; overflow-y:auto; }
-  .pg-res-headers__table { width:100%; border-collapse:collapse; font-size:10px; font-family:"JetBrains Mono",monospace; }
-  .pg-hdr-key { padding:3px 5px 3px 0; font-weight:600; color:var(--color-primary); white-space:nowrap; vertical-align:top; width:1%; }
-  .pg-hdr-val { padding:3px 0; color:var(--color-text); word-break:break-all; }
-
-  .pg-res-body { flex:1; display:flex; flex-direction:column; min-height:0; }
-  .pg-res-body__head { display:flex; align-items:center; justify-content:space-between; padding:6px 14px 3px; }
-  .pg-res-body__label { font-size:9px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:var(--color-text-muted); }
-  .pg-res-body__maximize { width:22px; height:22px; border-radius:4px; border:1.5px solid var(--color-border); background:transparent; color:var(--color-text-muted); font-size:11px; cursor:pointer; transition:all 0.15s; display:flex; align-items:center; justify-content:center; }
-  .pg-res-body__maximize:hover { border-color:var(--color-primary); color:var(--color-primary); }
-  .pg-res-body__code { flex:1; margin:0 10px 10px; padding:12px; border:1.5px solid var(--color-border); border-radius:9px; background:color-mix(in srgb,var(--color-text) 4%,var(--color-bg)); font-family:"JetBrains Mono","Fira Code",monospace; font-size:10px; line-height:1.6; overflow:auto; white-space:pre-wrap; word-break:break-all; max-height:calc(100vh - 300px); }
-  .pg-res-body__code::-webkit-scrollbar { width:4px; height:4px; }
-  .pg-res-body__code::-webkit-scrollbar-track { background:transparent; }
-  .pg-res-body__code::-webkit-scrollbar-thumb { background:color-mix(in srgb,var(--color-text-muted) 15%,transparent); border-radius:99px; }
-
-  /* Syntax highlighting */
-  .hl-key { color:#89b4fa; }
-  .hl-str { color:#a6e3a1; }
-  .hl-num { color:#fab387; }
-  .hl-bool { color:#cba6f7; }
-  .hl-comment { color:#6c7086; font-style:italic; }
-  .hl-atrule { color:#cba6f7; }
-  .hl-prop { color:#89b4fa; }
-  .hl-val { color:#a6e3a1; }
-  .hl-var { color:#f9e2af; }
-</style>
