@@ -175,13 +175,26 @@ const rawGroups = [
   {
     name: 'AI & Telemetry',
     items: [
-      { id:'ai-generate', method:'POST', path:'/api/v1/ai/generate.json', label:'AI Generate', desc:'根据描述生成 CSS 配色。支持规则引擎或 DeepSeek。', usage:'POST 描述文本。', cache:'不缓存',
-        notes:'双引擎策略：简单描述（如 "dark blue theme"）使用本地规则引擎，毫秒级响应且免费；复杂描述（如 "neon cyberpunk matrix with purple accents"）自动路由到 DeepSeek API 进行语义理解。DeepSeek 调用有每日配额限制（100 次/IP/天），超出后回退到规则引擎。返回标准 34 个 cssVars 结构，与 today.json 格式一致，可直接注入页面。',
-        params:[{name:'body',type:'textarea',label:'Body',placeholder:'{"prompt": "neon cyberpunk matrix"}',optional:false}]
+      { id:'ai-generate', method:'POST', path:'/api/v1/ai/generate.json', label:'AI Generate', desc:'根据文字描述生成完整 CSS 主题配色。支持 OpenAI 智能生成或本地规则引擎降级。', usage:'POST JSON body，字段 description 为主题描述。返回含 34 个 CSS 变量、动画特效、标签的完整主题。', cache:'不缓存',
+        notes:'双引擎策略：简单描述（如 "dark blue theme"）使用本地规则引擎，毫秒级响应且免费；复杂描述（如 "neon cyberpunk matrix with purple accents"）自动路由到 OpenAI（需配置 OPENAI_API_KEY）进行语义理解。每日配额 100 次/IP，超出后回退到规则引擎。返回标准 34 个 cssVars 结构，与 today.json 格式一致，可直接注入页面。支持的关键词：ocean/sunset/forest/sakura/cyber/midnight/dark/light。',
+        params:[{name:'body',type:'textarea',label:'JSON Body — 字段 description 为必填',placeholder:'{\n  "description": "赛博朋克霓虹矩阵"\n}',optional:false}],
+        responseFields:[
+          {name:'name',type:'string',desc:'AI 推断的主题名称'},
+          {name:'cssVars',type:'object',desc:'34 个 CSS 自定义属性（与 today.json 格式一致）'},
+          {name:'tags',type:'array',desc:'风格标签（如 dark/light、vibrant/minimal）'},
+          {name:'customCss',type:'string',desc:'主题配套的纯 CSS 动画特效（@keyframes）'},
+          {name:'description',type:'string',desc:'回显原始输入描述'},
+          {name:'generatedBy',type:'string',desc:'生成引擎：openai 或 rule-engine'},
+        ]
       },
-      { id:'ai-describe', method:'POST', path:'/api/v1/ai/describe.json', label:'AI Describe', desc:'输入 CSS 变量，AI 分析并返回中文风格描述。', usage:'逆向推理主题风格。', cache:'不缓存',
-        notes:'AI Generate 的逆向操作：输入一组 cssVars，AI 分析色相分布、饱和度、亮度、对比度等特征，输出风格描述（中文为主，可附带 en 英文翻译）和风格标签（如 ["dark","tech","cool"]）。适用场景：用户上传截图取色后理解配色风格、为已有主题补全元数据。响应包含 styleName（风格名称）、description（长描述）、tags（标签数组）、mood（情感倾向分析）。',
-        params:[{name:'body',type:'textarea',label:'JSON Body',placeholder:'{\n  "cssVars": {\n    "--color-primary": "#ff6b6b",\n    "--color-bg": "#1a1a2e",\n    "--color-text": "#e0e0e0"\n  }\n}',optional:false}]
+      { id:'ai-describe', method:'POST', path:'/api/v1/ai/describe.json', label:'AI Describe', desc:'输入一组 CSS 变量，AI 逆向分析配色风格并输出中文描述与标签。', usage:'POST JSON body，字段 cssVars 为必填。支持 OpenAI 智能分析或本地规则引擎。', cache:'不缓存',
+        notes:'AI Generate 的逆向操作：输入一组 cssVars，AI 分析色相分布、饱和度、亮度、对比度等特征，输出风格描述和风格标签。适用场景：用户上传截图取色后理解配色风格、为已有主题补全元数据。OpenAI 模式下描述更生动准确；无 API key 时使用 HSL 色相检测规则引擎。',
+        params:[{name:'body',type:'textarea',label:'JSON Body — 字段 cssVars 为必填',placeholder:'{\n  "cssVars": {\n    "--color-primary": "#ff6b6b",\n    "--color-bg": "#1a1a2e",\n    "--color-text": "#e0e0e0"\n  }\n}',optional:false}],
+        responseFields:[
+          {name:'description',type:'string',desc:'基于色彩分析的中文风格描述'},
+          {name:'generatedBy',type:'string',desc:'分析引擎：openai 或 rule-engine'},
+        ]
+      }
     ]
   }
 ];
