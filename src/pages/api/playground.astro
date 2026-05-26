@@ -1,63 +1,55 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 
-// ==========================================
-// Types & Interfaces (Server-Side)
-// ==========================================
-
-interface Param {
-  name: string;
-  type: 'text' | 'select' | 'textarea';
-  label: string;
-  placeholder?: string;
-  optional: boolean;
-  options?: string[];
-  isPath?: boolean;
-}
-
-interface EndpointField {
-  name: string;
-  type: string;
-  desc: string;
-}
-
-interface EndpointRaw {
-  id: string;
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
-  path: string;
-  label: string;
-  desc: string;
-  usage: string;
-  cache: string;
-  responseFields?: EndpointField[];
-  params?: Param[];
-  curlExample?: string;
-  notes?: string;
-}
-
-interface GroupRaw {
-  name: string;
-  items: EndpointRaw[];
-}
-
-interface EndpointParsed extends EndpointRaw {
-  _idx: number;
-  _gid: number;
-  displayPath: string;
-}
-
-// ==========================================
-// Data Processing
-// ==========================================
-
 const siteUrl = Astro.url.origin;
 
-const rawGroups: GroupRaw[] = [
+interface Param {
+  name: string; type: string; label: string; placeholder?: string; optional: boolean; options?: string[]; isPath?: boolean;
+}
+interface EP {
+  id: string; method: string; path: string; label: string; desc: string;
+  usage: string; cache: string;
+  responseFields?: { name: string; type: string; desc: string }[];
+  params?: Param[];
+  curlExample?: string; notes?: string;
+  _idx?: number; _gid?: number; displayPath?: string;
+}
+
+function parseEndpoint(ep: EP): EP {
+  const pathParamsMatch = ep.path.match(/\{([^}]+)\}/g);
+  const pathParams = pathParamsMatch ? pathParamsMatch.map(m => m.slice(1, -1)) : [];
+
+  if (pathParams.length > 0) {
+    if (!ep.params) ep.params = [];
+    pathParams.forEach(pp => {
+      if (!ep.params!.find(p => p.name === pp)) {
+        ep.params!.unshift({ name: pp, type: 'text', label: `路径参数 ${pp}`, placeholder: '...', optional: false, isPath: true });
+      } else {
+        const existing = ep.params!.find(p => p.name === pp);
+        if (existing) existing.isPath = true;
+      }
+    });
+  }
+
+  if (!ep.curlExample) {
+    let curlPath = ep.path;
+    ep.params?.filter(p => p.isPath).forEach(p => { curlPath = curlPath.replace(`{${p.name}}`, p.placeholder || 'xxx'); });
+    const isAbs = curlPath.startsWith('http');
+    ep.curlExample = `curl ${isAbs ? '' : siteUrl}${curlPath}`;
+  }
+
+  ep.displayPath = ep.path.startsWith('http') ? ep.path : ep.path.replace(/^\/api\/v1/, '');
+  if (ep.displayPath === '') ep.displayPath = '/';
+
+  return ep;
+}
+
+const rawGroups = [
   {
     name: 'Core API',
     items: [
       { id:'today', method:'GET', path:'/api/v1/today.json', label:'Today Theme', desc:'获取每日主题的完整数据。包含 34 个 CSS 自定义属性、自定义 CSS 动画、声明式装饰元素数组。', usage:'将 cssVars 注入 :root，推荐配合 localStorage 缓存。', cache:'浏览器 1h / CDN 24h',
-        notes:'返回的 cssVars 对象包含 --color-primary、--color-bg、--color-surface、--color-text、--radii、--shadow 等 34 个标准 CSS 自定义属性。同时返回 decorations 数组、animations 对象、以及 meta 元数据。支持 ?tz= 参数按目标时区计算日期。',
+        notes:'返回的 cssVars 对象包含 --color-primary、--color-bg、--color-surface、--color-text、--radii、--shadow 等 34 个标准 CSS 自定义属性。同时返回 decorations 数组（可直接渲染为 SVG 或 DOM 装饰）、animations 对象（包含 @keyframes 定义）、以及 meta 元数据（主题名、日期、节日信息）。支持 ?tz= 参数按目标时区计算日期。',
         responseFields:[
           {name:'cssVars',type:'object',desc:'34 个 CSS 自定义属性键值对'},
           {name:'decorations',type:'array',desc:'声明式装饰元素（位置、形状、颜色）'},
@@ -69,50 +61,47 @@ const rawGroups: GroupRaw[] = [
           {name:'overrides',type:'text',label:'CSS覆盖',placeholder:'--radii:0px',optional:true},
         ]
       },
-      { id:'today-css', method:'GET', path:'/api/v1/today.css', label:'Today CSS', desc:'返回今日主题的纯 CSS。通过 link 标签阻塞引入可消除 FOUC。', usage:'在 head 中添加 <link rel="stylesheet" href="/api/v1/today.css">', cache:'浏览器 1h / CDN 24h',
-        notes:'与 today.json 不同，此端点直接返回可用的 CSS 文本。因为是阻塞样式表，浏览器会在渲染前等待其加载完成，彻底消除无样式内容闪烁（FOUC）。',
+      { id:'today-css', method:'GET', path:'/api/v1/today.css', label:'Today CSS', desc:'返回今日主题的纯 CSS（:root {} 变量块）。通过 link 标签阻塞引入可消除 FOUC。', usage:'在 head 中添加 <link rel="stylesheet" href="/api/v1/today.css">', cache:'浏览器 1h / CDN 24h',
+        notes:'与 today.json 不同，此端点直接返回可用的 CSS 文本（Content-Type: text/css）。因为是阻塞样式表，浏览器会在渲染前等待其加载完成，彻底消除无样式内容闪烁（FOUC）。适合对首屏视觉一致性要求极高的页面。支持 ?tz= 和 ?overrides= 参数，行为与 today.json 一致。',
         params:[{name:'tz',type:'text',label:'时区',placeholder:'Asia/Shanghai',optional:true}]
       },
       { id:'today-safe', method:'GET', path:'https://themedist-monitor.vercel.app/api/v1/today-safe', label:'Safe Proxy', desc:'安全主题代理。从 ThemeDist 获取最新数据并进行严格的 XSS 清洗与验证。', usage:'适用于直接注入外部站点的场景，返回 _meta 安全元数据。', cache:'无缓存',
-        notes:'此端点运行在独立域名上作为安全隔离层。所有 CSS 属性值经过 DOMPurify 级清洗，移除 potential XSS 向量。'
+        notes:'此端点运行在独立域名 themedist-monitor.vercel.app 上，作为安全隔离层。所有 CSS 属性值经过 DOMPurify 级清洗，移除 potential XSS 向量（expression()、url()、javascript: 等）。返回的 _meta.safe 布尔值标识数据是否通过全部安全检查。适用于用户生成内容（UGC）平台或第三方嵌入场景。'
       },
-      { id:'date-lookup', method:'GET', path:'/api/v1/date={date}', label:'Date Lookup', desc:'按日期查询主题，格式 MM-DD。', usage:'用于日历组件、节日预览等场景。', cache:'浏览器 1h',
-        notes:'路径参数 {date} 必须为 MM-DD 格式。查询逻辑按优先级：精确日期匹配 → 同月同日 → 最近节日回退。',
+      { id:'date-lookup', method:'GET', path:'/api/v1/date={date}', label:'Date Lookup', desc:'按日期查询主题，格式 MM-DD（如 02-14 查询情人节）。', usage:'用于日历组件、节日预览等场景。', cache:'浏览器 1h',
+        notes:'路径参数 {date} 必须为 MM-DD 格式（如 01-01、12-25）。查询逻辑按优先级：精确日期匹配 → 同月同日（忽略年份）→ 最近节日回退。返回的数据结构与 today.json 完全一致。未来日期不会返回错误，而是返回该日期对应的历史主题；如果该日期无历史数据，则回退到当日主题。',
         params:[{name:'date',type:'text',label:'日期',placeholder:'02-14',optional:false,isPath:true}]
       },
       { id:'preset', method:'GET', path:'/api/v1/theme/{id}.json', label:'Theme Detail', desc:'获取指定预设或社区主题的完整数据。', usage:'用于固定主题或主题商店详情页。', cache:'预设 365d / 社区 1h',
-        notes:'预设主题 ID 从静态 CDN 提供缓存 365 天。社区主题 ID 从数据库查询缓存 1 小时。不存在的 ID 返回 404。',
+        notes:'预设主题 ID 如 yozakura-reverie、ocean-depths、cyber-neon 等从静态 CDN 提供，缓存 365 天（immutable）。社区主题 ID（DIY 提交的）从数据库查询，缓存 1 小时。返回结构同 today.json，包含完整 cssVars、decorations、animations、meta。不存在的 ID 返回 404。',
         params:[{name:'id',type:'text',label:'主题ID',placeholder:'yozakura-reverie',optional:false,isPath:true}]
       },
       { id:'random', method:'GET', path:'/api/v1/theme/random.json', label:'Random Theme', desc:'随机获取一个主题。支持池子过滤和确定性随机种子。', usage:'用于换肤按钮。相同 seed 始终返回相同结果。', cache:'不缓存',
-        notes:'?pool=static/community/all 过滤池子。?seed= 接受字符串，基于 deterministic hash 返回确定性随机结果。',
-        params:[
-          {name:'pool',type:'select',label:'来源池',options:['','static','community','all'],optional:true}, 
-          {name:'seed',type:'text',label:'随机种子',placeholder:'42',optional:true}
-        ]
+        notes:'?pool=static 仅从预设主题池中随机；?pool=community 仅从社区池随机；?pool=all 或省略则混合两个池子。?seed= 接受任意字符串，相同种子始终返回相同主题（基于 deterministic hash，非 Math.random）。适用场景：每日换肤（seed=日期）、用户专属主题（seed=用户ID）、A/B 测试。',
+        params:[{name:'pool',type:'select',label:'来源池',options:['','static','community','all'],optional:true}, {name:'seed',type:'text',label:'随机种子',placeholder:'42',optional:true}]
       },
-      { id:'index-data', method:'GET', path:'/api/v1/index-data.json', label:'Index Data', desc:'首页聚合数据。包含当日主题、推荐列表、节假日映射等。', usage:'用于构建首页仪表盘。', cache:'浏览器 1h / CDN 24h',
-        notes:'一次性返回首页所需的全部数据：today、featured、upcoming、popular。可减少多次 HTTP 请求。'
+      { id:'index-data', method:'GET', path:'/api/v1/index-data.json', label:'Index Data', desc:'首页聚合数据。包含当日主题、推荐列表、节假日映射等，减少多次 API 调用。', usage:'用于构建首页仪表盘。', cache:'浏览器 1h / CDN 24h',
+        notes:'一次性返回首页所需的全部数据：today（今日主题完整数据）、featured（推荐主题列表，4-8 个）、upcoming（未来 7 天节日预览）、popular（热门主题排行）。相比分别调用 today + 多个 theme/{id}，可减少 5-10 次 HTTP 请求。推荐在首页 SSR 时服务端 fetch 后注入页面，实现零客户端请求。'
       },
     ]
   },
   {
     name: 'Diagnostics & Export',
     items: [
-      { id:'wcag', method:'GET', path:'/api/v1/theme/{id}/wcag.json', label:'WCAG Audit', desc:'WCAG 2.1 无障碍诊断。评估颜色对比度及合规性。', usage:'包含 compliant 总览标记和 warnings 修复建议。', cache:'浏览器 1h',
-        notes:'自动检测主题中所有前景/背景颜色组合的对比度。提供具体修复建议。'
+      { id:'wcag', method:'GET', path:'/api/v1/theme/{id}/wcag.json', label:'WCAG Audit', desc:'WCAG 2.1 无障碍诊断。评估颜色对比度及 AA/AAA 合规性。', usage:'诊断报告包含 compliant 总览标记和 warnings 修复建议。', cache:'浏览器 1h',
+        notes:'自动检测主题中所有前景/背景颜色组合的对比度。报告包含：contrastRatios（每对颜色的对比度数值）、aaCompliant / aaaCompliant（各级别合规标记）、warnings（具体修复建议，如 "primary text on bg: 3.2:1，需要至少 4.5:1 满足 AA"）。同时检测大文本（≥18px bold）和小文本的不同标准。适用于上线前无障碍审查。'
       },
-      { id:'scale', method:'GET', path:'/api/v1/theme/{id}/scale.json', label:'Tailwind Scale', desc:'基于黑白插值法生成完整的 Tailwind 风格 50~950 色阶。', usage:'返回 11 级色阶。', cache:'365d immutable',
-        notes:'将主题主色与黑白分别在 OKLCH 色彩空间中做线性插值，生成 Tailwind 风格变量。'
+      { id:'scale', method:'GET', path:'/api/v1/theme/{id}/scale.json', label:'Tailwind Scale', desc:'基于黑白插值法生成完整的 Tailwind 风格 50~950 色阶。', usage:'返回 primary/secondary/accent/background 四组 11 级色阶。', cache:'365d immutable',
+        notes:'算法原理：将主题主色与 #000 和 #fff 分别在 OKLCH 色彩空间中做线性插值，生成从 50（最浅）到 950（最深）共 11 级色阶。每组色阶保持色调一致，仅亮度递增。返回 JSON 格式 { primary: {50:"#...", 100:"#...", ..., 950:"#..."}, secondary: {...}, accent: {...}, background: {...} }。可直接导入 Tailwind config 的 theme.colors 字段。'
       },
-      { id:'shadcn', method:'GET', path:'/api/v1/theme/{id}/export/shadcn.css', label:'Shadcn UI', desc:'Shadcn UI 适配器，转换为 HSL 变量体系。', usage:'直接复制输出到 globals.css 中。', cache:'365d immutable',
-        notes:'自动完成 HEX → HSL 转换，并基于 WCAG 自动推断 foreground 色，覆盖全套 Shadcn 语义变量。'
+      { id:'shadcn', method:'GET', path:'/api/v1/theme/{id}/export/shadcn.css', label:'Shadcn UI', desc:'Shadcn UI 适配器，转换为 HSL 通道变量体系，自动推断前景色。', usage:'可直接复制输出到 globals.css 中。', cache:'365d immutable',
+        notes:'Shadcn UI 使用 HSL 通道变量（如 --primary: 220 80% 55%），与 ThemeDist 的 HEX 变量体系不同。此端点自动完成转换：HEX → HSL 通道分离，并基于 WCAG 对比度算法自动推断 foreground（前景色，确保 4.5:1 以上对比度）。输出覆盖 --primary、--secondary、--accent、--destructive、--muted、--card、--border、--ring 等全部 Shadcn 语义变量。'
       },
-      { id:'shiki', method:'GET', path:'/api/v1/theme/{id}/shiki.json', label:'Shiki Theme', desc:'映射为 Shiki / VS Code 的 TextMate Token 颜色。', usage:'直接导入 VS Code。', cache:'365d immutable',
-        notes:'将主题映射为 keyword, string, comment 等 20+ 种语义标记。'
+      { id:'shiki', method:'GET', path:'/api/v1/theme/{id}/shiki.json', label:'Shiki Theme', desc:'将主题变量映射为 Shiki / VS Code 的 TextMate Token 颜色。', usage:'用于代码高亮组件或直接导入 VS Code。', cache:'365d immutable',
+        notes:'依据 TextMate 语法规范，将主题的主色、背景色、文字色映射为标准 token 类型：keyword、string、number、comment、function、variable、type 等 20+ 种语义标记。同时生成 editor.background、editor.foreground、editor.lineHighlight 等 VS Code 工作台颜色。输出为标准的 JSON TextMate 主题格式，可直接作为 VS Code / Shiki 的 theme 配置。'
       },
-      { id:'extract', method:'POST', path:'/api/v1/extract-theme.json', label:'Image Extra', desc:'图片取色 API。纯 JS 进行 K-means 聚类并映射为 UI 标准变量。', usage:'POST 图片 URL。', cache:'不缓存',
-        notes:'支持 jpg/png/webp/avif 格式。图片 URL 必须可公开访问。返回标准 34 个 CSS 变量。',
+      { id:'extract', method:'POST', path:'/api/v1/extract-theme.json', label:'Image Extra', desc:'图片取色 API。纯 JS 进行 K-means 聚类并用语义引擎映射为 UI 标准变量。', usage:'POST 图片 URL，获取生成的 34 个 CSS 变量。', cache:'不缓存',
+        notes:'处理流程：下载图片 → 缩放到 200x200 → K-means（k=6）聚类提取主色调 → 语义引擎将聚类结果映射为 UI 语义角色（主色、背景色、文字色、强调色等）→ 输出标准 34 个 CSS 变量。支持 jpg/png/webp/avif 格式。图片 URL 必须可公开访问，超时 15 秒。返回的 _meta.extraction 包含聚类置信度评分。',
         params:[{name:'body',type:'textarea',label:'JSON Body',placeholder:'{\n  "imageUrl": "https://example.com/poster.jpg"\n}',optional:false}]
       }
     ]
@@ -120,142 +109,142 @@ const rawGroups: GroupRaw[] = [
   {
     name: 'Tools & Assets',
     items: [
-      { id:'tailwind-config', method:'GET', path:'/api/v1/tailwind-config.json', label:'Tailwind Conf', desc:'生成 Tailwind CSS v3/v4 配置片段。', usage:'处理 RGB 通道不透明度支持。', cache:'浏览器 1h',
-        notes:'兼容 v3 tailwind.config.js 和 v4 CSS-first 配置。'
+      { id:'tailwind-config', method:'GET', path:'/api/v1/tailwind-config.json', label:'Tailwind Conf', desc:'生成 Tailwind CSS v3/v4 配置片段，处理 RGB 通道不透明度支持。', usage:'直接集成至 tailwind.config.js。', cache:'浏览器 1h',
+        notes:'将 HEX 颜色转换为 RGB 通道格式（如 #ff6b6b → 255 107 107），以支持 Tailwind 的 opacity 修饰符（bg-primary/50 → rgba(255,107,107,0.5)）。同时生成对应的 CSS 变量声明和 Tailwind extend.colors 配置。兼容 v3 的 tailwind.config.js 和 v4 的 CSS-first 配置两种格式，通过 ?version= 参数切换。'
       },
       { id:'tokens', method:'GET', path:'/api/v1/tokens.json', label:'Design Tokens', desc:'导出符合 W3C DTCG 规范的 JSON 设计令牌。', usage:'用于导入 Figma 或 Style Dictionary。', cache:'浏览器 1h',
-        notes:'包含所有 CSS 变量及其语义分组。'
+        notes:'输出格式遵循 W3C Design Tokens Community Group 规范（DTCG Format）。每个 token 包含 $type（color、dimension、shadow 等）、$value、$description。可直接导入 Figma Tokens 插件、Style Dictionary 构建流程、或 Amazon Style Dictionary。包含所有 34 个 CSS 变量及其语义分组（color、spacing、typography、shadow）。'
       },
-      { id:'svg-pattern', method:'GET', path:'/api/v1/today/pattern.css', label:'SVG Pattern', desc:'根据今日主题色生成几何图案背景纹理。', usage:'作为 background-image 使用。', cache:'浏览器 1h',
-        notes:'生成 data-uri 内联的 SVG 几何图案，图案类型每日轮换。'
+      { id:'svg-pattern', method:'GET', path:'/api/v1/today/pattern.css', label:'SVG Pattern', desc:'根据今日主题色生成几何图案背景纹理。', usage:'通过 <link> 引入并作为 background-image 使用。', cache:'浏览器 1h',
+        notes:'以主色为基调生成 data-uri 内联的 SVG 几何图案。图案类型每日轮换：波点、网格、斜纹、六边形、波浪等。CSS 中导出 .pattern-bg 和 .pattern-overlay 两个 class，分别适用于纯背景和叠加层。图案使用 opacity 0.08~0.15，不会喧宾夺主。'
       },
-      { id:'weather-js', method:'GET', path:'/api/v1/today/weather.js', label:'Weather Particles', desc:'天气粒子动画脚本。云/雨/雪/雷暴特效。', usage:'引入脚本自动渲染。', cache:'浏览器 1h / CDN 24h',
-        notes:'自动创建 Canvas 层，根据天气代码选择动画。60fps。'
+      { id:'weather-js', method:'GET', path:'/api/v1/today/weather.js', label:'Weather Particles', desc:'天气粒子动画脚本。云/雨/雪/雷暴特效。', usage:'引入 <script src="...">，自动定位并渲染 Canvas/DOM 粒子。', cache:'浏览器 1h / CDN 24h',
+        notes:'脚本自执行，无需手动初始化。自动创建 position:fixed 的全屏 Canvas 层，根据当日天气代码选择动画：晴天（浮动光点）、多云（漂移云朵）、雨天（下落雨滴+溅射）、雪天（飘落雪花+堆积）、雷暴（雨+随机闪电闪烁）。粒子数量随视口大小自适应，使用 requestAnimationFrame 保证 60fps。'
       },
-      { id:'favicon', method:'GET', path:'/api/v1/today/favicon.svg', label:'Dynamic Favicon', desc:'根据今日主题色实时生成 SVG Favicon。', usage:'作为 <link rel="icon"> 引入。', cache:'浏览器 1h',
-        notes:'支持通过 ?text= 自定义文字、?bg= 自定义背景色。'
+      { id:'favicon', method:'GET', path:'/api/v1/today/favicon.svg', label:'Dynamic Favicon', desc:'动态 Favicon。根据今日主题主色和字母实时生成 SVG。', usage:'在 <head> 中作为 icon 引入。', cache:'浏览器 1h',
+        notes:'生成 32x32 的 SVG favicon：圆角矩形背景使用今日主题主色，前景白色文字为首字母（中文节日取首字，国际节日取英文首字母）。支持通过 ?text= 自定义文字、?bg= 自定义背景色。返回 Content-Type: image/svg+xml，可直接作为 <link rel="icon"> 的 href。'
       },
-      { id:'search-color', method:'GET', path:'/api/v1/search/color.json', label:'Color Search', desc:'RGB 欧几里得距离计算相似颜色主题。', usage:'传入 hex 寻找匹配。', cache:'浏览器 1h',
-        notes:'返回最匹配的主题及 distance 数值。',
+      { id:'palette-badge', method:'GET', path:'/api/v1/today/palette.svg', label:'Palette Badge', desc:'今日主题调色盘 SVG 徽章，用于嵌入 README。', usage:'作为 <img> 标签引入即可。', cache:'浏览器 1h',
+        notes:'生成 200x40 的横向调色盘徽章：5-6 个圆角色块并排展示今日主题的核心颜色，右侧显示主题名称。适合嵌入 GitHub README、个人主页、博客侧栏。支持 ?theme=dark 切换深色背景模式。返回 Content-Type: image/svg+xml。'
+      },
+      { id:'search-color', method:'GET', path:'/api/v1/search/color.json', label:'Color Search', desc:'RGB 欧几里得距离计算相似颜色主题。', usage:'传入 hex 寻找最匹配的主题。', cache:'浏览器 1h',
+        notes:'将输入 HEX 转为 RGB 向量，与所有预设主题的主色计算三维欧几里得距离，按距离升序排列。支持 ?limit= 控制返回数量（默认 10，最大 50）。返回的每个结果附带 distance 数值（越小越相似，0 为精确匹配）和匹配主题的完整元数据。适用场景："这个品牌色有什么现成的主题？"',
         params:[{name:'hex',type:'text',label:'Hex颜色',placeholder:'ff6b6b',optional:false}, {name:'limit',type:'text',label:'数量限制',placeholder:'10',optional:true}]
+      },
+      { id:'og-image', method:'GET', path:'/api/v1/theme/{id}/og.svg', label:'OG Image SVG', desc:'1200x630 的社交分享图 SVG 渲染端点。', usage:'用于 og:image meta 标签。', cache:'365d immutable',
+        notes:'生成 1200x630 尺寸的 SVG 社交分享卡。布局：左侧大色块（主题主色）+ 主题名称与描述 + 调色盘预览条。适合作为 <meta property="og:image"> 的 content 值。预设主题预渲染为静态 SVG 文件（CDN 缓存 365 天），社区主题实时生成。'
       }
     ]
   },
   {
     name: 'Environment Context',
     items: [
-      { id:'weather-theme', method:'GET', path:'/api/v1/weather-theme.json', label:'Weather Adaptive', desc:'跨平台嗅探地理位置并匹配对应的天气主题。', usage:'支持通过 ?lat= & ?lon= 覆盖检测。', cache:'30min',
-        notes:'自动嗅探 IP 并调用 Open-Meteo 获取当前天气进行匹配。',
+      { id:'weather-theme', method:'GET', path:'/api/v1/weather-theme.json', label:'Weather Adaptive', desc:'跨平台嗅探地理位置，调用 Open-Meteo 并匹配对应的天气氛围主题。', usage:'支持通过 ?lat= & ?lon= 覆盖 IP 检测结果。', cache:'30min',
+        notes:'处理流程：从请求头（CF-IPCountry、X-Client-Lat/Lon、Cloudflare 头）自动嗅探位置 → 调用 Open-Meteo 免费天气 API 获取当前天气代码 → 匹配天气-主题映射表（晴→暖色调、阴→低饱和、雨→冷蓝、雪→纯白、雷暴→深紫暗色）→ 返回对应主题的 today.json 数据 + weather 元信息。天气代码映射覆盖 WMO 标准全部 29 种天气类型。',
         params:[{name:'lat',type:'text',label:'纬度',placeholder:'35.68',optional:true}, {name:'lon',type:'text',label:'经度',placeholder:'139.76',optional:true}]
       },
-      { id:'status-override', method:'GET', path:'/api/v1/status-override.json', label:'Status Override', desc:'系统状态主题。维护/哀悼/故障。', usage:'用于兜底页及重大状态提示。', cache:'5min',
-        notes:'维护(纯灰)/哀悼(暗黑+滤镜)/故障(红色警示)，全局接管客户端视觉。'
+      { id:'status-override', method:'GET', path:'/api/v1/status-override.json', label:'Status Override', desc:'系统状态主题。维护(纯灰)/哀悼(暗黑+滤镜)/故障(红色警示)。', usage:'用于兜底页及重大状态提示。', cache:'5min',
+        notes:'三种全局状态模式：maintenance — 所有颜色替换为灰色阶，页面添加 "系统维护中" 横幅提示，所有 API 继续正常响应；mourning — 全局去饱和 + 灰度滤镜 + 降低亮度，适用于全国哀悼日等场景；incident — 主色替换为警示红色，页面顶部显示故障公告栏。状态由运营人员通过管理后台切换，所有客户端 5 分钟内生效。'
       }
     ]
   },
   {
-    name: 'Community & AI',
+    name: 'Community Data',
     items: [
-      { id:'diy-list', method:'GET', path:'/api/v1/diy/themes.json', label:'Themes List', desc:'获取社区已审核的主题。', usage:'支持多种维度的 tag 查询。', cache:'1min',
-        notes:'审核状态为 "approved" 的主题才会出现在列表中。',
-        params:[{name:'sort',type:'select',label:'排序',options:['new','hot'],optional:true}, {name:'tag',type:'select',label:'标签',options:['','dark','light','warm','cool','tech'],optional:true}]
+      { id:'diy-list', method:'GET', path:'/api/v1/diy/themes.json', label:'Themes List', desc:'分页、排序、过滤获取社区已审核的主题。', usage:'支持多种维度的 tag 查询。', cache:'1min',
+        notes:'默认按提交时间倒序（new），?sort=hot 按点赞数降序。tag 参数支持 8 种分类：dark、light、warm、cool、vibrant、minimal、nature、tech。分页从 1 开始，size 最大 100。返回的每个主题包含：id、name、author、tags、likes、createdAt、previewColors（5 个预览色块）。审核状态为 "approved" 的主题才会出现在列表中。',
+        params:[{name:'sort',type:'select',label:'排序',options:['new','hot'],optional:true}, {name:'page',type:'text',label:'页码',placeholder:'1',optional:true}, {name:'size',type:'text',label:'数量',placeholder:'20',optional:true}, {name:'tag',type:'select',label:'标签',options:['','dark','light','warm','cool','vibrant','minimal','nature','tech'],optional:true}]
       },
-      { id:'ai-generate', method:'POST', path:'/api/v1/ai/generate.json', label:'AI Generate', desc:'根据描述生成 CSS 配色。', usage:'支持规则引擎或 DeepSeek。', cache:'不缓存',
-        notes:'双引擎策略：简单描述使用规则引擎，复杂描述自动路由到大模型分析。',
+      { id:'diy-single', method:'GET', path:'/api/v1/diy/theme.json', label:'Theme Detail', desc:'获取单个社区主题，包含点赞数和作者信息。', usage:'?id= 传入主题ID。', cache:'5min',
+        notes:'返回完整的社区主题数据：cssVars（34 个属性）、author（作者昵称+头像 URL）、likes（点赞数）、createdAt（提交时间）、status（审核状态）。同时返回 hasLiked 字段（基于当前请求的 IP+UA 判断是否已点赞）。如果主题 ID 不存在或未通过审核，返回 404。'
+      },
+      { id:'diy-submit', method:'POST', path:'/api/v1/diy/submit.json', label:'Submit Theme', desc:'提交新主题进入待审队列。', usage:'提供严格的数据 Schema 验证，返回 warnings。', cache:'不缓存',
+        notes:'提交规范：name 2-30 字符、author 2-20 字符、cssVars 必须包含至少 8 个标准属性（--color-primary 和 --color-bg 为必填）。服务器端对颜色值格式做严格校验（仅接受 #RRGGBB 或 #RRGGBBAA）。同一 IP+UA 每小时最多提交 3 次。审核通过后自动出现在社区列表，通常在 24 小时内完成。返回 warnings 数组提示配色建议（如对比度不足）。',
+        params:[{name:'body',type:'textarea',label:'Body',placeholder:'{\n  "name": "Cyber",\n  "author": "You",\n  "cssVars": {"--color-primary":"#ff0","--color-bg":"#000"}\n}',optional:false}]
+      },
+      { id:'diy-like', method:'POST', path:'/api/v1/diy/like.json', label:'Like Theme', desc:'为社区主题点赞。基于 IP + UA + UUID 防刷保护。', usage:'请求限流 10次/分钟。', cache:'不缓存',
+        notes:'防刷机制：同一 IP+UA 组合对同一主题只能点赞一次（再次请求为取消点赞）。同时维护浏览器端 UUID（localStorage），即使 IP 变更也能识别重复操作。每分钟全局限流 10 次，超出返回 429。点赞数变更实时生效，但排行榜缓存 1 分钟。'
+      }
+    ]
+  },
+  {
+    name: 'AI & Telemetry',
+    items: [
+      { id:'ai-generate', method:'POST', path:'/api/v1/ai/generate.json', label:'AI Generate', desc:'根据描述生成 CSS 配色。支持规则引擎或 DeepSeek。', usage:'POST 描述文本。', cache:'不缓存',
+        notes:'双引擎策略：简单描述（如 "dark blue theme"）使用本地规则引擎，毫秒级响应且免费；复杂描述（如 "neon cyberpunk matrix with purple accents"）自动路由到 DeepSeek API 进行语义理解。DeepSeek 调用有每日配额限制（100 次/IP/天），超出后回退到规则引擎。返回标准 34 个 cssVars 结构，与 today.json 格式一致，可直接注入页面。',
         params:[{name:'body',type:'textarea',label:'Body',placeholder:'{"prompt": "neon cyberpunk matrix"}',optional:false}]
+      },
+      { id:'ai-describe', method:'POST', path:'/api/v1/ai/describe.json', label:'AI Describe', desc:'输入 CSS 变量，AI 分析并返回中文风格描述。', usage:'逆向推理主题风格。', cache:'不缓存',
+        notes:'AI Generate 的逆向操作：输入一组 cssVars，AI 分析色相分布、饱和度、亮度、对比度等特征，输出风格描述（中文为主，可附带 en 英文翻译）和风格标签（如 ["dark","tech","cool"]）。适用场景：用户上传截图取色后理解配色风格、为已有主题补全元数据。响应包含 styleName（风格名称）、description（长描述）、tags（标签数组）、mood（情感倾向分析）。'
       }
     ]
   }
 ];
 
-function parseEndpoint(ep: EndpointRaw, _idx: number, _gid: number): EndpointParsed {
-  const pathParamsMatch = ep.path.match(/\{([^}]+)\}/g);
-  const pathParams = pathParamsMatch ? pathParamsMatch.map(m => m.slice(1, -1)) : [];
-  const params: Param[] = ep.params ? [...ep.params] : [];
-
-  if (pathParams.length > 0) {
-    pathParams.forEach(pp => {
-      const existing = params.find(p => p.name === pp);
-      if (!existing) {
-        params.unshift({ name: pp, type: 'text', label: `Path Param ${pp}`, placeholder: '...', optional: false, isPath: true });
-      } else {
-        existing.isPath = true;
-      }
-    });
-  }
-
-  let curlPath = ep.path;
-  params.filter(p => p.isPath).forEach(p => { 
-    curlPath = curlPath.replace(`{${p.name}}`, p.placeholder || 'xxx'); 
-  });
-  
-  const isAbs = curlPath.startsWith('http');
-  const curlExample = ep.curlExample || `curl ${isAbs ? '' : siteUrl}${curlPath}`;
-  
-  let displayPath = ep.path.startsWith('http') ? ep.path : ep.path.replace(/^\/api\/v1/, '');
-  if (displayPath === '') displayPath = '/';
-
-  return { ...ep, params, curlExample, displayPath, _idx, _gid };
-}
-
 let epIndex = 0;
-const flatEndpoints = rawGroups.flatMap((g, gi) => g.items.map(ep => parseEndpoint(ep, epIndex++, gi)));
-const flatJSON = JSON.stringify(flatEndpoints);
+const flat = rawGroups.flatMap((g, gi) =>
+  g.items.map(ep => parseEndpoint({ ...ep, _idx: epIndex++, _gid: gi }))
+);
+const flatJSON = JSON.stringify(flat);
 ---
 
-<Layout title="API Playground | Enterprise">
-  <div id="pg-app-root" class="dashboard-layout" data-site-url={siteUrl} data-endpoints={flatJSON}>
+<Layout title="API Playground">
+  <div class="dashboard-layout">
 
-    <!-- Ambient background (A11y respected via CSS prefers-reduced-motion) -->
-    <div class="pg-amb" aria-hidden="true">
+    <!-- Ambient background -->
+    <div class="pg-amb">
       <div class="pg-amb-orb"></div>
       <div class="pg-amb-orb"></div>
       <div class="pg-amb-grain"></div>
     </div>
 
     <!-- ====== LEFT SIDEBAR ====== -->
-    <nav class="sidebar" aria-label="API Endpoint Navigation">
+    <aside class="sidebar">
       <div class="sidebar-header">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2L2 7l10 5 10-5-10-5z" fill="currentColor"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2"/></svg>
+        <div class="sidebar-logo-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" fill="currentColor"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2"/></svg>
+        </div>
         <span class="sidebar-title">ThemeDist API</span>
       </div>
 
-      <div class="sidebar-scroll" id="pg-sidebar" role="tablist" aria-orientation="vertical">
-        {rawGroups.map((g) => (
-          <div class="nav-group" role="group" aria-label={g.name}>
+      <div class="sidebar-scroll" id="pg-sidebar">
+        {rawGroups.map(g => (
+          <div class="nav-group">
             <div class="nav-group-title">{g.name}</div>
-            {g.items.map((ep) => {
-              const flatItem = flatEndpoints.find(f => f.id === ep.id);
+            {g.items.map(ep => {
+              const flatItem = flat.find(f => f.id === ep.id);
               return (
-                <button type="button" class="nav-item" role="tab" aria-selected="false" data-idx={flatItem?._idx}>
-                  <span class={`method ${ep.method}`} aria-label={`Method ${ep.method}`}>{ep.method}</span>
+                <button class="nav-item" data-idx={String(flatItem?._idx)} onclick={`window.__selectEndpoint(${flatItem?._idx})`}>
+                  <span class={`method ${ep.method}`}>{ep.method}</span>
                   <span class="path" title={flatItem?.displayPath}>{flatItem?.displayPath}</span>
                 </button>
               )
             })}
           </div>
         ))}
-        <div class="nav-group border-separator">
-           <button type="button" class="nav-item custom" id="custom-url-toggle" role="tab" aria-selected="false">
-             <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 3H4a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1v-3"/><path d="M16 2L9 9"/><path d="M11 2h5v5"/></svg>
-             <span class="path margin-left">Custom Request</span>
+
+        <div class="nav-group" style="margin-top: 32px; border-top: 1px solid var(--border-subtle); padding-top: 24px;">
+           <button class="nav-item custom" id="custom-url-toggle">
+             <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3H4a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1v-3"/><path d="M16 2L9 9"/><path d="M11 2h5v5"/></svg>
+             <span class="path" style="margin-left:8px;">Custom Request</span>
            </button>
         </div>
       </div>
-    </nav>
+    </aside>
 
     <!-- ====== RIGHT MAIN ====== -->
-    <main class="main-content" aria-label="Playground Workspace">
+    <main class="main-content">
 
-      <!-- Header & URL Form -->
+      <!-- Fixed Header -->
       <div class="main-header">
         <header class="page-header">
           <h1 class="page-title" id="docs-title">API Playground</h1>
-          <p class="page-desc" id="docs-desc">Select an endpoint to explore.</p>
+          <p class="page-desc" id="docs-desc">Select an endpoint from the sidebar to explore and test.</p>
         </header>
 
-        <form id="request-form" class="url-bar-container" aria-label="Request Builder">
-          <select class="url-method" id="method-select" aria-label="HTTP Method">
+        <!-- Fixed Top URL Bar -->
+        <div class="url-bar-container">
+          <select class="url-method" id="method-select">
             <option value="GET">GET</option>
             <option value="POST">POST</option>
             <option value="PUT">PUT</option>
@@ -263,1041 +252,1122 @@ const flatJSON = JSON.stringify(flatEndpoints);
           </select>
           <div class="url-input-wrap">
             <span class="url-prefix" id="url-prefix">{siteUrl}</span>
-            <input type="text" class="url-input" id="url-input" spellcheck="false" autocomplete="off" aria-label="Request URL path" />
+            <input type="text" class="url-input" id="url-input" value="/api/v1/today.json" spellcheck="false" autocomplete="off" />
           </div>
-          <button type="submit" class="btn-send" id="pg-send">Send Request</button>
-          <span class="kbd-hint" aria-hidden="true">Ctrl+Enter</span>
-        </form>
-
-        <div class="rate-limit-hint" id="pg-send-hint" aria-live="polite"></div>
+          <button class="btn-send" id="pg-send" onclick="window.__doSend()">
+            <span>Send Request</span>
+            <svg class="send-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          </button>
+        </div>
+        <div class="header-tools">
+          <span class="kbd-hint">Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to execute</span>
+          <div class="rate-limit-hint" id="pg-send-hint"></div>
+        </div>
       </div>
 
       <!-- 2-Column Content Grid -->
       <div class="content-grid">
 
         <!-- LEFT COL: Request Config -->
-        <section class="request-col" aria-label="Request Configuration">
-          
-          <header class="panel-title">
-            <h2>Parameters</h2>
-            <button type="button" class="btn-add" id="param-add" aria-label="Add custom parameter">+ Add</button>
-          </header>
-          
+        <div class="request-col">
+
+          <div class="panel-title">
+            <span>Parameters</span>
+            <button class="btn-add" id="param-add">+ Add Param</button>
+          </div>
           <div class="params-box">
             <div class="params-list" id="params-list"></div>
-            <div id="no-params" class="empty-state">No parameters required.</div>
+            <div id="no-params" class="empty-state">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4" style="margin-bottom:8px;"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+              <br/>No parameters required
+            </div>
           </div>
 
-          <div id="body-section" class="hidden">
-            <header class="panel-title">
-              <h2>Body <span class="badge">JSON</span></h2>
-              <button type="button" class="btn-add" id="body-format" aria-label="Format JSON Body">Format</button>
-            </header>
-            <textarea class="body-editor" id="body-editor" spellcheck="false" aria-label="Request JSON Body"></textarea>
-            <div class="feedback" id="body-feedback" aria-live="polite"></div>
+          <div id="body-section" style="display:none;">
+            <div class="panel-title">
+              <span>Body <span class="badge">JSON</span></span>
+              <button class="btn-add" id="body-format">Format JSON</button>
+            </div>
+            <div class="body-editor-wrap">
+              <textarea class="body-editor" id="body-editor" spellcheck="false"></textarea>
+            </div>
+            <div class="feedback" id="body-feedback"></div>
           </div>
 
-          <!-- Documentation Area -->
-          <article class="docs-mini">
-            <h2 class="panel-title margin-top-lg">Documentation</h2>
+          <!-- Light Docs Area -->
+          <div class="docs-mini">
+            <div class="panel-title" style="margin-top:32px;">Documentation</div>
             <div class="docs-card">
+              <p id="docs-desc-card" class="text-muted" style="font-size:13px; margin:0 0 16px; line-height: 1.5;">—</p>
               <div class="docs-meta">
-                <div class="meta-item">
-                  <span class="meta-label">Cache</span>
-                  <span id="docs-cache" class="meta-value color-highlight">—</span>
+                <div class="docs-meta-item">
+                  <span class="meta-label">Cache Strategy</span>
+                  <span id="docs-cache" class="meta-value highlight">—</span>
                 </div>
-                <div class="meta-item">
-                  <span class="meta-label">Usage</span>
+                <div class="docs-meta-item">
+                  <span class="meta-label">Usage Scenario</span>
                   <span id="docs-usage" class="meta-value">—</span>
                 </div>
               </div>
               <div id="docs-notes" class="docs-notes"></div>
-              <div id="docs-fields" class="hidden docs-fields">
+              <div id="docs-fields" style="display:none; margin-top:16px;">
                 <span class="meta-label">Response Fields</span>
-                <table class="res-headers-table margin-top-sm" id="docs-fields-table"></table>
+                <table class="res-headers-table styled-table" id="docs-fields-table"></table>
               </div>
             </div>
-            <pre id="docs-curl" class="code-block curl-block" aria-label="cURL Command"></pre>
-            <button type="button" class="btn-add margin-top-sm" id="copy-curl-btn">Copy cURL</button>
-          </article>
+            <div class="curl-wrapper">
+              <pre id="docs-curl" class="code-block curl-block"></pre>
+              <button class="btn-icon copy-btn" id="copy-curl-btn" title="Copy cURL">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              </button>
+            </div>
+          </div>
 
-        </section>
+        </div>
 
-        <!-- RIGHT COL: Response View -->
-        <section class="response-col" aria-label="Response Workspace">
-          <header class="panel-title sr-only"><h2>Response & History</h2></header>
+        <!-- RIGHT COL: Response -->
+        <div class="response-col">
 
           <!-- Tabs -->
-          <nav class="res-tabs" id="res-tabs" aria-label="Workspace Tabs">
-            <button type="button" class="res-tab" aria-selected="true" data-tab="response">Response</button>
-            <button type="button" class="res-tab" aria-selected="false" data-tab="history">History</button>
-            <button type="button" class="res-tab-btn hidden" id="history-clear" title="Clear all history">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-              <span class="sr-only">Clear History</span>
+          <div class="res-tabs" id="res-tabs">
+            <div class="res-tabs-nav">
+              <button class="res-tab active" data-tab="response">Response</button>
+              <button class="res-tab" data-tab="history">History</button>
+              <div class="tab-indicator"></div>
+            </div>
+            <button class="res-tab-btn" id="history-clear" title="Clear all history" style="display:none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
             </button>
-          </nav>
+          </div>
 
           <!-- Response Box -->
           <div class="response-box" id="response-box">
-            
-            <header class="res-toolbar hidden" id="res-toolbar">
-              <div class="res-status-wrap" aria-live="polite">
+            <div class="res-toolbar" id="res-toolbar" style="display:none;">
+              <div class="res-status-wrap">
                 <span id="res-status" class="status-code"></span>
                 <span id="res-time" class="res-time"></span>
                 <span id="res-size" class="res-size"></span>
               </div>
-              <button type="button" class="btn-icon" id="res-copy" title="Copy response" aria-label="Copy Response">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <button class="btn-icon" id="res-copy" title="Copy response">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
               </button>
-            </header>
+            </div>
 
             <div class="res-content-area">
-              
-              <div id="pg-empty" class="empty-state padded">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" class="icon-faded"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                <p class="margin-bottom-sm">Hit <strong class="color-accent">Send Request</strong> to execute.</p>
-                <p class="text-xs color-muted">Or press <kbd class="kbd">Ctrl+Enter</kbd></p>
+              <div id="pg-empty" class="empty-state fill-empty">
+                <div class="empty-icon-wrap">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                </div>
+                <p class="empty-title">Ready to Send</p>
+                <p class="empty-subtitle">Configure your request and hit <strong>Send</strong></p>
               </div>
 
-              <div id="pg-loading" class="empty-state padded hidden" aria-live="assertive">
-                <div class="spinner" aria-hidden="true"></div>
-                <span class="text-sm color-muted">Sending request...</span>
-                <span class="text-xs color-muted margin-top-xs block" id="pg-loading-url"></span>
+              <div id="pg-loading" class="empty-state fill-empty" style="display:none;">
+                <div class="loader-pulse"></div>
+                <span class="loading-text">Executing request...</span>
+                <span class="loading-url" id="pg-loading-url"></span>
               </div>
 
-              <div id="pg-error" class="error-state hidden" aria-live="assertive">
+              <div id="pg-error" class="error-state" style="display:none;">
                 <div class="error-header">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
                   <strong>Request Failed</strong>
                 </div>
-                <span id="pg-error-msg" class="text-sm color-secondary"></span>
+                <span id="pg-error-msg" class="error-desc"></span>
               </div>
 
-              <div id="res-content" class="res-flex-content hidden">
+              <!-- Fixed Bug 1: Changed overflow:hidden to overflow-y:auto to allow the entire response area to scroll -->
+              <div id="res-content" style="display:none; flex-direction:column; flex:1; min-height:0; overflow-y:auto; overflow-x:hidden;">
                 <details class="res-headers">
-                  <summary>Headers (<span id="hdr-count"></span>)</summary>
+                  <summary>Response Headers (<span id="hdr-count">0</span>)</summary>
                   <table class="res-headers-table" id="res-headers"></table>
                 </details>
 
-                <div id="res-preview" class="res-preview hidden"></div>
-                <pre id="res-body" class="code-block fill-block" aria-label="Response Body"></pre>
+                <div id="res-preview" class="res-preview" style="display:none;"></div>
+                <pre id="res-body" class="code-block fill-block"></pre>
               </div>
-
             </div>
           </div>
 
-          <!-- History Panel -->
-          <div class="history-panel hidden" id="history-panel">
-            <div class="history-list" id="history-list" role="list"></div>
-            <div class="empty-state padded" id="history-empty">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="icon-faded margin-bottom-sm"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              <p class="text-sm color-muted">No request history yet.</p>
+          <!-- History Panel (Bug 2: Beautified structure) -->
+          <div class="history-panel" id="history-panel" style="display:none;">
+            <div class="history-list" id="history-list"></div>
+            <div class="empty-state fill-empty" id="history-empty">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3" style="margin-bottom:12px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <p style="color:var(--text-muted); font-size:13px; margin:0;">No request history yet.</p>
+              <p style="color:var(--text-muted); font-size:11px; margin:4px 0 0;">Requests you send will appear here.</p>
             </div>
           </div>
 
-        </section>
+        </div>
       </div>
+
     </main>
   </div>
 </Layout>
 
-<!-- ==========================================
-     Client-Side Script (TypeScript Native in Astro)
-=========================================== -->
-<script>
-  // ------------------------------------------
-  // Core Types
-  // ------------------------------------------
-  interface Param { name: string; type: string; placeholder?: string; options?: string[]; }
-  interface EndpointParsed { 
-    id: string; method: string; path: string; label: string; desc: string; usage: string; cache: string; 
-    notes?: string; curlExample?: string; params?: Param[]; responseFields?: any[]; displayPath: string; _idx: number; 
+<style is:global>
+  html, body {
+    margin: 0; padding: 0;
+    height: 100%;
+    overscroll-behavior: none;
   }
+</style>
+
+<style>
+  .dashboard-layout {
+    /* Fallback variables to ensure graceful degradation if Layout is missing */
+    --bg-base:        var(--color-bg, #09090b);
+    --bg-sidebar:     var(--color-bg, #09090b);
+    --bg-surface:     var(--color-surface, #18181b);
+    --bg-elevated:    color-mix(in srgb, var(--color-surface, #18181b) 50%, var(--bg-base) 50%);
+    --border-subtle:  var(--color-border, #27272a);
+    --text-primary:   var(--color-text, #fafafa);
+    --text-secondary: var(--color-text-muted, #a1a1aa);
+    --text-muted:     color-mix(in srgb, var(--text-secondary) 60%, transparent);
+    --accent:         var(--color-primary, #6366f1);
+    --accent-hover:   color-mix(in srgb, var(--accent) 85%, #fff);
+    --accent-blue:    #3b82f6;
+    --accent-green:   #10b981;
+    --accent-red:     #ef4444;
+    --accent-orange:  #f59e0b;
+    --font-mono:      var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+    --font-body:      var(--font-body, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+    --radii:          var(--radii, 8px);
+    --radii-lg:       calc(var(--radii) + 4px);
+
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+  }
+
+  /* ====== AMBIENT BACKGROUND ====== */
+  .pg-amb {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+  }
+  .pg-amb-orb {
+    position: absolute; border-radius: 50%; filter: blur(140px);
+    animation: orbDrift 20s ease-in-out infinite alternate;
+    will-change: transform; opacity: 0.35;
+  }
+  .pg-amb-orb:nth-child(1) {
+    width: 60vw; height: 60vw; max-width: 800px; max-height: 800px;
+    top: -20%; left: -10%;
+    background: color-mix(in srgb, var(--accent) 50%, transparent);
+  }
+  .pg-amb-orb:nth-child(2) {
+    width: 50vw; height: 50vw; max-width: 600px; max-height: 600px;
+    bottom: -15%; right: -5%;
+    background: color-mix(in srgb, var(--accent-blue) 40%, transparent);
+    animation-delay: -5s;
+  }
+  .pg-amb-grain {
+    position: fixed; inset: 0; z-index: 0; opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  @keyframes orbDrift {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(3%, 4%) scale(1.05); }
+  }
+
+  /* ====== SIDEBAR ====== */
+  .sidebar { width: 260px; flex-shrink: 0; border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; background: color-mix(in srgb, var(--bg-sidebar) 90%, transparent); backdrop-filter: blur(20px); position: relative; z-index: 10; }
+  .sidebar-header { height: 64px; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; gap: 12px; }
+  .sidebar-logo-icon { width: 28px; height: 28px; border-radius: 6px; background: linear-gradient(135deg, var(--accent), var(--accent-blue)); display: flex; align-items: center; justify-content: center; color: #fff; }
+  .sidebar-title { font-weight: 600; font-size: 14px; letter-spacing: -0.01em; }
   
-  interface HistoryEntry {
-    id: string; timestamp: number; method: string; path: string; fullUrl: string;
-    status: number; statusText: string; duration: number; size: number;
-    contentType: string; responseBody: string;
+  .sidebar-scroll { flex: 1; overflow-y: auto; padding: 20px 0; }
+  .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+  .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+  .sidebar-scroll::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 4px; }
+
+  .nav-group { margin-bottom: 24px; }
+  .nav-group-title { padding: 0 24px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 8px; font-weight: 600; }
+  
+  .nav-item {
+    display: flex; align-items: center; gap: 12px; width: calc(100% - 16px); margin: 2px 8px; padding: 8px 16px;
+    border: none; background: transparent; color: var(--text-secondary); font-size: 13px; border-radius: 6px;
+    cursor: pointer; text-align: left; transition: all 0.2s;
+  }
+  .nav-item:hover { color: var(--text-primary); background: color-mix(in srgb, var(--text-secondary) 8%, transparent); }
+  .nav-item.active { 
+    color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); 
+    box-shadow: inset 3px 0 0 var(--accent); font-weight: 500;
   }
 
-  // ------------------------------------------
-  // Utility & Storage Services
-  // ------------------------------------------
-  const DOMUtils = {
-    esc: (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'),
-    formatBytes: (b: number) => b < 1024 ? `${b} B` : b < 1048576 ? `${(b/1024).toFixed(1)} KB` : `${(b/1048576).toFixed(2)} MB`,
-    formatDuration: (ms: number) => ms < 1000 ? `${ms}ms` : ms < 10000 ? `${(ms/1000).toFixed(1)}s` : `${(ms/1000).toFixed(0)}s`,
-    durationClass: (ms: number) => ms < 100 ? 'fast' : ms < 500 ? 'medium' : 'slow',
-    timeAgo: (ts: number) => {
-      const diff = Date.now() - ts;
-      if (diff < 60000) return 'just now';
-      if (diff < 3600000) return `${Math.floor(diff/60000)}m ago`;
-      if (diff < 86400000) return `${Math.floor(diff/3600000)}h ago`;
-      return `${Math.floor(diff/86400000)}d ago`;
-    },
-    hlJSON: (jsonStr: string) => {
-      return DOMUtils.esc(jsonStr)
-        .replace(/("(?:[^"\\]|\\.)*")\s*:/g, '<span class="hl-key">$1</span>:')
-        .replace(/"((?:[^"\\]|\\.)*)"/g, '<span class="hl-str">"$1"</span>')
-        .replace(/\b(true|false|null)\b/g, '<span class="hl-bool">$1</span>')
-        .replace(/:\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g, ': <span class="hl-num">$1</span>');
-    }
-  };
+  .method { font-family: var(--font-mono); font-size: 10px; font-weight: 700; min-width: 36px; text-align: left; letter-spacing: 0.02em; }
+  .method.GET { color: var(--accent-green); }
+  .method.POST { color: var(--accent-blue); }
+  .method.PUT { color: var(--accent-orange); }
+  .method.DELETE { color: var(--accent-red); }
+  .path { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  class StorageService {
-    static get<T>(key: string, fallback: T): T {
-      try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
-    }
-    static set(key: string, val: any): void {
-      try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) { console.warn('Storage unavailable', e); }
-    }
+  /* ====== MAIN CONTENT ====== */
+  .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: color-mix(in srgb, var(--bg-surface) 60%, transparent); backdrop-filter: blur(20px); position: relative; z-index: 1; }
+
+  /* Fixed Header */
+  .main-header { flex-shrink: 0; padding: 40px 48px 0; }
+  .page-header { margin-bottom: 24px; }
+  .page-title { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 700; margin: 0 0 8px 0; color: var(--text-primary); letter-spacing: -0.03em; }
+  .page-desc { font-size: 14px; color: var(--text-secondary); margin: 0; max-width: 600px; line-height: 1.6; }
+
+  /* URL Bar */
+  .url-bar-container {
+    display: flex; align-items: stretch; border: 1px solid var(--border-subtle); border-radius: var(--radii-lg);
+    background: var(--bg-elevated); box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); height: 46px; position: relative; z-index: 10;
+  }
+  .url-bar-container:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 15%, transparent), 0 4px 12px rgba(0,0,0,0.1);
+  }
+  .url-method { 
+    padding: 0 16px; background: transparent; border: none; border-right: 1px solid var(--border-subtle); 
+    color: var(--text-primary); font-weight: 600; font-family: var(--font-mono); font-size: 13px; 
+    outline: none; cursor: pointer; transition: background 0.2s; border-radius: var(--radii-lg) 0 0 var(--radii-lg);
+  }
+  .url-method:hover, .url-method:focus { background: color-mix(in srgb, var(--text-secondary) 5%, transparent); }
+  
+  .url-input-wrap { flex: 1; display: flex; align-items: center; padding: 0 16px; min-width: 0; font-family: var(--font-mono); }
+  .url-prefix { color: var(--text-muted); font-size: 13.5px; user-select: none; flex-shrink: 0; }
+  .url-input { flex: 1; background: transparent; border: none; color: var(--text-primary); font-family: inherit; font-size: 13.5px; outline: none; padding: 0 4px; height: 100%; min-width: 0; }
+  
+  .btn-send {
+    padding: 0 24px; background: linear-gradient(135deg, var(--accent), var(--accent-hover)); color: #fff;
+    border: none; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 8px;
+    transition: all 0.2s; font-family: var(--font-body); border-radius: 0 calc(var(--radii-lg) - 1px) calc(var(--radii-lg) - 1px) 0;
+  }
+  .btn-send:hover { filter: brightness(1.1); box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 40%, transparent); }
+  .btn-send:active { transform: scale(0.98); }
+  .btn-send:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); pointer-events: none; }
+
+  .header-tools { display: flex; justify-content: space-between; align-items: center; padding: 12px 4px 0; min-height: 28px; }
+  .kbd-hint { font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+  .kbd-hint kbd { background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 4px; padding: 2px 6px; font-family: var(--font-mono); font-size: 10px; color: var(--text-secondary); }
+  .rate-limit-hint { font-size: 12px; color: var(--accent-orange); font-weight: 500; }
+
+  /* Content Grid */
+  .content-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 32px; padding: 24px 48px 48px; overflow: hidden; }
+  @media (max-width: 1100px) { 
+    .content-grid { grid-template-columns: 1fr; overflow-y: auto; padding-bottom: 64px; } 
+    .request-col, .response-col { overflow: visible !important; min-height: auto !important; }
+    .response-col { height: 600px; flex-shrink: 0; }
   }
 
-  class QuotaService {
-    static LIMIT = 100;
-    static KEY = 'pg_daily_quota_v2';
-    
-    static getUsage(): number {
-      const today = new Date().toISOString().slice(0,10);
-      const data = StorageService.get(this.KEY, { date: today, count: 0 });
-      return data.date === today ? data.count : 0;
-    }
-    static increment(): number {
-      const today = new Date().toISOString().slice(0,10);
-      const next = this.getUsage() + 1;
-      StorageService.set(this.KEY, { date: today, count: next });
-      return next;
-    }
+  .panel-title { font-size: 12px; font-weight: 600; color: var(--text-primary); margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: space-between; }
+  .badge { background: var(--bg-elevated); border: 1px solid var(--border-subtle); padding: 2px 6px; border-radius: 4px; font-size: 9px; vertical-align: middle; }
+
+  /* ====== REQUEST COLUMN ====== */
+  .request-col { overflow-y: auto; min-height: 0; padding-right: 8px; display: flex; flex-direction: column; gap: 24px; }
+  .request-col::-webkit-scrollbar { width: 4px; }
+  .request-col::-webkit-scrollbar-track { background: transparent; }
+  .request-col::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 4px; }
+
+  /* ====== PARAMETERS ====== */
+  .params-box { background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radii); padding: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+  .params-list { display: flex; flex-direction: column; gap: 4px; }
+
+  .param-row {
+    display: grid; grid-template-columns: 140px auto 1fr 32px; align-items: center; gap: 8px;
+    border-radius: 6px; background: transparent; border: 1px solid transparent;
+    transition: all 0.2s; padding: 4px;
+  }
+  .param-row:hover { background: color-mix(in srgb, var(--text-secondary) 4%, transparent); border-color: var(--border-subtle); }
+  .param-row:focus-within { background: var(--bg-base); border-color: color-mix(in srgb, var(--accent) 50%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 10%, transparent); }
+
+  .param-key { width: 100%; background: transparent; border: none; color: var(--accent); font-family: var(--font-mono); font-size: 12.5px; font-weight: 500; outline: none; padding: 6px 8px; border-radius: 4px; }
+  .param-key::placeholder { color: color-mix(in srgb, var(--accent) 40%, transparent); font-weight: 400; }
+  .param-key:focus { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  
+  .param-eq { color: var(--text-muted); font-family: var(--font-mono); font-size: 12px; user-select: none; text-align: center; }
+
+  .param-val { width: 100%; background: transparent; border: none; color: var(--text-primary); font-family: var(--font-mono); font-size: 12.5px; outline: none; padding: 6px 8px; border-radius: 4px; }
+  .param-val::placeholder { color: var(--text-muted); }
+  .param-val:focus { background: color-mix(in srgb, var(--text-secondary) 8%, transparent); }
+
+  .param-val-sel { width: 100%; background: transparent; border: none; color: var(--text-secondary); font-family: var(--font-mono); font-size: 12.5px; outline: none; padding: 6px 8px; cursor: pointer; appearance: none; border-radius: 4px; }
+  .param-val-sel:focus { color: var(--text-primary); background: color-mix(in srgb, var(--text-secondary) 8%, transparent); }
+
+  .param-del {
+    width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+    background: transparent; border: none; color: var(--text-muted); border-radius: 4px; cursor: pointer;
+    opacity: 0; transition: all 0.2s; margin-left: auto;
+  }
+  .param-row:hover .param-del, .param-row:focus-within .param-del { opacity: 1; }
+  .param-del:hover { color: var(--accent-red); background: color-mix(in srgb, var(--accent-red) 15%, transparent); }
+
+  .btn-add { background: transparent; border: 1px dashed var(--border-subtle); color: var(--text-secondary); font-size: 11px; font-weight: 500; padding: 4px 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+  .btn-add:hover { background: var(--bg-elevated); color: var(--text-primary); border-color: var(--text-muted); }
+
+  .empty-state { text-align: center; color: var(--text-muted); font-size: 13px; padding: 24px; }
+  .fill-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 24px; }
+  .empty-icon-wrap { width: 56px; height: 56px; border-radius: 50%; background: var(--bg-elevated); display: flex; align-items: center; justify-content: center; color: var(--text-muted); margin-bottom: 16px; border: 1px solid var(--border-subtle); }
+  .empty-title { font-weight: 600; color: var(--text-primary); margin: 0 0 6px 0; font-size: 14px; }
+  .empty-subtitle { margin: 0; font-size: 12px; }
+
+  /* Body Editor */
+  .body-editor-wrap { border: 1px solid var(--border-subtle); border-radius: var(--radii); background: var(--bg-elevated); transition: border-color 0.2s; padding: 2px; }
+  .body-editor-wrap:focus-within { border-color: var(--accent); }
+  .body-editor { width: 100%; height: 200px; background: transparent; border: none; color: var(--text-primary); font-family: var(--font-mono); font-size: 13px; padding: 14px; resize: vertical; outline: none; box-sizing: border-box; line-height: 1.5; }
+  .feedback { font-size: 12px; margin-top: 6px; min-height: 18px; font-weight: 500; } .feedback.ok { color: var(--accent-green); } .feedback.err { color: var(--accent-red); }
+
+  /* Light Docs */
+  .docs-card { background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radii); padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+  .docs-meta { display: flex; gap: 32px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border-subtle); }
+  .meta-label { display: block; font-size: 10px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; letter-spacing: 0.05em; }
+  .meta-value { font-size: 12.5px; color: var(--text-primary); }
+  .meta-value.highlight { color: var(--accent); font-family: var(--font-mono); font-size: 12px; }
+  .docs-notes { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+  
+  .styled-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  .styled-table td { padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); }
+  .styled-table tr:last-child td { border-bottom: none; }
+  .styled-table td:first-child { color: var(--text-primary); font-family: var(--font-mono); font-weight: 500; width: 35%; }
+
+  .curl-wrapper { position: relative; margin-top: 16px; }
+  .curl-block { white-space: pre-wrap; word-break: break-all; margin: 0; padding: 16px 48px 16px 16px; background: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: var(--radii); color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; line-height: 1.5; }
+  .copy-btn { position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; border-radius: 6px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
+  .copy-btn:hover { background: var(--bg-surface); color: var(--text-primary); }
+  .copy-btn.copied { color: var(--accent-green); border-color: var(--accent-green); }
+
+  /* ====== RESPONSE COLUMN ====== */
+  .response-col { display: flex; flex-direction: column; overflow: hidden; min-height: 0; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radii-lg); box-shadow: 0 8px 32px rgba(0,0,0,0.05); }
+
+  /* Response Tabs */
+  .res-tabs { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-subtle); padding: 0 16px; background: var(--bg-surface); flex-shrink: 0; }
+  .res-tabs-nav { display: flex; position: relative; }
+  .res-tab { padding: 14px 20px; background: transparent; border: none; color: var(--text-muted); font-size: 13px; font-weight: 500; cursor: pointer; transition: color 0.2s; position: relative; z-index: 1; }
+  .res-tab:hover { color: var(--text-primary); }
+  .res-tab.active { color: var(--accent); }
+  .tab-indicator { position: absolute; bottom: 0; left: 0; height: 2px; width: 0; background: var(--accent); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 2px 2px 0 0; }
+  
+  .res-tab-btn { padding: 6px; background: transparent; border: none; color: var(--text-muted); cursor: pointer; border-radius: 4px; transition: all 0.2s; display: flex; align-items: center; }
+  .res-tab-btn:hover { color: var(--accent-red); background: color-mix(in srgb, var(--accent-red) 10%, transparent); }
+
+  /* ====== RESPONSE BOX ====== */
+  .response-box { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .res-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border-subtle); background: var(--bg-surface); flex-shrink: 0; }
+  .res-status-wrap { display: flex; align-items: center; gap: 16px; }
+  .status-code { font-family: var(--font-mono); font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px; }
+  .status-code.ok { color: var(--accent-green); background: color-mix(in srgb, var(--accent-green) 12%, transparent); }
+  .status-code.err { color: var(--accent-red); background: color-mix(in srgb, var(--accent-red) 12%, transparent); }
+  .res-time, .res-size { font-family: var(--font-mono); font-size: 12px; font-weight: 500; }
+  .res-time.fast { color: var(--accent-green); }
+  .res-time.medium { color: var(--accent-orange); }
+  .res-time.slow { color: var(--accent-red); }
+  .res-size { color: var(--text-muted); }
+
+  .btn-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; color: var(--text-muted); border-radius: 6px; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+  .btn-icon:hover { background: var(--bg-elevated); color: var(--text-primary); }
+
+  .res-content-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; position: relative; }
+
+  .loader-pulse { width: 40px; height: 40px; border-radius: 50%; background: color-mix(in srgb, var(--accent) 20%, transparent); animation: pulse 1.5s infinite cubic-bezier(0.4, 0, 0.2, 1); margin-bottom: 16px; border: 2px solid var(--accent); }
+  @keyframes pulse { 0% { transform: scale(0.8); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+  .loading-text { color: var(--text-primary); font-size: 14px; font-weight: 500; }
+  .loading-url { color: var(--text-muted); font-size: 11px; margin-top: 6px; font-family: var(--font-mono); max-width: 80%; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .error-state { padding: 24px; background: color-mix(in srgb, var(--accent-red) 5%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--accent-red) 15%, transparent); }
+  .error-header { display: flex; align-items: center; gap: 8px; color: var(--accent-red); margin-bottom: 8px; }
+  .error-desc { font-size: 13px; color: var(--text-secondary); font-family: var(--font-mono); }
+
+  /* ✨ FIX 1: 让外部容器 `#res-content` 承接完整的纵向滚动，释放子级的包裹约束 */
+  #res-content {
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+  }
+  #res-content::-webkit-scrollbar { width: 6px; }
+  #res-content::-webkit-scrollbar-track { background: transparent; }
+  #res-content::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 6px; }
+
+  .res-headers { background: var(--bg-surface); border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; }
+  .res-headers summary { padding: 10px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); cursor: pointer; list-style: none; user-select: none; display: flex; align-items: center; }
+  .res-headers summary::-webkit-details-marker { display: none; }
+  .res-headers summary::before { content: "▸"; display: inline-block; width: 16px; transition: transform 0.2s; }
+  .res-headers[open] summary::before { transform: rotate(90deg); }
+  
+  .res-headers-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11.5px; }
+  .res-headers-table td { padding: 6px 16px; border-top: 1px solid var(--border-subtle); color: var(--text-secondary); }
+  .res-headers-table td:first-child { color: var(--text-primary); font-weight: 500; width: 30%; }
+
+  /* ✨ FIX 1: 代码块 `fill-block` 去除局部滚动，转为 `flex: none` 自然撑开其高度 */
+  .fill-block {
+    flex: none;
+    margin: 0;
+    padding: 16px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-all;
   }
 
-  class HistoryService {
-    static KEY = 'pg_history_v2';
-    static MAX = 50;
-    
-    static load(): HistoryEntry[] { return StorageService.get(this.KEY, []); }
-    static clear(): void { StorageService.set(this.KEY, []); }
-    static remove(id: string): void {
-      const items = this.load().filter(e => e.id !== id);
-      StorageService.set(this.KEY, items);
-    }
-    static add(entry: HistoryEntry): void {
-      const items = this.load();
-      items.unshift(entry);
-      if (items.length > this.MAX) items.length = this.MAX;
-      StorageService.set(this.KEY, items);
-    }
+  .res-preview { padding: 32px; display: flex; justify-content: center; align-items: center; background: repeating-conic-gradient(var(--bg-surface) 0% 25%, transparent 0% 50%) 50% / 20px 20px; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; min-height: 200px; }
+  .res-preview img { max-width: 100%; max-height: 400px; border-radius: var(--radii); box-shadow: 0 8px 32px rgba(0,0,0,0.4); border: 1px solid var(--border-subtle); }
+
+  /* Syntax Highlighting */
+  .hl-key { color: color-mix(in srgb, var(--accent) 70%, #a5b4fc); font-weight: 500; }
+  .hl-str { color: var(--accent-green, #34d399); }
+  .hl-num { color: var(--accent-orange, #fbbf24); }
+  .hl-bool { color: var(--accent-blue, #60a5fa); font-weight: 500; }
+  .hl-null { color: var(--text-muted); font-style: italic; }
+
+  /* ====== HISTORY PANEL ====== */
+  /* ✨ FIX 2: 重新绘制精美的高保真卡片化历史面板 UI */
+  .history-panel { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; background: var(--bg-elevated); padding: 20px; }
+  .history-panel::-webkit-scrollbar { width: 6px; }
+  .history-panel::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 6px; }
+
+  .history-list { display: flex; flex-direction: column; gap: 12px; }
+  .history-item {
+    display: flex; align-items: center; gap: 16px; padding: 16px;
+    border-radius: var(--radii); background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    cursor: pointer; transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    position: relative; overflow: hidden;
   }
-
-  class CacheService {
-    static cache = new Map<string, { time: number, data: any }>();
-    static TTL = 5 * 60 * 1000;
-    
-    static get(key: string) {
-      const e = this.cache.get(key);
-      if (!e) return null;
-      if (Date.now() - e.time > this.TTL) { this.cache.delete(key); return null; }
-      return e.data;
-    }
-    static set(key: string, data: any) {
-      if (this.cache.size >= 50) this.cache.delete(this.cache.keys().next().value!);
-      this.cache.set(key, { time: Date.now(), data });
-    }
+  .history-item::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: transparent; transition: background 0.25s;
   }
+  .history-item:hover {
+    border-color: color-mix(in srgb, var(--accent) 30%, var(--border-subtle));
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+  }
+  .history-item:hover::before { background: var(--accent); }
 
-  // ------------------------------------------
-  // Main Controller
-  // ------------------------------------------
-  class ApiPlaygroundApp {
-    private siteUrl: string;
-    private endpoints: EndpointParsed[];
-    private activeEp!: EndpointParsed;
-    private isCustom = false;
-    
-    private lastRequestTime = 0;
-    private lastResBody = '';
+  .history-item-left { display: flex; flex-direction: column; gap: 8px; align-items: center; width: 56px; flex-shrink: 0; }
+  .history-item-method { font-family: var(--font-mono); font-size: 11px; font-weight: 700; padding: 4px 0; border-radius: 6px; text-align: center; letter-spacing: 0.05em; width: 100%; box-sizing: border-box; }
+  .history-item-method.GET { color: var(--accent-green); background: color-mix(in srgb, var(--accent-green) 12%, transparent); }
+  .history-item-method.POST { color: var(--accent-blue); background: color-mix(in srgb, var(--accent-blue) 12%, transparent); }
+  .history-item-method.PUT { color: var(--accent-orange); background: color-mix(in srgb, var(--accent-orange) 12%, transparent); }
+  .history-item-method.DELETE { color: var(--accent-red); background: color-mix(in srgb, var(--accent-red) 12%, transparent); }
 
-    private els: Record<string, HTMLElement> = {};
+  .history-item-status-code { font-family: var(--font-mono); font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
+  .history-item-status-code.ok { color: var(--accent-green); background: color-mix(in srgb, var(--accent-green) 10%, transparent); }
+  .history-item-status-code.err { color: var(--accent-red); background: color-mix(in srgb, var(--accent-red) 10%, transparent); }
 
-    constructor(root: HTMLElement) {
-      this.siteUrl = root.dataset.siteUrl || window.location.origin;
-      this.endpoints = JSON.parse(root.dataset.endpoints || '[]');
-      
-      this.cacheDOM();
-      this.bindEvents();
-      this.updateQuotaUI();
-      this.renderHistory();
-      
-      if (this.endpoints.length) this.selectEndpoint(0);
-    }
+  .history-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 2px 0; }
+  .history-item-url { font-family: var(--font-mono); font-size: 13.5px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .history-item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; font-size: 11.5px; color: var(--text-muted); font-family: var(--font-mono); }
+  .history-item-meta span { display: flex; align-items: center; gap: 5px; }
+  .history-item-meta svg { opacity: 0.6; }
 
-    private cacheDOM() {
-      const ids = [
-        'pg-sidebar', 'custom-url-toggle', 'request-form', 'method-select', 'url-input', 'url-prefix', 'pg-send', 'pg-send-hint',
-        'params-list', 'no-params', 'param-add', 'body-section', 'body-editor', 'body-feedback', 'body-format',
-        'docs-title', 'docs-desc', 'docs-usage', 'docs-cache', 'docs-notes', 'docs-fields', 'docs-fields-table', 'docs-curl', 'copy-curl-btn',
-        'res-tabs', 'response-box', 'history-panel', 'history-list', 'history-empty', 'history-clear',
-        'pg-empty', 'pg-loading', 'pg-loading-url', 'pg-error', 'pg-error-msg',
-        'res-content', 'res-toolbar', 'res-status', 'res-time', 'res-size', 'res-copy',
-        'res-headers', 'hdr-count', 'res-preview', 'res-body'
-      ];
-      ids.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) this.els[id] = el;
-      });
-    }
+  .history-item-actions { display: flex; gap: 8px; opacity: 0; transform: translateX(10px); transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .history-item:hover .history-item-actions { opacity: 1; transform: translateX(0); }
 
-    private bindEvents() {
-      // Sidebar Navigation
-      this.els['pg-sidebar'].addEventListener('click', (e) => {
-        const btn = (e.target as HTMLElement).closest('.nav-item');
-        if (!btn) return;
-        if (btn.id === 'custom-url-toggle') this.enableCustomMode();
-        else if (btn.hasAttribute('data-idx')) this.selectEndpoint(Number(btn.getAttribute('data-idx')));
-      });
+  .history-btn { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 8px; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; }
+  .history-btn:hover { background: var(--bg-surface); color: var(--text-primary); border-color: var(--text-muted); transform: scale(1.05); }
+  .history-btn.delete:hover { color: var(--accent-red); border-color: color-mix(in srgb, var(--accent-red) 30%, transparent); background: color-mix(in srgb, var(--accent-red) 10%, transparent); }
+</style>
 
-      // URL prefix sync
-      this.els['url-input'].addEventListener('input', () => this.syncUrlPrefix());
-      this.els['method-select'].addEventListener('change', (e) => {
-        this.toggleBodySection((e.target as HTMLSelectElement).value !== 'GET');
-      });
+<script define:vars={{ siteUrl, flatJSON }}>
+  window.__SITE_URL__ = siteUrl;
+  window.__FLAT_JSON__ = flatJSON;
+</script>
 
-      // Submit form
-      this.els['request-form'].addEventListener('submit', (e) => {
-        e.preventDefault();
-        this.executeRequest();
-      });
+<script>
+  (function() {
+    var siteUrl = window.__SITE_URL__;
+    var FLAT = JSON.parse(window.__FLAT_JSON__);
+    var activeEP = FLAT[0];
+    var isCustom = false;
+    var lastResBody = '';
 
-      // Global shortcut
-      document.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-          e.preventDefault();
-          this.executeRequest();
-        }
-      });
+    // ── Debounce & Quota ──
+    var lastRequestTime = 0;
+    var DEBOUNCE_MS = 500;
+    var DAILY_LIMIT = 100;
+    var dailyCount = 0;
 
-      // Params Delegation
-      this.els['param-add'].addEventListener('click', () => this.addParamRow());
-      this.els['params-list'].addEventListener('click', (e) => {
-        const delBtn = (e.target as HTMLElement).closest('.param-del');
-        if (!delBtn) return;
-        const row = delBtn.closest('.param-row') as HTMLElement;
-        if (row.dataset.fixed === 'true') {
-          const input = row.querySelector('.param-val, .param-val-sel') as HTMLInputElement;
-          if (input) input.tagName === 'SELECT' ? (input as HTMLSelectElement).selectedIndex = 0 : input.value = '';
-        } else {
-          row.remove();
-          if (this.els['params-list'].children.length === 0) {
-             this.els['no-params'].classList.remove('hidden');
-             this.els['params-list'].classList.add('hidden');
-          }
-        }
-      });
-
-      // Utilities
-      this.els['body-format'].addEventListener('click', () => this.formatBody());
-      this.els['copy-curl-btn'].addEventListener('click', () => this.copyToClipboard(this.els['docs-curl'].textContent || '', this.els['copy-curl-btn'], 'Copy cURL'));
-      this.els['res-copy'].addEventListener('click', () => this.copyToClipboard(this.lastResBody, this.els['res-copy'], ''));
-
-      // Tabs
-      this.els['res-tabs'].addEventListener('click', (e) => {
-        const tab = (e.target as HTMLElement).closest('.res-tab');
-        if (tab) this.switchTab(tab.getAttribute('data-tab')!);
-      });
-
-      // History
-      this.els['history-clear'].addEventListener('click', () => {
-        if (confirm('Clear all request history?')) { HistoryService.clear(); this.renderHistory(); }
-      });
-      this.els['history-list'].addEventListener('click', (e) => {
-        const target = e.target as HTMLElement;
-        const item = target.closest('.history-item');
-        if (!item) return;
-        const id = item.getAttribute('data-id')!;
-        
-        if (target.closest('[data-action="rerun"]')) this.rerunHistoryEntry(id);
-        else if (target.closest('[data-action="delete"]')) { HistoryService.remove(id); this.renderHistory(); }
-        else this.viewHistoryResponse(id);
-      });
-    }
-
-    // --- Core UI State ---
-    private selectEndpoint(idx: number) {
-      this.isCustom = false;
-      this.activeEp = this.endpoints[idx];
-      
-      // Update UI Highlights
-      this.els['pg-sidebar'].querySelectorAll('.nav-item').forEach(el => el.setAttribute('aria-selected', 'false'));
-      this.els['pg-sidebar'].querySelector(`[data-idx="${idx}"]`)?.setAttribute('aria-selected', 'true');
-
-      // Form State
-      (this.els['method-select'] as HTMLSelectElement).value = this.activeEp.method;
-      (this.els['url-input'] as HTMLInputElement).value = this.activeEp.path;
-      this.syncUrlPrefix();
-      
-      this.renderParams(this.activeEp.params || []);
-      this.toggleBodySection(this.activeEp.method !== 'GET');
-      this.renderDocs(this.activeEp);
-      this.resetResponseView();
-    }
-
-    private enableCustomMode() {
-      this.isCustom = true;
-      this.els['pg-sidebar'].querySelectorAll('.nav-item').forEach(el => el.setAttribute('aria-selected', 'false'));
-      this.els['custom-url-toggle'].setAttribute('aria-selected', 'true');
-
-      (this.els['url-input'] as HTMLInputElement).value = '/api/v1/';
-      this.syncUrlPrefix();
-      
-      this.els['params-list'].innerHTML = '';
-      this.els['no-params'].classList.remove('hidden');
-      this.els['params-list'].classList.add('hidden');
-      
-      this.toggleBodySection((this.els['method-select'] as HTMLSelectElement).value !== 'GET');
-      
-      this.renderDocs({ label: 'Custom Request', method: 'GET', path: '/api/v1/', desc: 'Execute a custom HTTP request.', usage: '—', cache: '—', displayPath: '/', _idx: -1, _gid: -1 });
-      this.resetResponseView();
-    }
-
-    // --- Renderer Helpers ---
-    private renderParams(params: Param[]) {
-      const list = this.els['params-list'];
-      const empty = this.els['no-params'];
-      list.innerHTML = '';
-      
-      const visible = params.filter(p => p.name !== 'body');
-      if (visible.length === 0) {
-        empty.classList.remove('hidden');
-        list.classList.add('hidden');
-        return;
-      }
-      
-      empty.classList.add('hidden');
-      list.classList.remove('hidden');
-
-      visible.forEach(p => {
-        const row = document.createElement('div');
-        row.className = 'param-row';
-        row.dataset.fixed = 'true';
-        
-        let valHTML = p.type === 'select' 
-          ? `<select class="param-val-sel" aria-label="${p.name} value">${(p.options||[]).map(o => `<option value="${DOMUtils.esc(o)}">${DOMUtils.esc(o||'—')}</option>`).join('')}</select>`
-          : `<input class="param-val" type="text" placeholder="${DOMUtils.esc(p.placeholder||'')}" aria-label="${p.name} value" />`;
-
-        row.innerHTML = `
-          <input class="param-key" type="text" value="${DOMUtils.esc(p.name)}" readonly aria-label="Key" />
-          <span class="param-eq" aria-hidden="true">=</span>
-          ${valHTML}
-          <button type="button" class="param-del" title="Clear value" aria-label="Clear value">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-          </button>`;
-        list.appendChild(row);
-      });
-    }
-
-    private addParamRow() {
-      this.els['no-params'].classList.add('hidden');
-      this.els['params-list'].classList.remove('hidden');
-      
-      const row = document.createElement('div');
-      row.className = 'param-row';
-      row.innerHTML = `
-        <input class="param-key" type="text" placeholder="Key" aria-label="Key" />
-        <span class="param-eq" aria-hidden="true">=</span>
-        <input class="param-val" type="text" placeholder="Value" aria-label="Value" />
-        <button type="button" class="param-del" title="Remove parameter" aria-label="Remove parameter">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-        </button>`;
-      this.els['params-list'].appendChild(row);
-    }
-
-    private toggleBodySection(show: boolean) {
-      if (show) {
-        this.els['body-section'].classList.remove('hidden');
-        if (!this.isCustom && this.activeEp?.params) {
-          const bp = this.activeEp.params.find(p => p.name === 'body');
-          const editor = this.els['body-editor'] as HTMLTextAreaElement;
-          if (bp && !editor.value) editor.value = bp.placeholder || '';
-        }
-      } else {
-        this.els['body-section'].classList.add('hidden');
-      }
-    }
-
-    private renderDocs(ep: EndpointParsed | any) {
-      this.els['docs-title'].textContent = ep.label;
-      this.els['docs-desc'].textContent = ep.desc;
-      this.els['docs-usage'].textContent = ep.usage;
-      this.els['docs-cache'].textContent = ep.cache;
-      this.els['docs-curl'].textContent = ep.curlExample || `curl ${this.siteUrl}${ep.path}`;
-
-      const notesEl = this.els['docs-notes'];
-      notesEl.textContent = ep.notes || '';
-      ep.notes ? notesEl.classList.remove('hidden') : notesEl.classList.add('hidden');
-
-      const fieldsEl = this.els['docs-fields'];
-      const ft = this.els['docs-fields-table'];
-      if (ep.responseFields?.length) {
-        ft.innerHTML = ep.responseFields.map((f:any) => `<tr><td><code>${DOMUtils.esc(f.name)}</code> <span class="text-xs color-muted">${DOMUtils.esc(f.type)}</span></td><td>${DOMUtils.esc(f.desc)}</td></tr>`).join('');
-        fieldsEl.classList.remove('hidden');
-      } else {
-        fieldsEl.classList.add('hidden');
-      }
-    }
-
-    // --- Actions & Network ---
-    private buildUrl(): string {
-      let path = (this.els['url-input'] as HTMLInputElement).value.trim();
-      const isAbs = path.startsWith('http://') || path.startsWith('https://');
-      if (!isAbs && !path.startsWith('/')) path = '/' + path;
-
-      const qp = new URLSearchParams();
-      this.els['params-list'].querySelectorAll('.param-row').forEach(row => {
-        const key = (row.querySelector('.param-key') as HTMLInputElement)?.value.trim();
-        const val = (row.querySelector('.param-val, .param-val-sel') as HTMLInputElement)?.value.trim();
-        if (!key) return;
-
-        if (path.includes(`{${key}}`)) path = path.replace(`{${key}}`, encodeURIComponent(val));
-        else if (val) qp.append(key, val);
-      });
-
-      path = path.replace(/\{[^}]+\}/g, '');
-      const query = qp.toString();
-      if (query) path += (path.includes('?') ? '&' : '?') + query;
-      
-      return isAbs ? path : this.siteUrl + path;
-    }
-
-    private async executeRequest() {
-      const now = Date.now();
-      if (now - this.lastRequestTime < 500) return;
-      this.lastRequestTime = now;
-
-      if (QuotaService.getUsage() >= QuotaService.LIMIT) {
-        this.showNetworkError(`Daily quota reached (${QuotaService.LIMIT}/${QuotaService.LIMIT}).`);
-        return;
-      }
-
-      const method = (this.els['method-select'] as HTMLSelectElement).value;
-      const url = this.buildUrl();
-
-      if (method === 'GET') {
-        const cached = CacheService.get(`${method}:${url}`);
-        if (cached) return this.displayResponse(cached, true);
-      }
-
-      this.setLoadingState(method, url);
-      const t0 = performance.now();
-      
+    function loadDailyCount() {
       try {
-        const bodyStr = (this.els['body-editor'] as HTMLTextAreaElement).value.trim();
-        const headers: HeadersInit = {};
-        if (method !== 'GET' && method !== 'HEAD' && bodyStr) {
-          headers['Content-Type'] = 'application/json';
-        }
-
-        const res = await fetch(url, { method, headers, body: (method !== 'GET' && bodyStr) ? bodyStr : undefined });
-        const elapsed = Math.round(performance.now() - t0);
-        
-        let hdrRows = '', hdrNum = 0;
-        res.headers.forEach((v, k) => { hdrRows += `<tr><td>${DOMUtils.esc(k)}</td><td>${DOMUtils.esc(v)}</td></tr>`; hdrNum++; });
-        this.els['res-headers'].innerHTML = hdrRows;
-        this.els['hdr-count'].textContent = String(hdrNum);
-
-        const contentType = res.headers.get('content-type') || '';
-        const text = await res.text();
-        const size = new Blob([text]).size;
-
-        const resData = { ok: res.ok, status: res.status, statusText: res.statusText, elapsed, size, contentType, text };
-
-        if (method === 'GET' && res.ok) CacheService.set(`${method}:${url}`, resData);
-        
-        this.displayResponse(resData, false);
-        QuotaService.increment();
-        this.updateQuotaUI();
-
-        HistoryService.add({
-          id: Math.random().toString(36).slice(2),
-          timestamp: Date.now(),
-          method, path: (this.els['url-input'] as HTMLInputElement).value, fullUrl: url,
-          status: res.status, statusText: res.statusText, duration: elapsed, size, contentType,
-          responseBody: text.length > 10240 ? text.slice(0, 10240) + '\n... (truncated)' : text
-        });
-        this.renderHistory();
-
-      } catch (err) {
-        this.showNetworkError(err instanceof Error ? err.message : 'Network connection failed.');
-      } finally {
-        (this.els['pg-send'] as HTMLButtonElement).disabled = false;
-      }
+        var data = JSON.parse(localStorage.getItem('pg-daily') || '{}');
+        var today = new Date().toISOString().slice(0, 10);
+        dailyCount = (data.date === today) ? (data.count || 0) : 0;
+      } catch(e) { dailyCount = 0; }
     }
 
-    private displayResponse(data: any, fromCache: boolean) {
-      this.lastResBody = data.text;
-      const preview = this.els['res-preview'];
-      
-      if (data.contentType.includes('image/')) {
-        const blobUrl = URL.createObjectURL(new Blob([data.text], { type: data.contentType }));
-        preview.innerHTML = `<img src="${blobUrl}" alt="Preview" />`;
-        preview.classList.remove('hidden');
-      } else {
-        preview.classList.add('hidden');
-      }
-
-      let formatted = DOMUtils.esc(data.text);
-      if (data.contentType.includes('json')) {
-        try { formatted = DOMUtils.hlJSON(JSON.stringify(JSON.parse(data.text), null, 2)); } catch(e) {}
-      }
-      this.els['res-body'].innerHTML = formatted;
-
-      const okClass = data.ok ? 'ok' : 'err';
-      this.els['res-status'].className = `status-code ${okClass}`;
-      this.els['res-status'].textContent = `${data.status} ${data.statusText}${fromCache ? ' (cached)' : ''}`;
-      
-      this.els['res-time'].className = `res-time ${fromCache ? '' : DOMUtils.durationClass(data.elapsed)}`;
-      this.els['res-time'].textContent = fromCache ? '(cache)' : DOMUtils.formatDuration(data.elapsed);
-      this.els['res-size'].textContent = DOMUtils.formatBytes(data.size);
-
-      this.els['pg-loading'].classList.add('hidden');
-      this.els['res-toolbar'].classList.remove('hidden');
-      this.els['res-content'].classList.remove('hidden');
+    function incrementDailyCount() {
+      dailyCount++;
+      var today = new Date().toISOString().slice(0, 10);
+      try { localStorage.setItem('pg-daily', JSON.stringify({ date: today, count: dailyCount })); } catch(e) {}
+      updateQuotaHint();
+      return dailyCount;
     }
 
-    // --- State Handlers ---
-    private resetResponseView() {
-      this.els['pg-empty'].classList.remove('hidden');
-      ['pg-loading', 'pg-error', 'res-toolbar', 'res-content'].forEach(id => this.els[id].classList.add('hidden'));
-    }
-
-    private setLoadingState(method: string, url: string) {
-      this.resetResponseView();
-      this.els['pg-empty'].classList.add('hidden');
-      this.els['pg-loading'].classList.remove('hidden');
-      this.els['pg-loading-url'].textContent = `${method} ${url}`;
-      (this.els['pg-send'] as HTMLButtonElement).disabled = true;
-    }
-
-    private showNetworkError(msg: string) {
-      this.els['pg-loading'].classList.add('hidden');
-      this.els['pg-error'].classList.remove('hidden');
-      this.els['pg-error-msg'].textContent = msg;
-    }
-
-    private syncUrlPrefix() {
-      const path = (this.els['url-input'] as HTMLInputElement).value.trim();
-      const isAbs = path.startsWith('http');
-      this.els['url-prefix'].style.display = isAbs ? 'none' : 'inline-block';
-    }
-
-    private switchTab(tab: string) {
-      this.els['res-tabs'].querySelectorAll('.res-tab').forEach(el => {
-        el.setAttribute('aria-selected', el.getAttribute('data-tab') === tab ? 'true' : 'false');
-      });
-      this.els['response-box'].classList.toggle('hidden', tab !== 'response');
-      this.els['history-panel'].classList.toggle('hidden', tab !== 'history');
-    }
-
-    // --- History View ---
-    private renderHistory() {
-      const history = HistoryService.load();
-      if (!history.length) {
-        this.els['history-list'].innerHTML = '';
-        this.els['history-empty'].classList.remove('hidden');
-        this.els['history-clear'].classList.add('hidden');
-        return;
-      }
-      this.els['history-empty'].classList.add('hidden');
-      this.els['history-clear'].classList.remove('hidden');
-
-      this.els['history-list'].innerHTML = history.map(e => {
-        const ok = e.status < 400;
-        return `
-          <div class="history-item" data-id="${e.id}" role="listitem" tabindex="0">
-            <span class="history-item-status-dot ${ok ? '' : 'err'}"></span>
-            <span class="history-item-method ${e.method}">${e.method}</span>
-            <span class="history-item-body">
-              <span class="history-item-path" title="${DOMUtils.esc(e.path)}">${DOMUtils.esc(e.path)}</span>
-              <span class="history-item-meta">
-                <span class="history-item-status-code ${ok ? 'ok' : 'err'}">${e.status} ${DOMUtils.esc(e.statusText)}</span>
-                <span class="history-item-duration ${DOMUtils.durationClass(e.duration)}">${DOMUtils.formatDuration(e.duration)}</span>
-                <span>${DOMUtils.formatBytes(e.size)}</span>
-                <span class="history-item-time">${DOMUtils.timeAgo(e.timestamp)}</span>
-              </span>
-            </span>
-            <span class="history-item-actions">
-              <button type="button" class="history-item-action" data-action="rerun">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Re-run
-              </button>
-              <button type="button" class="history-item-action delete" data-action="delete" title="Delete">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-              </button>
-            </span>
-          </div>`;
-      }).join('');
-    }
-
-    private rerunHistoryEntry(id: string) {
-      const e = HistoryService.load().find(x => x.id === id);
-      if (!e) return;
-      this.switchTab('response');
-      (this.els['method-select'] as HTMLSelectElement).value = e.method;
-      (this.els['url-input'] as HTMLInputElement).value = e.path;
-      this.syncUrlPrefix();
-      this.executeRequest();
-    }
-
-    private viewHistoryResponse(id: string) {
-      const e = HistoryService.load().find(x => x.id === id);
-      if (!e) return;
-      this.switchTab('response');
-      this.resetResponseView();
-      
-      this.els['pg-empty'].classList.add('hidden');
-      this.els['res-toolbar'].classList.remove('hidden');
-      this.els['res-content'].classList.remove('hidden');
-
-      const ok = e.status < 400;
-      this.els['res-status'].className = `status-code ${ok ? 'ok' : 'err'}`;
-      this.els['res-status'].textContent = `${e.status} ${e.statusText}`;
-      this.els['res-time'].textContent = DOMUtils.formatDuration(e.duration);
-      this.els['res-time'].className = `res-time ${DOMUtils.durationClass(e.duration)}`;
-      this.els['res-size'].textContent = DOMUtils.formatBytes(e.size);
-
-      let formatted = DOMUtils.esc(e.responseBody);
-      if (e.contentType.includes('json')) {
-        try { formatted = DOMUtils.hlJSON(JSON.stringify(JSON.parse(e.responseBody), null, 2)); } catch{}
-      }
-      this.els['res-body'].innerHTML = formatted;
-      this.els['res-headers'].innerHTML = '';
-      this.els['hdr-count'].textContent = '0';
-    }
-
-    // --- Misc ---
-    private formatBody() {
-      const editor = this.els['body-editor'] as HTMLTextAreaElement;
-      const fb = this.els['body-feedback'];
-      try {
-        editor.value = JSON.stringify(JSON.parse(editor.value), null, 2);
-        fb.textContent = 'Format OK'; fb.className = 'feedback ok';
-      } catch {
-        fb.textContent = 'Invalid JSON'; fb.className = 'feedback err';
-      }
-      setTimeout(() => fb.textContent = '', 2000);
-    }
-
-    private updateQuotaUI() {
-      const remaining = QuotaService.LIMIT - QuotaService.getUsage();
-      const hint = this.els['pg-send-hint'];
+    function updateQuotaHint() {
+      var hint = getEl('pg-send-hint');
+      var remaining = DAILY_LIMIT - dailyCount;
       if (remaining <= 15) {
-        hint.style.color = remaining <= 5 ? 'var(--accent-red)' : '#f59e0b';
-        hint.textContent = `Daily quota: ${QuotaService.getUsage()}/${QuotaService.LIMIT} (${remaining} remaining)`;
+        hint.style.color = remaining <= 5 ? 'var(--accent-red)' : 'var(--accent-orange)';
+        hint.textContent = 'Daily quota: ' + dailyCount + '/' + DAILY_LIMIT + ' (' + remaining + ' left)';
       } else {
         hint.textContent = '';
       }
     }
 
-    private async copyToClipboard(text: string, btn: HTMLElement, resetText: string) {
-      if (!text) return;
-      try {
-        await navigator.clipboard.writeText(text);
-        btn.classList.add('copied');
-        if (resetText) btn.textContent = 'Copied!';
-        setTimeout(() => {
-          btn.classList.remove('copied');
-          if (resetText) btn.textContent = resetText;
-        }, 1500);
-      } catch (err) { console.error('Copy failed', err); }
+    // ── Cache ──
+    var responseCache = new Map();
+    var CACHE_TTL = 5 * 60 * 1000;
+
+    function getCached(method, url) {
+      var key = method + '::' + url;
+      var entry = responseCache.get(key);
+      if (!entry) return null;
+      if (Date.now() - entry.time > CACHE_TTL) { responseCache.delete(key); return null; }
+      return entry.data;
     }
-  }
 
-  // --- Bootstrapper ---
-  document.addEventListener('DOMContentLoaded', () => {
-    const root = document.getElementById('pg-app-root');
-    if (root) new ApiPlaygroundApp(root);
-  });
+    function setCached(method, url, data) {
+      var key = method + '::' + url;
+      if (responseCache.size >= 50) responseCache.delete(responseCache.keys().next().value);
+      responseCache.set(key, { time: Date.now(), data: data });
+    }
+
+    // ── History ──
+    var HISTORY_KEY = 'pg-history';
+    var HISTORY_MAX = 30;
+    var historyEntries = [];
+
+    function loadHistory() {
+      try { var raw = localStorage.getItem(HISTORY_KEY); historyEntries = raw ? JSON.parse(raw) : []; } catch(e) { historyEntries = []; }
+    }
+    function persistHistory() {
+      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(historyEntries)); } catch(e) {}
+    }
+    function addHistoryEntry(entry) {
+      historyEntries.unshift(entry);
+      if (historyEntries.length > HISTORY_MAX) historyEntries = historyEntries.slice(0, HISTORY_MAX);
+      persistHistory();
+    }
+    window.__deleteHistoryEntry = function(id) {
+      historyEntries = historyEntries.filter(function(e) { return e.id !== id; });
+      persistHistory(); renderHistoryPanel();
+    }
+    window.__rerunHistoryEntry = function(id) {
+      var entry = historyEntries.find(function(e) { return e.id === id; });
+      if (!entry) return;
+      switchTab('response');
+      getEl('method-select').value = entry.method;
+      getEl('url-input').value = entry.path;
+      syncURLPrefix();
+      doSend();
+    }
+    window.__viewHistoryResponse = function(id) {
+      var entry = historyEntries.find(function(e) { return e.id === id; });
+      if (!entry) return;
+      switchTab('response');
+      
+      getEl('pg-empty').style.display = 'none';
+      getEl('pg-loading').style.display = 'none';
+      getEl('pg-error').style.display = 'none';
+      getEl('res-content').style.display = 'flex';
+      getEl('res-toolbar').style.display = 'flex';
+
+      getEl('res-status').className = 'status-code ' + (entry.status < 400 ? 'ok' : 'err');
+      getEl('res-status').textContent = entry.status + ' ' + entry.statusText;
+      getEl('res-time').textContent = formatDuration(entry.duration);
+      getEl('res-time').className = 'res-time ' + durationClass(entry.duration);
+      getEl('res-size').textContent = formatBytes(entry.size);
+
+      lastResBody = entry.responseBody;
+      var isImg = entry.contentType && entry.contentType.includes('image/');
+      
+      if (isImg) {
+        getEl('res-preview').style.display = 'flex';
+        getEl('res-preview').innerHTML = '<span style="color:var(--text-muted);font-size:12px;">Image preview not available in history</span>';
+        getEl('res-body').innerHTML = esc(entry.responseBody);
+      } else {
+        getEl('res-preview').style.display = 'none';
+        var formatted = esc(entry.responseBody);
+        if (entry.contentType && entry.contentType.includes('json')) {
+          try { formatted = hlJSON(JSON.stringify(JSON.parse(entry.responseBody), null, 2)); } catch(e) {}
+        }
+        getEl('res-body').innerHTML = formatted;
+      }
+      
+      getEl('res-headers').innerHTML = '<tr><td colspan="2" style="text-align:center;font-style:italic;">Headers not stored in history</td></tr>';
+      getEl('hdr-count').textContent = '0';
+    }
+
+    // ── Helpers ──
+    function formatBytes(b) { if(b<1024)return b+' B'; if(b<1048576)return(b/1024).toFixed(1)+' KB'; return(b/1048576).toFixed(2)+' MB'; }
+    function formatDuration(ms) { if(ms<1000)return ms+'ms'; return (ms/1000).toFixed(2)+'s'; }
+    function durationClass(ms) { if(ms<200)return 'fast'; if(ms<800)return 'medium'; return 'slow'; }
+    function formatTimestamp(ts) {
+      var d = Date.now() - ts;
+      if (d < 60000) return 'just now';
+      if (d < 3600000) return Math.floor(d/60000) + 'm ago';
+      if (d < 86400000) return Math.floor(d/3600000) + 'h ago';
+      return Math.floor(d/86400000) + 'd ago';
+    }
+    function getEl(s) { return document.getElementById(s); }
+    function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    // Enhanced JSON syntax highlighter
+    function hlJSON(json) {
+      json = esc(json);
+      return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+        var cls = 'hl-num';
+        if (/^"/.test(match)) {
+          if (/:$/.test(match)) cls = 'hl-key';
+          else cls = 'hl-str';
+        } else if (/true|false/.test(match)) {
+          cls = 'hl-bool';
+        } else if (/null/.test(match)) {
+          cls = 'hl-null';
+        }
+        return '<span class="' + cls + '">' + match + '</span>';
+      });
+    }
+
+    // ── URL Sync ──
+    function syncURLPrefix() {
+      var path = getEl('url-input').value.trim();
+      var isAbs = path.startsWith('http://') || path.startsWith('https://');
+      getEl('url-prefix').style.display = isAbs ? 'none' : 'inline-block';
+    }
+    getEl('url-input').addEventListener('input', syncURLPrefix);
+
+    // ── UI Rendering ──
+    function showDocs(ep) {
+      getEl('docs-title').textContent = ep.label || 'Custom Request';
+      getEl('docs-desc').textContent = ep.desc || 'Send a custom API request and explore the response.';
+      getEl('docs-desc-card').textContent = ep.desc || 'No specific description provided.';
+      getEl('docs-usage').textContent = ep.usage || 'N/A';
+      getEl('docs-cache').textContent = ep.cache || 'No Cache';
+      getEl('docs-curl').textContent = ep.curlExample || ('curl ' + siteUrl + (ep.path || '/'));
+
+      var notesEl = getEl('docs-notes');
+      if (ep.notes) { notesEl.innerHTML = '<strong>Notes:</strong> ' + ep.notes; notesEl.style.display = 'block'; } 
+      else { notesEl.style.display = 'none'; }
+
+      var fieldsEl = getEl('docs-fields');
+      var fieldsTable = getEl('docs-fields-table');
+      if (ep.responseFields && ep.responseFields.length) {
+        fieldsTable.innerHTML = ep.responseFields.map(f =>
+          '<tr><td>' + esc(f.name) + '<br><span style="color:var(--text-muted);font-size:10px;font-weight:400;">' + esc(f.type) + '</span></td><td>' + esc(f.desc) + '</td></tr>'
+        ).join('');
+        fieldsEl.style.display = 'block';
+      } else {
+        fieldsEl.style.display = 'none';
+      }
+    }
+
+    getEl('copy-curl-btn').addEventListener('click', function() {
+      var curlCode = getEl('docs-curl').textContent;
+      navigator.clipboard.writeText(curlCode).then(function() {
+        var btn = getEl('copy-curl-btn');
+        btn.classList.add('copied');
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+        setTimeout(function() { 
+          btn.classList.remove('copied'); 
+          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+        }, 1500);
+      });
+    });
+
+    window.__selectEndpoint = function(idx) {
+      isCustom = false;
+      getEl('custom-url-toggle').classList.remove('active');
+      activeEP = FLAT[idx];
+
+      getEl('method-select').value = activeEP.method;
+      getEl('url-input').value = activeEP.path;
+      syncURLPrefix();
+
+      renderParams();
+      highlightSidebar();
+      showDocs(activeEP);
+
+      getEl('body-section').style.display = ['POST','PUT','PATCH'].includes(activeEP.method) ? 'block' : 'none';
+      if (activeEP.method === 'POST') {
+        var bp = (activeEP.params || []).find(p => p.name === 'body');
+        if (bp) getEl('body-editor').value = bp.placeholder || '';
+        else getEl('body-editor').value = '';
+      }
+
+      resetResponseView();
+    }
+
+    function resetResponseView() {
+      getEl('pg-empty').style.display = 'flex';
+      getEl('pg-loading').style.display = 'none';
+      getEl('pg-error').style.display = 'none';
+      getEl('res-content').style.display = 'none';
+      getEl('res-toolbar').style.display = 'none';
+      switchTab('response');
+    }
+
+    function highlightSidebar() {
+      document.querySelectorAll('.nav-item').forEach(el => {
+        el.classList.toggle('active', el.getAttribute('data-idx') === String(activeEP._idx));
+      });
+    }
+
+    function renderParams() {
+      var list = getEl('params-list');
+      list.innerHTML = '';
+      var params = isCustom ? [] : (activeEP.params || []);
+
+      if (params.length === 0 || (params.length === 1 && params[0].name === 'body')) {
+        getEl('no-params').style.display = 'flex';
+        list.style.display = 'none';
+        return;
+      }
+
+      getEl('no-params').style.display = 'none';
+      list.style.display = 'flex';
+
+      params.forEach(p => {
+        if (p.name === 'body') return;
+        var row = document.createElement('div');
+        row.className = 'param-row';
+        var valHTML = p.type === 'select'
+          ? '<select class="param-val-sel" data-param="' + p.name + '">' + (p.options||[]).map(o => '<option value="' + o + '">' + (o||'—') + '</option>').join('') + '</select>'
+          : '<input class="param-val" type="text" data-param="' + p.name + '" placeholder="' + (p.placeholder||'') + '" />';
+
+        row.innerHTML =
+          '<input class="param-key" type="text" value="' + p.name + '" placeholder="Key" readonly />' +
+          '<span class="param-eq">=</span>' +
+          valHTML +
+          '<button class="param-del" title="Clear">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
+          '</button>';
+        row.querySelector('.param-del').addEventListener('click', function() {
+          var input = row.querySelector('.param-val, .param-val-sel');
+          if (input) { if (input.tagName === 'SELECT') input.selectedIndex = 0; else input.value = ''; }
+        });
+        list.appendChild(row);
+      });
+    }
+
+    getEl('param-add').addEventListener('click', function() {
+      getEl('no-params').style.display = 'none';
+      getEl('params-list').style.display = 'flex';
+      var row = document.createElement('div');
+      row.className = 'param-row';
+      row.innerHTML =
+        '<input class="param-key" type="text" placeholder="Key" />' +
+        '<span class="param-eq">=</span>' +
+        '<input class="param-val" type="text" placeholder="Value" />' +
+        '<button class="param-del" title="Remove">' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>' +
+        '</button>';
+      row.querySelector('.param-del').addEventListener('click', function() {
+        row.remove();
+        if(getEl('params-list').children.length===0) {
+          getEl('no-params').style.display = 'flex';
+          getEl('params-list').style.display = 'none';
+        }
+      });
+      getEl('params-list').appendChild(row);
+    });
+
+    getEl('custom-url-toggle').addEventListener('click', function() {
+      isCustom = true;
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      this.classList.add('active');
+
+      getEl('url-input').value = '/api/v1/';
+      syncURLPrefix();
+      getEl('params-list').innerHTML = '';
+      getEl('no-params').style.display = 'flex';
+      getEl('params-list').style.display = 'none';
+      getEl('body-section').style.display = ['POST','PUT','PATCH'].includes(getEl('method-select').value) ? 'block' : 'none';
+      showDocs({ label: 'Custom Request', method: 'GET', path: '/api/v1/' });
+      resetResponseView();
+    });
+
+    getEl('method-select').addEventListener('change', function() {
+      getEl('body-section').style.display = ['POST','PUT','PATCH'].includes(this.value) ? 'block' : 'none';
+    });
+
+    function buildURL() {
+      var path = getEl('url-input').value.trim();
+      var isAbs = path.startsWith('http://') || path.startsWith('https://');
+      if (!isAbs && path.charAt(0) !== '/') path = '/' + path;
+
+      var rows = getEl('params-list').querySelectorAll('.param-row');
+      var qp = [];
+      rows.forEach(row => {
+        var keyInput = row.querySelector('.param-key');
+        var valInput = row.querySelector('.param-val, .param-val-sel');
+        var key = keyInput ? keyInput.value.trim() : '';
+        var val = valInput ? valInput.value.trim() : '';
+
+        if (!key) return;
+        if (path.includes('{' + key + '}')) {
+          path = path.replace('{' + key + '}', encodeURIComponent(val));
+        } else if (val) {
+          qp.push(encodeURIComponent(key) + '=' + encodeURIComponent(val));
+        }
+      });
+
+      path = path.replace(/\{[^}]+\}/g, '');
+      if (qp.length) path += (path.includes('?') ? '&' : '?') + qp.join('&');
+      return isAbs ? path : siteUrl + path;
+    }
+
+    getEl('body-format').addEventListener('click', function() {
+      var fb = getEl('body-feedback');
+      try {
+        var val = getEl('body-editor').value;
+        if (!val.trim()) return;
+        getEl('body-editor').value = JSON.stringify(JSON.parse(val), null, 2);
+        fb.textContent = 'JSON Formatted successfully';
+        fb.className = 'feedback ok';
+      } catch(e) {
+        fb.textContent = 'Invalid JSON structure';
+        fb.className = 'feedback err';
+      }
+      setTimeout(() => fb.textContent = '', 2500);
+    });
+
+    // ── Tabs ──
+    function updateTabIndicator(tabEl) {
+      var indicator = document.querySelector('.tab-indicator');
+      if (indicator && tabEl) {
+        indicator.style.width = tabEl.offsetWidth + 'px';
+        indicator.style.transform = 'translateX(' + tabEl.offsetLeft + 'px)';
+      }
+    }
+    function switchTab(tabName) {
+      document.querySelectorAll('.res-tab').forEach(t => {
+        if (t.getAttribute('data-tab') === tabName) { t.classList.add('active'); updateTabIndicator(t); }
+        else t.classList.remove('active');
+      });
+      getEl('response-box').style.display = tabName === 'response' ? 'flex' : 'none';
+      getEl('history-panel').style.display = tabName === 'history' ? 'flex' : 'none';
+    }
+    document.querySelectorAll('.res-tab').forEach(tab => {
+      tab.addEventListener('click', function() { switchTab(this.getAttribute('data-tab')); });
+    });
+    
+    // Initialize indicator position
+    setTimeout(() => updateTabIndicator(document.querySelector('.res-tab.active')), 100);
+    window.addEventListener('resize', () => updateTabIndicator(document.querySelector('.res-tab.active')));
+
+    getEl('history-clear').addEventListener('click', function() {
+      if (confirm('Clear all request history?')) {
+        historyEntries = [];
+        persistHistory();
+        renderHistoryPanel();
+      }
+    });
+
+    // ✨ FIX 2: 生成高保真卡片化历史面板渲染函数
+    function renderHistoryPanel() {
+      var list = getEl('history-list');
+      var empty = getEl('history-empty');
+      var clearBtn = getEl('history-clear');
+
+      if (historyEntries.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = 'flex';
+        clearBtn.style.display = 'none';
+        return;
+      }
+      empty.style.display = 'none';
+      clearBtn.style.display = 'block';
+
+      list.innerHTML = historyEntries.map(e => {
+        var ok = e.status < 400;
+        return `
+          <div class="history-item" onclick="window.__viewHistoryResponse('${e.id}')">
+            <div class="history-item-left">
+              <span class="history-item-method ${e.method}">${e.method}</span>
+              <span class="history-item-status-code ${ok ? 'ok' : 'err'}">${e.status}</span>
+            </div>
+            <div class="history-item-main">
+              <div class="history-item-url" title="${esc(e.path)}">${esc(e.path)}</div>
+              <div class="history-item-meta">
+                <span title="Duration"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ${formatDuration(e.duration)}</span>
+                <span title="Size"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> ${formatBytes(e.size)}</span>
+                <span title="Timestamp"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> ${formatTimestamp(e.timestamp)}</span>
+              </div>
+            </div>
+            <div class="history-item-actions" onclick="event.stopPropagation()">
+              <button class="history-btn rerun" title="Re-run" onclick="window.__rerunHistoryEntry('${e.id}')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              </button>
+              <button class="history-btn delete" title="Delete" onclick="window.__deleteHistoryEntry('${e.id}')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ── Execute Logic ──
+    window.__doSend = function() {
+      var now = Date.now();
+      if (now - lastRequestTime < DEBOUNCE_MS) return;
+      lastRequestTime = now;
+
+      if (dailyCount >= DAILY_LIMIT) {
+        showError('Daily request limit reached (' + DAILY_LIMIT + '/' + DAILY_LIMIT + '). Try again tomorrow.');
+        return;
+      }
+
+      var m = getEl('method-select').value;
+      var url = buildURL();
+
+      // Check cache
+      if (m === 'GET') {
+        var cached = getCached(m, url);
+        if (cached) { displayResponse(cached, true); return; }
+      }
+
+      getEl('pg-empty').style.display = 'none';
+      getEl('res-content').style.display = 'none';
+      getEl('res-toolbar').style.display = 'none';
+      getEl('pg-error').style.display = 'none';
+      getEl('pg-loading').style.display = 'flex';
+      getEl('pg-loading-url').textContent = m + ' ' + url;
+      getEl('pg-send').disabled = true;
+
+      var t0 = performance.now();
+      var bodyVal = getEl('body-editor').value.trim();
+      var headers = {};
+      if (['POST','PUT','PATCH'].includes(m) && bodyVal) headers['Content-Type'] = 'application/json';
+
+      fetch(url, { method: m, headers: headers, body: ['POST','PUT','PATCH'].includes(m) && bodyVal ? bodyVal : undefined })
+      .then(res => {
+        var elapsed = Math.round(performance.now() - t0);
+        var ct = res.headers.get('content-type') || '';
+        
+        // Render headers
+        var hdrRows = '', hdrNum = 0;
+        res.headers.forEach((v, k) => { hdrRows += '<tr><td>' + esc(k) + '</td><td>' + esc(v) + '</td></tr>'; hdrNum++; });
+        getEl('res-headers').innerHTML = hdrRows;
+        getEl('hdr-count').textContent = hdrNum;
+
+        return res.blob().then(blob => ({ res, ct, blob, elapsed }));
+      })
+      .then(data => {
+        var isImg = data.ct.includes('image/');
+        var payload = {
+          status: data.res.status,
+          statusText: data.res.statusText,
+          elapsed: data.elapsed,
+          bodySize: data.blob.size,
+          contentType: data.ct,
+          ok: data.res.ok,
+          isImage: isImg
+        };
+
+        if (isImg) {
+          payload.objectUrl = URL.createObjectURL(data.blob);
+          payload.text = 'Binary Blob (' + data.blob.size + ' bytes)';
+          finalize(payload, m, url);
+        } else {
+          data.blob.text().then(txt => {
+            payload.text = txt;
+            finalize(payload, m, url);
+          });
+        }
+      })
+      .catch(err => {
+        showError(err.message || 'Failed to connect. The server might be down or blocked by CORS.');
+      })
+      .finally(() => { getEl('pg-send').disabled = false; });
+    };
+
+    function finalize(data, m, url) {
+      if (m === 'GET' && data.ok && !data.isImage) {
+        setCached(m, url, data);
+      }
+      displayResponse(data, false);
+      incrementDailyCount();
+
+      addHistoryEntry({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+        timestamp: Date.now(),
+        method: m,
+        path: getEl('url-input').value.trim(),
+        fullUrl: url,
+        status: data.status,
+        statusText: data.statusText,
+        duration: data.elapsed,
+        size: data.bodySize,
+        contentType: data.contentType,
+        responseBody: data.isImage ? 'Binary Image Data' : (data.text.length > 10240 ? data.text.slice(0, 10240) + '\n... (truncated)' : data.text)
+      });
+      renderHistoryPanel();
+    }
+
+    function showError(msg) {
+      getEl('pg-loading').style.display = 'none';
+      getEl('pg-empty').style.display = 'none';
+      getEl('res-content').style.display = 'none';
+      getEl('res-toolbar').style.display = 'none';
+      getEl('pg-error').style.display = 'block';
+      getEl('pg-error-msg').textContent = msg;
+    }
+
+    function displayResponse(data, fromCache) {
+      lastResBody = data.text;
+      var preview = getEl('res-preview');
+      
+      if (data.isImage && data.objectUrl) {
+        preview.innerHTML = '<img src="' + data.objectUrl + '" alt="Response Image Preview" />';
+        preview.style.display = 'flex';
+      } else {
+        preview.style.display = 'none';
+      }
+
+      var formattedText = esc(data.text);
+      if (data.contentType && data.contentType.includes('json') && !data.isImage) {
+        try { formattedText = hlJSON(JSON.stringify(JSON.parse(data.text), null, 2)); } catch(e) {}
+      }
+      getEl('res-body').innerHTML = formattedText;
+
+      getEl('res-status').className = 'status-code ' + (data.ok ? 'ok' : 'err');
+      getEl('res-status').textContent = data.status + ' ' + data.statusText + (fromCache ? ' (cached)' : '');
+      getEl('res-time').textContent = fromCache ? '(cache)' : formatDuration(data.elapsed);
+      getEl('res-time').className = 'res-time' + (fromCache ? '' : ' ' + durationClass(data.elapsed));
+      getEl('res-size').textContent = formatBytes(data.bodySize);
+
+      getEl('pg-loading').style.display = 'none';
+      getEl('pg-empty').style.display = 'none';
+      getEl('res-toolbar').style.display = 'flex';
+      getEl('res-content').style.display = 'flex';
+    }
+
+    document.addEventListener('keydown', e => { 
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { 
+        e.preventDefault(); 
+        window.__doSend(); 
+      } 
+    });
+
+    getEl('res-copy').addEventListener('click', function() {
+      navigator.clipboard.writeText(lastResBody).then(() => {
+        var btn = this;
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+        setTimeout(() => {
+          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+        }, 1500);
+      });
+    });
+
+    // Init
+    loadDailyCount();
+    updateQuotaHint();
+    loadHistory();
+    renderHistoryPanel();
+    window.__selectEndpoint(0);
+  })();
 </script>
-
-<!-- ==========================================
-     Enterprise CSS Architecture
-=========================================== -->
-<style is:global>
-  :root {
-    --bg-base:        var(--color-bg, #09090b);
-    --bg-sidebar:     var(--color-bg, #09090b);
-    --bg-surface:     var(--color-surface, #18181b);
-    --bg-elevated:    color-mix(in srgb, var(--color-surface, #18181b) 55%, var(--bg-base));
-    
-    --border-subtle:  var(--color-border, #27272a);
-    --border-strong:  color-mix(in srgb, var(--color-border, #27272a) 180%, var(--color-text-muted, #a1a1aa));
-    
-    --text-primary:   var(--color-text, #fafafa);
-    --text-secondary: var(--color-text-muted, #a1a1aa);
-    
-    --accent:         var(--color-primary, #6366f1);
-    --accent-blue:    #3b82f6;
-    --accent-green:   #22c55e;
-    --accent-red:     #ef4444;
-    
-    --ambient-1:      #3b82f644;
-    --ambient-2:      #8b5cf644;
-  }
-
-  html, body {
-    margin: 0; padding: 0;
-    height: 100%;
-    font-family: var(--font-body, system-ui, sans-serif);
-    background: var(--bg-base);
-    color: var(--text-primary);
-  }
-
-  /* Accessibility Defaults */
-  *:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: -1px;
-    border-radius: 2px;
-  }
-  .sr-only {
-    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; 
-    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;
-  }
-  .hidden { display: none !important; }
-</style>
-
-<style>
-  /* ====== LAYOUT ARCHITECTURE ====== */
-  .dashboard-layout {
-    display: flex; height: 100vh; overflow: hidden; position: relative;
-    background: var(--bg-base); transition: background 0.6s ease;
-  }
-  .content-grid {
-    flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; 
-    gap: 32px; padding: 24px 48px 48px 48px; overflow: hidden;
-  }
-  @media (max-width: 1200px) { .content-grid { grid-template-columns: 1fr; overflow-y: auto; } }
-
-  /* ====== AMBIENT FX ====== */
-  .pg-amb { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
-  .pg-amb-orb {
-    position: absolute; border-radius: 50%; filter: blur(160px);
-    will-change: transform; opacity: 0.5; animation: orbDrift 20s ease-in-out infinite;
-  }
-  .pg-amb-orb:nth-child(1) { width: 600px; height: 600px; top: -25%; left: -10%; background: var(--ambient-1); }
-  .pg-amb-orb:nth-child(2) { width: 450px; height: 450px; bottom: -20%; right: -8%; background: var(--ambient-2); animation-delay: -7s; }
-  .pg-amb-grain {
-    position: absolute; inset: 0; opacity: 0.03;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  }
-  @keyframes orbDrift {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    25% { transform: translate(4%, -3%) scale(1.08); }
-    50% { transform: translate(-2%, 2%) scale(0.94); }
-    75% { transform: translate(-3%, -1%) scale(1.05); }
-  }
-  @media (prefers-reduced-motion: reduce) { .pg-amb-orb { animation: none; } }
-
-  /* ====== SIDEBAR COMPONENTS ====== */
-  .sidebar {
-    width: 260px; flex-shrink: 0; border-right: 1px solid var(--border-subtle);
-    display: flex; flex-direction: column; background: var(--bg-sidebar); z-index: 1;
-  }
-  .sidebar-header { height: 64px; display: flex; align-items: center; padding: 0 24px; border-bottom: 1px solid var(--border-subtle); }
-  .sidebar-title { font-weight: 600; font-size: 14px; margin-left: 10px; }
-  
-  .sidebar-scroll { flex: 1; overflow-y: auto; padding: 24px 0; }
-  .sidebar-scroll::-webkit-scrollbar { width: 4px; }
-  .sidebar-scroll::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-secondary) 30%, transparent); border-radius: 4px; }
-  
-  .nav-group { margin-bottom: 24px; }
-  .nav-group-title { padding: 0 24px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 8px; font-weight: 600; }
-  .border-separator { margin-top: 32px; border-top: 1px solid var(--border-subtle); padding-top: 24px; }
-
-  .nav-item {
-    display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 24px 8px 22px;
-    border: none; background: transparent; color: var(--text-secondary); font-size: 13px;
-    cursor: pointer; text-align: left; border-left: 2px solid transparent; transition: all 0.15s;
-  }
-  .nav-item:hover { color: var(--text-primary); background: color-mix(in srgb, var(--accent) 5%, transparent); }
-  .nav-item[aria-selected="true"] { border-left-color: var(--accent); color: var(--text-primary); background: color-mix(in srgb, var(--accent) 8%, transparent); }
-  .nav-item.custom { padding-left: 24px; }
-  .nav-item.custom[aria-selected="true"] { padding-left: 22px; }
-
-  .method { font-family: var(--font-mono, monospace); font-size: 10px; font-weight: 600; min-width: 32px; }
-  .method.GET { color: var(--accent-green); }
-  .method.POST { color: var(--accent-blue); }
-  .method.PUT { color: #f59e0b; }
-  .method.DELETE { color: var(--accent-red); }
-  
-  .path { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .margin-left { margin-left: 8px; }
-
-  /* ====== MAIN HEADER & URL BAR ====== */
-  .main-content { flex: 1; display: flex; flex-direction: column; background: var(--bg-surface); z-index: 1; }
-  .main-header { padding: 48px 48px 0 48px; flex-shrink: 0; }
-  .page-header { margin-bottom: 24px; }
-  .page-title { font-size: 24px; font-weight: 600; margin: 0 0 8px 0; color: var(--text-primary); }
-  .page-desc { font-size: 14px; color: var(--text-secondary); margin: 0; line-height: 1.6; }
-
-  .url-bar-container {
-    display: flex; align-items: center; border: 1px solid var(--border-subtle);
-    border-radius: 6px; background: var(--bg-elevated); transition: border-color 0.2s, box-shadow 0.2s;
-  }
-  .url-bar-container:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
-  
-  .url-method {
-    padding: 0 16px; background: transparent; border: none; border-right: 1px solid var(--border-subtle);
-    color: var(--text-primary); font-weight: 600; font-family: var(--font-mono, monospace); font-size: 13px; outline: none; cursor: pointer;
-  }
-  .url-input-wrap { flex: 1; display: flex; align-items: center; padding: 0 16px; min-width: 0; }
-  .url-prefix { color: var(--text-secondary); font-family: var(--font-mono, monospace); font-size: 13px; user-select: none; }
-  .url-input { flex: 1; background: transparent; border: none; color: var(--text-primary); font-family: var(--font-mono, monospace); font-size: 13px; outline: none; padding: 12px 0 12px 4px; min-width: 0; }
-  
-  .btn-send {
-    padding: 0 28px; background: var(--accent); color: #fff; border: none; font-weight: 600; 
-    font-size: 13px; cursor: pointer; align-self: stretch; transition: filter 0.2s; white-space: nowrap;
-  }
-  .btn-send:hover { filter: brightness(1.1); }
-  .btn-send:disabled { opacity: 0.4; cursor: not-allowed; }
-  .kbd-hint { font-size: 10px; color: var(--text-secondary); font-family: var(--font-mono, monospace); padding: 0 16px; opacity: 0.45; }
-  .rate-limit-hint { min-height: 24px; font-size: 12px; font-weight: 500; margin-top: 8px; }
-
-  /* ====== REQUEST PANEL ====== */
-  .request-col { overflow-y: auto; padding-right: 4px; display: flex; flex-direction: column; }
-  .request-col::-webkit-scrollbar { width: 5px; }
-  .request-col::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-secondary) 25%, transparent); border-radius: 4px; }
-
-  .panel-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; display: flex; align-items: center; justify-content: space-between; margin: 0 0 16px 0; }
-  .panel-title h2 { font-size: inherit; margin: 0; font-weight: inherit; display: flex; align-items: center; }
-  .badge { background: var(--border-subtle); color: var(--text-secondary); padding: 2px 6px; border-radius: 4px; margin-left: 8px; font-size: 10px; font-family: var(--font-mono, monospace); }
-
-  .params-box { background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 10px; margin-bottom: 24px; }
-  .params-list { display: flex; flex-direction: column; gap: 6px; }
-  
-  .param-row { display: flex; align-items: center; border-radius: 6px; background: var(--bg-base); border: 1px solid transparent; transition: border-color 0.2s; }
-  .param-row:hover, .param-row:focus-within { border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
-  
-  .param-key { flex: 0 0 180px; background: transparent; border: none; color: var(--accent); font-family: var(--font-mono, monospace); font-size: 12.5px; font-weight: 500; outline: none; padding: 9px 0 9px 12px; }
-  .param-eq { color: var(--text-secondary); font-family: var(--font-mono, monospace); font-size: 12px; padding: 0 6px; opacity: 0.4; user-select: none; }
-  .param-val, .param-val-sel { flex: 1; background: transparent; border: none; color: var(--text-primary); font-family: var(--font-mono, monospace); font-size: 12.5px; outline: none; padding: 9px 12px 9px 0; min-width: 0; }
-  .param-val-sel { cursor: pointer; color: var(--text-secondary); }
-  
-  .param-del { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; color: var(--text-secondary); border-radius: 5px; cursor: pointer; opacity: 0; margin-right: 2px; }
-  .param-row:hover .param-del, .param-row:focus-within .param-del { opacity: 1; }
-  .param-del:hover { color: var(--accent-red); background: rgba(239, 68, 68, 0.1); }
-
-  .btn-add { background: color-mix(in srgb, var(--accent) 8%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border-subtle)); color: var(--accent); font-size: 11.5px; font-weight: 500; padding: 5px 14px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
-  .btn-add:hover { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--text-primary); }
-
-  .body-editor { width: 100%; height: 220px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-primary); font-family: var(--font-mono, monospace); font-size: 13px; padding: 16px; resize: vertical; outline: none; transition: border-color 0.2s; }
-  .body-editor:focus { border-color: var(--accent); }
-  .feedback { font-size: 12px; margin-top: 8px; min-height: 18px; } .feedback.ok { color: var(--accent-green); } .feedback.err { color: var(--accent-red); }
-
-  /* ====== DOCUMENTATION CARDS ====== */
-  .margin-top-lg { margin-top: 32px; }
-  .margin-top-sm { margin-top: 12px; }
-  .margin-top-xs { margin-top: 4px; }
-  .margin-bottom-sm { margin-bottom: 12px; }
-  .block { display: block; }
-  
-  .docs-card { background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 16px; margin-bottom: 16px; }
-  .docs-meta { display: flex; gap: 24px; margin-bottom: 12px; }
-  .meta-item { display: flex; flex-direction: column; }
-  .meta-label { font-size: 10px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 2px; }
-  .meta-value { font-size: 12px; color: var(--text-primary); }
-  .color-highlight { color: #a5b4fc; }
-  .docs-notes { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
-  
-  .curl-block { white-space: pre-wrap; word-break: break-all; padding: 16px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-secondary); font-family: var(--font-mono, monospace); font-size: 12px; line-height: 1.5; margin: 0; }
-
-  /* ====== RESPONSE PANEL ====== */
-  .response-col { display: flex; flex-direction: column; overflow: hidden; }
-  
-  .res-tabs { display: flex; align-items: center; border-bottom: 1px solid var(--border-subtle); }
-  .res-tab { padding: 9px 18px; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); font-size: 12px; font-weight: 500; cursor: pointer; transition: color 0.2s; }
-  .res-tab:hover { color: var(--text-primary); }
-  .res-tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
-  
-  .res-tab-btn { margin-left: auto; padding: 4px 8px; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; border-radius: 4px; }
-  .res-tab-btn:hover { color: var(--accent-red); background: rgba(239,68,68,0.1); }
-
-  .response-box, .history-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-base); border: 1px solid var(--border-subtle); border-top: none; border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; }
-  .res-toolbar { display: flex; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border-subtle); background: var(--bg-elevated); }
-  .res-status-wrap { display: flex; align-items: center; gap: 12px; }
-  
-  .status-code { font-family: var(--font-mono, monospace); font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 4px; }
-  .status-code.ok { color: var(--accent-green); background: rgba(34, 197, 94, 0.1); }
-  .status-code.err { color: var(--accent-red); background: rgba(239, 68, 68, 0.1); }
-  
-  .res-time, .res-size { font-family: var(--font-mono, monospace); font-size: 12px; }
-  .res-time.fast { color: var(--accent-green); }
-  .res-time.medium { color: #f59e0b; }
-  .res-time.slow { color: var(--accent-red); }
-  .res-size { color: var(--text-secondary); }
-
-  .btn-icon { width: 28px; height: 28px; display: flex; justify-content: center; align-items: center; background: transparent; border: none; color: var(--text-secondary); border-radius: 6px; cursor: pointer; }
-  .btn-icon:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--text-primary); }
-  .btn-icon.copied { color: var(--accent-green); }
-
-  .res-content-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  .res-flex-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-
-  .empty-state { text-align: center; color: var(--text-secondary); font-size: 13px; }
-  .empty-state.padded { padding: 64px 24px; }
-  .icon-faded { opacity: 0.25; }
-  .color-accent { color: var(--accent); }
-  .color-muted { color: var(--text-secondary); }
-  .kbd { background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 3px; padding: 1px 6px; font-family: var(--font-mono, monospace); font-size: 10px; }
-
-  .error-state { padding: 24px; background: rgba(239, 68, 68, 0.05); border-bottom: 1px solid rgba(239, 68, 68, 0.1); }
-  .error-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; color: var(--accent-red); }
-
-  .spinner { width: 24px; height: 24px; border: 2px solid var(--border-subtle); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .res-headers { background: var(--bg-elevated); border-bottom: 1px solid var(--border-subtle); }
-  .res-headers summary { padding: 10px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); cursor: pointer; list-style: none; }
-  .res-headers summary::-webkit-details-marker { display: none; }
-  .res-headers-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono, monospace); font-size: 11px; text-align: left; }
-  .res-headers-table td { padding: 4px 16px; border-top: 1px solid var(--border-subtle); color: var(--text-secondary); }
-  .res-headers-table td:first-child { color: var(--text-primary); font-weight: 500; width: 30%; }
-
-  .fill-block { flex: 1; margin: 0; padding: 16px; background: transparent; border: none; overflow-y: auto; color: var(--text-secondary); font-family: var(--font-mono, monospace); font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-all; }
-  .res-preview { padding: 24px; display: flex; justify-content: center; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="%23111"/><rect width="5" height="5" fill="%231a1a1a"/><rect x="5" y="5" width="5" height="5" fill="%231a1a1a"/></svg>'); border-bottom: 1px solid var(--border-subtle); }
-  .res-preview img { max-width: 100%; max-height: 300px; border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-
-  /* JSON Syntax Highlighting */
-  .hl-key { color: color-mix(in srgb, var(--accent) 70%, #93c5fd); }
-  .hl-str { color: color-mix(in srgb, var(--accent-green) 80%, #86efac); }
-  .hl-num { color: color-mix(in srgb, var(--accent-red) 80%, #fca5a5); }
-  .hl-bool { color: #c4b5fd; }
-
-  /* ====== HISTORY PANEL ====== */
-  .history-panel { overflow-y: auto; }
-  .history-panel::-webkit-scrollbar { width: 4px; }
-  .history-panel::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-secondary) 30%, transparent); }
-
-  .history-item { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--border-subtle); cursor: pointer; border-left: 3px solid transparent; transition: background 0.15s; }
-  .history-item:hover, .history-item:focus-visible { background: color-mix(in srgb, var(--accent) 3%, var(--bg-elevated)); border-left-color: color-mix(in srgb, var(--accent) 30%, transparent); outline: none; }
-  
-  .history-item-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-green); flex-shrink: 0; }
-  .history-item-status-dot.err { background: var(--accent-red); }
-  
-  .history-item-method { font-family: var(--font-mono, monospace); font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px; min-width: 34px; text-align: center; }
-  .history-item-method.GET { color: #22c55e; background: rgba(34,197,94,0.12); }
-  .history-item-method.POST { color: #3b82f6; background: rgba(59,130,246,0.12); }
-  .history-item-method.PUT { color: #f59e0b; background: rgba(245,158,11,0.12); }
-  .history-item-method.DELETE { color: #ef4444; background: rgba(239,68,68,0.12); }
-  
-  .history-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-  .history-item-path { font-family: var(--font-mono, monospace); font-size: 12.5px; font-weight: 500; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .history-item-meta { display: flex; gap: 14px; font-family: var(--font-mono, monospace); font-size: 11px; color: var(--text-secondary); }
-  .history-item-status-code { font-weight: 600; }
-  .history-item-status-code.ok { color: var(--accent-green); }
-  .history-item-status-code.err { color: var(--accent-red); }
-  .history-item-duration.fast { color: var(--accent-green); }
-  .history-item-duration.slow { color: var(--accent-red); }
-  
-  .history-item-actions { display: flex; gap: 6px; }
-  .history-item-action { display: flex; align-items: center; gap: 5px; padding: 6px 12px; background: transparent; border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-secondary); font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
-  .history-item-action:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); border-color: color-mix(in srgb, var(--accent) 25%, transparent); color: var(--text-primary); }
-  .history-item-action.delete { border-color: transparent; }
-  .history-item-action.delete:hover { color: var(--accent-red); background: rgba(239,68,68,0.08); }
-</style>
