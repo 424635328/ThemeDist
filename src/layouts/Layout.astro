@@ -70,6 +70,9 @@ function navClass(path: string) {
       transition: background 0.6s ease, color 0.6s ease;
     }
 
+    /* Global mouse-position CSS variables for theme parallax effects */
+    :root { --mx: 0.5; --my: 0.5; }
+
     ::selection {
       background: color-mix(in srgb, var(--color-primary) 30%, transparent);
       color: var(--color-text);
@@ -517,7 +520,7 @@ function navClass(path: string) {
        LAYOUT
        ============================================ */
     .content {
-      position: relative; z-index: 1;
+      position: relative; z-index: 2;
       min-height: calc(100vh - 64px);
     }
 
@@ -537,7 +540,7 @@ function navClass(path: string) {
        FOOTER
        ============================================ */
     .footer {
-      position: relative; z-index: 1;
+      position: relative; z-index: 2;
       border-top: 1px solid var(--color-border);
       padding: 14px 32px;
       background: color-mix(in srgb, var(--color-surface) 18%, transparent);
@@ -823,7 +826,7 @@ function navClass(path: string) {
   </div>
   <div class="amb-grain"></div>
   <div id="td-extensions"></div>
-  <script id="td-exts-json" type="application/json" is:inline>
+  <script id="td-exts-json" type="application/json">
     {extensionsJSON}
   </script>
   {extensions && extensions.length > 0 && (
@@ -930,7 +933,7 @@ function navClass(path: string) {
   <button class="btop" id="btop" aria-label="返回顶部" title="返回顶部">↑</button>
   <div class="toast" id="toast"></div>
 
-  <script lang="ts">
+  <script is:inline>
     // ── Safe extension renderer (no innerHTML) ──
     function _safeVal(v) { return (v||'').toString().slice(0,128).replace(/[;{}]/g,'').replace(/url\s*\(/gi,'').replace(/expression\s*\(/gi,'').replace(/javascript\s*:/gi,'').replace(/@import/gi,'').trim(); }
     function _safeDim(v) { var s = _safeVal(v); return /^-?[\d.]+(?:%|px|em|rem|vh|vw|s|ms)?$/i.test(s) ? s : ''; }
@@ -955,6 +958,10 @@ function navClass(path: string) {
           var tpl = document.createElement('template');
           tpl.innerHTML = ext.html;
           var frag = tpl.content.cloneNode(true);
+          // Strip script/iframe/object/embed nodes and their text content
+          frag.querySelectorAll('script, iframe, object, embed').forEach(function(node) {
+            node.remove();
+          });
           frag.querySelectorAll('*').forEach(function(el) {
             Array.from(el.attributes).forEach(function(attr) {
               if (/^on/i.test(attr.name)) el.removeAttribute(attr.name);
@@ -1154,6 +1161,23 @@ function navClass(path: string) {
       // Preview links use regular navigation with ?theme= param
       // The loadPreview() call above handles the initial load
       // No SPA interception needed — clean page navigation is more robust
+    })();
+
+    // ── Global mouse position → CSS custom properties (for theme parallax effects) ──
+    (function() {
+      var mx = 0.5, my = 0.5;
+      var raf = 0;
+      document.addEventListener('mousemove', function(e) {
+        mx = e.clientX / window.innerWidth;
+        my = e.clientY / window.innerHeight;
+        if (!raf) {
+          raf = requestAnimationFrame(function() {
+            raf = 0;
+            document.documentElement.style.setProperty('--mx', mx.toFixed(3));
+            document.documentElement.style.setProperty('--my', my.toFixed(3));
+          });
+        }
+      }, { passive: true });
     })();
 
     // Back to top + nav scroll effect

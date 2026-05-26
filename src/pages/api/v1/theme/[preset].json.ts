@@ -1,5 +1,7 @@
 import { getAllThemes } from '../../../../utils/daily-theme';
 import { get as redisGet } from '../../../../lib/redis';
+import { sanitizeCustomCss } from '../../../../utils/sanitize';
+import { sanitizeExtensionsOutput } from '../../../../utils/sanitize';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -21,8 +23,8 @@ export async function GET({ params }: { params: { preset: string } }) {
             preset: presetId,
             presetName: ct.name,
             cssVars: ct.cssVars,
-            customCss: ct.customCss || null,
-            extensions: ct.extensions || null,
+            customCss: sanitizeCustomCss(ct.customCss) || null,
+            extensions: sanitizeExtensionsOutput(ct.extensions) || null,
             logoText: null,
             logoColors: null,
             apiVersion: 'v1',

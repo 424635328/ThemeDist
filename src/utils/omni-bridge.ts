@@ -4,6 +4,7 @@ import type { ComposedTheme, AnyExtension, ThemeTag } from '../themes/types';
 import { isReady, zrevrange, get, zcard } from '../lib/redis';
 import { cacheGet, cacheSet } from '../lib/cache';
 import { parseLegacyExtension } from './sanitize';
+import { sanitizeExtensionsOutput, sanitizeCustomCss } from './sanitize';
 import { extractRgbChannels } from './color';
 import { getDayOfYear } from './date';
 import { STRUCTURAL_CSS_VARS } from '../lib/css-vars-defaults';
@@ -422,8 +423,8 @@ function communityToComposed(ct: CommunityThemeRaw): ComposedTheme {
     preset: `community-${ct.id}`,
     presetName: ct.name,
     cssVars: enrichCssVars(ct.cssVars),
-    customCss: ct.customCss || undefined,
-    extensions: ct.extensions && ct.extensions.length > 0 ? ct.extensions : undefined,
+    customCss: sanitizeCustomCss(ct.customCss) || undefined,
+    extensions: sanitizeExtensionsOutput(ct.extensions),
     tags: (ct.tags?.length ? ct.tags.filter(Boolean) : undefined) || inferTagsFromVars(ct.cssVars),
   };
 }

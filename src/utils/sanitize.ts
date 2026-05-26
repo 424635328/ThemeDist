@@ -250,6 +250,31 @@ const ALLOWED_TAGS = new Set([
 // Tags that MUST be stripped — no legitimate decorative use.
 const DANGEROUS_TAGS_RE = /<\/?(script|iframe|object|embed|applet|frame|frameset|form|input|button|select|textarea|option|optgroup|label|fieldset|legend|meta|base|link|audio|video|source|track|canvas)\b[^>]*\/?>/gi;
 
+// Strip dangerous tags AND their inner content (prevents text-node JS leakage)
+const DANGEROUS_TAGS_CONTENT_RE = /<(script|iframe|object|embed|applet|frame|frameset|form|input|button|select|textarea|option|optgroup|label|fieldset|legend|meta|base|link|audio|video|source|track|canvas)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
+
+// JS execution patterns — extensions containing these are rejected outright
+const JS_EXEC_PATTERNS = [
+  /\bwindow\s*\.\s*_\w+\s*=/i,       // window._hsState = ...
+  /\bwindow\s*\[\s*["'][\w-]+["']\s*\]/i,
+  /\bdocument\s*\.\s*getElementById\b/i,
+  /\bdocument\s*\.\s*querySelector\b/i,
+  /\bdocument\s*\.\s*createElement\b/i,
+  /\brequestAnimationFrame\b/i,
+  /\bsetInterval\b/i,
+  /\bsetTimeout\b.*\bfunction\b/i,
+  /\beval\s*\(/i,
+  /\bcanvas\s*\.\s*getContext\b/i,
+  /\bnew\s+Worker\s*\(/i,
+  /\blocalStorage\b/i,
+  /\bsessionStorage\b/i,
+  /\bfetch\s*\(/i,
+  /\bXMLHttpRequest\b/i,
+  /\bnavigator\s*\./i,
+  /\.innerHTML\s*=/i,
+  /\.outerHTML\s*=/i,
+];
+
 // Allowed attributes (prefix-based) — everything else stripped.
 const ALLOWED_ATTR_PREFIXES = [
   'class', 'id', 'style',
@@ -284,8 +309,20 @@ function sanitizeAttributes(tagContent: string): string {
 }
 
 function sanitizeDecorativeHtml(html: string): string {
-  // 1. Strip dangerous tags (script, iframe, form elements, media, meta, etc.)
-  let cleaned = html.replace(DANGEROUS_TAGS_RE, '');
+  // 0. Reject outright if JS execution patterns detected
+  for (const pattern of JS_EXEC_PATTERNS) {
+    if (pattern.test(html)) return '';
+  }
+
+  // 1. Strip dangerous tags AND their inner content (prevents text-node JS leakage)
+  let cleaned = html;
+  let prev = '';
+  while (prev !== cleaned) {
+    prev = cleaned;
+    cleaned = cleaned.replace(DANGEROUS_TAGS_CONTENT_RE, '');
+  }
+  // Also strip any self-closing dangerous tags
+  cleaned = cleaned.replace(DANGEROUS_TAGS_RE, '');
 
   // 2. Sanitize <style> blocks — extract CSS, run through sanitizeCustomCss, re-wrap
   cleaned = cleaned.replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gi, (_m: string, css: string) => {
@@ -310,6 +347,31 @@ function sanitizeDecorativeHtml(html: string): string {
 // ─── Query parameter override parsing ───
 
 const OVERRIDE_KEY_RE = /^--[a-zA-Z0-9_-]+$/;
+
+// ─── Output pipeline sanitization (for Redis-loaded community themes) ───
+
+/**
+ * Sanitize extensions array at output time. Re-runs decorative HTML
+ * through sanitizeDecorativeHtml to catch any JS that may have been
+ * stored before sanitization rules were tightened.
+ * Returns undefined if the result is empty after filtering.
+ */
+export function sanitizeExtensionsOutput(exts: any[] | null | undefined): any[] | undefined {
+  if (!Array.isArray(exts) || exts.length === 0) return undefined;
+  const cleaned: any[] = [];
+  for (const ext of exts) {
+    if (!ext || typeof ext !== 'object') continue;
+    if (ext.type === 'decorative' && ext.html) {
+      const html = sanitizeDecorativeHtml(String(ext.html));
+      if (!html) continue; // drop entirely if sanitization rejected it
+      cleaned.push({ ...ext, html });
+    } else if (ext.type === 'floating') {
+      cleaned.push(ext);
+    }
+    // drop unsupported types silently
+  }
+  return cleaned.length > 0 ? cleaned : undefined;
+}
 
 /**
  * Validate and sanitize a single override key-value pair.

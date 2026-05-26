@@ -1005,7 +1005,7 @@ fetch('${siteUrl}/api/v1/today.json')
     left: 0 !important;
     width: 100vw !important;
     height: 100vh !important;
-    z-index: 0 !important;
+    z-index: 1 !important;
     pointer-events: none !important;
     overflow: hidden !important;
   }
@@ -1114,9 +1114,9 @@ fetch('${siteUrl}/api/v1/today.json')
 <style is:global>
   /* Force content layer above the weather wallpaper */
   .nav     { position: sticky !important; z-index: 100 !important; }
-  .content { position: relative !important; z-index: 1 !important; }
-  .footer  { position: relative !important; z-index: 1 !important; }
-  .hp-hero { position: relative !important; z-index: 1 !important; }
+  .content { position: relative !important; z-index: 2 !important; }
+  .footer  { position: relative !important; z-index: 2 !important; }
+  .hp-hero { position: relative !important; z-index: 2 !important; }
 </style>
 
 <script>
@@ -1486,6 +1486,14 @@ fetch('${siteUrl}/api/v1/today.json')
       }
     }
     // ── Core: fetch weather + apply ──
+    function applyAmbient(type) {
+      var solidBg = document.querySelector('.keep-solid-bg');
+      if (solidBg && (type === 'rain' || type === 'drizzle' || type === 'snow' || type === 'thunderstorm' || type === 'fog')) {
+        solidBg.style.backdropFilter = 'none';
+        solidBg.style.webkitBackdropFilter = 'none';
+      }
+    }
+
     function loadAmbiance(lat, lon) {
       var url = lat && lon
         ? '/api/v1/weather-theme.json?lat=' + encodeURIComponent(lat) + '&lon=' + encodeURIComponent(lon)
@@ -1500,6 +1508,7 @@ fetch('${siteUrl}/api/v1/today.json')
 
         // Ambient blending (micro-adjust, never replace)
         applyBlend(w.type);
+        applyAmbient(w.type);
 
         // Render weather particles
         renderParticles(w.type);
@@ -1521,6 +1530,7 @@ fetch('${siteUrl}/api/v1/today.json')
       var cached = cacheGet();
       if (cached) {
         applyBlend(cached.type);
+        applyAmbient(cached.type);
         renderParticles(cached.type);
         var cm = WEATHER_META[cached.type] || { icon: '🌈', label: cached.desc || cached.type };
         var cCity = cached.city || '';

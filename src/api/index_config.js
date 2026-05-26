@@ -4220,120 +4220,12 @@ const OmniConfig = {
             <div class="omni-plankton" style="left: 45%; width: 3px; height: 3px; --dur: 22s; --del: 3s; --pulse: 3.5s; --dir: 1;"></div>
             <div class="omni-plankton" style="left: 10%; width: 2px; height: 2px; --dur: 19s; --del: 6s; --pulse: 2.5s; --dir: 1;"></div>
 
-            <!-- 交互层：鼠标光晕 -->
-            <div class="omni-cursor-light" id="cursorLight"></div>
-
-            <!-- 交互逻辑脚本 -->
-            <script>
-            (function() {
-                // 防止多次注入导致事件重复挂载
-                if (window._omniAbyssInjected) return;
-                window._omniAbyssInjected = true;
-
-                const cursorLight = document.getElementById('cursorLight');
-                let isMoving = false;
-                let moveTimeout;
-
-                // 1. 鼠标移动：探照灯跟随 + 浮游生物扰动
-                document.addEventListener('mousemove', (e) => {
-                    const mouseX = e.clientX;
-                    const mouseY = e.clientY;
-                    
-                    if (cursorLight) {
-                        cursorLight.style.left = mouseX + 'px';
-                        cursorLight.style.top = mouseY + 'px';
-                        cursorLight.style.opacity = '1';
-                    }
-                    
-                    clearTimeout(moveTimeout);
-                    isMoving = true;
-
-                    const planktons = document.querySelectorAll('.omni-plankton');
-                    planktons.forEach(p => {
-                        const rect = p.getBoundingClientRect();
-                        const px = rect.left + rect.width / 2;
-                        const py = rect.top + rect.height / 2;
-                        
-                        const distX = mouseX - px;
-                        const distY = mouseY - py;
-                        const dist = Math.sqrt(distX * distX + distY * distY);
-                        
-                        if (dist < 150) {
-                            // 使用 margin 控制位置以免和 css transform 覆盖
-                            const force = (150 - dist) / 150;
-                            p.style.marginLeft = \`\${-distX * force * 0.5}px\`;
-                            p.style.marginTop = \`\${-distY * force * 0.5}px\`;
-                        } else {
-                            p.style.marginLeft = '0px';
-                            p.style.marginTop = '0px';
-                        }
-                    });
-
-                    moveTimeout = setTimeout(() => {
-                        isMoving = false;
-                        if (cursorLight) cursorLight.style.opacity = '0.6';
-                    }, 1000);
-                });
-
-                // 2. 点击事件：产生气泡和涟漪
-                document.addEventListener('click', (e) => {
-                    const ripple = document.createElement('div');
-                    ripple.className = 'omni-ripple';
-                    ripple.style.left = e.clientX + 'px';
-                    ripple.style.top = e.clientY + 'px';
-                    document.body.appendChild(ripple);
-                    setTimeout(() => ripple.remove(), 800);
-
-                    const bubbleCount = Math.floor(Math.random() * 3) + 3;
-                    for(let i=0; i<bubbleCount; i++) {
-                        const pop = document.createElement('div');
-                        pop.className = 'omni-click-pop';
-                        const size = Math.random() * 15 + 5;
-                        pop.style.width = size + 'px';
-                        pop.style.height = size + 'px';
-                        const offsetX = (Math.random() - 0.5) * 60;
-                        const offsetY = (Math.random() - 0.5) * 20;
-                        pop.style.left = (e.clientX + offsetX - size/2) + 'px';
-                        pop.style.top = (e.clientY + offsetY - size/2) + 'px';
-                        document.body.appendChild(pop);
-                        setTimeout(() => pop.remove(), 1200);
-                    }
-                });
-
-                // 3. 滚动视差：借助 CSS 变量与动画联动，安全且平滑
-                window.addEventListener('scroll', () => {
-                    const scrolled = window.scrollY || document.documentElement.scrollTop;
-                    const lights = document.querySelectorAll('.omni-abyss-light');
-                    lights.forEach((light, index) => {
-                        const speed = 0.1 + (index * 0.05);
-                        light.style.setProperty('--sy', \`\${scrolled * speed}px\`);
-                    });
-                });
-
-                // 4. 自动为按钮添加发光类
-                const addGlow = () => {
-                    const buttons = document.querySelectorAll('button, a, input[type="submit"]');
-                    buttons.forEach(btn => {
-                        if(!btn.classList.contains('omni-glow-hover')) {
-                            btn.classList.add('omni-glow-hover');
-                        }
-                    });
-                };
-                
-                addGlow();
-                
-                // 仅当 DOM 有节点添加时才执行扫描（提升了性能）
-                const observer = new MutationObserver((mutations) => {
-                    const hasNewNodes = mutations.some(m => m.addedNodes.length > 0);
-                    if (hasNewNodes) addGlow();
-                });
-                observer.observe(document.body, { childList: true, subtree: true });
-            })();
-            </script>
-        `}
-    ]
-},
-{   
+            <!-- 交互层：鼠标光晕 (CSS变量驱动，随鼠标平滑跟随) -->
+            <div class="omni-cursor-light" style="left: calc(var(--mx) * 100vw); top: calc(var(--my) * 100vh);"></div>
+	        `}
+	    ]
+	},
+{
     id: 'hyperspace-cinema', 
     name: '🚀 HYPERSPACE',
     logo: { 
@@ -4352,14 +4244,12 @@ const OmniConfig = {
         ambient2: 'rgba(138, 43, 226, 0.18)', 
         
         customCss: `
-            /* --- 沉浸式太空背景透明化 --- */
+            /* --- 科幻风格UI --- */
             body, html, #app, #root, .main-container, .layout {
                 background: transparent !important;
                 background-color: transparent !important;
                 color: #e0f7fa;
             }
-
-            /* --- 科幻风格输入框与 UI --- */
             input, textarea, .search-bar, .mock-input {
                 background: rgba(2, 5, 15, 0.6) !important;
                 border: 1px solid rgba(0, 255, 255, 0.4) !important;
@@ -4374,8 +4264,6 @@ const OmniConfig = {
                 box-shadow: 0 0 25px rgba(0, 255, 255, 0.6), inset 0 0 15px rgba(0, 255, 255, 0.3) !important;
                 outline: none !important;
             }
-
-            /* --- 科幻发光按钮 --- */
             button {
                 background: linear-gradient(45deg, rgba(0, 255, 255, 0.1), rgba(138, 43, 226, 0.2)) !important;
                 border: 1px solid #8a2be2 !important;
@@ -4389,59 +4277,106 @@ const OmniConfig = {
                 box-shadow: 0 0 20px rgba(0, 255, 255, 0.6) !important;
                 transform: translateY(-1px);
             }
-
-            /* --- 滚动条科幻化 --- */
             ::-webkit-scrollbar { width: 6px; height: 6px; }
             ::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
             ::-webkit-scrollbar-thumb { background: #00ffff; border-radius: 3px; box-shadow: 0 0 10px #00ffff; }
 
-            /* --- 宇宙深渊画布容器 --- */
-            #hyperspace-canvas {
-                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-                z-index: -100; pointer-events: none;
-                background: radial-gradient(circle at 30% 40%, #0d0520 0%, #020210 45%, #000000 100%);
-            }
-
-            /* --- 曲率跃迁白屏闪耀遮罩 --- */
-            #warp-flash-overlay {
-                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-                background: #ffffff;
-                z-index: 99999; pointer-events: none;
+            /* --- 纯CSS星空层 (radial-gradient 模拟粒子, GPU加速, 三层视差) --- */
+            .hs-layer {
+                position: fixed; inset: 0; pointer-events: none; z-index: -2;
+                background-image:
+                    radial-gradient(2px 2px at 40px 60px, #fff, transparent),
+                    radial-gradient(2px 2px at 150px 30px, #e0f7fa, transparent),
+                    radial-gradient(1px 1px at 90px 140px, #fff, transparent),
+                    radial-gradient(2px 2px at 220px 210px, #4dd0e1, transparent),
+                    radial-gradient(1px 1px at 350px 80px, #fff, transparent),
+                    radial-gradient(2px 2px at 60px 250px, #b388ff, transparent),
+                    radial-gradient(1px 1px at 300px 180px, #e0f7fa, transparent),
+                    radial-gradient(2px 2px at 180px 300px, #fff, transparent),
+                    radial-gradient(1px 1px at 30px 190px, #4dd0e1, transparent),
+                    radial-gradient(2px 2px at 250px 40px, #fff, transparent),
+                    radial-gradient(1px 1px at 380px 260px, #b388ff, transparent),
+                    radial-gradient(2px 2px at 120px 350px, #e0f7fa, transparent);
+                background-repeat: repeat;
+                background-size: 400px 400px;
                 opacity: 0;
-                transition: opacity 1.5s cubic-bezier(1, 0, 0.8, 1); /* 缓慢渐白 */
             }
-            #warp-flash-overlay.warping {
-                opacity: 1 !important;
+            .hs-1 {
+                animation: warp-zoom 3s linear 0s infinite;
+                transform: translate(calc((var(--mx) - 0.5) * -10px), calc((var(--my) - 0.5) * -10px));
             }
-
-            /* --- HUD 瞄准准星装饰 (仅装饰视觉) --- */
+            .hs-2 {
+                animation: warp-zoom 4.5s linear -2s infinite;
+                transform: translate(calc((var(--mx) - 0.5) * -22px), calc((var(--my) - 0.5) * -22px));
+            }
+            .hs-3 {
+                animation: warp-zoom 6s linear -4s infinite;
+                transform: translate(calc((var(--mx) - 0.5) * -40px), calc((var(--my) - 0.5) * -40px));
+            }
+            .hs-layer::after {
+                content: '';
+                position: absolute; inset: 0;
+                background: inherit;
+                background-size: inherit;
+                animation: inherit;
+            }
+            @keyframes warp-zoom {
+                0% { transform: scale(1); opacity: 0; }
+                15% { opacity: 1; }
+                80% { opacity: 1; }
+                100% { transform: scale(8); opacity: 0; }
+            }
+            /* 宇宙深空暗角 */
+            .hs-vignette {
+                position: fixed; inset: 0; pointer-events: none; z-index: -1;
+                background: radial-gradient(circle at center, transparent 25%, #010104 100%);
+            }
+            /* HUD 瞄准准星装饰 */
             .hud-corners {
                 position: fixed; width: 100vw; height: 100vh; top:0; left:0;
                 pointer-events: none; z-index: -90; opacity: 0.3;
             }
-            .hud-corner {
-                position: absolute; width: 40px; height: 40px; border: 2px solid #00ffff;
-            }
+            .hud-corner { position: absolute; width: 40px; height: 40px; border: 2px solid #00ffff; }
             .hud-tl { top: 30px; left: 30px; border-right: none; border-bottom: none; }
             .hud-tr { top: 30px; right: 30px; border-left: none; border-bottom: none; }
             .hud-bl { bottom: 30px; left: 30px; border-right: none; border-top: none; }
             .hud-br { bottom: 30px; right: 30px; border-left: none; border-top: none; }
-            
-            /* 曲率跃迁警告文字 */
+            /* 跃迁闪烁 — 输入框聚焦时纯CSS自动触发 */
+            #warp-flash-overlay {
+                position: fixed; inset: 0; background: #ffffff;
+                z-index: 99999; pointer-events: none; opacity: 0;
+            }
+            body:has(input:focus) #warp-flash-overlay,
+            body:has(textarea:focus) #warp-flash-overlay,
+            body:has(.search-bar:focus-within) #warp-flash-overlay {
+                animation: warp-flash-seq 2.5s ease-out 1;
+            }
+            @keyframes warp-flash-seq {
+                0% { opacity: 0; } 4% { opacity: 1; } 8% { opacity: 0; }
+                12% { opacity: 0.5; } 16% { opacity: 0; } 100% { opacity: 0; }
+            }
             #warp-warning {
                 position: fixed; top: 20vh; left: 50%; transform: translateX(-50%);
                 font-family: 'Courier New', monospace; font-size: 24px; font-weight: bold;
                 color: #ff0055; text-shadow: 0 0 10px #ff0055; letter-spacing: 10px;
                 z-index: 9998; opacity: 0; pointer-events: none;
-                transition: opacity 0.3s;
             }
-            #warp-warning.show { opacity: 1; animation: flashWarning 0.2s infinite; }
-            @keyframes flashWarning { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+            body:has(input:focus) #warp-warning,
+            body:has(textarea:focus) #warp-warning,
+            body:has(.search-bar:focus-within) #warp-warning {
+                animation: warp-warn 2.5s ease-out 1;
+            }
+            @keyframes warp-warn {
+                0% { opacity: 0; } 10% { opacity: 1; } 80% { opacity: 0.5; } 100% { opacity: 0; }
+            }
         ` 
     },
     extensions:[
         { type: 'html', content: `
-            <canvas id="hyperspace-canvas"></canvas>
+            <div class="hs-layer hs-1"></div>
+            <div class="hs-layer hs-2"></div>
+            <div class="hs-layer hs-3"></div>
+            <div class="hs-vignette"></div>
             <div id="warp-flash-overlay"></div>
             <div id="warp-warning">HYPERDRIVE ENGAGED</div>
             <div class="hud-corners">
@@ -4450,200 +4385,6 @@ const OmniConfig = {
                 <div class="hud-corner hud-bl"></div>
                 <div class="hud-corner hud-br"></div>
             </div>
-
-            <img src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" 
-                 onload="var s=document.createElement('script'); s.textContent=document.getElementById('hyperspace-core').textContent; document.body.appendChild(s); s.remove();" 
-                 style="display:none;" />
-
-            <script type="text/plain" id="hyperspace-core">
-            (function() {
-                // 初始化全局状态防重入
-                window._hsState = window._hsState || {
-                    mouseX: window.innerWidth / 2,
-                    mouseY: window.innerHeight / 2,
-                    isWarping: false
-                };
-
-                const canvas = document.getElementById('hyperspace-canvas');
-                if (!canvas) return;
-                const ctx = canvas.getContext('2d');
-
-                let width, height;
-                let stars = [];
-                const numStars = 800; // 星星数量
-                
-                // 引擎核心参数
-                const baseSpeed = 0.5;
-                let currentSpeed = baseSpeed;
-                let targetSpeed = baseSpeed;
-                
-                // 视差偏置中心
-                let centerX = window.innerWidth / 2;
-                let centerY = window.innerHeight / 2;
-
-                function resize() {
-                    width = window.innerWidth;
-                    height = window.innerHeight;
-                    canvas.width = width;
-                    canvas.height = height;
-                    centerX = width / 2;
-                    centerY = height / 2;
-                }
-                window.addEventListener('resize', resize);
-                resize();
-
-                // 星星类
-                class Star {
-                    constructor() {
-                        this.reset(true);
-                    }
-                    reset(randomZ = false) {
-                        this.x = (Math.random() - 0.5) * width * 3; // 拓展生成范围
-                        this.y = (Math.random() - 0.5) * height * 3;
-                        this.z = randomZ ? Math.random() * width : width;
-                        this.pz = this.z; // 用于记录上一帧的 Z，画出光速拉伸轨迹
-                        this.size = Math.random() * 1.5 + 0.5;
-                        
-                        // 星星颜色略微区分，增加星空层次
-                        const colors =['#ffffff', '#e0f7fa', '#4dd0e1', '#b388ff'];
-                        this.color = colors[Math.floor(Math.random() * colors.length)];
-                    }
-                    update() {
-                        this.pz = this.z;
-                        this.z -= currentSpeed;
-                        if (this.z <= 1) {
-                            this.reset();
-                        }
-                    }
-                    draw() {
-                        // 3D 投影
-                        const sx = (this.x / this.z) * width + centerX;
-                        const sy = (this.y / this.z) * height + centerY;
-                        
-                        // 上一帧的投影位置（光轨起点）
-                        const px = (this.x / this.pz) * width + centerX;
-                        const py = (this.y / this.pz) * height + centerY;
-
-                        // 根据 Z 轴距离计算大小和透明度
-                        const r = Math.max(0.1, this.size * (width / this.z));
-                        const alpha = Math.min(1, Math.max(0.1, 1 - (this.z / width)));
-
-                        ctx.beginPath();
-                        if (window._hsState.isWarping || currentSpeed > baseSpeed * 5) {
-                            // 曲率加速状态：绘制极速光轨
-                            ctx.moveTo(px, py);
-                            ctx.lineTo(sx, sy);
-                            ctx.strokeStyle = this.color;
-                            ctx.lineWidth = r * 1.5;
-                            ctx.globalAlpha = alpha;
-                            ctx.stroke();
-                        } else {
-                            // 普通状态：绘制静态星星
-                            ctx.arc(sx, sy, r, 0, Math.PI * 2);
-                            ctx.fillStyle = this.color;
-                            ctx.globalAlpha = alpha;
-                            ctx.fill();
-                        }
-                        ctx.closePath();
-                    }
-                }
-
-                // 初始化星空
-                for (let i = 0; i < numStars; i++) {
-                    stars.push(new Star());
-                }
-
-                // 渲染循环
-                if (window._hsRaf) cancelAnimationFrame(window._hsRaf);
-                
-                function animate() {
-                    // 平滑插值更新速度（模拟引擎加速）
-                    currentSpeed += (targetSpeed - currentSpeed) * 0.05;
-
-                    // 视差全景平滑跟随鼠标
-                    const targetCX = width / 2 + (window._hsState.mouseX - width / 2) * 0.15;
-                    const targetCY = height / 2 + (window._hsState.mouseY - height / 2) * 0.15;
-                    centerX += (targetCX - centerX) * 0.05;
-                    centerY += (targetCY - centerY) * 0.05;
-
-                    // 绘制带有拖尾效果的深色背景（制造运动模糊）
-                    if (window._hsState.isWarping) {
-                        ctx.globalAlpha = 0.3; // 跃迁时背景拖尾更长
-                    } else {
-                        ctx.globalAlpha = 1;
-                    }
-                    ctx.fillStyle = '#000000';
-                    ctx.fillRect(0, 0, width, height);
-
-                    // 绘制星空
-                    for (let i = 0; i < numStars; i++) {
-                        stars[i].update();
-                        stars[i].draw();
-                    }
-                    
-                    window._hsRaf = requestAnimationFrame(animate);
-                }
-                animate();
-
-                // 绑定全局事件（仅首次挂载或重新加载时绑定）
-                if (!window._hsEventsBound) {
-                    window._hsEventsBound = true;
-
-                    // 视差追踪：记录鼠标位置
-                    document.addEventListener('mousemove', (e) => {
-                        window._hsState.mouseX = e.clientX;
-                        window._hsState.mouseY = e.clientY;
-                    });
-
-                    // 光速跃迁触发器：监听回车键 (主要针对搜索框)
-                    document.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
-                            triggerWarpDrive();
-                        }
-                    });
-
-                    // 光速跃迁触发器：兼容部分直接点击按钮提交的行为
-                    document.addEventListener('click', (e) => {
-                        // 如果点击了看起来像搜索按钮或发送按钮的元素
-                        if (e.target.closest('button[type="submit"]') || e.target.closest('.search-btn')) {
-                            triggerWarpDrive();
-                        }
-                    });
-                }
-
-                // 执行曲率加速逻辑
-                function triggerWarpDrive() {
-                    if (window._hsState.isWarping) return; // 防止重复触发
-                    window._hsState.isWarping = true;
-                    
-                    const flashOverlay = document.getElementById('warp-flash-overlay');
-                    const warningText = document.getElementById('warp-warning');
-
-                    // 1. 瞬间爆发出巨大的引擎推力
-                    targetSpeed = window.innerWidth * 0.2; // 极快的速度
-                    
-                    if (warningText) warningText.classList.add('show');
-
-                    // 2. 模拟空间撕裂后，视界被强光吞没（屏幕渐白）
-                    setTimeout(() => {
-                        if (flashOverlay) flashOverlay.classList.add('warping');
-                    }, 800);
-
-                    // 3. 动画结束/页面跳转重置逻辑（防止用户通过前进后退回来时卡在白屏）
-                    setTimeout(() => {
-                        window._hsState.isWarping = false;
-                        targetSpeed = baseSpeed;
-                        currentSpeed = baseSpeed; // 瞬间恢复静止
-                        if (flashOverlay) flashOverlay.classList.remove('warping');
-                        if (warningText) warningText.classList.remove('show');
-                        
-                        // 重置星星位置，防止拉伸错乱
-                        stars.forEach(s => s.reset(true)); 
-                    }, 2500);
-                }
-
-            })();
-            </script>
         `}
     ]
 },
@@ -5070,337 +4811,9 @@ const OmniConfig = {
             </div>
 
             <!-- 修复安全与单页框架挂载Bug：使用 textContent 解析，并保障重入安全 -->
-            <img src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" 
-                 onload="var s=document.createElement('script'); s.textContent=document.getElementById('retro-core-logic').textContent; document.body.appendChild(s); s.remove();" 
-                 style="display:none;" />
+            
 
-            <script type="text/plain" id="retro-core-logic">
-            (function() {
-                // 将状态全部提升到全局并使用事件委托机制，完美修复 SPA 重新挂载后功能崩溃失效的 bug
-                window._retroState = window._retroState || { 
-                    topZIndex: 100, 
-                    errorCount: 0, 
-                    activeDragWin: null, 
-                    startX: 0, startY: 0, startLeft: 0, startTop: 0,
-                    clippyClicks: 0,
-                    bubbleTimer: null
-                };
-                const RS = window._retroState;
-
-                // 强制立刻更新时钟状态（每次挂载即刻生效）
-                const clockEl = document.getElementById('win95-clock');
-                if (clockEl) clockEl.innerText = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-
-                if (!window._retroCoreEventsBound) {
-                    window._retroCoreEventsBound = true;
-
-                    // 时钟 Interval
-                    setInterval(() => {
-                        const el = document.getElementById('win95-clock');
-                        if (el) el.innerText = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                    }, 1000);
-
-                    const templates = {
-                        'error': 'win95-error-template',
-                        'notepad': 'win95-notepad-template',
-                        'minesweeper': 'win95-minesweeper-template',
-                        'defrag': 'win95-defrag-template'
-                    };
-
-                    function bringToFront(dialog) {
-                        dialog.style.zIndex = ++RS.topZIndex;
-                        document.querySelectorAll('.win95-titlebar').forEach(tb => tb.classList.add('inactive'));
-                        const tb = dialog.querySelector('.win95-titlebar');
-                        if (tb) tb.classList.remove('inactive');
-                    }
-
-                    function spawnWindow(type, x, y, msg, title) {
-                        const tplId = templates[type];
-                        const tpl = document.getElementById(tplId);
-                        const winContainer = document.getElementById('retro-windows-container');
-                        if (!tpl || !winContainer) return;
-                        
-                        const newWin = tpl.cloneNode(true);
-                        newWin.removeAttribute('id');
-                        newWin.style.display = 'block';
-                        newWin.style.left = (x || Math.floor(Math.random() * 20 + 15)) + 'vw';
-                        newWin.style.top = (y || Math.floor(Math.random() * 20 + 15)) + 'vh';
-                        newWin.style.zIndex = ++RS.topZIndex;
-                        
-                        if (type === 'error') {
-                            if (msg) newWin.querySelector('.win-msg-text').innerHTML = msg;
-                            if (title) newWin.querySelector('.win-title-text').innerText = title;
-                        }
-                        
-                        winContainer.appendChild(newWin);
-                        bringToFront(newWin);
-                        if (type === 'error') RS.errorCount++;
-                        
-                        if (type === 'minesweeper') initMinesweeper(newWin);
-                        if (type === 'defrag') initDefrag(newWin);
-                    }
-                    window._retroSpawnWindow = spawnWindow;
-
-                    // 扫雷彩蛋逻辑
-                    function initMinesweeper(win) {
-                        const grid = win.querySelector('.ms-grid');
-                        if (!grid) return;
-                        for (let i = 0; i < 64; i++) {
-                            const cell = document.createElement('div');
-                            cell.className = 'ms-cell';
-                            grid.appendChild(cell);
-                        }
-                    }
-
-                    // 碎片整理彩蛋逻辑
-                    function initDefrag(win) {
-                        const grid = win.querySelector('.defrag-grid');
-                        const status = win.querySelector('.defrag-status');
-                        if (!grid || !status) return;
-                        const blocks =[];
-                        
-                        for (let i = 0; i < 300; i++) {
-                            const b = document.createElement('div');
-                            b.className = 'defrag-block';
-                            let rand = Math.random();
-                            b.style.background = rand > 0.7 ? '#ffffff' : (rand > 0.4 ? '#ff0000' : '#0000ff');
-                            grid.appendChild(b);
-                            blocks.push(b);
-                        }
-                        
-                        let currentIndex = 0;
-                        const defragInterval = setInterval(() => {
-                            if (!document.body.contains(win)) { clearInterval(defragInterval); return; }
-                            if (currentIndex >= blocks.length) {
-                                clearInterval(defragInterval);
-                                status.innerText = "Drive C: 100% complete";
-                                setTimeout(() => spawnWindow('error', null, null, "Defragmentation complete.<br><br>0 bytes freed. Your hard drive is still dying.", "Disk Defragmenter"), 800);
-                                return;
-                            }
-                            blocks[currentIndex].style.background = '#0000ff';
-                            status.innerText = \`Drive C: \${Math.floor((currentIndex / blocks.length) * 100)}% complete\`;
-                            currentIndex++;
-                        }, 40);
-                    }
-
-                    // --- 全局事件委托 (完全兼容热更新和组件重新挂载) ---
-                    document.addEventListener('mousedown', function(e) {
-                        // 桌面图标选择
-                        const icon = e.target.closest('.desktop-icon');
-                        if (icon) {
-                            document.querySelectorAll('.desktop-icon').forEach(i => i.classList.remove('selected'));
-                            icon.classList.add('selected');
-                        }
-
-                        // 弹窗拖拽及焦点
-                        const dialog = e.target.closest('.win95-dialog');
-                        if (dialog && !dialog.id.includes('template')) bringToFront(dialog);
-
-                        const titlebar = e.target.closest('.win95-titlebar');
-                        // 修复：排除按钮点击触发拖拽
-                        if (titlebar && dialog && !e.target.closest('.win95-btn')) {
-                            RS.activeDragWin = dialog;
-                            RS.startX = e.clientX; RS.startY = e.clientY;
-                            const rect = RS.activeDragWin.getBoundingClientRect();
-                            RS.startLeft = rect.left; RS.startTop = rect.top;
-                            e.preventDefault(); 
-                        }
-
-                        // 扫雷点击爆炸
-                        const msCell = e.target.closest('.ms-cell');
-                        if (msCell && !msCell.classList.contains('revealed')) {
-                            const win = msCell.closest('.win95-dialog');
-                            if (win) {
-                                win.querySelectorAll('.ms-cell').forEach(c => {
-                                    c.classList.add('revealed');
-                                    c.innerText = '💣';
-                                    c.style.background = '#ff4444';
-                                });
-                                const face = win.querySelector('.ms-face');
-                                if (face) face.innerText = '😵';
-                                win.classList.add('glitch-anim');
-                                setTimeout(() => {
-                                    win.classList.remove('glitch-anim');
-                                    spawnWindow('error', null, null, "FATAL MINE EXCEPTION at 0x000BOMB.<br>You blew up the system memory heap.", "Minesweeper Error");
-                                }, 1200);
-                            }
-                        }
-                    });
-
-                    document.addEventListener('mousemove', function(e) {
-                        // 拖拽带有残影
-                        if (RS.activeDragWin) {
-                            const dx = e.clientX - RS.startX;
-                            const dy = e.clientY - RS.startY;
-                            RS.activeDragWin.style.left = (RS.startLeft + dx) + 'px';
-                            RS.activeDragWin.style.top = (RS.startTop + dy) + 'px';
-
-                            const trailContainer = document.getElementById('retro-trail-container');
-                            if (trailContainer && RS.activeDragWin.querySelector('.win95-icon-error') && Math.random() > 0.3) {
-                                const clone = RS.activeDragWin.cloneNode(true);
-                                clone.style.pointerEvents = 'none'; 
-                                clone.style.zIndex = RS.topZIndex - 1; 
-                                clone.querySelector('.win95-titlebar').classList.add('inactive'); 
-                                trailContainer.appendChild(clone);
-                                if (trailContainer.childNodes.length > 50) trailContainer.removeChild(trailContainer.firstChild);
-                            }
-                        }
-
-                        // 大眼夹眼球跟踪
-                        const clippySvg = document.getElementById('retro-clippy-svg');
-                        if (clippySvg && !RS.activeDragWin) { 
-                            const rect = clippySvg.getBoundingClientRect();
-                            const c1x = rect.left + (38 / 100) * rect.width; const c1y = rect.top + (32 / 100) * rect.height;
-                            const c2x = rect.left + (58 / 100) * rect.width; const c2y = rect.top + (30 / 100) * rect.height;
-                            const angle1 = Math.atan2(e.clientY - c1y, e.clientX - c1x);
-                            const angle2 = Math.atan2(e.clientY - c2y, e.clientX - c2x);
-                            const eye1 = document.getElementById('clip-eye-1');
-                            const eye2 = document.getElementById('clip-eye-2');
-                            if (eye1 && eye2) {
-                                eye1.style.transform = \`translate(\${Math.cos(angle1) * 4.5}px, \${Math.sin(angle1) * 4.5}px)\`;
-                                eye2.style.transform = \`translate(\${Math.cos(angle2) * 4.5}px, \${Math.sin(angle2) * 4.5}px)\`;
-                            }
-                        }
-                    });
-
-                    document.addEventListener('mouseup', () => RS.activeDragWin = null);
-
-                    document.addEventListener('click', function(e) {
-                        const startBtn = document.getElementById('win95-start');
-                        const startMenu = document.getElementById('win95-start-menu');
-
-                        // 开始菜单切换
-                        if (startBtn && (e.target === startBtn || startBtn.contains(e.target))) {
-                            if (startMenu) startMenu.classList.toggle('open');
-                            startBtn.classList.toggle('active');
-                            return;
-                        }
-
-                        // 开始菜单自动收起
-                        if (startMenu && startBtn && !startMenu.contains(e.target)) {
-                            startMenu.classList.remove('open');
-                            startBtn.classList.remove('active');
-                        }
-
-                        // 点击开始菜单选项
-                        const startItem = e.target.closest('.start-item');
-                        if (startItem) {
-                            if (startItem.id === 'menu-shutdown') {
-                                const bsod = document.getElementById('bsod');
-                                if (bsod) bsod.style.display = 'flex';
-                            } else {
-                                spawnWindow('error', 40, 40, "Feature not implemented in trial version.", "Explorer");
-                            }
-                            if (startMenu) startMenu.classList.remove('open');
-                            if (startBtn) startBtn.classList.remove('active');
-                        }
-
-                        // 弹窗内部按钮逻辑
-                        const dialog = e.target.closest('.win95-dialog');
-                        if (dialog && !dialog.id.includes('template')) {
-                            if (e.target.closest('.win95-close')) {
-                                dialog.remove();
-                                if (dialog.querySelector('.win95-icon-error')) {
-                                    RS.errorCount--;
-                                    const trailContainer = document.getElementById('retro-trail-container');
-                                    if (RS.errorCount <= 0 && trailContainer) trailContainer.innerHTML = ''; 
-                                }
-                            } else if (e.target.closest('.win95-ok')) {
-                                const rect = dialog.getBoundingClientRect();
-                                spawnWindow('error', (rect.left + 20) / window.innerWidth * 100, (rect.top + 20) / window.innerHeight * 100, 
-                                    "Task failed successfully.<br><br>Clicking OK only makes me reproduce.", "System Constraint");
-                            }
-                        }
-
-                        // 大眼夹逻辑
-                        const clippySvg = document.getElementById('retro-clippy-svg');
-                        if (clippySvg && (e.target === clippySvg || clippySvg.contains(e.target))) {
-                            const bubble = document.getElementById('clippy-bubble');
-                            if (!bubble) return;
-                            
-                            RS.clippyClicks++;
-                            clearTimeout(RS.bubbleTimer);
-                            
-                            if (RS.clippyClicks >= 6) {
-                                bubble.innerText = "YOU HAVE ANGERED CLIPPY. PREPARE FOR ASSIMILATION.";
-                                bubble.classList.add('angry');
-                                document.querySelectorAll('.eye-pupil').forEach(c => c.setAttribute('fill', '#ff0000'));
-                                document.body.classList.add('glitch-anim');
-                                setTimeout(() => document.body.classList.remove('glitch-anim'), 1500);
-                                
-                                RS.bubbleTimer = setTimeout(() => { 
-                                    bubble.classList.remove('active', 'angry'); 
-                                    document.querySelectorAll('.eye-pupil').forEach(c => c.setAttribute('fill', '#000'));
-                                    RS.clippyClicks = 0;
-                                }, 4000);
-                            } else {
-                                const clippyResponses =["Ouch! That tickles.", "Stop clicking me! Go use the Notepad!", "I am Clippy, destroyer of focus.", "Are you testing my patience?"];
-                                bubble.innerText = clippyResponses[Math.floor(Math.random() * clippyResponses.length)];
-                                bubble.classList.add('active');
-                                RS.bubbleTimer = setTimeout(() => { bubble.classList.remove('active'); }, 3000);
-                            }
-                        }
-                    });
-
-                    // 双击桌面图标逻辑
-                    document.addEventListener('dblclick', function(e) {
-                        const icon = e.target.closest('.desktop-icon');
-                        if (icon) {
-                            if (icon.id === 'icon-computer') spawnWindow('error', null, null, "Matrix cannot be contained. Access Denied.", "My Matrix");
-                            if (icon.id === 'icon-trash') spawnWindow('error', null, null, "Are you sure you want to delete 'System32'?", "Recycle Bin");
-                            if (icon.id === 'icon-internet') spawnWindow('error', null, null, "Connection to AOL failed.<br>Please ensure your phone line is not in use.", "Dial-up Error");
-                            if (icon.id === 'icon-notepad') spawnWindow('notepad', 35, 15);
-                            if (icon.id === 'icon-minesweeper') spawnWindow('minesweeper', 35, 20);
-                            if (icon.id === 'icon-defrag') spawnWindow('defrag', 30, 25);
-                        }
-                    });
-
-                    // 蓝屏死机按键恢复
-                    document.addEventListener('keydown', (e) => {
-                        const bsod = document.getElementById('bsod');
-                        if (bsod && bsod.style.display === 'flex') {
-                            bsod.style.display = 'none';
-                            spawnWindow('error', null, null, "System recovered from a serious error.<br>Do not do that again.", "System Recovery");
-                        }
-                    });
-
-                    // 大眼夹嘲讽事件
-                    document.addEventListener('input', function(e) {
-                        const bubble = document.getElementById('clippy-bubble');
-                        if (!bubble) return;
-                        
-                        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-                            if (!bubble.classList.contains('active') && !bubble.classList.contains('angry')) {
-                                const annoyingQuotes =[
-                                    "It looks like you're typing. Mind if I judge you?",
-                                    "Are you sure you want to search that? I'm watching.",
-                                    "Error 404: Motivation not found.",
-                                    "Have you tried blowing into the cartridge?",
-                                    "Don't click Shut Down. Trust me.",
-                                    "I see you double-clicked. Excellent choice."
-                                ];
-                                bubble.innerText = annoyingQuotes[Math.floor(Math.random() * annoyingQuotes.length)];
-                            }
-                            bubble.classList.add('active');
-                            clearTimeout(RS.bubbleTimer);
-                            RS.bubbleTimer = setTimeout(() => { bubble.classList.remove('active'); }, 4000);
-                        }
-                    });
-
-                    // 首次启动问候
-                    setTimeout(() => {
-                        spawnWindow('error', 15, 10, "Welcome to Windoze 95 Deluxe.<br><br>Warning: Nostalgia overload and high-res CRT detected.", "System Boot");
-                    }, 600);
-
-                } else if (window._retroSpawnWindow) {
-                    // 若 SPA 重新挂载该模块（重返页面），触发 Resume 问候彩蛋，说明无状态化事件接管成功！
-                    setTimeout(() => {
-                        window._retroSpawnWindow('error', 15, 10, "Welcome back to Windoze 95 Deluxe.<br><br>System resumed from suspend mode.", "System Resume");
-                    }, 600);
-                }
-
-            })();
-            </script>
+            
         `}
     ]
 },
