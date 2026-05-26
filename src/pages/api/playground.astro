@@ -168,7 +168,7 @@ const rawGroups = [
       },
       { id:'diy-like', method:'POST', path:'/api/v1/diy/like.json', label:'Like Theme', desc:'为社区主题点赞。基于 IP + UA + UUID 防刷保护。', usage:'请求限流 10次/分钟。', cache:'不缓存',
         notes:'防刷机制：同一 IP+UA 组合对同一主题只能点赞一次（再次请求为取消点赞）。同时维护浏览器端 UUID（localStorage），即使 IP 变更也能识别重复操作。每分钟全局限流 10 次，超出返回 429。点赞数变更实时生效，但排行榜缓存 1 分钟。',
-        params:[{name:'id',type:'text',label:'主题ID',placeholder:'abc123',optional:false}]
+        params:[{name:'body',type:'textarea',label:'JSON Body',placeholder:'{\n  "id": "abc123"\n}',optional:false}]
       }
     ]
   },
@@ -180,8 +180,8 @@ const rawGroups = [
         params:[{name:'body',type:'textarea',label:'Body',placeholder:'{"prompt": "neon cyberpunk matrix"}',optional:false}]
       },
       { id:'ai-describe', method:'POST', path:'/api/v1/ai/describe.json', label:'AI Describe', desc:'输入 CSS 变量，AI 分析并返回中文风格描述。', usage:'逆向推理主题风格。', cache:'不缓存',
-        notes:'AI Generate 的逆向操作：输入一组 cssVars，AI 分析色相分布、饱和度、亮度、对比度等特征，输出风格描述（中文为主，可附带 en 英文翻译）和风格标签（如 ["dark","tech","cool"]）。适用场景：用户上传截图取色后理解配色风格、为已有主题补全元数据。响应包含 styleName（风格名称）、description（长描述）、tags（标签数组）、mood（情感倾向分析）。'
-      }
+        notes:'AI Generate 的逆向操作：输入一组 cssVars，AI 分析色相分布、饱和度、亮度、对比度等特征，输出风格描述（中文为主，可附带 en 英文翻译）和风格标签（如 ["dark","tech","cool"]）。适用场景：用户上传截图取色后理解配色风格、为已有主题补全元数据。响应包含 styleName（风格名称）、description（长描述）、tags（标签数组）、mood（情感倾向分析）。',
+        params:[{name:'body',type:'textarea',label:'JSON Body',placeholder:'{\n  "cssVars": {\n    "--color-primary": "#ff6b6b",\n    "--color-bg": "#1a1a2e",\n    "--color-text": "#e0e0e0"\n  }\n}',optional:false}]
     ]
   }
 ];
@@ -290,9 +290,10 @@ const flatJSON = JSON.stringify(flat);
 
           <div id="body-section" style="display:none;">
             <div class="panel-title">
-              <span>Body <span class="badge">JSON</span></span>
+              <span>Request Body <span class="badge">JSON</span></span>
               <button class="btn-add" id="body-format">Format JSON</button>
             </div>
+            <p id="body-hint" style="font-size:11px;color:var(--text-muted);margin:0 0 8px;line-height:1.4;"></p>
             <div class="body-editor-wrap">
               <textarea class="body-editor" id="body-editor" spellcheck="false"></textarea>
             </div>
@@ -999,27 +1000,39 @@ const flatJSON = JSON.stringify(flat);
 
       var paramsEl = getEl('docs-params');
       var paramsTable = getEl('docs-params-table');
-      var displayParams = (ep.params || []).filter(function(p) { return p.name !== 'body'; });
-      if (displayParams.length > 0) {
-        paramsTable.innerHTML = displayParams.map(function(p) {
-          var badge = p.optional
-            ? '<span style="color:var(--text-muted);font-size:10px;">optional</span>'
-            : '<span style="color:var(--accent-red);font-size:10px;font-weight:500;">required</span>';
-          var usage;
-          if (p.isPath) {
-            usage = 'Path: <code>' + esc(ep.path) + '</code>';
-          } else if (p.type === 'select') {
-            var opts = (p.options || []).filter(function(o) { return o; });
-            usage = 'Query: <code>?' + esc(p.name) + '=&lt;' + esc(opts.join('|')) + '&gt;</code>';
-          } else {
-            usage = 'Query: <code>?' + esc(p.name) + '=' + esc(p.placeholder || '...') + '</code>';
-          }
-          var example = p.placeholder || (p.type === 'select' && p.options ? p.options.filter(function(o){return o;})[0] || '—' : '—');
-          return '<tr>' +
-            '<td>' + esc(p.name) + ' ' + badge + '<br><span style="color:var(--text-muted);font-size:10px;">type: ' + esc(p.type) + '</span></td>' +
-            '<td>' + esc(p.label) + '<br><span style="font-size:11px;color:var(--accent);">' + usage + '</span><br><span style="color:var(--text-muted);font-size:10px;">e.g. ' + esc(example) + '</span></td>' +
-            '</tr>';
-        }).join('');
+      // Show query/path params and body params separately
+      var queryParams = (ep.params || []).filter(function(p) { return p.name !== 'body'; });
+      var bodyParams = (ep.params || []).filter(function(p) { return p.name === 'body'; });
+
+      var rows = '';
+      queryParams.forEach(function(p) {
+        var badge = p.optional
+          ? '<span style="color:var(--text-muted);font-size:10px;">optional</span>'
+          : '<span style="color:var(--accent-red);font-size:10px;font-weight:500;">required</span>';
+        var usage;
+        if (p.isPath) {
+          usage = 'Path: <code>' + esc(ep.path) + '</code>';
+        } else if (p.type === 'select') {
+          var opts = (p.options || []).filter(function(o) { return o; });
+          usage = 'Query: <code>?' + esc(p.name) + '=&lt;' + esc(opts.join('|')) + '&gt;</code>';
+        } else {
+          usage = 'Query: <code>?' + esc(p.name) + '=' + esc(p.placeholder || '...') + '</code>';
+        }
+        var example = p.placeholder || (p.type === 'select' && p.options ? p.options.filter(function(o){return o;})[0] || '—' : '—');
+        rows += '<tr>' +
+          '<td>' + esc(p.name) + ' ' + badge + '<br><span style="color:var(--text-muted);font-size:10px;">type: ' + esc(p.type) + '</span></td>' +
+          '<td>' + esc(p.label) + '<br><span style="font-size:11px;color:var(--accent);">' + usage + '</span><br><span style="color:var(--text-muted);font-size:10px;">e.g. ' + esc(example) + '</span></td>' +
+          '</tr>';
+      });
+      bodyParams.forEach(function(p) {
+        rows += '<tr>' +
+          '<td style="vertical-align:top;">body <span style="color:var(--accent-red);font-size:10px;font-weight:500;">required</span><br><span style="color:var(--text-muted);font-size:10px;">type: JSON</span></td>' +
+          '<td>' + esc(p.label) + '<br><pre style="margin:8px 0 0;padding:10px;background:var(--bg-base);border:1px solid var(--border-subtle);border-radius:4px;font-family:var(--font-mono);font-size:11px;line-height:1.5;color:var(--text-secondary);white-space:pre-wrap;">' + esc(p.placeholder || '') + '</pre></td>' +
+          '</tr>';
+      });
+
+      if (rows) {
+        paramsTable.innerHTML = rows;
         paramsEl.style.display = 'block';
       } else {
         paramsEl.style.display = 'none';
@@ -1064,10 +1077,15 @@ const flatJSON = JSON.stringify(flat);
       showDocs(activeEP);
 
       getEl('body-section').style.display = ['POST','PUT','PATCH'].includes(activeEP.method) ? 'block' : 'none';
-      if (activeEP.method === 'POST') {
+      if (['POST','PUT','PATCH'].includes(activeEP.method)) {
         var bp = (activeEP.params || []).find(p => p.name === 'body');
-        if (bp) getEl('body-editor').value = bp.placeholder || '';
-        else getEl('body-editor').value = '';
+        if (bp) {
+          getEl('body-editor').value = bp.placeholder || '';
+          getEl('body-hint').textContent = bp.label + ' — ' + (bp.optional ? 'Optional' : 'Required');
+        } else {
+          getEl('body-editor').value = '';
+          getEl('body-hint').textContent = 'Enter JSON request body';
+        }
       }
 
       resetResponseView();
