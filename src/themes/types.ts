@@ -34,7 +34,15 @@ export type ThemeTag =
   | 'retro'
   | 'warm'
   | 'cool'
-  | 'community';
+  | 'community'
+  | 'space'
+  | 'ocean'
+  | 'animated'
+  | 'elegant'
+  | 'glass'
+  | 'seasonal'
+  | 'fantasy'
+  | 'industrial';
 
 /** The single theme data model — all themes flow through this shape.
  *  OmniConfig entries, community themes, and fallback themes all conform. */

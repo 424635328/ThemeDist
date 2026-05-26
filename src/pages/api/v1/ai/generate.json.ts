@@ -209,10 +209,18 @@ function inferTags(text: string, cssVars: Record<string, string>): string[] {
   if (/自然|nature|forest|ocean|海|森林|山/i.test(lower)) tags.push('nature');
   if (/科技|tech|cyber|neon|digital|赛博|数字/i.test(lower)) tags.push('tech');
   if (/复古|retro|vintage|old|怀旧/i.test(lower)) tags.push('retro');
+  if (/太空|space|宇宙|星系|星云|galaxy|cosmic/i.test(lower)) tags.push('space');
+  if (/海洋|ocean|sea|abyss|深海|珊瑚/i.test(lower)) tags.push('ocean');
+  if (/动画|animated|动感|灵动|活泼/i.test(lower)) tags.push('animated');
+  if (/优雅|典雅|elegant|经典|classic|refined/i.test(lower)) tags.push('elegant');
+  if (/毛玻璃|玻璃|glass|frost|磨砂|透明感/i.test(lower)) tags.push('glass');
+  if (/季节|spring|summer|autumn|winter|春|夏|秋|冬/i.test(lower)) tags.push('seasonal');
+  if (/魔法|奇幻|fantasy|神话|magic|fairy|dragon/i.test(lower)) tags.push('fantasy');
+  if (/工业|industrial|机械|金属|brutal|steel|gear/i.test(lower)) tags.push('industrial');
 
   if (tags.length === 1) tags.push(bgLum < 0.5 ? 'cool' : 'warm');
 
-  return tags.slice(0, 4);
+  return tags.slice(0, 5);
 }
 
 function generateFallbackTheme(text: string) {

@@ -277,6 +277,7 @@ function renderExtensions(exts) {
 | GET | `/api/v1/diy/themes.json` | 社区 | 社区主题列表（分页 + 排序 + 标签筛选） | 1min |
 | GET | `/api/v1/diy/theme.json?id=` | 社区 | 单个社区主题详情（含点赞数） | 5min |
 | POST | `/api/v1/diy/submit.json` | 社区 | 提交社区主题（进入审核队列） | 不缓存 |
+| POST | `/api/v1/diy/suggest-tags.json` | 社区 | 8 维度分析主题，推荐 19 类标签及置信度 | 不缓存 |
 | POST | `/api/v1/diy/like.json` | 社区 | 点赞社区主题（IP+UA+UUID 三重去重） | 不缓存 |
 | | | | | |
 | POST | `/api/v1/ai/generate.json` | AI | AI 主题生成（规则引擎，或 DeepSeek 客户端直调） | 不缓存 |
@@ -609,6 +610,34 @@ curl -X POST https://themedist.netlify.app/api/v1/diy/submit.json \
 > **`warnings` 字段**：当提交的 extensions 包含不支持的类型（如 `"javascript"`）时，系统静默移除并在 `warnings` 中报告原因。不影响主题提交成功，但提醒用户扩展已被过滤。
 
 主题提交后进入**审核队列**，管理员审核通过后发布至社区商店。
+
+### 标签推荐
+
+```bash
+curl -X POST https://themedist.netlify.app/api/v1/diy/suggest-tags.json \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "cssVars": { "--color-primary": "#ff6b6b", "--color-bg": "#1a1a2e" },
+    "customCss": "@keyframes drift { ... }",
+    "extensions": [...],
+    "presetName": "示例主题"
+  }'
+```
+
+8 维度加权评分引擎，分析色彩（亮度/色相/多色协调）、字体（衬线/等宽/手写）、内容（中/英/日三语关键词）、结构（复杂度）、特效（动画/毛玻璃/扫描线/粒子）、Emoji 语义、WCAG 对比度、色调和谐度，覆盖 19 种标签（dark/light/warm/cool/vibrant/minimal/nature/tech/retro/holiday/space/ocean/animated/elegant/glass/seasonal/fantasy/industrial/community），返回最多 5 个带置信度和中文原因的标签建议。
+
+响应（200）：
+
+```json
+{
+  "tags": [
+    { "tag": "dark", "confidence": 0.98, "reason": "背景亮度仅 0.01，属于深色主题" },
+    { "tag": "warm", "confidence": 0.88, "reason": "主色色相 349° 位于暖色区间" },
+    { "tag": "vibrant", "confidence": 0.74, "reason": "包含 3 个 @keyframes 动画" }
+  ],
+  "apiVersion": "v1"
+}
+```
 
 ### 社区主题列表（带标签筛选）
 

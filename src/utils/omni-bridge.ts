@@ -34,7 +34,6 @@ function inferTags(entry: OmniThemeEntry): ThemeTag[] {
   const bgBase = entry.theme.bgBase || '#000000';
   const textMain = entry.theme.textMain || '#ffffff';
   const bgBrightness = luminance(bgBase);
-  const textBrightness = luminance(textMain);
 
   // Dark vs light
   tags.push(bgBrightness < 0.3 ? 'dark' : 'light');
@@ -52,7 +51,23 @@ function inferTags(entry: OmniThemeEntry): ThemeTag[] {
   // Type-based
   if (entry.type === 'holiday') tags.push('holiday');
 
-  return tags;
+  // Name-based keyword matching
+  const name = (entry.name || '').toLowerCase();
+  if (/ocean|sea|abyss|deep|wave|coral|海洋|海|深海/i.test(name)) tags.push('ocean');
+  if (/space|cosmic|galaxy|nebula|star|cosmos|太空|宇宙|星/i.test(name)) tags.push('space');
+  if (/fantasy|magic|myth|fairy|dragon|魔法|奇幻|仙/i.test(name)) tags.push('fantasy');
+  if (/spring|summer|autumn|winter|春|夏|秋|冬/i.test(name)) tags.push('seasonal');
+  if (/retro|vintage|80s|90s|复古|怀旧/i.test(name)) tags.push('retro');
+  if (/tech|cyber|neon|code|matrix|科技|赛博/i.test(name)) tags.push('tech');
+
+  // Glass detection from custom CSS
+  const css = entry.theme.customCss || '';
+  if (/glass|blur|frost|毛玻璃/i.test(css)) {
+    if (!tags.includes('tech')) tags.push('tech');
+    if (tags.length < 5) tags.push('glass' as ThemeTag);
+  }
+
+  return tags.slice(0, 5);
 }
 
 /** Relative luminance (0-1) */
@@ -413,8 +428,21 @@ function inferTagsFromVars(cssVars: Record<string, string>): ThemeTag[] {
     tags.push('minimal');
   }
 
+  // Glass detection
+  const glassBlur = (cssVars['--glass-blur'] || '').trim();
+  if (glassBlur && glassBlur !== 'blur(0px)' && !glassBlur.startsWith('0')) {
+    if (!tags.includes('tech')) tags.push('tech');
+    tags.push('glass' as ThemeTag);
+  }
+
+  // Font detection
+  const heading = (cssVars['--font-heading'] || '').toLowerCase();
+  if (/serif|garamond|times|georgia|baskerville/i.test(heading)) {
+    tags.push('elegant' as ThemeTag);
+  }
+
   tags.push('community');
-  return tags;
+  return tags.slice(0, 5);
 }
 
 function communityToComposed(ct: CommunityThemeRaw): ComposedTheme {

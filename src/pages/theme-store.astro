@@ -154,6 +154,14 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
           <button class="comm-tag-chip" data-comm-tag="cool">冷色</button>
           <button class="comm-tag-chip" data-comm-tag="nature">自然</button>
           <button class="comm-tag-chip" data-comm-tag="tech">科技</button>
+          <button class="comm-tag-chip" data-comm-tag="space">太空</button>
+          <button class="comm-tag-chip" data-comm-tag="ocean">海洋</button>
+          <button class="comm-tag-chip" data-comm-tag="animated">动感</button>
+          <button class="comm-tag-chip" data-comm-tag="elegant">典雅</button>
+          <button class="comm-tag-chip" data-comm-tag="glass">玻璃</button>
+          <button class="comm-tag-chip" data-comm-tag="seasonal">季节</button>
+          <button class="comm-tag-chip" data-comm-tag="fantasy">奇幻</button>
+          <button class="comm-tag-chip" data-comm-tag="industrial">工业</button>
         </div>
       </div>
     </div>
@@ -1704,7 +1712,7 @@ const coolCount = themes.filter(t => t.colorFamily === 'cool').length;
     })
     .catch(() => { communityChipCount.textContent = '离线'; });
 
-  const VALID_TAGS = new Set(['dark','light','holiday','minimal','vibrant','nature','tech','retro','warm','cool','community']);
+  const VALID_TAGS = new Set(['dark','light','holiday','minimal','vibrant','nature','tech','retro','warm','cool','community','space','ocean','animated','elegant','glass','seasonal','fantasy','industrial']);
   function onlyValidTags(t) { return VALID_TAGS.has(t); }
 
   function isLight(hex) {

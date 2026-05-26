@@ -28,12 +28,17 @@ import Layout from '../layouts/Layout.astro';
               <span class="tp-editor-label">JSON 配置</span>
               <span id="tp-char-count" class="tp-char-count"></span>
             </div>
-            <textarea
-              id="tp-json-input"
-              class="tp-textarea"
-              placeholder='粘贴完整主题 JSON …'
-              spellcheck="false"
-            ></textarea>
+            <div class="tp-editor-wrap">
+              <div id="tp-line-numbers" class="tp-line-numbers" aria-hidden="true">
+                <div class="tp-line-numbers-inner"></div>
+              </div>
+              <textarea
+                id="tp-json-input"
+                class="tp-textarea"
+                placeholder='粘贴完整主题 JSON …'
+                spellcheck="false"
+              ></textarea>
+            </div>
             <div id="tp-errors" class="tp-errors" style="display:none"></div>
           </div>
           <div class="tp-status-bar">
@@ -128,6 +133,7 @@ import Layout from '../layouts/Layout.astro';
                   提交
                 </button>
               </div>
+              <div class="tp-tag-suggestions" id="tp-tag-suggestions" style="display:none"></div>
               <div id="tp-submit-result" class="tp-submit-result" style="display:none"></div>
             </div>
           </div>
@@ -219,13 +225,30 @@ import Layout from '../layouts/Layout.astro';
     resize: vertical; outline: none;
     box-sizing: border-box;
     tab-size: 2;
-    background-image:
-      linear-gradient(to right, color-mix(in srgb, var(--color-border) 40%, transparent) 1px, transparent 1px);
-    background-position: 28px 0;
-    background-size: 1px 100%;
-    background-repeat: no-repeat;
+    white-space: pre;
+    overflow-x: auto;
   }
   .tp-textarea::placeholder { color: var(--color-text-muted); opacity: 0.18; }
+
+  .tp-editor-wrap { position: relative; }
+
+  .tp-line-numbers {
+    position: absolute; top: 0; left: 0; width: 48px; bottom: 0;
+    overflow: hidden;
+    pointer-events: none;
+    user-select: none;
+    z-index: 1;
+    border-right: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
+    background: color-mix(in srgb, var(--color-bg) 92%, var(--color-border));
+  }
+  .tp-line-numbers-inner {
+    padding: 18px 4px 18px 0;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 12.5px; line-height: 1.75;
+    text-align: right;
+    color: var(--color-text-muted); opacity: 0.45;
+    white-space: pre;
+  }
 
   .tp-errors {
     padding: 12px 22px; font-size: 12px; line-height: 1.9;
@@ -501,6 +524,63 @@ import Layout from '../layouts/Layout.astro';
   .tp-submit-row {
     display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
   }
+  .tp-tag-suggestions {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    margin-top: 10px; align-items: center;
+    padding: 10px 14px;
+    background: color-mix(in srgb, var(--color-bg) 50%, transparent);
+    border-radius: 12px;
+    border: 1px dashed color-mix(in srgb, var(--color-border) 45%, transparent);
+  }
+  .tp-tag-suggestions-label {
+    font-size: 11px; color: var(--color-text-muted);
+    font-weight: 600; margin-right: 4px;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .tp-tag-suggestions-label::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--color-primary); opacity: 0.55;
+  }
+  .tp-tag-chip {
+    display: inline-flex; align-items: center;
+    height: 28px; padding: 0 13px;
+    border-radius: 14px;
+    font-size: 12px; font-weight: 600; letter-spacing: -0.01em;
+    cursor: pointer; font-family: inherit;
+    border: 1px solid var(--color-border);
+    background: linear-gradient(180deg,
+      color-mix(in srgb, var(--color-surface) 70%, transparent) 0%,
+      color-mix(in srgb, var(--color-bg) 60%, transparent) 100%);
+    color: var(--color-text);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    transition: all 0.25s cubic-bezier(0.22, 0.61, 0.36, 1);
+    white-space: nowrap;
+    user-select: none;
+    animation: tpTagIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  @keyframes tpTagIn {
+    from { opacity: 0; transform: scale(0.75) translateY(6px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  /* confidence tiers */
+  .tp-tag-chip[data-tier="high"] {
+    border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+    box-shadow: 0 1px 4px color-mix(in srgb, var(--color-primary) 10%, transparent);
+  }
+  .tp-tag-chip[data-tier="mid"] {
+    border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border));
+  }
+  .tp-tag-chip:hover {
+    color: #fff;
+    border-color: var(--color-primary);
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    transform: translateY(-2px);
+    box-shadow: 0 4px 18px color-mix(in srgb, var(--color-primary) 35%, transparent);
+  }
+  .tp-tag-chip:active {
+    transform: scale(0.93);
+    transition: transform 0.1s ease;
+  }
   .tp-input {
     height: 38px; padding: 0 14px;
     border-radius: 10px;
@@ -539,7 +619,9 @@ import Layout from '../layouts/Layout.astro';
     .tp-section { padding: 16px 14px 32px; }
     .tp-grid { grid-template-columns: 1fr; }
     .tp-topbar { flex-direction: column; align-items: flex-start; padding: 0 0 12px; }
-    .tp-textarea { min-height: 360px; padding: 14px 14px 14px 36px; background-position: 22px 0; }
+    .tp-textarea { min-height: 360px; padding: 14px 14px 14px 36px; }
+    .tp-line-numbers { width: 36px; }
+    .tp-line-numbers-inner { padding: 14px 3px 14px 0; }
     .tp-actions { padding: 12px 14px; gap: 6px; }
     .tp-action-sep { display: none; }
     .tp-btn { height: 36px; padding: 0 14px; font-size: 12px; border-radius: 10px; }
@@ -715,7 +797,128 @@ import Layout from '../layouts/Layout.astro';
   const showcase = document.getElementById('tp-showcase');
   const showcaseSwatches = document.getElementById('tp-showcase-swatches');
   const charCount = document.getElementById('tp-char-count');
+  const lineNumbers = document.getElementById('tp-line-numbers');
+  const tagSuggestionsEl = document.getElementById('tp-tag-suggestions');
+  const tagsInput = document.getElementById('tp-tags');
   const COLOR_KEYS = ['--color-primary','--color-secondary','--color-accent','--color-bg','--color-surface','--color-text'];
+
+  // ── Line numbers ──
+  const lineNumbersInner = lineNumbers.querySelector('.tp-line-numbers-inner');
+
+  function updateLineNumbers() {
+    const count = input.value.split('\n').length;
+    const nums = [];
+    for (let i = 1; i <= count; i++) nums.push(i);
+    lineNumbersInner.textContent = nums.join('\n');
+    syncLineScroll();
+  }
+
+  function syncLineScroll() {
+    lineNumbersInner.style.transform = `translateY(${-input.scrollTop}px)`;
+  }
+
+  input.addEventListener('input', updateLineNumbers);
+  input.addEventListener('scroll', syncLineScroll);
+  updateLineNumbers();
+
+  // ── Tag suggestions ──
+  let tagSuggestAbort = null;
+
+  function hexToHueClient(hex) {
+    const c = hex.replace('#', '');
+    if (c.length < 6) return 0;
+    const r = parseInt(c.slice(0,2), 16) / 255;
+    const g = parseInt(c.slice(2,4), 16) / 255;
+    const b = parseInt(c.slice(4,6), 16) / 255;
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    if (max === min) return 0;
+    let h = 0;
+    if (max === r) h = ((g - b) / (max - min)) % 6;
+    else if (max === g) h = (b - r) / (max - min) + 2;
+    else h = (r - g) / (max - min) + 4;
+    return ((h * 60) % 360 + 360) % 360;
+  }
+
+  function clientSideTagFallback(theme) {
+    const tags = [];
+    const vars = theme.cssVars;
+    const dark = isDarkTheme(vars);
+    tags.push({ tag: dark ? 'dark' : 'light', confidence: 0.85, reason: dark ? '背景偏深色' : '背景偏浅色' });
+    const pri = vars['--color-primary'] || '#6366f1';
+    const hue = hexToHueClient(pri);
+    if ((hue >= 0 && hue <= 60) || hue >= 300) {
+      tags.push({ tag: 'warm', confidence: 0.65, reason: '主色位于暖色区间' });
+    } else if (hue >= 180 && hue <= 270) {
+      tags.push({ tag: 'cool', confidence: 0.65, reason: '主色位于冷色区间' });
+    }
+    const glassBlur = (vars['--glass-blur'] || '').trim();
+    if (glassBlur && glassBlur !== 'blur(0px)' && !glassBlur.startsWith('0')) {
+      tags.push({ tag: 'glass', confidence: 0.65, reason: '检测到毛玻璃效果' });
+    }
+    return tags.slice(0, 5);
+  }
+
+  async function fetchTagSuggestions(theme) {
+    if (tagSuggestAbort) tagSuggestAbort.abort();
+    tagSuggestAbort = new AbortController();
+    try {
+      const res = await fetch('/api/v1/diy/suggest-tags.json', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cssVars: theme.cssVars,
+          customCss: theme.customCss,
+          extensions: theme.extensions,
+          presetName: theme.presetName,
+        }),
+        signal: tagSuggestAbort.signal,
+      });
+      if (!res.ok) throw new Error('API error');
+      const data = await res.json();
+      renderTagSuggestions(data.tags || []);
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+      renderTagSuggestions(clientSideTagFallback(theme));
+    }
+  }
+
+  function renderTagSuggestions(tags) {
+    if (!tags || tags.length === 0) {
+      tagSuggestionsEl.style.display = 'none';
+      tagSuggestionsEl.innerHTML = '';
+      return;
+    }
+    tagSuggestionsEl.style.display = 'flex';
+    tagSuggestionsEl.innerHTML = '';
+    const label = document.createElement('span');
+    label.className = 'tp-tag-suggestions-label';
+    label.textContent = '推荐标签';
+    tagSuggestionsEl.appendChild(label);
+    for (const [i, t] of tags.entries()) {
+      const chip = document.createElement('span');
+      chip.className = 'tp-tag-chip';
+      chip.dataset.tier = t.confidence >= 0.80 ? 'high' : t.confidence >= 0.55 ? 'mid' : 'low';
+      chip.textContent = '#' + t.tag;
+      chip.title = `${t.reason || ''} (置信度: ${Math.round(t.confidence * 100)}%)`;
+      chip.style.animationDelay = `${i * 0.07}s`;
+      chip.addEventListener('click', () => appendTagToInput(t.tag));
+      tagSuggestionsEl.appendChild(chip);
+    }
+  }
+
+  function appendTagToInput(tag) {
+    const current = tagsInput.value.trim();
+    const existing = current ? current.split(',').map(t => t.trim()).filter(Boolean) : [];
+    if (existing.includes(tag)) return;
+    existing.push(tag);
+    tagsInput.value = existing.join(', ');
+    tagsInput.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function hideTagSuggestions() {
+    tagSuggestionsEl.style.display = 'none';
+    tagSuggestionsEl.innerHTML = '';
+  }
 
   function updateShowcase(theme) {
     const empty = document.getElementById('tp-showcase-empty');
@@ -793,6 +996,7 @@ import Layout from '../layouts/Layout.astro';
         setStatus('idle', '等待输入');
         setButtonsEnabled(false);
         submitSection.style.display = 'none';
+        hideTagSuggestions();
         errors.style.display = 'none';
         return;
       }
@@ -807,6 +1011,7 @@ import Layout from '../layouts/Layout.astro';
             updateShowcase(obj);
             setStatus('applied', '已应用（有警告）', obj.presetName || '');
             setButtonsEnabled(true);
+            fetchTagSuggestions(obj);
           } else {
             restoreTodayTheme();
             currentTheme = null;
@@ -822,6 +1027,7 @@ import Layout from '../layouts/Layout.astro';
           setStatus('applied', '已应用', obj.presetName || '未命名主题');
           errors.style.display = 'none';
           setButtonsEnabled(true);
+          fetchTagSuggestions(obj);
           submitSection.style.display = 'block';
           if (window.innerWidth < 769) {
             showcase.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -835,6 +1041,7 @@ import Layout from '../layouts/Layout.astro';
         setStatus('error', 'JSON 无效');
         setButtonsEnabled(false);
         submitSection.style.display = 'none';
+        hideTagSuggestions();
       }
     }, 250);
   });
@@ -853,6 +1060,7 @@ import Layout from '../layouts/Layout.astro';
   // ── Clear & restore ──
   document.getElementById('tp-clear').addEventListener('click', () => {
     input.value = '';
+    updateLineNumbers();
     restoreTodayTheme();
     currentTheme = null;
     updateShowcase(null);
@@ -860,6 +1068,7 @@ import Layout from '../layouts/Layout.astro';
     setStatus('idle', '等待输入');
     setButtonsEnabled(false);
     submitSection.style.display = 'none';
+    hideTagSuggestions();
     errors.style.display = 'none';
     document.getElementById('tp-submit-result').style.display = 'none';
   });
@@ -900,6 +1109,7 @@ import Layout from '../layouts/Layout.astro';
     setStatus('idle', '已还原');
     setButtonsEnabled(false);
     submitSection.style.display = 'none';
+    hideTagSuggestions();
     errors.style.display = 'none';
     document.getElementById('tp-submit-result').style.display = 'none';
   });
@@ -957,6 +1167,23 @@ import Layout from '../layouts/Layout.astro';
   function rgbA(hex, a) { var r = parseHex(hex); return 'rgba(' + r[0] + ',' + r[1] + ',' + r[2] + ',' + a + ')'; }
   function lighten(hex, amt) { var r = parseHex(hex); return 'rgba(' + Math.min(255,r[0]+amt) + ',' + Math.min(255,r[1]+amt) + ',' + Math.min(255,r[2]+amt) + ',1)'; }
   function darken(hex, amt) { var r = parseHex(hex); return 'rgba(' + Math.max(0,r[0]-amt) + ',' + Math.max(0,r[1]-amt) + ',' + Math.max(0,r[2]-amt) + ',1)'; }
+
+  function hexToHsl(hex) {
+    var r = parseHex(hex);
+    var rf = r[0] / 255, gf = r[1] / 255, bf = r[2] / 255;
+    var max = Math.max(rf, gf, bf), min = Math.min(rf, gf, bf);
+    var h = 0, s = 0, l = (max + min) / 2;
+    if (max !== min) {
+      var d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case rf: h = ((gf - bf) / d + (gf < bf ? 6 : 0)) / 6; break;
+        case gf: h = ((bf - rf) / d + 2) / 6; break;
+        case bf: h = ((rf - gf) / d + 4) / 6; break;
+      }
+    }
+    return { h: h * 360, s: s, l: l };
+  }
 
   function crt(ctx, x, y, w, h, r) {
     r = Math.min(r, w/2, h/2);

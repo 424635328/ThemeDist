@@ -202,6 +202,11 @@ function applyTheme(d) {
             </tr>
             <tr style="border-bottom:1px solid var(--color-border)">
               <td style="padding:12px 18px"><span class="ep-tag post">POST</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/diy/suggest-tags.json</td>
+              <td style="padding:12px 18px;font-size:13px">分析主题 JSON，8 维度多信号加权评分，推荐 19 类标签</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag post">POST</span></td>
               <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/diy/like.json</td>
               <td style="padding:12px 18px;font-size:13px">点赞社区主题（IP+UA 去重）</td>
             </tr>
@@ -882,6 +887,13 @@ module.exports = {
   -d '{'{'}"name":"My Theme","author":"You","cssVars":{'{'}"--color-primary":"#ff6b6b","--color-bg":"#1a1a2e"{'}'},"customCss":"body {'{'} ... {'}'}","extensions":[{'{'}"type":"floating","char":"✨"{'}'}],"tags":["dark","vibrant"]{'}'}'</code></pre></div>
         <p class="text-muted" style="font-size:12px;margin-top:6px">必填: <code>name</code>, <code>author</code>, <code>cssVars</code>（必须含 <code>--color-primary</code> 和 <code>--color-bg</code>）。可选: <code>customCss</code>, <code>extensions</code>, <code>tags</code>（最多 5 个）。提交后进入审核队列。</p>
         <p class="text-muted" style="font-size:12px;margin-top:4px">成功响应 <code style="color:#22c55e">201</code>：<code>{'{'} success: true, theme: {'{'} id, name, ... {'}'}, warnings?: [...] {'}'}</code>。如果有 <code>warnings</code> 数组，说明部分字段被自动调整（如不支持的类型被移除）。</p>
+
+        <h3 id="community-suggest-tags" style="font-size:14px;font-weight:700;margin:20px 0 12px">推荐标签</h3>
+        <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl</span></div><pre class="cmd-block"><code>curl -X POST {siteUrl}/api/v1/diy/suggest-tags.json \
+  -H 'Content-Type: application/json' \
+  -d '{'{'}"cssVars":{'{'}"--color-primary":"#ff6b6b","--color-bg":"#1a1a2e"{'}'},"customCss":"...","extensions":[...],...{'}'}'</code></pre></div>
+        <p class="text-muted" style="font-size:12px;margin-top:6px">纯计算端点，无需 Redis。8 个分析器（颜色/字体/内容/结构/特效/Emoji/对比度/色调协调）加权评分，覆盖 19 种标签（dark/light/warm/cool/vibrant/minimal/nature/tech/retro/holiday/space/ocean/animated/elegant/glass/seasonal/fantasy/industrial），返回最多 5 个带置信度和中文原因的标签建议。必填: <code>cssVars</code>。可选: <code>customCss</code>, <code>extensions</code>, <code>presetName</code>。</p>
+        <p class="text-muted" style="font-size:12px;margin-top:4px">响应 <code style="color:#22c55e">200</code>：<code>{'{'} tags: [{'{'} tag: "dark", confidence: 0.98, reason: "背景亮度仅 0.01" {'}'}, ...], apiVersion: "v1" {'}'}</code>。</p>
 
         <h3 id="community-like" style="font-size:14px;font-weight:700;margin:20px 0 12px">点赞</h3>
         <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl</span></div><pre class="cmd-block"><code>curl -X POST {siteUrl}/api/v1/diy/like.json \

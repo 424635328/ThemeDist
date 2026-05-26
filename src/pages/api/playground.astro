@@ -167,6 +167,10 @@ const rawGroups = [
       { id:'diy-like', method:'POST', path:'/api/v1/diy/like.json', label:'Like Theme', desc:'为社区主题点赞。基于 IP + UA + UUID 防刷保护。', usage:'请求限流 10次/分钟。', cache:'不缓存',
         notes:'防刷机制：同一 IP+UA 组合对同一主题只能点赞一次（再次请求为取消点赞）。同时维护浏览器端 UUID（localStorage），即使 IP 变更也能识别重复操作。每分钟全局限流 10 次，超出返回 429。点赞数变更实时生效，但排行榜缓存 1 分钟。',
         params:[{name:'body',type:'textarea',label:'JSON Body',placeholder:'{\n  "id": "abc123"\n}',optional:false}]
+      },
+      { id:'diy-suggest-tags', method:'POST', path:'/api/v1/diy/suggest-tags.json', label:'Suggest Tags', desc:'8 维度加权评分，推荐 19 类标签及置信度。', usage:'纯计算端点，无需 Redis。POST body 传入 cssVars 等。', cache:'不缓存',
+        notes:'分析维度：颜色（多色投票 dark/light、warm/cool、vibrant/minimal、space/ocean/elegant/industrial）、字体（serif→elegant、mono→tech、cursive→fantasy）、内容（中/英/日三语关键词匹配 nature/tech/retro/holiday/space/ocean/seasonal/fantasy/industrial）、结构（复杂度→minimal/animated/elegant）、特效（@keyframes 数量→vibrant/animated、毛玻璃→glass、扫描线→retro、星尘→space、雪花→seasonal）、Emoji（🌸→nature、🚀→space、🌊→ocean 等）、对比度（AAA→elegant、极高→industrial）、色调协调（互补色→vibrant）。',
+        params:[{name:'body',type:'textarea',label:'JSON Body',placeholder:'{\n  "cssVars": {"--color-primary":"#ff6b6b","--color-bg":"#1a1a2e"}\n}',optional:false}]
       }
     ]
   },
