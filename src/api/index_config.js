@@ -476,16 +476,58 @@ const OmniConfig = {
 
             .summer-bubble { position: fixed; bottom: -20px; font-size: 24px; opacity: 0; pointer-events: none; animation: bubbleRiseS linear infinite; z-index: 0; }
 
-            /* 交互式饮料杯 */
-            .interactive-drink {
-                position: fixed; bottom: 15%; right: 15%; font-size: 50px; cursor: pointer;
-                animation: drinkFloat 3s ease-in-out infinite; transition: filter 0.3s;
-                user-select: none; z-index: 10; filter: drop-shadow(0 5px 15px rgba(0, 198, 255, 0.4));
+            /* details 原生点击切换 — 播放不受松手影响 */
+            .drink-details {
+                position: fixed; bottom: 15%; right: 15%;
+                list-style: none; /* 隐藏默认三角标记 */
+                z-index: 10; pointer-events: auto;
             }
-            .interactive-drink:hover { filter: drop-shadow(0 0 25px rgba(0, 198, 255, 0.8)) brightness(1.1); animation-play-state: paused; }
-            .interactive-drink:active { transform: scale(0.9); }
+            .drink-details summary {
+                list-style: none; /* 隐藏Webkit三角 */
+                cursor: pointer; user-select: none;
+                font-size: 50px;
+                animation: drinkFloat 3s ease-in-out infinite;
+                transition: filter 0.3s, transform 0.15s;
+                filter: drop-shadow(0 5px 15px rgba(0, 198, 255, 0.4));
+            }
+            .drink-details summary:hover {
+                filter: drop-shadow(0 0 25px rgba(0, 198, 255, 0.8)) brightness(1.1);
+                animation-play-state: paused;
+            }
+            .drink-details summary:active { transform: scale(0.85); }
+            .drink-details summary::-webkit-details-marker { display: none; }
 
-            /* 动态生成的冰块 */
+            /* 纯CSS爆发冰块 — details[open] 触发, 完整播放 */
+            .ice-burst {
+                position: fixed; pointer-events: none; z-index: 9999;
+                font-size: 22px;
+                bottom: 15%; right: 15%;
+                opacity: 0; transform: translate(0, 0) scale(1);
+                animation: none; /* 基态显式重置, 确保每次 open 都重新触发 */
+            }
+            .drink-details[open] ~ .ice-burst-1 {
+                animation: iceBurst1 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+            }
+            .drink-details[open] ~ .ice-burst-2 {
+                animation: iceBurst2 0.9s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards 0.08s;
+            }
+            .drink-details[open] ~ .ice-burst-3 {
+                animation: iceBurst3 0.85s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards 0.16s;
+            }
+            @keyframes iceBurst1 {
+                0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+                100% { transform: translate(-50px, -85px) scale(0.3) rotate(-35deg); opacity: 0; }
+            }
+            @keyframes iceBurst2 {
+                0%   { transform: translate(0, 0) scale(1); opacity: 0.9; }
+                100% { transform: translate(55px, -65px) scale(0.2) rotate(25deg); opacity: 0; }
+            }
+            @keyframes iceBurst3 {
+                0%   { transform: translate(0, 0) scale(1); opacity: 0.85; }
+                100% { transform: translate(-10px, -95px) scale(0.4) rotate(-15deg); opacity: 0; }
+            }
+
+            /* 动态生成的冰块（保留类名兼容，由CSS驱动） */
             .ice-particle {
                 position: fixed; font-size: 20px; pointer-events: none; z-index: 9999;
                 animation: iceDrop 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
@@ -510,29 +552,16 @@ const OmniConfig = {
         { type: 'html', content: '<div class="summer-bubble" style="left: 65%; animation-duration: 6s; animation-delay: 1s; font-size: 28px;">🫧</div>' },
         { type: 'html', content: '<div class="summer-bubble" style="left: 85%; animation-duration: 8s; animation-delay: 3s;">🫧</div>' },
 
-        /* ===== 可点击交互：夏日冷饮 (移除alert，改为点击爆出冰块) ===== */
-        { 
-            type: 'html', 
+        /* ===== 可点击交互：夏日冷饮 (details元素: 浏览器原生切换, 点击完整播放) ===== */
+        {
+            type: 'html',
             content: `
-                <div class="interactive-drink" title="点击清凉一下！" onclick="
-                    const num = 5;
-                    for(let i=0; i<num; i++) {
-                        const ice = document.createElement('div');
-                        ice.innerText = ['🧊', '💦', '❄️'][Math.floor(Math.random()*3)];
-                        ice.className = 'ice-particle';
-                        ice.style.left = event.clientX + 'px';
-                        ice.style.top = event.clientY + 'px';
-                        // 随机散开的角度和距离
-                        const angle = (Math.random() * 360) * (Math.PI / 180);
-                        const distance = 50 + Math.random() * 80;
-                        ice.style.setProperty('--dx', Math.cos(angle) * distance + 'px');
-                        ice.style.setProperty('--dy', Math.sin(angle) * distance + 'px');
-                        document.body.appendChild(ice);
-                        setTimeout(() => ice.remove(), 800);
-                    }
-                ">
-                    🥤
-                </div>
+                <details class="drink-details">
+                    <summary class="interactive-drink" title="点击清凉一下！">🥤</summary>
+                </details>
+                <span class="ice-burst ice-burst-1">🧊</span>
+                <span class="ice-burst ice-burst-2">💦</span>
+                <span class="ice-burst ice-burst-3">❄️</span>
             `
         }
     ]
@@ -4186,14 +4215,34 @@ const OmniConfig = {
                 pointer-events: none; z-index: 2;
             }
 
-            /* 4. UI元素发光悬停 (收敛了 transition 属性以防破坏按钮原有样式) */
-            .omni-glow-hover {
-                transition: box-shadow 0.3s, transform 0.3s, border-color 0.3s !important;
+            /* 4. UI元素发光悬停 (纯CSS，无需JS注入class) */
+            button, a, input[type="submit"], [role="button"] {
+                transition: box-shadow 0.3s, transform 0.3s, border-color 0.3s;
             }
-            .omni-glow-hover:hover {
+            button:hover, a:hover, input[type="submit"]:hover, [role="button"]:hover {
                 box-shadow: 0 0 15px rgba(0, 242, 254, 0.4), 0 0 30px rgba(79, 172, 254, 0.2);
                 transform: translateY(-1px);
                 border-color: rgba(0, 242, 254, 0.6);
+            }
+
+            /* 5. 浮游生物鼠标漂移 — --mx/--my 驱动，远离鼠标 */
+            .omni-plankton {
+                transition: margin 0.8s ease-out;
+                margin-left: calc((var(--mx) - 0.5) * -30px);
+                margin-top:  calc((var(--my) - 0.5) * -30px);
+            }
+
+            /* 6. 点击涟漪 (纯CSS :active) */
+            body:active::after {
+                content: '';
+                position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+                background: radial-gradient(circle at calc(var(--mx) * 100vw) calc(var(--my) * 100vh),
+                    rgba(0, 242, 254, 0.15) 0%, transparent 60%);
+                animation: clickRipple 0.6s ease-out forwards;
+            }
+            @keyframes clickRipple {
+                0%   { opacity: 1; transform: scale(0.5); }
+                100% { opacity: 0; transform: scale(2); }
             }
         ` 
     },
@@ -4385,435 +4434,6 @@ const OmniConfig = {
                 <div class="hud-corner hud-bl"></div>
                 <div class="hud-corner hud-br"></div>
             </div>
-        `}
-    ]
-},
-{   
-    id: 'retro-os-1995-ultimate', 
-    name: '💾 RETRO OS 1995',
-    logo: { 
-        type: 'text', 
-        text: 'Windoze 95', 
-        colors:['#c0c0c0', '#000080', '#c0c0c0', '#ffffff'] 
-    },
-    theme: { 
-        bgBase: '#008080', 
-        textMain: '#ffffff', 
-        textMuted: '#c0c0c0', 
-        accentRgb: '0, 0, 128', 
-        avatarGrad1: '#c0c0c0', 
-        avatarGrad2: '#808080', 
-        ambient1: 'rgba(0, 128, 128, 0.03)', 
-        ambient2: 'rgba(0, 128, 128, 0.02)', 
-        
-        customCss: `
-            /* ========================================================= */
-            /* 核心修复：破解系统底层挂载层的 z-index 隔离，让子元素突破天花板 */
-            /* ========================================================= */
-            #omni-extensions {
-                display: contents !important;
-            }
-
-            /* 全局像素化抗锯齿，极大提升复古高分辨率画质 */
-            body, html, #app, #root, .main-container, .layout, * {
-                -webkit-font-smoothing: none !important;
-                -moz-osx-font-smoothing: grayscale !important;
-                font-smooth: never !important;
-                image-rendering: pixelated !important;
-                image-rendering: crisp-edges !important;
-                cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='18' viewBox='0 0 12 18'%3E%3Cpath fill='%23fff' stroke='%23000' stroke-width='1' d='M1 1v14l3-3 2 5 2-1-2-5 4-1z'/%3E%3C/svg%3E"), auto !important;
-            }
-            a, button, .desktop-icon, #win95-start, .win95-btn, .ms-cell, #retro-clippy-svg {
-                cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='21' viewBox='0 0 16 21'%3E%3Cpath fill='%23fff' stroke='%23000' stroke-width='1' d='M5 1v6h-4v2h2v2h2v2h2v2h2v-2h2v2h2v-2h2v-2h-2v-2h-2v-2h2v-2h-4v-6z'/%3E%3C/svg%3E") 6 0, pointer !important;
-            }
-
-            ::selection { background: #000080; color: #ffffff; }
-
-            body, html, #app, #root, .main-container, .layout {
-                background: transparent !important;
-                background-color: transparent !important;
-            }
-
-            input, textarea, button {
-                font-family: 'Tahoma', 'MS Sans Serif', 'Segoe UI', sans-serif !important;
-            }
-
-            /* 高级复古抖动网格背景，提升画面质感 */
-            #retro-bg {
-                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-                background-color: #008080;
-                background-image: 
-                    linear-gradient(45deg, rgba(0,0,0,0.05) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.05) 75%, rgba(0,0,0,0.05)), 
-                    linear-gradient(45deg, rgba(0,0,0,0.05) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.05) 75%, rgba(0,0,0,0.05));
-                background-size: 4px 4px;
-                background-position: 0 0, 2px 2px;
-                z-index: -10; pointer-events: none;
-            }
-
-            /* 像素级完美 CRT 扫描线，清晰不模糊 */
-            #crt-overlay {
-                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-                background: repeating-linear-gradient(0deg, rgba(0,0,0,0.1), rgba(0,0,0,0.1) 1px, transparent 1px, transparent 2px),
-                            linear-gradient(90deg, rgba(255,0,0,0.02), rgba(0,255,0,0.01), rgba(0,0,255,0.02));
-                background-size: 100% 2px, 3px 100%;
-                z-index: 99999; pointer-events: none;
-                box-shadow: inset 0 0 60px rgba(0,0,0,0.3);
-                animation: crtFlicker 0.15s infinite;
-            }
-            @keyframes crtFlicker {
-                0% { opacity: 0.97; } 50% { opacity: 1; } 100% { opacity: 0.98; }
-            }
-
-            /* --- 全局故障效果动画 --- */
-            .glitch-anim {
-                animation: glitch-skew 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite;
-            }
-            @keyframes glitch-skew {
-                0% { transform: translate(0) } 20% { transform: translate(-3px, 2px) }
-                40% { transform: translate(-3px, -2px) } 60% { transform: translate(3px, 2px) }
-                80% { transform: translate(3px, -2px) } 100% { transform: translate(0) }
-            }
-
-            #retro-ui-layer {
-                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-                z-index: 9998; pointer-events: none; 
-            }
-
-            #retro-trail-container, #retro-windows-container {
-                position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;
-            }
-
-            /* --- 桌面图标 --- */
-            .win95-desktop-icons {
-                position: absolute; top: 40px; left: 20px;
-                display: flex; flex-direction: column; gap: 24px; pointer-events: auto; 
-            }
-
-            .desktop-icon {
-                display: flex; flex-direction: column; align-items: center; width: 75px; cursor: pointer;
-            }
-            .desktop-icon .icon-img { font-size: 36px; filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.6)); margin-bottom: 6px; }
-            .desktop-icon span {
-                color: #ffffff; font-size: 12px; font-family: 'Tahoma', sans-serif;
-                text-align: center; padding: 2px 4px; line-height: 1.1; border: 1px dotted transparent;
-            }
-            .desktop-icon:active span, .desktop-icon.selected span { background: #000080; border-color: #ffffff; }
-
-            /* --- 任务栏 --- */
-            #win95-taskbar {
-                position: fixed; bottom: 56px; left: 50%; transform: translateX(-50%);
-                width: 90vw; max-width: 1200px; height: 34px; background: #c0c0c0;
-                border-top: 2px solid #ffffff; border-left: 2px solid #ffffff;
-                border-right: 2px solid #404040; border-bottom: 2px solid #404040;
-                box-shadow: 4px 4px 0 rgba(0,0,0,0.3), inset -1px -1px #808080, inset 1px 1px #dfdfdf;
-                display: flex; justify-content: space-between; align-items: center;
-                padding: 0 4px; z-index: 9999; pointer-events: auto; font-family: 'Tahoma', sans-serif;
-            }
-
-            .win95-start-btn {
-                height: 24px; display: flex; align-items: center; gap: 6px;
-                font-weight: bold; padding: 0 8px 0 6px; background: #c0c0c0;
-                border-top: 2px solid #ffffff; border-left: 2px solid #ffffff;
-                border-right: 2px solid #404040; border-bottom: 2px solid #404040;
-                box-shadow: inset -1px -1px #808080, inset 1px 1px #dfdfdf;
-                font-size: 13px; font-style: italic; letter-spacing: 0.5px; outline: none;
-            }
-            .win95-start-btn:active, .win95-start-btn.active {
-                border-top: 2px solid #404040; border-left: 2px solid #404040;
-                border-right: 2px solid #ffffff; border-bottom: 2px solid #ffffff;
-                box-shadow: inset 1px 1px #808080, inset -1px -1px #dfdfdf;
-                padding-top: 2px; padding-left: 7px; padding-right: 7px;
-            }
-
-            .win95-tray {
-                height: 24px; padding: 0 10px; display: flex; align-items: center;
-                border-top: 2px solid #808080; border-left: 2px solid #808080;
-                border-right: 2px solid #ffffff; border-bottom: 2px solid #ffffff;
-                font-size: 11px; color: #000; margin-right: 2px;
-            }
-
-            /* --- 开始菜单 --- */
-            #win95-start-menu {
-                position: fixed; bottom: 92px; 
-                /* 修复超宽屏导致开始菜单与任务栏脱离的自适应对齐问题 */
-                left: calc(max(5vw, 50vw - 600px) + 4px);
-                width: 200px; background: #c0c0c0;
-                border-top: 2px solid #ffffff; border-left: 2px solid #ffffff;
-                border-right: 2px solid #404040; border-bottom: 2px solid #404040;
-                box-shadow: 4px 4px 0 rgba(0,0,0,0.3); z-index: 10000;
-                display: flex; pointer-events: auto; transform: scaleY(0); transform-origin: bottom left;
-                transition: transform 0.1s ease-out; font-family: 'Tahoma', sans-serif;
-            }
-            #win95-start-menu.open { transform: scaleY(1); }
-            
-            .start-sidebar {
-                width: 30px; background: linear-gradient(180deg, #000080, #1084d0);
-                display: flex; align-items: flex-end; padding-bottom: 10px;
-            }
-            .start-sidebar span {
-                color: #fff; font-weight: bold; font-size: 18px; transform: rotate(-90deg);
-                white-space: nowrap; margin-bottom: 30px; margin-left: 4px;
-            }
-            .start-sidebar span b { font-weight: 900; }
-            .start-items { flex-grow: 1; padding: 4px; display: flex; flex-direction: column; }
-            .start-item {
-                display: flex; align-items: center; gap: 10px; padding: 6px 10px;
-                color: #000; font-size: 12px; cursor: pointer;
-            }
-            .start-item:hover { background: #000080; color: #fff; }
-            .start-divider { height: 2px; border-top: 1px solid #808080; border-bottom: 1px solid #ffffff; margin: 4px 0; }
-
-            /* --- 弹窗硬核样式 --- */
-            .win95-dialog {
-                position: absolute; width: 320px; background: #c0c0c0;
-                border-top: 2px solid #ffffff; border-left: 2px solid #ffffff;
-                border-right: 2px solid #404040; border-bottom: 2px solid #404040;
-                box-shadow: inset -1px -1px #808080, inset 1px 1px #dfdfdf, 3px 3px 0 rgba(0,0,0,0.3);
-                color: #000; font-family: 'Tahoma', sans-serif; pointer-events: auto; 
-            }
-            .win95-titlebar {
-                background: linear-gradient(90deg, #000080, #1084d0); color: #ffffff; padding: 3px 4px 3px 6px; 
-                font-weight: bold; font-size: 12px; display: flex; justify-content: space-between; align-items: center; user-select: none;
-            }
-            .win95-titlebar.inactive { background: #808080; }
-            .win95-btn {
-                background: #c0c0c0; border-top: 2px solid #ffffff; border-left: 2px solid #ffffff;
-                border-right: 2px solid #404040; border-bottom: 2px solid #404040; outline: none; color: #000;
-            }
-            .win95-btn:active {
-                border-top: 2px solid #404040; border-left: 2px solid #404040;
-                border-right: 2px solid #ffffff; border-bottom: 2px solid #ffffff;
-                padding-top: 1px; padding-left: 1px;
-            }
-            .win95-close { width: 18px; height: 16px; font-size: 10px; font-weight: bold; line-height: 12px; padding: 0; }
-            .win95-content { padding: 18px; display: flex; align-items: flex-start; gap: 16px; font-size: 12px; }
-            
-            .win95-icon-error {
-                width: 32px; height: 32px; border-radius: 50%; background: #ff0000; color: white;
-                display: flex; justify-content: center; align-items: center; font-size: 24px; font-weight: bold;
-                border: 2px solid #ff0000; flex-shrink: 0; box-shadow: inset -2px -2px 0 rgba(0,0,0,0.5);
-            }
-            .win95-footer { display: flex; justify-content: center; padding-bottom: 16px; gap: 10px; }
-            .win95-footer .win95-btn { padding: 4px 20px; font-size: 12px; }
-
-            /* 扫雷样式 */
-            .ms-grid { display: grid; grid-template-columns: repeat(8, 24px); border: 3px solid; border-color: #808080 #ffffff #ffffff #808080; background: #c0c0c0; }
-            .ms-cell { width: 24px; height: 24px; background: #c0c0c0; border: 2px solid; border-color: #ffffff #808080 #808080 #ffffff; display: flex; justify-content: center; align-items: center; font-size: 14px; font-weight: bold; box-sizing: border-box; }
-            .ms-cell:active { border: 1px solid #808080; border-right-color:#c0c0c0; border-bottom-color:#c0c0c0; }
-            .ms-cell.revealed { border: 1px solid #808080; border-right-color:#c0c0c0; border-bottom-color:#c0c0c0; background: #c0c0c0; }
-
-            /* 碎片整理样式 */
-            .defrag-grid { display: flex; flex-wrap: wrap; gap: 1px; background: #fff; padding: 4px; border: 2px solid #808080; border-right-color: #dfdfdf; border-bottom-color: #dfdfdf; height: 160px; align-content: flex-start; }
-            .defrag-block { width: 8px; height: 12px; border: 1px solid rgba(0,0,0,0.1); }
-
-            /* 记事本 */
-            .notepad-content { padding: 2px; height: 220px; display: flex; flex-direction: column; }
-            .notepad-toolbar { padding: 2px 4px; font-size: 12px; color: #000; border-bottom: 1px solid #808080; display: flex; gap: 10px; }
-            .notepad-toolbar span:first-letter { text-decoration: underline; }
-            .notepad-textarea {
-                flex-grow: 1; width: 100%; resize: none; border: 2px solid #808080; border-right-color: #fff; border-bottom-color: #fff;
-                font-family: 'Fixedsys', 'Courier New', monospace; font-size: 15px; padding: 6px; outline: none; background: #fff; color: #000;
-            }
-
-            /* --- 蓝屏死机 BSOD --- */
-            #bsod {
-                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-                background-color: #0000aa; color: #aaaaaa; font-family: 'Consolas', 'Courier New', monospace;
-                font-size: 18px; padding: 50px; z-index: 100000; display: none; pointer-events: auto; flex-direction: column; align-items: center;
-            }
-            .bsod-bg-text { background: #aaaaaa; color: #0000aa; padding: 0 8px; font-weight: bold; margin-bottom: 30px; }
-            .bsod-text { text-align: left; max-width: 800px; line-height: 1.5; margin-bottom: 20px;}
-
-            /* --- 大眼夹 --- */
-            #retro-clippy-wrapper {
-                position: fixed; bottom: 120px; right: 50px; z-index: 9999; pointer-events: auto;
-                display: flex; flex-direction: column; align-items: flex-end;
-                animation: clippyFloat 4s ease-in-out infinite;
-            }
-            @keyframes clippyFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-            
-            .clippy-bubble {
-                background: #ffffe1; border: 1px solid #000000; padding: 10px 14px; border-radius: 8px;
-                font-family: 'Tahoma', sans-serif; font-size: 13px; color: #000000; box-shadow: 2px 2px 0 rgba(0,0,0,0.4);
-                width: 180px; opacity: 0; transform: translateY(10px); transition: all 0.3s ease; margin-bottom: 12px; position: relative; font-weight: bold;
-            }
-            .clippy-bubble::after {
-                content: ''; position: absolute; bottom: -8px; right: 24px;
-                border-width: 8px 8px 0 0; border-style: solid; 
-                border-color: #ffffe1 transparent transparent transparent; /* 修复黑色下三角问题 */
-                filter: drop-shadow(1px 1px 0 #000);
-            }
-            .clippy-bubble.active { opacity: 1; transform: translateY(0); }
-            .clippy-bubble.angry { background: #ff0000 !important; color: #ffffff !important; border-color: #ffffff; }
-            .clippy-bubble.angry::after { border-color: #ff0000 transparent transparent transparent; filter: drop-shadow(1px 1px 0 #fff); }
-            
-            #retro-clippy-svg { filter: drop-shadow(3px 3px 0 rgba(0,0,0,0.4)); transition: transform 0.2s; }
-            #retro-clippy-svg:active { transform: scale(0.9); }
-            
-            .clippy-eye-group { transform-origin: 48px 31px; animation: clippyBlink 5s infinite; }
-            @keyframes clippyBlink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
-        ` 
-    },
-    extensions:[
-        { type: 'html', content: `
-            <div id="retro-bg"></div>
-            <div id="crt-overlay"></div>
-
-            <div id="bsod">
-                <div class="bsod-bg-text">Windows</div>
-                <div class="bsod-text">
-                    A fatal exception 0E has occurred at 0028:C0011E36 in VXD VMM(01) + 00010E36. The current application will be terminated.<br><br>
-                    *  Press any key to terminate the current application.<br>
-                    *  Press CTRL+ALT+DEL again to restart your computer. You will lose any unsaved information in all applications.
-                </div>
-                <div class="bsod-text" style="text-align: center; margin-top: 40px;">Press any key to continue _</div>
-            </div>
-
-            <div id="retro-ui-layer">
-                
-                <div class="win95-desktop-icons">
-                    <div class="desktop-icon" id="icon-computer">
-                        <div class="icon-img">💻</div>
-                        <span>My Matrix</span>
-                    </div>
-                    <div class="desktop-icon" id="icon-notepad">
-                        <div class="icon-img">📝</div>
-                        <span>Notepad</span>
-                    </div>
-                    <div class="desktop-icon" id="icon-internet">
-                        <div class="icon-img">🌍</div>
-                        <span>Internet<br>Exploder</span>
-                    </div>
-                    <div class="desktop-icon" id="icon-defrag">
-                        <div class="icon-img">🗄️</div>
-                        <span>Disk Defrag</span>
-                    </div>
-                    <div class="desktop-icon" id="icon-minesweeper">
-                        <div class="icon-img">💣</div>
-                        <span>Minesweeper</span>
-                    </div>
-                    <div class="desktop-icon" id="icon-trash">
-                        <div class="icon-img">🗑️</div>
-                        <span>Recycle Bin</span>
-                    </div>
-                </div>
-
-                <div id="retro-trail-container"></div>
-                <div id="retro-windows-container"></div>
-                
-                <!-- 开始菜单 -->
-                <div id="win95-start-menu">
-                    <div class="start-sidebar">
-                        
-                    </div>
-                    <div class="start-items">
-                        <div class="start-item" id="menu-prog">📁 Programs</div>
-                        <div class="start-item" id="menu-doc">📄 Documents</div>
-                        <div class="start-item" id="menu-set">⚙️ Settings</div>
-                        <div class="start-divider"></div>
-                        <div class="start-item" id="menu-find">🔍 Find</div>
-                        <div class="start-item" id="menu-help">❓ Help</div>
-                        <div class="start-item" id="menu-run">🏃 Run...</div>
-                        <div class="start-divider"></div>
-                        <div class="start-item" id="menu-shutdown">🔌 Shut Down...</div>
-                    </div>
-                </div>
-
-                <!-- 任务栏 -->
-                <div id="win95-taskbar">
-                    <button class="win95-start-btn" id="win95-start">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z" fill="#000"/></svg>
-                        Start
-                    </button>
-                    <div class="win95-tray">
-                        <span id="win95-clock">12:00 PM</span>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- 弹窗模板：报错 -->
-            <div id="win95-error-template" class="win95-dialog" style="display: none;">
-                <div class="win95-titlebar">
-                    <span class="win-title-text">Error</span>
-                    <button class="win95-btn win95-close">X</button>
-                </div>
-                <div class="win95-content">
-                    <div class="win95-icon-error">×</div>
-                    <div class="win-msg-text">Error message.</div>
-                </div>
-                <div class="win95-footer">
-                    <button class="win95-btn win95-ok">OK</button>
-                </div>
-            </div>
-
-            <!-- 弹窗模板：记事本 -->
-            <div id="win95-notepad-template" class="win95-dialog" style="display: none; width: 400px;">
-                <div class="win95-titlebar">
-                    <span class="win-title-text">Untitled - Notepad</span>
-                    <button class="win95-btn win95-close">X</button>
-                </div>
-                <div class="notepad-content">
-                    <div class="notepad-toolbar">
-                        <span>File</span><span>Edit</span><span>Search</span><span>Help</span>
-                    </div>
-                    <textarea class="notepad-textarea" spellcheck="false"></textarea>
-                </div>
-            </div>
-
-            <!-- 弹窗模板：扫雷 -->
-            <div id="win95-minesweeper-template" class="win95-dialog" style="display: none; width: auto; background: #c0c0c0;">
-                <div class="win95-titlebar">
-                    <span class="win-title-text">Minesweeper</span>
-                    <button class="win95-btn win95-close">X</button>
-                </div>
-                <div class="win95-content" style="flex-direction: column; align-items: center; padding: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; border: 2px solid; border-color: #808080 #fff #fff #808080; padding: 4px; margin-bottom: 8px; background: #c0c0c0;">
-                        <span style="background:#000; color:red; font-family:'Courier New', monospace; font-size:18px; font-weight:bold; padding: 0 4px; border:1px solid #808080;">010</span>
-                        <div class="ms-face win95-btn" style="width:26px; height:26px; font-size:16px; display:flex; justify-content:center; align-items:center; cursor:pointer;">🙂</div>
-                        <span style="background:#000; color:red; font-family:'Courier New', monospace; font-size:18px; font-weight:bold; padding: 0 4px; border:1px solid #808080;">000</span>
-                    </div>
-                    <div class="ms-grid"></div>
-                </div>
-            </div>
-
-            <!-- 弹窗模板：碎片整理 -->
-            <div id="win95-defrag-template" class="win95-dialog" style="display: none; width: 380px;">
-                <div class="win95-titlebar">
-                    <span class="win-title-text">Disk Defragmenter</span>
-                    <button class="win95-btn win95-close">X</button>
-                </div>
-                <div class="win95-content" style="flex-direction: column; padding: 12px;">
-                    <div class="defrag-status" style="font-size: 12px; margin-bottom: 8px; font-weight: bold;">Drive C: 1% complete</div>
-                    <div class="defrag-grid"></div>
-                    <div style="display: flex; gap: 10px; margin-top: 10px; font-size: 11px;">
-                        <div style="display:flex; align-items:center; gap:4px;"><span style="display:inline-block; width:10px; height:10px; background:#ff0000; border:1px solid #000;"></span> Unoptimized</div>
-                        <div style="display:flex; align-items:center; gap:4px;"><span style="display:inline-block; width:10px; height:10px; background:#ffffff; border:1px solid #000;"></span> Free</div>
-                        <div style="display:flex; align-items:center; gap:4px;"><span style="display:inline-block; width:10px; height:10px; background:#0000ff; border:1px solid #000;"></span> Optimized</div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="retro-clippy-wrapper">
-                <div class="clippy-bubble" id="clippy-bubble">It looks like you're trying to exist. Need help?</div>
-                <svg id="retro-clippy-svg" viewBox="0 0 100 100" width="90" height="90">
-                    <path d="M 35 75 L 35 30 C 35 15, 65 15, 65 30 L 65 65 C 65 85, 20 85, 20 65 L 20 20 C 20 5, 45 5, 45 20 L 45 55" fill="none" stroke="#505050" stroke-width="12" stroke-linecap="round"/>
-                    <path d="M 35 75 L 35 30 C 35 15, 65 15, 65 30 L 65 65 C 65 85, 20 85, 20 65 L 20 20 C 20 5, 45 5, 45 20 L 45 55" fill="none" stroke="#e0e0e0" stroke-width="8" stroke-linecap="round"/>
-                    <path d="M 32 20 Q 38 23 44 20" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round"/>
-                    <path d="M 52 18 Q 58 23 64 20" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round"/>
-                    <g class="clippy-eye-group">
-                        <circle cx="38" cy="32" r="9" fill="#ffffff" stroke="#000000" stroke-width="1.5"/>
-                        <circle cx="58" cy="30" r="9" fill="#ffffff" stroke="#000000" stroke-width="1.5"/>
-                        <g id="clip-eye-1"><circle cx="38" cy="32" r="3.5" fill="#000" class="eye-pupil"/><circle cx="37" cy="31" r="1" fill="#fff"/></g>
-                        <g id="clip-eye-2"><circle cx="58" cy="30" r="3.5" fill="#000" class="eye-pupil"/><circle cx="57" cy="29" r="1" fill="#fff"/></g>
-                    </g>
-                </svg>
-            </div>
-
-            <!-- 修复安全与单页框架挂载Bug：使用 textContent 解析，并保障重入安全 -->
-            
-
-            
         `}
     ]
 },

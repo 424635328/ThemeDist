@@ -1,0 +1,1596 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const siteUrl = Astro.url.origin;
+
+interface EP {
+  id: string; method: string; path: string; label: string; desc: string;
+  usage: string;
+  responseFields?: { name: string; type: string; desc: string }[];
+  params?: { name: string; type: string; label: string; placeholder: string; optional: boolean; options?: string[] }[];
+  curlExample?: string;
+  notes?: string;
+}
+
+const groups: { name: string; items: EP[] }[] = [
+  {
+    name: 'Core',
+    items: [
+      {
+        id: 'today', method: 'GET', path: '/api/v1/today.json', label: 'Today Theme',
+        desc: '获取每日主题的完整数据，包含 34 个 CSS 自定义属性、自定义 CSS 动画、声明式装饰元素数组、Logo 信息、主题目录索引。',
+        usage: '客户端 GET 此端点，将返回的 cssVars 注入 :root，customCss 创建 <style>，extensions 安全渲染为 DOM 元素。',
+        curlExample: `curl ${siteUrl}/api/v1/today.json | jq .`,
+        responseFields: [
+          { name: 'date', type: 'string', desc: 'ISO 日期 YYYY-MM-DD（UTC 时区）' },
+          { name: 'preset', type: 'string', desc: '预设标识符 (kebab-case)' },
+          { name: 'presetName', type: 'string', desc: '人类可读名称' },
+          { name: 'cssVars', type: 'object', desc: '34 个 CSS 自定义属性键值对（5 组：Colors / Typography / Spacing / Effects / Ambient）' },
+          { name: 'customCss', type: 'string|null', desc: '主题专属 CSS（动画 keyframes、特效样式）' },
+          { name: 'extensions', type: 'array|null', desc: '声明式装饰元素数组（floating / decorative）' },
+          { name: 'logoText', type: 'string|null', desc: '主题 Logo 文字标识' },
+          { name: 'logoColors', type: 'array|null', desc: 'Logo 渐变色 hex 字符串数组' },
+          { name: 'available', type: 'number', desc: '可用主题总数' },
+          { name: 'directory', type: 'array', desc: '轻量索引 [{preset, name, primary, accent, logoText}]' },
+        ],
+        params: [
+          { name: 'tz', type: 'text', label: '时区', placeholder: 'Asia/Shanghai', optional: true },
+          { name: 'overrides', type: 'text', label: 'CSS 覆盖', placeholder: '--radii:0px;--font-body:monospace', optional: true },
+        ],
+        notes: 'GET 端点无速率限制，CDN 缓存 24h (stale-while-revalidate)。颜色变量自动附带 -rgb 通道变体。',
+      },
+      {
+        id: 'today-css', method: 'GET', path: '/api/v1/today.css', label: 'Today CSS',
+        desc: '返回今日主题的纯 CSS (:root 变量块)，可直接通过 <link> 标签引入，阻塞渲染消除 FOUC。',
+        usage: '在 <head> 中添加 <link rel="stylesheet" href="/api/v1/today.css"> 即可，浏览器会阻塞等待 CSS 加载完成后再渲染。',
+        curlExample: `curl ${siteUrl}/api/v1/today.css`,
+        notes: '返回 text/css MIME 类型。支持 ?tz= 参数。CDN 缓存 24h。推荐对 FOUC 敏感的场景使用。',
+        params: [
+          { name: 'tz', type: 'text', label: '时区', placeholder: 'Asia/Shanghai', optional: true },
+        ],
+      },
+      {
+        id: 'preset', method: 'GET', path: '/api/v1/theme/{preset}.json', label: 'Preset Theme',
+        desc: '获取指定预设主题的完整数据。与 today.json 结构一致，但不含 date、generatedAt、available、directory 字段。',
+        usage: '从 /api/v1/today.json 的 directory 中选择 preset，调用此端点获取该主题的完整数据。可用于主题预览、主题商店详情页。',
+        curlExample: `curl ${siteUrl}/api/v1/theme/yozakura-reverie.json | jq .`,
+        params: [
+          { name: 'preset', type: 'text', label: '预设名', placeholder: 'yozakura-reverie', optional: false },
+        ],
+        notes: '365 天 CDN 缓存 (immutable)。227+ 个端点，覆盖所有预设主题。',
+      },
+      {
+        id: 'random', method: 'GET', path: '/api/v1/theme/random.json', label: 'Random Theme',
+        desc: '随机获取一个主题。支持 ?pool=static|community|all 筛选池子和 ?seed=N 确定性随机。',
+        usage: '用于"随机换肤"按钮或主题发现场景。传入 seed 可保证相同种子返回相同结果。',
+        curlExample: `curl "${siteUrl}/api/v1/theme/random.json?pool=all&seed=42" | jq .`,
+        params: [
+          { name: 'pool', type: 'select', label: '池子', options: ['', 'static', 'community', 'all'], optional: true },
+          { name: 'seed', type: 'text', label: '种子', placeholder: '42', optional: true },
+        ],
+      },
+      {
+        id: 'today-safe', method: 'GET', path: '/api/v1/today-safe', label: 'Safe Proxy',
+        desc: '安全主题代理 — Vercel 优先，Netlify 备用。从 ThemeDist 代理获取最新 today.json 数据并应用 XSS 清洗。',
+        usage: '下游主题渲染器可直接安全消费，无需自行处理输入净化。返回 _meta.sanitized 和 _meta.schemaValid 字段。',
+        curlExample: `curl https://themedist-monitor.vercel.app/api/v1/today-safe | jq .`,
+        notes: '此端点部署在独立监控服务上。502 表示两个上游平台均不可达。',
+      },
+      {
+        id: 'date-lookup', method: 'GET', path: '/api/v1/date=MM-DD', label: 'Date Lookup',
+        desc: '按日期查询主题，格式 MM-DD。可用于查询特定节日的主题（如 /api/v1/date=02-14 查询情人节主题）。',
+        usage: '用于日历组件、节日预览等场景。',
+        curlExample: `curl ${siteUrl}/api/v1/date=02-14 | jq .`,
+        params: [
+          { name: 'date', type: 'text', label: '日期 (MM-DD)', placeholder: '02-14', optional: false },
+        ],
+      },
+    ]
+  },
+  {
+    name: 'Community',
+    items: [
+      {
+        id: 'diy-list', method: 'GET', path: '/api/v1/diy/themes.json', label: 'Community List',
+        desc: '获取社区投稿主题列表，支持分页、排序（new/hot）、标签筛选。返回包含 id、author、likes、status、tags 等社区特有字段。',
+        usage: 'GET 端点无速率限制。sort=new 按提交时间降序，sort=hot 按点赞数降序。tag 支持 dark/light/warm/cool/vibrant/minimal/nature/tech。',
+        curlExample: `curl "${siteUrl}/api/v1/diy/themes.json?sort=hot&page=1&size=20" | jq .`,
+        params: [
+          { name: 'sort', type: 'select', label: '排序', options: ['new', 'hot'], optional: true },
+          { name: 'page', type: 'text', label: '页码', placeholder: '1', optional: true },
+          { name: 'size', type: 'text', label: '每页数量', placeholder: '20', optional: true },
+          { name: 'tag', type: 'select', label: '标签', options: ['', 'dark', 'light', 'warm', 'cool', 'vibrant', 'minimal', 'nature', 'tech'], optional: true },
+        ],
+        notes: '浏览器缓存 1 分钟。max size=50。',
+      },
+      {
+        id: 'diy-single', method: 'GET', path: '/api/v1/diy/theme.json', label: 'Single Theme',
+        desc: '获取单个社区主题详情（含点赞数、作者信息、审核状态）。',
+        usage: '通过 ?id= 参数指定主题 ID。返回此主题的完整 CSS 变量、作者、标签、点赞数等。',
+        curlExample: `curl "${siteUrl}/api/v1/diy/theme.json?id=abc12345" | jq .`,
+        params: [
+          { name: 'id', type: 'text', label: '主题 ID', placeholder: 'abc12345', optional: false },
+        ],
+      },
+      {
+        id: 'diy-submit', method: 'POST', path: '/api/v1/diy/submit.json', label: 'Submit Theme',
+        desc: '提交社区主题到审核队列。必填 name、author、cssVars（必须含 --color-primary 和 --color-bg）。可选 customCss、extensions、tags（最多 5 个）。',
+        usage: 'POST JSON body。成功返回 201 + { success: true, theme: { id, name, ... }, warnings?: [...] }。warnings 数组表示部分字段被自动调整。',
+        curlExample: `curl -X POST ${siteUrl}/api/v1/diy/submit.json \\
+  -H 'Content-Type: application/json' \\
+  -d '{"name":"My Theme","author":"You","cssVars":{"--color-primary":"#ff6b6b","--color-bg":"#1a1a2e"},"tags":["dark","vibrant"]}'`,
+        params: [
+          { name: 'body', type: 'textarea', label: '请求体 (JSON)', placeholder: '{\n  "name": "My Theme",\n  "author": "You",\n  "cssVars": {\n    "--color-primary": "#ff6b6b",\n    "--color-bg": "#1a1a2e"\n  },\n  "tags": ["dark", "vibrant"]\n}', optional: false },
+        ],
+        notes: '限流：3 次/分钟。cssVars 键自动补齐 -- 前缀。不支持 JavaScript 类型的 extension。超限返回 429。',
+      },
+      {
+        id: 'diy-like', method: 'POST', path: '/api/v1/diy/like.json', label: 'Like Theme',
+        desc: '点赞社区主题。服务器基于 IP + User-Agent 指纹去重，同一用户对同一主题仅计一次。',
+        usage: 'POST JSON body: { "id": "abc12345" }。返回 { likes: number, voted: boolean }。',
+        curlExample: `curl -X POST ${siteUrl}/api/v1/diy/like.json \\
+  -H 'Content-Type: application/json' \\
+  -d '{"id":"abc12345"}'`,
+        params: [
+          { name: 'body', type: 'textarea', label: '请求体 (JSON)', placeholder: '{\n  "id": "abc12345"\n}', optional: false },
+        ],
+        notes: '限流：10 次/分钟。',
+      },
+    ]
+  },
+  {
+    name: 'AI',
+    items: [
+      {
+        id: 'ai-generate', method: 'POST', path: '/api/v1/ai/generate.json', label: 'AI Generate',
+        desc: 'AI 主题生成（规则引擎，或客户端 DeepSeek 直调）。根据文本描述生成完整主题的 CSS 变量。',
+        usage: 'POST JSON body 含 prompt 字段，服务端根据 prompt 通过规则引擎或 AI 生成匹配的主题变量。',
+        curlExample: `curl -X POST ${siteUrl}/api/v1/ai/generate.json \\
+  -H 'Content-Type: application/json' \\
+  -d '{"prompt":"a dark cyberpunk theme with neon green accents"}'`,
+        params: [
+          { name: 'body', type: 'textarea', label: '请求体 (JSON)', placeholder: '{\n  "prompt": "a dark cyberpunk theme with neon green accents"\n}', optional: false },
+        ],
+      },
+      {
+        id: 'ai-describe', method: 'POST', path: '/api/v1/ai/describe.json', label: 'AI Describe',
+        desc: 'AI 逆向描述 — 分析 CSS 变量集合，输出中文风格描述。可用于"这个主题是什么风格"的查询。',
+        usage: 'POST JSON body 含 cssVars 对象。返回包含风格描述的中文文本。',
+        curlExample: `curl -X POST ${siteUrl}/api/v1/ai/describe.json \\
+  -H 'Content-Type: application/json' \\
+  -d '{"cssVars":{"--color-primary":"#3b82f6","--color-bg":"#0f172a","--color-accent":"#f59e0b"}}'`,
+        params: [
+          { name: 'body', type: 'textarea', label: '请求体 (JSON)', placeholder: '{\n  "cssVars": {\n    "--color-primary": "#3b82f6",\n    "--color-bg": "#0f172a",\n    "--color-accent": "#f59e0b"\n  }\n}', optional: false },
+        ],
+      },
+    ]
+  },
+  {
+    name: 'Advanced',
+    items: [
+      {
+        id: 'tokens', method: 'GET', path: '/api/v1/tokens.json', label: 'Design Tokens (DTCG)',
+        desc: 'W3C DTCG 设计令牌导出。将主题的 CSS 变量转换为标准化设计令牌层级结构（color / typography / space / effects）。',
+        usage: '用于与 Figma、Style Dictionary 等设计工具集成。返回符合 DTCG 规范的 JSON。',
+        curlExample: `curl ${siteUrl}/api/v1/tokens.json | jq .`,
+      },
+      {
+        id: 'search-color', method: 'GET', path: '/api/v1/search/color.json', label: 'Color Search',
+        desc: '按颜色相似度搜索主题。RGB 欧几里得距离排序，找出与目标颜色最接近的主题。',
+        usage: '传入 hex 颜色值和可选 limit 参数。返回按相似度排序的主题列表。',
+        curlExample: `curl "${siteUrl}/api/v1/search/color.json?hex=ff6b6b&limit=10" | jq .`,
+        params: [
+          { name: 'hex', type: 'text', label: '颜色值', placeholder: '#ff6b6b', optional: false },
+          { name: 'limit', type: 'text', label: '结果数量', placeholder: '10', optional: true },
+        ],
+      },
+      {
+        id: 'recommend', method: 'GET', path: '/api/v1/recommend/{preset}.json', label: 'Smart Recommend',
+        desc: '智能推荐引擎。基于 Jaccard 标签相似度 + 颜色距离加权计算，推荐与指定主题风格相近的其他主题。',
+        usage: '传入一个 preset 名，返回与之风格最相似的主题列表。用于"相似主题"推荐栏目。',
+        curlExample: `curl ${siteUrl}/api/v1/recommend/yozakura-reverie.json | jq .`,
+        params: [
+          { name: 'preset', type: 'text', label: '预设名', placeholder: 'yozakura-reverie', optional: false },
+        ],
+      },
+      {
+        id: 'trending', method: 'GET', path: '/api/v1/trending.json', label: 'Trending',
+        desc: '趋势排行榜。热度 = 点赞数 × 10 + 使用量 × 1。发现社区中最受欢迎的主题。',
+        usage: '无需参数。返回按热度降序排列的主题列表。',
+        curlExample: `curl ${siteUrl}/api/v1/trending.json | jq .`,
+      },
+      {
+        id: 'badge', method: 'GET', path: '/api/v1/badge/{username}.svg', label: 'GitHub Badge',
+        desc: 'GitHub 动态徽章。shields.io 风格作者统计 SVG，可嵌入 README 展示主题贡献者信息。',
+        usage: '将 {username} 替换为 GitHub 用户名。返回 SVG 图片可直接在 <img> 或 Markdown 中使用。',
+        curlExample: `curl ${siteUrl}/api/v1/badge/424635328.svg`,
+        params: [
+          { name: 'username', type: 'text', label: 'GitHub 用户名', placeholder: '424635328', optional: false },
+        ],
+      },
+      {
+        id: 'telemetry', method: 'POST', path: '/api/v1/telemetry/hit', label: 'Telemetry Hit',
+        desc: '匿名遥测上报。使用 HyperLogLog 算法统计独立域名和主题使用计数，不存储个人信息。',
+        usage: 'POST 上报使用数据。用于统计主题流行度和使用量。客户端应仅在首次加载时上报。',
+        curlExample: `curl -X POST ${siteUrl}/api/v1/telemetry/hit \\
+  -H 'Content-Type: application/json' \\
+  -d '{"preset":"yozakura-reverie"}'`,
+        params: [
+          { name: 'body', type: 'textarea', label: '请求体 (JSON)', placeholder: '{\n  "preset": "yozakura-reverie"\n}', optional: false },
+        ],
+      },
+      {
+        id: 'pool-create', method: 'POST', path: '/api/v1/pool/create.json', label: 'Create Pool',
+        desc: '创建自定义主题轮换池。指定一组主题 preset，系统每日从中轮换选择。',
+        usage: 'POST JSON body 含 presets 数组和可选的 name。返回创建的 pool ID。',
+        curlExample: `curl -X POST ${siteUrl}/api/v1/pool/create.json \\
+  -H 'Content-Type: application/json' \\
+  -d '{"name":"my-pool","presets":["minimal-blue","yozakura-reverie","sunset-boulevard"]}'`,
+        params: [
+          { name: 'body', type: 'textarea', label: '请求体 (JSON)', placeholder: '{\n  "name": "my-pool",\n  "presets": ["minimal-blue", "yozakura-reverie"]\n}', optional: false },
+        ],
+      },
+      {
+        id: 'pool-get', method: 'GET', path: '/api/v1/pool/{poolId}.json', label: 'Pool Rotation',
+        desc: '查询自定义轮换池的每日主题。类似 today.json 但限于指定池子内轮换。',
+        usage: '创建池子后，通过池子 ID 获取当日从该池子中选中的主题。',
+        curlExample: `curl ${siteUrl}/api/v1/pool/abc123.json | jq .`,
+        params: [
+          { name: 'poolId', type: 'text', label: '池子 ID', placeholder: 'abc123', optional: false },
+        ],
+      },
+      {
+        id: 'tailwind-config', method: 'GET', path: '/api/v1/tailwind-config.json', label: 'Tailwind Config',
+        desc: '一键生成 Tailwind CSS 配置片段。含 RGB 通道变量和 <alpha-value> 支持，可直接用于 Tailwind v3/v4 项目。',
+        usage: '返回完整的 tailwind.config.js 配置对象或 CSS @theme 块。所有颜色使用 RGB 通道以支持不透明度修饰符。',
+        curlExample: `curl ${siteUrl}/api/v1/tailwind-config.json | jq .`,
+      },
+      {
+        id: 'today-favicon', method: 'GET', path: '/api/v1/today/favicon.svg', label: 'Dynamic Favicon',
+        desc: '动态 Favicon SVG。根据今日主题主色生成圆角矩形 + Logo 首字母的动态图标。',
+        usage: '<link rel="icon" type="image/svg+xml" href="/api/v1/today/favicon.svg">。每日自动变色。',
+        curlExample: `curl ${siteUrl}/api/v1/today/favicon.svg`,
+      },
+      {
+        id: 'today-fonts', method: 'GET', path: '/api/v1/today/fonts.css', label: 'Auto Fonts CSS',
+        desc: '自动字体注入。提取今日主题的字体设置，生成 Google Fonts @import 和 font-family 声明。',
+        usage: '<link rel="stylesheet" href="/api/v1/today/fonts.css">。自动处理 Google Fonts CDN 引用。',
+        curlExample: `curl ${siteUrl}/api/v1/today/fonts.css`,
+      },
+      {
+        id: 'today-palette', method: 'GET', path: '/api/v1/today/palette.svg', label: 'Palette Badge',
+        desc: '今日主题调色盘 SVG 徽章。可嵌入 README / 博客 Footer 展示当日主题配色。',
+        usage: '<img src="/api/v1/today/palette.svg" alt="Today Palette">。',
+        curlExample: `curl ${siteUrl}/api/v1/today/palette.svg`,
+      },
+    ]
+  },
+  {
+    name: 'Diagnostics & Export',
+    items: [
+      {
+        id: 'wcag', method: 'GET', path: '/api/v1/theme/{id}/wcag.json', label: 'WCAG Audit',
+        desc: 'WCAG 2.1 无障碍诊断。评估主题的颜色对比度，检查正文、主色、辅色在背景上的可读性。',
+        usage: '返回每条颜色组合的对比度数值及 AA/AAA 级别通过情况，含 compliant 总览标记和 warnings 修复建议。',
+        curlExample: `curl ${siteUrl}/api/v1/theme/yozakura-reverie/wcag.json | jq .`,
+        params: [
+          { name: 'id', type: 'text', label: '主题 ID', placeholder: 'yozakura-reverie', optional: false },
+        ],
+      },
+      {
+        id: 'scale', method: 'GET', path: '/api/v1/theme/{id}/scale.json', label: 'Color Scale',
+        desc: 'Tailwind 风格色阶生成。基于黑白色插值法，从主题主色/辅色/强调色/背景色生成 50~950 共 11 级色阶。',
+        usage: '返回 scales.primary、scales.secondary、scales.accent、scales.background 四组色阶。365 天 CDN 缓存。',
+        curlExample: `curl ${siteUrl}/api/v1/theme/yozakura-reverie/scale.json | jq .`,
+        params: [
+          { name: 'id', type: 'text', label: '主题 ID', placeholder: 'yozakura-reverie', optional: false },
+        ],
+      },
+      {
+        id: 'shadcn', method: 'GET', path: '/api/v1/theme/{id}/export/shadcn.css', label: 'Shadcn UI Export',
+        desc: 'Shadcn UI 适配器。将主题 CSS 变量转换为 Shadcn UI 所需的 HSL 通道变量体系，前景色自动根据背景亮度推断。',
+        usage: '返回完整 CSS（@layer base { :root {} }），可直接复制到 Shadcn UI 项目的 globals.css 中使用。',
+        curlExample: `curl ${siteUrl}/api/v1/theme/yozakura-reverie/export/shadcn.css`,
+        params: [
+          { name: 'id', type: 'text', label: '主题 ID', placeholder: 'yozakura-reverie', optional: false },
+        ],
+      },
+      {
+        id: 'shiki', method: 'GET', path: '/api/v1/theme/{id}/shiki.json', label: 'Shiki Highlight',
+        desc: 'Shiki / VS Code 代码高亮主题。将主题的 CSS 变量映射为 TextMate Token 颜色，可直接作为代码高亮主题使用。',
+        usage: '返回包含 tokenColors 和 semanticTokenColors 的 JSON，可直接导入 Shiki 配置。',
+        curlExample: `curl ${siteUrl}/api/v1/theme/yozakura-reverie/shiki.json | jq .`,
+        params: [
+          { name: 'id', type: 'text', label: '主题 ID', placeholder: 'yozakura-reverie', optional: false },
+        ],
+      },
+      {
+        id: 'extract-theme', method: 'POST', path: '/api/v1/extract-theme.json', label: 'Image Extract',
+        desc: '图片取色 API。传入图片 URL，服务端下载后用纯 JavaScript 解码（jpeg-js / pngjs），K-means 聚类提取 Top 5 主色调，通过色彩语义引擎映射为标准 UI 变量。',
+        usage: 'POST JSON body: { "imageUrl": "https://example.com/poster.jpg" }。仅支持 JPEG/PNG，最大 5MB，抓取超时 5s。返回 sourcePalette、isDark、cssVars、customCss。',
+        curlExample: `curl -X POST ${siteUrl}/api/v1/extract-theme.json \\
+  -H 'Content-Type: application/json' \\
+  -d '{"imageUrl":"https://example.com/poster.jpg"}'`,
+        params: [
+          { name: 'body', type: 'textarea', label: '请求体 (JSON)', placeholder: '{\n  "imageUrl": "https://example.com/poster.jpg"\n}', optional: false },
+        ],
+      },
+      {
+        id: 'og-svg', method: 'GET', path: '/api/v1/theme/{id}/og.svg', label: 'OG Image',
+        desc: 'OG 社交分享卡片。1200×630 SVG，含主题色板与名称，适合用于 Open Graph 预览图。',
+        usage: '<meta property="og:image" content="/api/v1/theme/yozakura-reverie/og.svg">。',
+        curlExample: `curl ${siteUrl}/api/v1/theme/yozakura-reverie/og.svg`,
+        params: [
+          { name: 'id', type: 'text', label: '主题 ID', placeholder: 'yozakura-reverie', optional: false },
+        ],
+      },
+      {
+        id: 'index-data', method: 'GET', path: '/api/v1/index-data.json', label: 'Index Data',
+        desc: '首页所需的聚合数据。包含当日主题、推荐列表、社区统计等一站式数据。',
+        usage: '用于构建首页仪表盘，减少多次 API 调用。',
+        curlExample: `curl ${siteUrl}/api/v1/index-data.json | jq .`,
+      },
+    ]
+  },
+  {
+    name: 'Environment',
+    items: [
+      {
+        id: 'weather', method: 'GET', path: '/api/v1/weather-theme.json', label: 'Weather-Adaptive',
+        desc: '天气自适应主题。嗅探式跨平台地理位置检测（Vercel x-vercel-ip-latitude / Netlify x-nf-geo），调用免费 Open-Meteo API 获取实时天气，自动匹配对应氛围的主题。',
+        usage: '支持 ?lat= 和 ?lon= 查询参数覆盖 IP 检测。天气映射：晴天→sunny-day / 阴天→cloudy-grey / 雨→rainy-mood / 雪→snow-white / 雷暴→thunderstorm。API 超时 3s，失败降级为 Clear Sky + 今日主题。',
+        curlExample: `curl "${siteUrl}/api/v1/weather-theme.json?lat=35.68&lon=139.76" | jq .`,
+        params: [
+          { name: 'lat', type: 'text', label: '纬度', placeholder: '35.68', optional: true },
+          { name: 'lon', type: 'text', label: '经度', placeholder: '139.76', optional: true },
+        ],
+        notes: '缓存 30 分钟。返回城市名（OpenStreetMap Nominatim 逆地理编码）。',
+      },
+      {
+        id: 'status-override', method: 'GET', path: '/api/v1/status-override.json', label: 'Status Override',
+        desc: '系统状态覆盖主题。根据系统运行状态返回覆盖主题，用于维护页、哀悼日、故障降级等场景。',
+        usage: '?status=maintenance（纯灰）、?status=mourning（暗黑灰调 + grayscale 滤镜）、?status=incident（红色警示）。',
+        curlExample: `curl "${siteUrl}/api/v1/status-override.json?status=maintenance" | jq .`,
+        params: [
+          { name: 'status', type: 'select', label: '状态', options: ['maintenance', 'mourning', 'incident'], optional: false },
+        ],
+        notes: '缓存 5 分钟。',
+      },
+      {
+        id: 'today-pattern', method: 'GET', path: '/api/v1/today/pattern.css', label: 'SVG Pattern',
+        desc: '动态 SVG 背景纹理。根据今日主题色实时生成几何图案 SVG，转为 data URI 嵌入 CSS，可作 background-image 使用。',
+        usage: '<link rel="stylesheet" href="/api/v1/today/pattern.css"> 或在 CSS 中 @import。',
+        curlExample: `curl ${siteUrl}/api/v1/today/pattern.css`,
+      },
+      {
+        id: 'today-weather-js', method: 'GET', path: '/api/v1/today/weather.js', label: 'Weather Particles',
+        desc: '天气粒子渲染脚本。云/雨/雪/太阳/闪电粒子动画，<script src> 引入即自动渲染 canvas 粒子层。',
+        usage: '<script src="/api/v1/today/weather.js" defer></script>。自动在页面创建 canvas 天气粒子效果。',
+        curlExample: `curl ${siteUrl}/api/v1/today/weather.js`,
+        notes: 'CDN 缓存 24h。浏览器缓存 1h。',
+      },
+    ]
+  },
+];
+
+// Flatten and assign indices
+let epIndex = 0;
+const flat: any[] = [];
+groups.forEach((g, gi) => {
+  g.items.forEach((ep: any, ei: number) => {
+    ep._idx = epIndex++;
+    ep._gid = gi;
+    ep._eid = ei;
+    flat.push(ep);
+  });
+});
+---
+
+<Layout>
+  <section style="padding:28px 20px;max-width:1520px;margin:0 auto">
+    <div class="pg-topbar">
+      <div>
+        <p class="t-label" style="margin:0">Developer Tools</p>
+        <h1 style="margin:2px 0 0;font-size:1.35rem;font-weight:700;letter-spacing:-0.02em">API Playground</h1>
+      </div>
+      <div class="pg-topbar__actions">
+        <button class="pg-mobile-toggle" id="mobile-sidebar-toggle" type="button" aria-label="Toggle sidebar">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect y="2" width="18" height="2" rx="1" fill="currentColor"/><rect y="8" width="18" height="2" rx="1" fill="currentColor"/><rect y="14" width="18" height="2" rx="1" fill="currentColor"/></svg>
+        </button>
+        <div class="pg-topbar__hint">
+          <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to send
+        </div>
+      </div>
+    </div>
+
+    <div class="pg-shell" id="pg-shell">
+      <!-- ====== SIDEBAR ====== -->
+      <nav class="pg-sidebar" id="pg-sidebar">
+        <div class="pg-sidebar__section">
+          <div class="pg-sidebar__label">Endpoints</div>
+          <div class="pg-search">
+            <svg class="pg-search__icon" width="14" height="14" viewBox="0 0 18 18" fill="none"><circle cx="7.5" cy="7.5" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M11.5 11.5L16 16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <input class="pg-search__input" id="ep-search" type="text" placeholder="Filter endpoints..." autocomplete="off" />
+          </div>
+          <div class="pg-ep-list" id="ep-list">
+            {groups.map((g) => (
+              <div class="pg-ep-group" data-group={g.name}>
+                <div class="pg-ep-group__name">{g.name}</div>
+                {g.items.map((ep: any) => (
+                  <button class="pg-ep-item" data-idx={String(ep._idx)} data-method={ep.method} data-path={ep.path} data-label={ep.label} type="button"
+                    onclick="window.__selectEndpoint && window.__selectEndpoint({ep._idx})">
+                    <span class={`pg-ep-item__method pg-ep-method--${ep.method.toLowerCase()}`}>{ep.method}</span>
+                    <span class="pg-ep-item__label">{ep.label}</span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <button class="pg-custom-trigger" id="custom-url-toggle" type="button">
+          <svg width="14" height="14" viewBox="0 0 18 18" fill="none"><path d="M7 3H4a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1v-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 2L9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M11 2h5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Custom URL
+        </button>
+
+        <div class="pg-sidebar__section" id="history-section" style="display:none">
+          <div class="pg-sidebar__label">History <button class="pg-history-clear" id="history-clear" type="button">Clear</button></div>
+          <div class="pg-history-list" id="history-list"></div>
+        </div>
+      </nav>
+
+      <!-- ====== MAIN: Request + Docs ====== -->
+      <div class="pg-main">
+        <div class="pg-panel" style="height:100%;overflow-y:auto">
+          <!-- URL bar -->
+          <div class="pg-url-section">
+            <div class="pg-url-row">
+              <select class="pg-method-select" id="method-select">
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+              </select>
+              <div class="pg-url-input-wrap">
+                <span class="pg-url-prefix">{siteUrl}</span>
+                <input class="pg-url-input" id="url-input" type="text" value="/api/v1/today.json" autocomplete="off" spellcheck="false" />
+              </div>
+              <button class="pg-send-btn" id="pg-send" type="button" onclick="window.__doSend && window.__doSend()">
+                <svg width="15" height="15" viewBox="0 0 18 18" fill="none"><path d="M2 9l14-7-7 14-2-5-5-2z" fill="currentColor"/></svg>
+                <span id="pg-send-label">Send</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- API Description -->
+          <div class="pg-docs" id="pg-docs">
+            <div class="pg-docs__empty" id="pg-docs-empty">
+              <p>Select an endpoint from the sidebar to view details and send requests.</p>
+            </div>
+            <div class="pg-docs__content" id="pg-docs-content" style="display:none">
+              <h2 class="pg-docs__title" id="docs-title"></h2>
+              <p class="pg-docs__desc" id="docs-desc"></p>
+
+              <div class="pg-docs__section">
+                <h3>Usage</h3>
+                <p class="pg-docs__usage" id="docs-usage"></p>
+              </div>
+
+              <div class="pg-docs__section" id="docs-notes-block" style="display:none">
+                <h3>Notes</h3>
+                <div class="pg-docs__notes" id="docs-notes"></div>
+              </div>
+
+              <div class="pg-docs__section" id="docs-response-block" style="display:none">
+                <h3>Response Fields</h3>
+                <div class="pg-table-wrap">
+                  <table class="pg-docs-table" id="docs-response-table"></table>
+                </div>
+              </div>
+
+              <div class="pg-docs__section">
+                <h3>cURL Example</h3>
+                <pre class="pg-docs__curl" id="docs-curl"></pre>
+              </div>
+            </div>
+          </div>
+
+          <!-- Query params -->
+          <div class="pg-params" id="params-container">
+            <div class="pg-params__head">
+              <span class="pg-params__title">Query Parameters</span>
+              <button class="pg-params__add" id="param-add" type="button">+ Add</button>
+            </div>
+            <div id="params-list"></div>
+            <div class="pg-no-params" id="no-params">No parameters for this endpoint</div>
+          </div>
+
+          <!-- Body (POST) -->
+          <div class="pg-body-section" id="body-section" style="display:none">
+            <div class="pg-body__head">
+              <span class="pg-params__title">Request Body</span>
+              <div class="pg-body__actions">
+                <button class="pg-body__btn" id="body-format" type="button">Prettify</button>
+                <button class="pg-body__btn" id="body-validate" type="button">Validate</button>
+              </div>
+            </div>
+            <textarea class="pg-body-editor" id="body-editor" rows="10" placeholder='{"key": "value"}' spellcheck="false"></textarea>
+            <span class="pg-body-feedback" id="body-feedback"></span>
+          </div>
+
+          <!-- Rate limit bar -->
+          <div class="pg-rate" id="pg-rate" style="display:none">
+            <div class="pg-rate__bar"><div class="pg-rate__fill" id="rate-fill"></div></div>
+            <span class="pg-rate__text" id="rate-text"></span>
+          </div>
+
+          <span class="pg-send-hint" id="pg-send-hint"></span>
+        </div>
+      </div>
+
+      <!-- ====== RIGHT: Response ====== -->
+      <div class="pg-response" id="res-panel">
+        <div class="pg-panel" style="height:100%;display:flex;flex-direction:column">
+          <div class="pg-panel__head">
+            <span class="pg-panel__title">Response</span>
+            <div class="pg-res__meta" id="res-meta" style="display:none">
+              <span class="pg-res-status" id="res-status"></span>
+              <span class="pg-res-time" id="res-time"></span>
+              <button class="pg-res-copy" id="res-copy" type="button">Copy</button>
+            </div>
+          </div>
+
+          <div class="pg-res-empty" id="pg-empty">
+            <svg width="40" height="40" viewBox="0 0 48 48" fill="none" opacity="0.25">
+              <rect x="10" y="10" width="28" height="28" rx="3" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M18 21l4 4 8-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <p>Select an endpoint and click <strong>Send</strong> to inspect the response</p>
+          </div>
+
+          <div class="pg-res-loading" id="pg-loading" style="display:none">
+            <div class="pg-spinner"></div>
+            <span>Sending request...</span>
+          </div>
+
+          <div class="pg-res-error" id="pg-error" style="display:none">
+            <span class="pg-res-error__icon">!</span>
+            <div><strong id="pg-error-title">Request Failed</strong><p id="pg-error-msg"></p></div>
+          </div>
+
+          <div class="pg-res-content" id="res-content" style="display:none">
+            <details class="pg-res-headers" id="res-headers-block" open>
+              <summary class="pg-res-headers__toggle">Response Headers <span class="pg-res-count" id="hdr-count"></span></summary>
+              <div class="pg-res-headers__table-wrap">
+                <table class="pg-res-headers__table" id="res-headers"></table>
+              </div>
+            </details>
+            <div class="pg-res-body" id="res-body-block">
+              <div class="pg-res-body__head">
+                <span class="pg-res-body__label">Response Body</span>
+                <button class="pg-res-body__maximize" id="res-maximize" type="button" title="Toggle full-width">⤢</button>
+              </div>
+              <pre class="pg-res-body__code" id="res-body"></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<script type="application/json" id="flat-data" is:inline>
+{JSON.stringify(flat.map((ep: any) => ({id: ep.id, method: ep.method, path: ep.path, label: ep.label, desc: ep.desc, usage: ep.usage, params: ep.params, curlExample: ep.curlExample, notes: ep.notes, responseFields: ep.responseFields, _idx: ep._idx, _gid: ep._gid, _eid: ep._eid})))}
+</script>
+
+<script>
+  var siteUrl = '{siteUrl}';
+  var RATE_WINDOW = 60000;
+  var RATE_LIMITS = { GET: 30, POST: 5 };
+  var STORAGE_KEY = 'td-pg-rate';
+  var HIST_KEY = 'td-pg-history';
+  var FLAT = JSON.parse(document.getElementById('flat-data').textContent);
+
+  var activeEP = FLAT[0];
+  var isCustom = false;
+  var lastResBody = '';
+  var lastResCT = '';
+  var maxed = false;
+
+  // ── Rate helpers ──
+  function getHits() {
+    try { return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { return []; }
+  }
+  function recordHit(method) {
+    var now = Date.now();
+    var hist = getHits().filter(function(h) { return h.method === method && now - h.ts < RATE_WINDOW; });
+    hist.push({ method: method, ts: now });
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(hist));
+    return hist;
+  }
+  function checkRate(method) {
+    var hist = getHits().filter(function(h) { return h.method === method && Date.now() - h.ts < RATE_WINDOW; });
+    var limit = RATE_LIMITS[method] || 30;
+    var remaining = Math.max(0, limit - hist.length);
+    var blocked = remaining === 0;
+    var waitSec = 0;
+    if (blocked) {
+      var oldest = hist.reduce(function(min, h) { return h.ts < min ? h.ts : min; }, Infinity);
+      waitSec = Math.ceil((RATE_WINDOW - (Date.now() - oldest)) / 1000);
+    }
+    return { count: hist.length, limit: limit, remaining: remaining, blocked: blocked, waitSec: waitSec };
+  }
+
+  // ── History ──
+  function getHistory() {
+    try { return JSON.parse(sessionStorage.getItem(HIST_KEY) || '[]'); } catch(e) { return []; }
+  }
+  function saveHistory(entry) {
+    var hist = getHistory();
+    hist.unshift(entry);
+    if (hist.length > 20) hist.length = 20;
+    sessionStorage.setItem(HIST_KEY, JSON.stringify(hist));
+    renderHistory();
+  }
+
+  // ── DOM refs ──
+  function $(s) { return document.querySelector(s); }
+  function $i(s) { return document.getElementById(s); }
+
+  var epSearchEl   = $i('ep-search');
+  var epListEl     = $i('ep-list');
+  var methodSel    = $i('method-select');
+  var urlInput     = $i('url-input');
+  var pgSend       = $i('pg-send');
+  var pgSendLabel  = $i('pg-send-label');
+  var pgSendHint   = $i('pg-send-hint');
+  var rateShort    = $i('rate-short');
+  var paramsList   = $i('params-list');
+  var noParams     = $i('no-params');
+  var bodySection  = $i('body-section');
+  var bodyEditor   = $i('body-editor');
+  var bodyFeedback = $i('body-feedback');
+  var pgRate       = $i('pg-rate');
+  var rateFill     = $i('rate-fill');
+  var rateText     = $i('rate-text');
+  var resMeta      = $i('res-meta');
+  var resStatus    = $i('res-status');
+  var resTime      = $i('res-time');
+  var resHeaders   = $i('res-headers');
+  var resBody      = $i('res-body');
+  var hdrCount     = $i('hdr-count');
+  var pgEmptyEl    = $i('pg-empty');
+  var pgLoading    = $i('pg-loading');
+  var pgError      = $i('pg-error');
+  var pgErrorTitle = $i('pg-error-title');
+  var pgErrorMsg   = $i('pg-error-msg');
+  var resContent   = $i('res-content');
+  var resHeadersBlock = $i('res-headers-block');
+  var resBodyBlock = $i('res-body-block');
+  var resCopy      = $i('res-copy');
+  var historyList  = $i('history-list');
+  var historySection = $i('history-section');
+  var docsEmpty    = $i('pg-docs-empty');
+  var docsContent  = $i('pg-docs-content');
+  var docsTitle    = $i('docs-title');
+  var docsDesc     = $i('docs-desc');
+  var docsUsage    = $i('docs-usage');
+  var docsCurl     = $i('docs-curl');
+  var docsNotesBlock = $i('docs-notes-block');
+  var docsNotes    = $i('docs-notes');
+  var docsResponseBlock = $i('docs-response-block');
+  var docsResponseTable = $i('docs-response-table');
+  var sidebarEl    = $i('pg-sidebar');
+  var mobileToggle = $i('mobile-sidebar-toggle');
+  var resPanel     = $i('res-panel');
+
+  // ── Show endpoint docs ──
+  function showDocs(ep) {
+    docsEmpty.style.display = 'none';
+    docsContent.style.display = 'block';
+    docsTitle.textContent = ep.method + ' ' + (ep.label || '');
+    docsDesc.textContent = ep.desc || '';
+    docsUsage.textContent = ep.usage || '';
+    docsCurl.textContent = ep.curlExample || buildURL();
+
+    if (ep.notes) {
+      docsNotesBlock.style.display = 'block';
+      docsNotes.textContent = ep.notes;
+    } else {
+      docsNotesBlock.style.display = 'none';
+    }
+
+    if (ep.responseFields && ep.responseFields.length) {
+      docsResponseBlock.style.display = 'block';
+      docsResponseTable.innerHTML = '<thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead><tbody>' +
+        ep.responseFields.map(function(f) {
+          return '<tr><td class="pg-docs-field">' + esc(f.name) + '</td><td class="pg-docs-type">' + esc(f.type) + '</td><td>' + esc(f.desc) + '</td></tr>';
+        }).join('') + '</tbody>';
+    } else {
+      docsResponseBlock.style.display = 'none';
+    }
+  }
+
+  // ── Select endpoint ──
+  function selectEndpoint(idx) {
+    isCustom = false;
+    $('#custom-url-toggle').classList.remove('active');
+    activeEP = FLAT[idx];
+    methodSel.value = activeEP.method;
+    methodSel.disabled = false;
+    urlInput.value = activeEP.path;
+    urlInput.readOnly = false;
+    renderParams();
+    highlightSidebar();
+    updateRateUI();
+    showDocs(activeEP);
+    bodySection.style.display = activeEP.method === 'POST' ? 'block' : 'none';
+    if (activeEP.method === 'POST') {
+      var bodyParam = (activeEP.params || []).find(function(p) { return p.name === 'body'; });
+      if (bodyParam && !bodyEditor.value) bodyEditor.value = bodyParam.placeholder || '';
+    }
+    // Close mobile sidebar after selection
+    if (window.innerWidth < 1150) sidebarEl.classList.remove('open');
+  }
+
+  window.__selectEndpoint = selectEndpoint;
+
+  function highlightSidebar() {
+    document.querySelectorAll('.pg-ep-item').forEach(function(el) {
+      el.classList.toggle('active', el.dataset.idx === String(activeEP._idx));
+    });
+  }
+
+  // ── Filter endpoints ──
+  epSearchEl.addEventListener('input', function() {
+    var q = epSearchEl.value.toLowerCase();
+    document.querySelectorAll('.pg-ep-group').forEach(function(g) {
+      var vis = false;
+      g.querySelectorAll('.pg-ep-item').forEach(function(item) {
+        var ok = !q || (item.dataset.label || '').toLowerCase().indexOf(q) !== -1 || (item.dataset.path || '').toLowerCase().indexOf(q) !== -1;
+        item.style.display = ok ? '' : 'none';
+        if (ok) vis = true;
+      });
+      g.style.display = vis ? '' : 'none';
+    });
+  });
+
+  // ── Render params ──
+  function renderParams() {
+    paramsList.innerHTML = '';
+    var params = isCustom ? [] : (activeEP.params || []);
+    if (params.length === 0) {
+      noParams.style.display = 'block';
+      bodySection.style.display = activeEP.method === 'POST' ? 'block' : 'none';
+      return;
+    }
+    noParams.style.display = 'none';
+    params.forEach(function(p) {
+      if (p.name === 'body') return;
+      var row = document.createElement('div');
+      row.className = 'pg-param-row';
+      var optTag = p.optional ? '<span class="pg-opt">optional</span>' : '<span class="pg-req">required</span>';
+      var valHTML;
+      if (p.type === 'select') {
+        valHTML = '<select class="pg-param-val pg-input" data-param="' + p.name + '">' +
+          (p.options || []).map(function(o) { return '<option value="' + o + '">' + (o || '—') + '</option>'; }).join('') +
+          '</select>';
+      } else {
+        valHTML = '<input class="pg-param-val pg-input" type="text" data-param="' + p.name + '" placeholder="' + (p.placeholder || '') + '" />';
+      }
+      row.innerHTML =
+        '<input class="pg-param-key" type="text" value="' + p.name + '" ' + (p.optional ? '' : 'data-required="true"') + ' readonly />' +
+        '<span class="pg-param-eq">=</span>' +
+        valHTML +
+        '<button class="pg-param-del" type="button">&times;</button>';
+      var delBtn = row.querySelector('.pg-param-del');
+      if (delBtn) delBtn.addEventListener('click', function() { row.remove(); updateParamState(); });
+      paramsList.appendChild(row);
+    });
+  }
+
+  function updateParamState() {
+    noParams.style.display = paramsList.querySelectorAll('.pg-param-row').length === 0 ? 'block' : 'none';
+  }
+
+  // ── Add param ──
+  $i('param-add').addEventListener('click', function() {
+    noParams.style.display = 'none';
+    var row = document.createElement('div');
+    row.className = 'pg-param-row pg-param-row--custom';
+    row.innerHTML =
+      '<input class="pg-param-key pg-input" type="text" placeholder="key" />' +
+      '<span class="pg-param-eq">=</span>' +
+      '<input class="pg-param-val pg-input" type="text" placeholder="value" />' +
+      '<button class="pg-param-del" type="button">&times;</button>';
+    var firstKey = row.querySelector('.pg-param-key');
+    if (firstKey) { firstKey.readOnly = false; firstKey.classList.add('pg-input'); }
+    row.querySelector('.pg-param-del').addEventListener('click', function() { row.remove(); updateParamState(); });
+    paramsList.appendChild(row);
+  });
+
+  // ── Custom URL ──
+  $i('custom-url-toggle').addEventListener('click', function() {
+    isCustom = !isCustom;
+    this.classList.toggle('active', isCustom);
+    document.querySelectorAll('.pg-ep-item').forEach(function(el) { el.classList.remove('active'); });
+    if (isCustom) {
+      methodSel.disabled = false;
+      urlInput.value = '/api/v1/';
+      urlInput.readOnly = false;
+      paramsList.innerHTML = '';
+      noParams.style.display = 'block';
+      bodySection.style.display = 'none';
+      pgRate.style.display = 'none';
+      docsEmpty.style.display = 'block';
+      docsContent.style.display = 'none';
+    } else {
+      selectEndpoint(activeEP._idx);
+    }
+    updateRateUI();
+  });
+
+  // ── Build URL ──
+  function buildURL() {
+    var path = urlInput.value.trim();
+    if (path.indexOf('/') !== 0) path = '/' + path;
+    var rows = paramsList.querySelectorAll('.pg-param-row');
+    var qp = [];
+    rows.forEach(function(row) {
+      var key = (row.querySelector('.pg-param-key') || {}).value || '';
+      var val = (row.querySelector('.pg-param-val') || {}).value || '';
+      if (!key) return;
+      if (path.indexOf('{' + key + '}') !== -1) {
+        path = path.replace('{' + key + '}', encodeURIComponent(val));
+      } else if (val) {
+        qp.push(encodeURIComponent(key) + '=' + encodeURIComponent(val));
+      }
+    });
+    if (qp.length) path += '?' + qp.join('&');
+    return siteUrl + path;
+  }
+
+  // ── Rate UI ──
+  function updateRateUI() {
+    var method = methodSel.value;
+    var r = checkRate(method);
+    if (rateShort) {
+      rateShort.textContent = r.remaining + ' left';
+      rateShort.style.color = r.blocked ? '#ef4444' : (r.count / r.limit > 0.7 ? '#f59e0b' : '');
+    }
+    if (r.count > 0) {
+      pgRate.style.display = 'flex';
+      var pct = Math.min(100, (r.count / r.limit) * 100);
+      rateFill.style.width = pct + '%';
+      rateFill.style.background = pct >= 90 ? '#ef4444' : pct >= 60 ? '#f59e0b' : 'var(--color-primary)';
+      rateText.textContent = r.count + '/' + r.limit + ' · ' + (r.blocked ? 'blocked ' + r.waitSec + 's' : r.remaining + ' remaining');
+      rateText.style.color = r.blocked ? '#ef4444' : '';
+    } else {
+      pgRate.style.display = 'none';
+    }
+    if (r.blocked) {
+      pgSend.disabled = true;
+      pgSendHint.textContent = 'Rate limited — retry in ' + r.waitSec + 's';
+      pgSendHint.style.color = '#ef4444';
+      scheduleRetry(r.waitSec);
+    } else {
+      pgSend.disabled = false;
+      pgSendHint.textContent = '';
+    }
+  }
+
+  var retryTimer = 0;
+  function scheduleRetry(sec) {
+    clearInterval(retryTimer);
+    retryTimer = setInterval(function() {
+      var r = checkRate(methodSel.value);
+      if (r.blocked) {
+        pgSendHint.textContent = 'Rate limited — retry in ' + r.waitSec + 's';
+      } else {
+        clearInterval(retryTimer);
+        updateRateUI();
+      }
+    }, 1000);
+  }
+
+  methodSel.addEventListener('change', updateRateUI);
+
+  // ── JSON utils ──
+  function tryFormatJSON(text) {
+    try { return JSON.stringify(JSON.parse(text), null, 2); } catch(e) { return null; }
+  }
+  function isValidJSON(text) {
+    try { JSON.parse(text); return true; } catch(e) { return false; }
+  }
+
+  // ── Body buttons ──
+  $i('body-format').addEventListener('click', function() {
+    var f = tryFormatJSON(bodyEditor.value);
+    if (f) { bodyEditor.value = f; bodyFeedback.textContent = 'Formatted'; bodyFeedback.className = 'pg-body-feedback ok'; }
+    else   { bodyFeedback.textContent = 'Invalid JSON'; bodyFeedback.className = 'pg-body-feedback err'; }
+    setTimeout(function() { bodyFeedback.textContent = ''; }, 2000);
+  });
+  $i('body-validate').addEventListener('click', function() {
+    if (isValidJSON(bodyEditor.value)) { bodyFeedback.textContent = 'Valid JSON'; bodyFeedback.className = 'pg-body-feedback ok'; }
+    else {
+      var msg = 'Invalid JSON';
+      try { JSON.parse(bodyEditor.value); } catch(e) { msg += ' — ' + e.message; }
+      bodyFeedback.textContent = msg; bodyFeedback.className = 'pg-body-feedback err';
+    }
+    setTimeout(function() { bodyFeedback.textContent = ''; }, 3000);
+  });
+
+  // ── Highlight & escape ──
+  function highlightJSON(text) {
+    return text
+      .replace(/("(?:[^"\\]|\\.)*")\s*:/g, '<span class="hl-key">$1</span>:')
+      .replace(/"((?:[^"\\]|\\.)*)"/g, '<span class="hl-str">"$1"</span>')
+      .replace(/\b(true|false|null)\b/g, '<span class="hl-bool">$1</span>')
+      .replace(/:\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g, ': <span class="hl-num">$1</span>');
+  }
+  function highlightCSS(text) {
+    return text
+      .replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="hl-comment">$1</span>')
+      .replace(/(@[a-z-]+)/g, '<span class="hl-atrule">$1</span>')
+      .replace(/([a-z-]+)\s*:/g, '<span class="hl-prop">$1</span>:')
+      .replace(/:\s*([^;{]+)/g, ': <span class="hl-val">$1</span>')
+      .replace(/(--[\w-]+)/g, '<span class="hl-var">$1</span>');
+  }
+  function formatBody(text, ct) {
+    if (ct.indexOf('application/json') !== -1 || ct.indexOf('+json') !== -1) {
+      try { return highlightJSON(JSON.stringify(JSON.parse(text), null, 2)); } catch(e) { return esc(text); }
+    }
+    if (ct.indexOf('text/css') !== -1) return highlightCSS(text);
+    if (ct.indexOf('text/html') !== -1) return esc(text);
+    try { return highlightJSON(JSON.stringify(JSON.parse(text), null, 2)); } catch(e) { return esc(text); }
+  }
+  function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // ── Send ──
+  function doSend() {
+    var method = methodSel.value;
+    var r = checkRate(method);
+    if (r.blocked) {
+      pgSendHint.textContent = 'Rate limited — retry in ' + r.waitSec + 's';
+      pgSendHint.style.color = '#ef4444';
+      return;
+    }
+    var url = buildURL();
+    hideAllRes();
+    pgLoading.style.display = 'flex';
+    pgSend.disabled = true;
+    pgSendLabel.textContent = 'Sending...';
+    pgSendHint.textContent = '';
+    var t0 = performance.now();
+    fetch(url, {
+      method: method,
+      headers: method === 'POST' && bodyEditor.value.trim() ? { 'Content-Type': 'application/json' } : {},
+      body: method === 'POST' && bodyEditor.value.trim() ? bodyEditor.value.trim() : undefined
+    }).then(function(res) {
+      var elapsed = Math.round(performance.now() - t0);
+      recordHit(method);
+      var hdrRows = [];
+      var hdrNum = 0;
+      res.headers.forEach(function(v, k) { hdrRows.push('<tr><td class="pg-hdr-key">' + esc(k) + '</td><td class="pg-hdr-val">' + esc(v) + '</td></tr>'); hdrNum++; });
+      resHeaders.innerHTML = hdrRows.join('');
+      hdrCount.textContent = '(' + hdrNum + ')';
+      return res.text().then(function(text) {
+        lastResCT = res.headers.get('content-type') || '';
+        lastResBody = text;
+        resBody.innerHTML = formatBody(text, lastResCT);
+        var cls = res.ok ? 'pg-res-status--ok' : 'pg-res-status--err';
+        resStatus.className = 'pg-res-status ' + cls;
+        resStatus.textContent = res.status + ' ' + res.statusText;
+        resTime.textContent = elapsed + 'ms';
+        hideAllRes();
+        resMeta.style.display = 'flex';
+        resContent.style.display = 'flex';
+        resHeadersBlock.setAttribute('open', '');
+        saveHistory({ method: method, url: url.replace(siteUrl, ''), status: res.status, elapsed: elapsed, ts: Date.now(), endpoint: isCustom ? null : activeEP.label });
+        if (window.innerWidth < 1150) resPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }).catch(function(err) {
+      hideAllRes();
+      pgError.style.display = 'flex';
+      pgErrorTitle.textContent = 'Network Error';
+      pgErrorMsg.textContent = err.message || 'Failed to connect.';
+    }).then(function() {
+      pgSend.disabled = false;
+      pgSendLabel.textContent = 'Send';
+      updateRateUI();
+    });
+  }
+
+  window.__doSend = doSend;
+
+  function hideAllRes() {
+    pgEmptyEl.style.display = 'none';
+    pgLoading.style.display = 'none';
+    pgError.style.display = 'none';
+    resContent.style.display = 'none';
+    resMeta.style.display = 'none';
+  }
+
+  // Keyboard
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doSend(); }
+  });
+
+  // ── Copy ──
+  resCopy.addEventListener('click', function() {
+    try { navigator.clipboard.writeText(lastResBody); } catch(e) {}
+    try { var ta = document.createElement('textarea'); ta.value = lastResBody; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); } catch(e) {}
+    resCopy.textContent = 'Copied!';
+    resCopy.classList.add('copied');
+    setTimeout(function() { resCopy.textContent = 'Copy'; resCopy.classList.remove('copied'); }, 1500);
+  });
+
+  // ── Maximize ──
+  $i('res-maximize').addEventListener('click', function() {
+    maxed = !maxed;
+    var shell = $('.pg-shell');
+    if (maxed) {
+      sidebarEl.style.display = 'none';
+      $('.pg-main').style.display = 'none';
+      resPanel.style.gridColumn = 'span 3';
+    } else {
+      sidebarEl.style.display = '';
+      $('.pg-main').style.display = '';
+      resPanel.style.gridColumn = '';
+    }
+  });
+
+  // ── Mobile sidebar toggle ──
+  mobileToggle.addEventListener('click', function() {
+    sidebarEl.classList.toggle('open');
+  });
+
+  // Close sidebar when clicking outside on mobile
+  document.addEventListener('click', function(e) {
+    if (window.innerWidth >= 1150) return;
+    if (!sidebarEl.contains(e.target) && e.target !== mobileToggle && !mobileToggle.contains(e.target)) {
+      sidebarEl.classList.remove('open');
+    }
+  });
+
+  // ── History render ──
+  function renderHistory() {
+    var h = getHistory();
+    if (h.length === 0) { historySection.style.display = 'none'; return; }
+    historySection.style.display = 'block';
+    historyList.innerHTML = h.map(function(entry, i) {
+      return '<button class="pg-history-item" data-idx="' + i + '" type="button">' +
+        '<span class="pg-history-method pg-ep-method--' + entry.method.toLowerCase() + '">' + entry.method + '</span>' +
+        '<span class="pg-history-status' + (entry.status >= 400 ? ' pg-history-status--err' : '') + '">' + entry.status + '</span>' +
+        '<span class="pg-history-url" title="' + esc(entry.url) + '">' + esc(entry.endpoint || entry.url.slice(0, 35)) + '</span>' +
+        '<span class="pg-history-time">' + entry.elapsed + 'ms</span>' +
+      '</button>';
+    }).join('');
+    historyList.querySelectorAll('.pg-history-item').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var entry = h[parseInt(this.dataset.idx)];
+        if (!entry) return;
+        if (entry.endpoint && !isCustom) {
+          var ep = FLAT.find(function(e) { return e.label === entry.endpoint; });
+          if (ep) selectEndpoint(ep._idx);
+        }
+        urlInput.value = entry.url;
+        methodSel.value = entry.method;
+        updateRateUI();
+        pgSend.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+  }
+
+  $i('history-clear').addEventListener('click', function() {
+    sessionStorage.removeItem(HIST_KEY);
+    renderHistory();
+  });
+
+  // ── Init ──
+  highlightSidebar();
+  updateRateUI();
+  renderHistory();
+  showDocs(activeEP);
+</script>
+
+<style>
+  /* ============================================
+     API PLAYGROUND — ENTERPRISE CONSOLE v3
+     ============================================ */
+  .pg-topbar {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 16px; gap: 16px; flex-wrap: wrap;
+  }
+  .pg-topbar__actions { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+  .pg-topbar__hint {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 10px; color: var(--color-text-muted);
+  }
+  .pg-topbar__hint kbd {
+    display: inline-block;
+    padding: 2px 6px; border-radius: 4px;
+    font-size: 9px; font-weight: 600; font-family: "JetBrains Mono", monospace;
+    background: color-mix(in srgb, var(--color-text-muted) 10%, transparent);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+  }
+
+  .pg-mobile-toggle {
+    display: none;
+    width: 36px; height: 36px; border-radius: 8px;
+    border: 1.5px solid var(--color-border);
+    background: transparent; color: var(--color-text);
+    cursor: pointer; align-items: center; justify-content: center;
+  }
+  @media (max-width: 1150px) {
+    .pg-mobile-toggle { display: flex; }
+  }
+
+  /* ── Shell ── */
+  .pg-shell {
+    display: grid;
+    grid-template-columns: 260px 1fr 1fr;
+    gap: 0;
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    min-height: calc(100vh - 160px);
+  }
+  @media (max-width: 1150px) {
+    .pg-shell { grid-template-columns: 1fr; }
+    .pg-sidebar {
+      display: none;
+      position: fixed; top: 0; left: 0; bottom: 0;
+      width: 280px; z-index: 500;
+      border-right: 1px solid var(--color-border);
+      box-shadow: 8px 0 32px rgba(0,0,0,0.3);
+      overflow-y: auto;
+    }
+    .pg-sidebar.open { display: flex; }
+    .pg-response { min-height: 55vh; }
+    .pg-topbar__hint { display: none; }
+  }
+
+  /* ── Sidebar ── */
+  .pg-sidebar {
+    border-right: 1px solid var(--color-border);
+    display: flex; flex-direction: column;
+    background: color-mix(in srgb, var(--color-bg) 35%, transparent);
+    overflow: hidden;
+  }
+  .pg-sidebar__section {
+    padding: 12px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .pg-sidebar__section:first-child { flex: 1; min-height: 0; }
+  .pg-sidebar__label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--color-text-muted);
+    margin-bottom: 6px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .pg-search { position: relative; margin-bottom: 6px; }
+  .pg-search__icon {
+    position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+    color: var(--color-text-muted); pointer-events: none;
+  }
+  .pg-search__input {
+    width: 100%; height: 32px; padding: 0 8px 0 28px;
+    border-radius: 7px; border: 1.5px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-bg) 50%, transparent);
+    color: var(--color-text); font-size: 11px;
+    font-family: "Inter", sans-serif;
+    outline: none; transition: border-color 0.2s;
+  }
+  .pg-search__input:focus { border-color: var(--color-primary); }
+  .pg-search__input::placeholder { color: var(--color-text-muted); opacity: 0.5; }
+
+  .pg-ep-list { overflow-y: auto; flex: 1; min-height: 0; }
+  .pg-ep-group { margin-bottom: 1px; }
+  .pg-ep-group__name {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--color-primary);
+    padding: 8px 8px 3px;
+  }
+  .pg-ep-item {
+    display: flex; align-items: center; gap: 7px;
+    width: 100%; padding: 6px 8px;
+    border: none; border-radius: 6px;
+    background: transparent; color: var(--color-text-muted);
+    font-size: 11px; font-family: "Inter", sans-serif;
+    cursor: pointer; transition: all 0.12s;
+    text-align: left;
+  }
+  .pg-ep-item:hover { background: color-mix(in srgb, var(--color-primary) 8%, transparent); color: var(--color-text); }
+  .pg-ep-item.active {
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    color: var(--color-primary); font-weight: 600;
+    box-shadow: inset 3px 0 0 var(--color-primary);
+  }
+  .pg-ep-item__method {
+    font-size: 8px; font-weight: 800; letter-spacing: 0.04em;
+    padding: 1px 5px; border-radius: 3px; color: #fff;
+    flex-shrink: 0; min-width: 30px; text-align: center;
+  }
+  .pg-ep-method--get  { background: #16a34a; }
+  .pg-ep-method--post { background: #2563eb; }
+  .pg-ep-item__label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .pg-custom-trigger {
+    display: flex; align-items: center; gap: 6px;
+    width: calc(100% - 12px); margin: 0 6px 6px; padding: 7px 10px;
+    border: 1.5px dashed var(--color-border); border-radius: 8px;
+    background: transparent; color: var(--color-text-muted);
+    font-size: 10px; font-weight: 600; font-family: "Inter", sans-serif;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .pg-custom-trigger:hover { border-color: var(--color-primary); color: var(--color-primary); }
+  .pg-custom-trigger.active {
+    border-style: solid; border-color: var(--color-primary);
+    background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+    color: var(--color-primary);
+  }
+
+  /* ── History ── */
+  .pg-history-clear {
+    font-size: 9px; font-weight: 600; letter-spacing: 0.03em;
+    background: none; border: none; color: var(--color-text-muted);
+    cursor: pointer; font-family: inherit; padding: 2px 5px; border-radius: 4px;
+  }
+  .pg-history-clear:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
+  .pg-history-list { display: flex; flex-direction: column; gap: 1px; overflow-y: auto; max-height: 200px; }
+  .pg-history-item {
+    display: flex; align-items: center; gap: 4px;
+    width: 100%; padding: 4px 6px;
+    border: none; border-radius: 5px;
+    background: transparent; font-family: "JetBrains Mono", monospace;
+    cursor: pointer; font-size: 9px;
+    color: var(--color-text-muted); text-align: left;
+    transition: background 0.15s;
+  }
+  .pg-history-item:hover { background: color-mix(in srgb, var(--color-primary) 6%, transparent); }
+  .pg-history-method { font-size: 7px; font-weight: 800; padding: 1px 4px; border-radius: 3px; color: #fff; min-width: 26px; text-align: center; }
+  .pg-history-status { font-weight: 700; color: #16a34a; min-width: 22px; }
+  .pg-history-status--err { color: #ef4444; }
+  .pg-history-url { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pg-history-time { font-size: 8px; opacity: 0.5; }
+
+  /* ── Main ── */
+  .pg-main { border-right: 1px solid var(--color-border); display: flex; flex-direction: column; }
+
+  .pg-panel { display: flex; flex-direction: column; }
+  .pg-panel__head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--color-border);
+    gap: 8px; flex-shrink: 0;
+  }
+  .pg-panel__title {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--color-text-muted);
+  }
+  .pg-panel__hint { font-size: 9px; color: var(--color-text-muted); font-family: "JetBrains Mono", monospace; }
+
+  /* ── URL bar ── */
+  .pg-url-section { padding: 14px 16px 10px; }
+  .pg-url-row { display: flex; gap: 0; }
+  .pg-method-select {
+    width: 72px; height: 38px; padding: 0 6px;
+    border: 1.5px solid var(--color-border); border-right: none;
+    border-radius: 9px 0 0 9px;
+    background: color-mix(in srgb, var(--color-bg) 60%, transparent);
+    color: var(--color-text); font-size: 10px; font-weight: 700;
+    font-family: "JetBrains Mono", monospace;
+    cursor: pointer; outline: none;
+    -webkit-appearance: none; appearance: none;
+  }
+  .pg-method-select:focus { border-color: var(--color-primary); }
+  .pg-url-input-wrap {
+    flex: 1; display: flex; align-items: center;
+    border: 1.5px solid var(--color-border); border-right: none;
+    background: color-mix(in srgb, var(--color-bg) 40%, transparent);
+    overflow: hidden;
+  }
+  .pg-url-prefix {
+    font-size: 11px; font-family: "JetBrains Mono", monospace;
+    color: var(--color-text-muted); opacity: 0.5;
+    padding: 0 0 0 10px; white-space: nowrap; user-select: none;
+  }
+  .pg-url-input {
+    flex: 1; height: 38px; padding: 0 10px;
+    border: none; background: transparent;
+    color: var(--color-text); font-size: 12px;
+    font-family: "JetBrains Mono", monospace;
+    outline: none;
+  }
+  .pg-send-btn {
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    height: 38px; padding: 0 18px;
+    border-radius: 0 9px 9px 0;
+    border: none;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 0.01em;
+    cursor: pointer; font-family: "Inter", sans-serif;
+    transition: all 0.2s; white-space: nowrap; flex-shrink: 0;
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--color-primary) 25%, transparent);
+  }
+  .pg-send-btn:hover:not(:disabled) {
+    box-shadow: 0 4px 18px color-mix(in srgb, var(--color-primary) 40%, transparent);
+    transform: translateY(-1px);
+  }
+  .pg-send-btn:active:not(:disabled) { transform: scale(0.97); }
+  .pg-send-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .pg-send-hint { display: block; text-align: center; font-size: 10px; color: var(--color-text-muted); min-height: 16px; padding: 0 16px 6px; }
+
+  /* ── Docs panel ── */
+  .pg-docs { padding: 0 16px 8px; }
+  .pg-docs__empty { padding: 16px 0; font-size: 11px; color: var(--color-text-muted); font-style: italic; }
+  .pg-docs__content { font-size: 12px; line-height: 1.6; }
+  .pg-docs__title {
+    font-size: 14px; font-weight: 700; letter-spacing: -0.02em;
+    margin: 0 0 6px; color: var(--color-text);
+  }
+  .pg-docs__desc { color: var(--color-text-muted); margin: 0 0 12px; }
+  .pg-docs__section { margin-bottom: 12px; }
+  .pg-docs__section h3 {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--color-text-muted);
+    margin: 0 0 4px;
+  }
+  .pg-docs__usage { color: var(--color-text-muted); margin: 0; font-size: 11px; }
+  .pg-docs__notes {
+    padding: 8px 12px; border-radius: 8px;
+    background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+    border-left: 3px solid var(--color-primary);
+    font-size: 11px; color: var(--color-text-muted);
+  }
+  .pg-docs__curl {
+    padding: 10px 12px; border-radius: 8px;
+    background: color-mix(in srgb, var(--color-text) 5%, var(--color-bg));
+    border: 1px solid var(--color-border);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px; line-height: 1.55; margin: 0;
+    white-space: pre-wrap; word-break: break-all;
+    overflow-x: auto; max-height: 120px; overflow-y: auto;
+  }
+  .pg-table-wrap { overflow-x: auto; }
+  .pg-docs-table {
+    width: 100%; border-collapse: collapse;
+    font-size: 10.5px;
+  }
+  .pg-docs-table th {
+    text-align: left; padding: 5px 8px;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--color-text-muted);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .pg-docs-table td {
+    padding: 4px 8px; border-bottom: 1px solid color-mix(in srgb, var(--color-border) 30%, transparent);
+    color: var(--color-text-muted);
+  }
+  .pg-docs-table tr:last-child td { border-bottom: none; }
+  .pg-docs-field { font-family: "JetBrains Mono", monospace; font-size: 10px; font-weight: 600; color: var(--color-primary); white-space: nowrap; }
+  .pg-docs-type { font-family: "JetBrains Mono", monospace; font-size: 9px; color: var(--color-text-muted); white-space: nowrap; }
+
+  /* ── Params ── */
+  .pg-params { padding: 0 16px; }
+  .pg-params__head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .pg-params__title {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--color-text-muted);
+  }
+  .pg-params__add {
+    font-size: 9px; font-weight: 600; font-family: "Inter", sans-serif;
+    padding: 2px 8px; border-radius: 5px;
+    border: 1.5px dashed var(--color-border);
+    background: transparent; color: var(--color-text-muted);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .pg-params__add:hover { border-color: var(--color-primary); color: var(--color-primary); }
+  .pg-no-params { font-size: 10px; color: var(--color-text-muted); font-style: italic; padding: 2px 0 8px; }
+  .pg-param-row { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
+  .pg-param-key {
+    width: 80px; height: 30px; padding: 0 6px;
+    border: 1.5px solid var(--color-border); border-radius: 6px;
+    background: color-mix(in srgb, var(--color-primary) 5%, transparent);
+    color: var(--color-primary); font-size: 10px;
+    font-family: "JetBrains Mono", monospace; text-align: right;
+    cursor: default;
+  }
+  .pg-param-key[data-required="true"] { border-color: color-mix(in srgb, #ef4444 30%, transparent); }
+  .pg-param-key.pg-input { cursor: text; background: color-mix(in srgb, var(--color-bg) 50%, transparent); color: var(--color-text); }
+  .pg-param-eq { font-size: 11px; color: var(--color-text-muted); flex-shrink: 0; }
+  .pg-param-val { flex: 1; }
+  .pg-param-del {
+    width: 24px; height: 24px; border-radius: 5px;
+    border: none; background: transparent; color: var(--color-text-muted);
+    font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.12s; flex-shrink: 0;
+  }
+  .pg-param-del:hover { background: rgba(239,68,68,0.12); color: #ef4444; }
+  .pg-param-row--custom .pg-param-key { border-style: dashed; }
+
+  .pg-input {
+    height: 30px; padding: 0 6px;
+    border: 1.5px solid var(--color-border); border-radius: 6px;
+    background: color-mix(in srgb, var(--color-bg) 50%, transparent);
+    color: var(--color-text); font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+    outline: none; transition: border-color 0.2s;
+  }
+  .pg-input:focus { border-color: var(--color-primary); }
+
+  /* ── Body editor ── */
+  .pg-body-section { padding: 0 16px 8px; }
+  .pg-body__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .pg-body__actions { display: flex; gap: 3px; }
+  .pg-body__btn {
+    font-size: 9px; font-weight: 600; font-family: "Inter", sans-serif;
+    padding: 2px 8px; border-radius: 5px;
+    border: 1.5px solid var(--color-border);
+    background: transparent; color: var(--color-text-muted);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .pg-body__btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+  .pg-body-editor {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1.5px solid var(--color-border); border-radius: 9px;
+    background: color-mix(in srgb, var(--color-bg) 50%, transparent);
+    color: var(--color-text); font-size: 11px;
+    font-family: "JetBrains Mono", monospace;
+    line-height: 1.5; resize: vertical;
+    outline: none; transition: border-color 0.2s;
+  }
+  .pg-body-editor:focus { border-color: var(--color-primary); }
+  .pg-body-feedback { display: block; font-size: 9px; min-height: 14px; margin-top: 3px; font-weight: 500; }
+  .pg-body-feedback.ok { color: #16a34a; }
+  .pg-body-feedback.err { color: #ef4444; }
+
+  /* ── Rate limit ── */
+  .pg-rate {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px;
+  }
+  .pg-rate__bar {
+    flex: 1; height: 3px; border-radius: 2px;
+    background: color-mix(in srgb, var(--color-text-muted) 10%, transparent);
+    overflow: hidden;
+  }
+  .pg-rate__fill { height: 100%; border-radius: 2px; transition: width 0.35s ease, background 0.35s ease; }
+
+  .pg-rate__text {
+    font-size: 8px; font-weight: 600; white-space: nowrap;
+    color: var(--color-text-muted); font-family: "JetBrains Mono", monospace;
+  }
+
+  /* ── Response ── */
+  .pg-response { display: flex; flex-direction: column; }
+
+  .pg-res__meta { display: flex; align-items: center; gap: 8px; }
+  .pg-res-status {
+    font-size: 10px; font-weight: 700; font-family: "JetBrains Mono", monospace;
+    padding: 2px 7px; border-radius: 4px;
+  }
+  .pg-res-status--ok  { color: #16a34a; background: rgba(22,163,74,0.1); }
+  .pg-res-status--err { color: #ef4444; background: rgba(239,68,68,0.1); }
+  .pg-res-time { font-size: 9px; color: var(--color-text-muted); font-family: "JetBrains Mono", monospace; }
+  .pg-res-copy {
+    font-size: 9px; font-weight: 600; font-family: "Inter", sans-serif;
+    padding: 2px 8px; border-radius: 5px;
+    border: 1.5px solid var(--color-border);
+    background: transparent; color: var(--color-text-muted);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .pg-res-copy:hover { border-color: var(--color-primary); color: var(--color-primary); }
+  .pg-res-copy.copied { border-color: var(--color-primary); color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 10%, transparent); }
+
+  .pg-res-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; flex: 1; padding: 50px 16px;
+    color: var(--color-text-muted); font-size: 11px; text-align: center;
+  }
+  .pg-res-loading {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; flex: 1; padding: 50px 16px;
+    color: var(--color-text-muted); font-size: 11px;
+  }
+  .pg-spinner {
+    width: 24px; height: 24px;
+    border: 2px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: pg-spin 0.6s linear infinite;
+  }
+  @keyframes pg-spin { to { transform: rotate(360deg); } }
+
+  .pg-res-error {
+    display: flex; align-items: flex-start; gap: 10px;
+    margin: 14px; padding: 12px 16px; border-radius: 10px;
+    background: rgba(239,68,68,0.07);
+    border: 1.5px solid rgba(239,68,68,0.2);
+  }
+  .pg-res-error__icon {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: rgba(239,68,68,0.16);
+    color: #ef4444; font-weight: 800; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .pg-res-error strong { font-size: 11px; color: #ef4444; display: block; margin-bottom: 1px; }
+  .pg-res-error p { font-size: 10px; color: var(--color-text-muted); margin: 0; word-break: break-all; }
+
+  .pg-res-content { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+  .pg-res-headers { border-bottom: 1px solid var(--color-border); }
+  .pg-res-headers__toggle {
+    padding: 9px 16px;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--color-text-muted);
+    cursor: pointer; user-select: none; list-style: none;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .pg-res-headers__toggle::-webkit-details-marker { display: none; }
+  .pg-res-headers__toggle::before { content: '▸'; font-size: 8px; transition: transform 0.2s; }
+  details[open] .pg-res-headers__toggle::before { transform: rotate(90deg); }
+  .pg-res-count { font-weight: 400; opacity: 0.6; }
+  .pg-res-headers__table-wrap { overflow-x: auto; padding: 0 16px 8px; max-height: 160px; overflow-y: auto; }
+  .pg-res-headers__table {
+    width: 100%; border-collapse: collapse;
+    font-size: 10px; font-family: "JetBrains Mono", monospace;
+  }
+  .pg-hdr-key { padding: 3px 6px 3px 0; font-weight: 600; color: var(--color-primary); white-space: nowrap; vertical-align: top; width: 1%; }
+  .pg-hdr-val { padding: 3px 0; color: var(--color-text); word-break: break-all; }
+
+  .pg-res-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .pg-res-body__head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 16px 4px;
+  }
+  .pg-res-body__label {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--color-text-muted);
+  }
+  .pg-res-body__maximize {
+    width: 24px; height: 24px; border-radius: 5px;
+    border: 1.5px solid var(--color-border);
+    background: transparent; color: var(--color-text-muted);
+    font-size: 12px; cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pg-res-body__maximize:hover { border-color: var(--color-primary); color: var(--color-primary); }
+  .pg-res-body__code {
+    flex: 1; margin: 0 12px 12px;
+    padding: 14px;
+    border: 1.5px solid var(--color-border); border-radius: 10px;
+    background: color-mix(in srgb, var(--color-text) 4%, var(--color-bg));
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-size: 10.5px; line-height: 1.6;
+    overflow: auto;
+    white-space: pre-wrap; word-break: break-all;
+    max-height: calc(100vh - 320px);
+  }
+  .pg-res-body__code::-webkit-scrollbar { width: 4px; height: 4px; }
+  .pg-res-body__code::-webkit-scrollbar-track { background: transparent; }
+  .pg-res-body__code::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--color-text-muted) 15%, transparent);
+    border-radius: 99px;
+  }
+
+  /* ── Syntax ── */
+  .hl-key   { color: #89b4fa; }
+  .hl-str   { color: #a6e3a1; }
+  .hl-num   { color: #fab387; }
+  .hl-bool  { color: #cba6f7; }
+  .hl-comment { color: #6c7086; font-style: italic; }
+  .hl-atrule { color: #cba6f7; }
+  .hl-prop  { color: #89b4fa; }
+  .hl-val   { color: #a6e3a1; }
+  .hl-var   { color: #f9e2af; }
+</style>

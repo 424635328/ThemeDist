@@ -1,0 +1,32 @@
+<!-- NavPanel: Left sidebar — endpoint navigation -->
+<div class="pg-nav-head">
+  <div class="pg-nav-head-left">
+    <span class="pg-nav-head-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </span>
+    <span class="pg-nav-title-text">ENDPOINTS</span>
+  </div>
+  <span class="pg-nav-count" id="pg-total-count">0</span>
+</div>
+
+<div class="pg-nav-search-wrap">
+  <svg class="pg-nav-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+  </svg>
+  <input class="pg-nav-search" id="pg-nav-search" type="text" placeholder="搜索接口路径或描述..." autocomplete="off" />
+  <kbd class="pg-nav-search-kbd">⌘K</kbd>
+</div>
+
+<nav class="pg-nav" id="pg-nav"></nav>
+
+<div class="pg-nav-footer">
+  <span class="pg-nav-footer-key">Ctrl + Enter</span>
+  <span>发送请求</span>
+  <button class="pg-nav-help-btn" id="pg-help-trigger" title="键盘快捷键">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+  </button>
+</div>

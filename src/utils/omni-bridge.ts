@@ -142,14 +142,8 @@ export function omniToComposed(entry: OmniThemeEntry): ComposedTheme {
 /** Get today's theme using OmniConfig's auto strategy (holidays → dailyPool) */
 export function getOmniDailyTheme(): ComposedTheme {
   const raw = OmniConfig.getThemeConfig('auto');
-  // The _mergeConfig returns a merged config; we need to figure out which preset was selected
-  // For daily pool, infer from the day-of-year
   const today = new Date();
   const dayOfYear = getDayOfYear(today);
-
-  // Check if a holiday matched (holidays have date keys, dailyPool entries have id/name)
-  // If a holiday matched, raw.theme will differ from default
-  const isHoliday = raw.logo && OmniConfig.default?.logo && raw.logo.text !== OmniConfig.default.logo.text;
 
   const dailyPool = (OmniConfig.dailyPool || []) as OmniThemeEntry[];
   if (dailyPool.length === 0) {
@@ -164,7 +158,11 @@ export function getOmniDailyTheme(): ComposedTheme {
       },
     });
   }
-  const poolTheme = dailyPool[dayOfYear % dailyPool.length];
+
+  // Check if a real holiday matched — compare logo text against dailyPool logos.
+  // Holiday themes have unique logo texts that won't appear in dailyPool entries.
+  const dailyLogos = new Set(dailyPool.map(t => t.logo?.text).filter(Boolean));
+  const isHoliday = raw.logo && !dailyLogos.has(raw.logo.text);
 
   if (isHoliday) {
     return omniToComposed({
@@ -177,6 +175,7 @@ export function getOmniDailyTheme(): ComposedTheme {
     });
   }
 
+  const poolTheme = dailyPool[dayOfYear % dailyPool.length];
   return omniToComposed(poolTheme);
 }
 
