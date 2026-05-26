@@ -349,7 +349,7 @@ const flatJSON = JSON.stringify(flat);
                 <span id="pg-error-msg" style="font-size:12px; color:var(--text-secondary);"></span>
               </div>
 
-              <div id="res-content" style="display:none; flex-direction:column; flex:1; min-height:0;">
+              <div id="res-content" style="display:none; flex-direction:column; flex:1; min-height:0; overflow:hidden;">
                 <details class="res-headers">
                   <summary>Headers (<span id="hdr-count"></span>)</summary>
                   <table class="res-headers-table" id="res-headers"></table>
@@ -670,6 +670,9 @@ const flatJSON = JSON.stringify(flat);
 
   .res-content-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 
+  /* Ensure response content container properly clips for scroll chain */
+  #res-content { overflow: hidden; }
+
   .res-headers { background: var(--bg-elevated); border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; }
   .res-headers summary { padding: 10px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); cursor: pointer; list-style: none; user-select: none; }
   .res-headers summary::-webkit-details-marker { display: none; }
@@ -709,50 +712,66 @@ const flatJSON = JSON.stringify(flat);
   .history-list { display: flex; flex-direction: column; }
 
   .history-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 11px 16px;
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px;
     border-bottom: 1px solid var(--border-subtle);
     cursor: pointer;
-    transition: background 0.15s;
-    min-height: 48px; box-sizing: border-box;
+    transition: background 0.15s, border-color 0.15s;
+    border-left: 3px solid transparent;
+    position: relative;
   }
-  .history-item:hover { background: color-mix(in srgb, var(--color-primary) 4%, transparent); }
+  .history-item:hover {
+    background: color-mix(in srgb, var(--color-primary) 3%, var(--bg-elevated));
+    border-left-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+  }
   .history-item:last-child { border-bottom: none; }
 
-  .history-item-method {
-    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
-    padding: 2px 6px; border-radius: 3px; min-width: 32px; text-align: center;
-    flex-shrink: 0;
+  .history-item-status-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    background: var(--accent-green);
   }
-  .history-item-method.GET { color: var(--accent-green); background: rgba(34,197,94,0.1); }
-  .history-item-method.POST { color: var(--accent-blue); background: rgba(59,130,246,0.1); }
+  .history-item-status-dot.err { background: var(--accent-red); }
+
+  .history-item-method {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+    padding: 3px 8px; border-radius: 4px; min-width: 34px; text-align: center;
+    flex-shrink: 0; letter-spacing: 0.02em;
+  }
+  .history-item-method.GET { color: #22c55e; background: rgba(34,197,94,0.12); }
+  .history-item-method.POST { color: #3b82f6; background: rgba(59,130,246,0.12); }
+
+  .history-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 
   .history-item-path {
-    flex: 1; font-family: var(--font-mono); font-size: 12px;
+    font-family: var(--font-mono); font-size: 12.5px; font-weight: 500;
     color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    min-width: 0;
   }
 
   .history-item-meta {
-    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+    display: flex; align-items: center; gap: 14px;
     font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
   }
-  .history-item-status { font-weight: 600; }
-  .history-item-status.ok { color: var(--accent-green); }
-  .history-item-status.err { color: var(--accent-red); }
+  .history-item-status-code { font-weight: 600; }
+  .history-item-status-code.ok { color: var(--accent-green); }
+  .history-item-status-code.err { color: var(--accent-red); }
   .history-item-duration.fast { color: var(--accent-green); }
   .history-item-duration.medium { color: #f59e0b; }
   .history-item-duration.slow { color: var(--accent-red); }
   .history-item-time { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
 
-  .history-item-actions { display: flex; gap: 2px; flex-shrink: 0; }
+  .history-item-actions { display: flex; gap: 6px; flex-shrink: 0; align-items: center; }
   .history-item-action {
-    width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
-    background: transparent; border: none; color: var(--text-muted); border-radius: 4px;
-    cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; gap: 5px;
+    padding: 6px 12px;
+    background: transparent; border: 1px solid var(--border-subtle); border-radius: 6px;
+    color: var(--text-secondary); font-family: var(--font-body); font-size: 11px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
   }
-  .history-item-action:hover { background: color-mix(in srgb, var(--color-primary) 10%, transparent); color: var(--text-primary); }
-  .history-item-action.delete:hover { color: var(--accent-red); background: rgba(239,68,68,0.1); }
+  .history-item-action:hover { background: color-mix(in srgb, var(--color-primary) 8%, transparent); border-color: color-mix(in srgb, var(--color-primary) 25%, var(--border-subtle)); color: var(--text-primary); }
+  .history-item-action.delete { border-color: transparent; color: var(--text-muted); }
+  .history-item-action.delete:hover { color: var(--accent-red); background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.2); }
+
+  .history-item-action svg { flex-shrink: 0; }
 </style>
 
 <script define:vars={{ siteUrl, flatJSON }}>
@@ -767,6 +786,65 @@ const flatJSON = JSON.stringify(flat);
   var isCustom = false;
   var lastResBody = '';
   var lastResCT = '';
+
+  // ── Debounce ──
+  var lastRequestTime = 0;
+  var DEBOUNCE_MS = 500;
+
+  // ── Daily Quota ──
+  var DAILY_LIMIT = 100;
+  var dailyCount = 0;
+
+  function loadDailyCount() {
+    try {
+      var data = JSON.parse(localStorage.getItem('pg-daily') || '{}');
+      var today = new Date().toISOString().slice(0, 10);
+      dailyCount = (data.date === today) ? (data.count || 0) : 0;
+    } catch(e) { dailyCount = 0; }
+  }
+
+  function incrementDailyCount() {
+    dailyCount++;
+    var today = new Date().toISOString().slice(0, 10);
+    try { localStorage.setItem('pg-daily', JSON.stringify({ date: today, count: dailyCount })); } catch(e) {}
+    updateQuotaHint();
+    return dailyCount;
+  }
+
+  function updateQuotaHint() {
+    var hint = getEl('pg-send-hint');
+    var remaining = DAILY_LIMIT - dailyCount;
+    if (remaining <= 15) {
+      hint.style.color = remaining <= 5 ? 'var(--accent-red)' : '#f59e0b';
+      hint.textContent = 'Daily quota: ' + dailyCount + '/' + DAILY_LIMIT + ' (' + remaining + ' remaining)';
+    } else {
+      hint.textContent = '';
+    }
+  }
+
+  // ── Response Cache (in-memory, session only) ──
+  var responseCache = new Map();
+  var CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+  function getCached(method, url) {
+    var key = method + '::' + url;
+    var entry = responseCache.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.time > CACHE_TTL) {
+      responseCache.delete(key);
+      return null;
+    }
+    return entry;
+  }
+
+  function setCached(method, url, data) {
+    var key = method + '::' + url;
+    if (responseCache.size >= 50) {
+      var firstKey = responseCache.keys().next().value;
+      responseCache.delete(firstKey);
+    }
+    responseCache.set(key, { time: Date.now(), data: data });
+  }
 
   // ── History ──
   var HISTORY_KEY = 'pg-history';
@@ -1085,21 +1163,26 @@ const flatJSON = JSON.stringify(flat);
     clearBtn.style.display = 'block';
 
     list.innerHTML = historyEntries.map(function(e) {
+      var ok = e.status < 400;
       return '<div class="history-item" data-id="' + e.id + '">' +
+        '<span class="history-item-status-dot' + (ok ? '' : ' err') + '"></span>' +
         '<span class="history-item-method ' + e.method + '">' + e.method + '</span>' +
-        '<span class="history-item-path" title="' + esc(e.path) + '">' + esc(e.path) + '</span>' +
-        '<span class="history-item-meta">' +
-          '<span class="history-item-status ' + (e.status < 400 ? 'ok' : 'err') + '">' + e.status + '</span>' +
-          '<span class="history-item-duration ' + durationClass(e.duration) + '">' + formatDuration(e.duration) + '</span>' +
-          '<span>' + formatBytes(e.size) + '</span>' +
-          '<span class="history-item-time">' + formatTimestamp(e.timestamp) + '</span>' +
+        '<span class="history-item-body">' +
+          '<span class="history-item-path" title="' + esc(e.path) + '">' + esc(e.path) + '</span>' +
+          '<span class="history-item-meta">' +
+            '<span class="history-item-status-code ' + (ok ? 'ok' : 'err') + '">' + e.status + ' ' + e.statusText + '</span>' +
+            '<span class="history-item-duration ' + durationClass(e.duration) + '">' + formatDuration(e.duration) + '</span>' +
+            '<span>' + formatBytes(e.size) + '</span>' +
+            '<span class="history-item-time">' + formatTimestamp(e.timestamp) + '</span>' +
+          '</span>' +
         '</span>' +
         '<span class="history-item-actions">' +
-          '<button class="history-item-action" data-action="rerun" title="Re-run request">' +
-            '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>' +
+          '<button class="history-item-action" data-action="rerun">' +
+            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>' +
+            ' Re-run' +
           '</button>' +
-          '<button class="history-item-action delete" data-action="delete" title="Delete entry">' +
-            '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+          '<button class="history-item-action delete" data-action="delete" title="Delete">' +
+            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>' +
           '</button>' +
         '</span>' +
       '</div>';
@@ -1162,8 +1245,34 @@ const flatJSON = JSON.stringify(flat);
 
   // ── Action: Send ──
   function doSend() {
+    var now = Date.now();
+
+    // Debounce: ignore rapid-fire clicks
+    if (now - lastRequestTime < DEBOUNCE_MS) return;
+    lastRequestTime = now;
+
+    // Daily quota check
+    if (dailyCount >= DAILY_LIMIT) {
+      getEl('pg-empty').style.display = 'none';
+      getEl('res-content').style.display = 'none';
+      getEl('res-toolbar').style.display = 'none';
+      getEl('pg-loading').style.display = 'none';
+      getEl('pg-error').style.display = 'block';
+      getEl('pg-error-msg').textContent = 'Daily request limit reached (' + DAILY_LIMIT + '/' + DAILY_LIMIT + '). Try again tomorrow.';
+      return;
+    }
+
     var m = getEl('method-select').value;
     var url = buildURL();
+
+    // Check in-memory cache for GET requests
+    if (m === 'GET') {
+      var cached = getCached(m, url);
+      if (cached) {
+        displayResponse(cached, true);
+        return;
+      }
+    }
 
     getEl('pg-empty').style.display = 'none';
     getEl('res-content').style.display = 'none';
@@ -1192,31 +1301,26 @@ const flatJSON = JSON.stringify(flat);
         lastResBody = text;
         var bodySize = new Blob([text]).size;
 
-        var preview = getEl('res-preview');
-        if (lastResCT.includes('image/')) {
-          var blob = new Blob([text], { type: lastResCT });
-          var blobUrl = URL.createObjectURL(blob);
-          preview.innerHTML = '<img src="' + blobUrl + '" alt="Preview" />';
-          preview.style.display = 'flex';
-        } else {
-          preview.style.display = 'none';
+        var responseData = {
+          status: res.status,
+          statusText: res.statusText,
+          elapsed: elapsed,
+          bodySize: bodySize,
+          contentType: lastResCT,
+          text: text,
+          ok: res.ok,
+          cached: false
+        };
+
+        // Cache GET responses
+        if (m === 'GET' && res.ok) {
+          setCached(m, url, responseData);
         }
 
-        var formattedText = esc(text);
-        if (lastResCT.includes('json')) {
-          try { formattedText = hlJSON(JSON.stringify(JSON.parse(text), null, 2)); } catch(e) {}
-        }
-        getEl('res-body').innerHTML = formattedText;
+        displayResponse(responseData, false);
 
-        getEl('res-status').className = 'status-code ' + (res.ok ? 'ok' : 'err');
-        getEl('res-status').textContent = res.status + ' ' + res.statusText;
-        getEl('res-time').textContent = formatDuration(elapsed);
-        getEl('res-time').className = 'res-time ' + durationClass(elapsed);
-        getEl('res-size').textContent = formatBytes(bodySize);
-
-        getEl('pg-loading').style.display = 'none';
-        getEl('res-toolbar').style.display = 'flex';
-        getEl('res-content').style.display = 'flex';
+        // Track daily usage
+        incrementDailyCount();
 
         // Save to history
         addHistoryEntry({
@@ -1242,6 +1346,36 @@ const flatJSON = JSON.stringify(flat);
       getEl('pg-send').disabled = false;
     });
   }
+
+  function displayResponse(data, fromCache) {
+    var preview = getEl('res-preview');
+    if (data.contentType && data.contentType.includes('image/')) {
+      var blob = new Blob([data.text], { type: data.contentType });
+      var blobUrl = URL.createObjectURL(blob);
+      preview.innerHTML = '<img src="' + blobUrl + '" alt="Preview" />';
+      preview.style.display = 'flex';
+    } else {
+      preview.style.display = 'none';
+    }
+
+    var formattedText = esc(data.text);
+    if (data.contentType && data.contentType.includes('json')) {
+      try { formattedText = hlJSON(JSON.stringify(JSON.parse(data.text), null, 2)); } catch(e) {}
+    }
+    getEl('res-body').innerHTML = formattedText;
+
+    getEl('res-status').className = 'status-code ' + (data.ok ? 'ok' : 'err');
+    var statusLabel = data.status + ' ' + data.statusText;
+    if (fromCache) statusLabel += ' (cached)';
+    getEl('res-status').textContent = statusLabel;
+    getEl('res-time').textContent = fromCache ? '(cache)' : formatDuration(data.elapsed);
+    getEl('res-time').className = 'res-time' + (fromCache ? '' : ' ' + durationClass(data.elapsed));
+    getEl('res-size').textContent = formatBytes(data.bodySize);
+
+    getEl('pg-loading').style.display = 'none';
+    getEl('res-toolbar').style.display = 'flex';
+    getEl('res-content').style.display = 'flex';
+  }
   window.__doSend = doSend;
 
   document.addEventListener('keydown', function(e) { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doSend(); } });
@@ -1259,6 +1393,8 @@ const flatJSON = JSON.stringify(flat);
   });
 
   // Init
+  loadDailyCount();
+  updateQuotaHint();
   loadHistory();
   renderHistoryPanel();
   selectEndpoint(0);
