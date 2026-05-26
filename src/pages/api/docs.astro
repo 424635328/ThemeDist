@@ -21,6 +21,8 @@ const minimalResponse = JSON.stringify({
   preset: today.preset,
   presetName: today.presetName,
   generatedAt: new Date().toISOString(),
+  dailyIsCommunity: !!communityDaily,
+  apiVersion: "v1",
   cssVars: Object.fromEntries(
     Object.entries(today.cssVars).slice(0, 8)
   ),
@@ -37,6 +39,8 @@ const fullResponse = JSON.stringify({
   preset: today.preset,
   presetName: today.presetName,
   generatedAt: new Date().toISOString(),
+  dailyIsCommunity: !!communityDaily,
+  apiVersion: "v1",
   cssVars: today.cssVars,
   customCss: today.customCss || null,
   extensions: today.extensions || null,
