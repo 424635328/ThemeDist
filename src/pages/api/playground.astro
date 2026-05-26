@@ -340,9 +340,6 @@ const flatJSON = JSON.stringify(flat);
             </div>
             <div class="curl-wrapper">
               <pre id="docs-curl" class="code-block curl-block"></pre>
-              <button class="btn-icon copy-btn" id="copy-curl-btn" title="Copy cURL">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-              </button>
             </div>
           </div>
 
@@ -371,9 +368,6 @@ const flatJSON = JSON.stringify(flat);
                 <span id="res-time" class="res-time"></span>
                 <span id="res-size" class="res-size"></span>
               </div>
-              <button class="btn-icon" id="res-copy" title="Copy response">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-              </button>
             </div>
 
             <div class="res-content-area">
@@ -688,10 +682,7 @@ const flatJSON = JSON.stringify(flat);
   .styled-table td:first-child { color: var(--text-primary); font-family: var(--font-mono); font-weight: 500; width: 35%; }
 
   .curl-wrapper { position: relative; margin-top: 16px; }
-  .curl-block { white-space: pre-wrap; word-break: break-all; margin: 0; padding: 16px 48px 16px 16px; background: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: var(--radii); color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; line-height: 1.5; }
-  .copy-btn { position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; border-radius: 6px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
-  .copy-btn:hover { background: var(--bg-surface); color: var(--text-primary); }
-  .copy-btn.copied { color: var(--accent-green); border-color: var(--accent-green); }
+  .curl-block { white-space: pre-wrap; word-break: break-all; margin: 0; padding: 16px; background: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: var(--radii); color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; line-height: 1.5; }
 
   /* ====== RESPONSE COLUMN ====== */
   .response-col { display: flex; flex-direction: column; overflow: hidden; min-height: 0; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radii-lg); box-shadow: 0 8px 32px rgba(0,0,0,0.05); }
@@ -840,7 +831,6 @@ const flatJSON = JSON.stringify(flat);
     var FLAT = JSON.parse(window.__FLAT_JSON__);
     var activeEP = FLAT[0];
     var isCustom = false;
-    var lastResBody = '';
 
     // ── Debounce & Quota ──
     var lastRequestTime = 0;
@@ -939,7 +929,6 @@ const flatJSON = JSON.stringify(flat);
       getEl('res-time').className = 'res-time ' + durationClass(entry.duration);
       getEl('res-size').textContent = formatBytes(entry.size);
 
-      lastResBody = entry.responseBody;
       var isImg = entry.contentType && entry.contentType.includes('image/');
       
       if (isImg) {
@@ -1062,19 +1051,6 @@ const flatJSON = JSON.stringify(flat);
         fieldsEl.style.display = 'none';
       }
     }
-
-    getEl('copy-curl-btn').addEventListener('click', function() {
-      var curlCode = getEl('docs-curl').textContent;
-      navigator.clipboard.writeText(curlCode).then(function() {
-        var btn = getEl('copy-curl-btn');
-        btn.classList.add('copied');
-        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
-        setTimeout(function() { 
-          btn.classList.remove('copied'); 
-          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
-        }, 1500);
-      });
-    });
 
     window.__selectEndpoint = function(idx) {
       isCustom = false;
@@ -1422,7 +1398,6 @@ const flatJSON = JSON.stringify(flat);
     }
 
     function displayResponse(data, fromCache) {
-      lastResBody = data.text;
       var preview = getEl('res-preview');
       
       if (data.isImage && data.objectUrl) {
@@ -1455,16 +1430,6 @@ const flatJSON = JSON.stringify(flat);
         e.preventDefault(); 
         window.__doSend(); 
       } 
-    });
-
-    getEl('res-copy').addEventListener('click', function() {
-      navigator.clipboard.writeText(lastResBody).then(() => {
-        var btn = this;
-        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
-        setTimeout(() => {
-          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
-        }, 1500);
-      });
     });
 
     // Init
