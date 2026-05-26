@@ -31,37 +31,11 @@ function parseEndpoint(ep: EP): EP {
     });
   }
 
-  // Generate robust cURL example
   if (!ep.curlExample) {
     let curlPath = ep.path;
-    ep.params?.filter(p => p.isPath).forEach(p => { 
-      curlPath = curlPath.replace(`{${p.name}}`, p.placeholder || 'xxx'); 
-    });
-    
+    ep.params?.filter(p => p.isPath).forEach(p => { curlPath = curlPath.replace(`{${p.name}}`, p.placeholder || 'xxx'); });
     const isAbs = curlPath.startsWith('http');
-    let fullUrl = `${isAbs ? '' : siteUrl}${curlPath}`;
-
-    const queryParams = ep.params?.filter(p => !p.isPath && p.name !== 'body' && !p.optional) || [];
-    if (queryParams.length > 0 && ep.method === 'GET') {
-      const qs = queryParams.map(p => `${p.name}=${encodeURIComponent(p.placeholder || 'xxx')}`).join('&');
-      fullUrl += fullUrl.includes('?') ? `&${qs}` : `?${qs}`;
-    }
-
-    if (ep.method === 'POST') {
-      const bodyParam = ep.params?.find(p => p.name === 'body');
-      let bodyStr = '{}';
-      if (bodyParam?.placeholder) {
-        try {
-          bodyStr = JSON.stringify(JSON.parse(bodyParam.placeholder));
-        } catch(e) {
-          bodyStr = bodyParam.placeholder.replace(/\s+/g, ' '); // simple fallback
-        }
-        bodyStr = bodyStr.replace(/'/g, "'\\''"); // Escape single quotes for bash
-      }
-      ep.curlExample = `curl -X POST ${fullUrl} \\\n  -H "Content-Type: application/json" \\\n  -d '${bodyStr}'`;
-    } else {
-      ep.curlExample = `curl ${fullUrl}`;
-    }
+    ep.curlExample = `curl ${isAbs ? '' : siteUrl}${curlPath}`;
   }
 
   ep.displayPath = ep.path.startsWith('http') ? ep.path : ep.path.replace(/^\/api\/v1/, '');
@@ -114,11 +88,20 @@ const rawGroups = [
   {
     name: 'Diagnostics & Export',
     items: [
-      { id:'wcag', method:'GET', path:'/api/v1/theme/{id}/wcag.json', label:'WCAG Audit', desc:'WCAG 2.1 无障碍诊断。评估颜色对比度及 AA/AAA 合规性。', usage:'诊断报告包含 compliant 总览标记和 warnings 修复建议。', cache:'浏览器 1h' },
-      { id:'scale', method:'GET', path:'/api/v1/theme/{id}/scale.json', label:'Tailwind Scale', desc:'基于黑白插值法生成完整的 Tailwind 风格 50~950 色阶。', usage:'返回 primary/secondary/accent/background 四组 11 级色阶。', cache:'365d immutable' },
-      { id:'shadcn', method:'GET', path:'/api/v1/theme/{id}/export/shadcn.css', label:'Shadcn UI', desc:'Shadcn UI 适配器，转换为 HSL 通道变量体系，自动推断前景色。', usage:'可直接复制输出到 globals.css 中。', cache:'365d immutable' },
-      { id:'shiki', method:'GET', path:'/api/v1/theme/{id}/shiki.json', label:'Shiki Theme', desc:'将主题变量映射为 Shiki / VS Code 的 TextMate Token 颜色。', usage:'用于代码高亮组件或直接导入 VS Code。', cache:'365d immutable' },
+      { id:'wcag', method:'GET', path:'/api/v1/theme/{id}/wcag.json', label:'WCAG Audit', desc:'WCAG 2.1 无障碍诊断。评估颜色对比度及 AA/AAA 合规性。', usage:'诊断报告包含 compliant 总览标记和 warnings 修复建议。', cache:'浏览器 1h',
+        notes:'自动检测主题中所有前景/背景颜色组合的对比度。报告包含：contrastRatios（每对颜色的对比度数值）、aaCompliant / aaaCompliant（各级别合规标记）、warnings（具体修复建议，如 "primary text on bg: 3.2:1，需要至少 4.5:1 满足 AA"）。同时检测大文本（≥18px bold）和小文本的不同标准。适用于上线前无障碍审查。'
+      },
+      { id:'scale', method:'GET', path:'/api/v1/theme/{id}/scale.json', label:'Tailwind Scale', desc:'基于黑白插值法生成完整的 Tailwind 风格 50~950 色阶。', usage:'返回 primary/secondary/accent/background 四组 11 级色阶。', cache:'365d immutable',
+        notes:'算法原理：将主题主色与 #000 和 #fff 分别在 OKLCH 色彩空间中做线性插值，生成从 50（最浅）到 950（最深）共 11 级色阶。每组色阶保持色调一致，仅亮度递增。返回 JSON 格式 { primary: {50:"#...", 100:"#...", ..., 950:"#..."}, secondary: {...}, accent: {...}, background: {...} }。可直接导入 Tailwind config 的 theme.colors 字段。'
+      },
+      { id:'shadcn', method:'GET', path:'/api/v1/theme/{id}/export/shadcn.css', label:'Shadcn UI', desc:'Shadcn UI 适配器，转换为 HSL 通道变量体系，自动推断前景色。', usage:'可直接复制输出到 globals.css 中。', cache:'365d immutable',
+        notes:'Shadcn UI 使用 HSL 通道变量（如 --primary: 220 80% 55%），与 ThemeDist 的 HEX 变量体系不同。此端点自动完成转换：HEX → HSL 通道分离，并基于 WCAG 对比度算法自动推断 foreground（前景色，确保 4.5:1 以上对比度）。输出覆盖 --primary、--secondary、--accent、--destructive、--muted、--card、--border、--ring 等全部 Shadcn 语义变量。'
+      },
+      { id:'shiki', method:'GET', path:'/api/v1/theme/{id}/shiki.json', label:'Shiki Theme', desc:'将主题变量映射为 Shiki / VS Code 的 TextMate Token 颜色。', usage:'用于代码高亮组件或直接导入 VS Code。', cache:'365d immutable',
+        notes:'依据 TextMate 语法规范，将主题的主色、背景色、文字色映射为标准 token 类型：keyword、string、number、comment、function、variable、type 等 20+ 种语义标记。同时生成 editor.background、editor.foreground、editor.lineHighlight 等 VS Code 工作台颜色。输出为标准的 JSON TextMate 主题格式，可直接作为 VS Code / Shiki 的 theme 配置。'
+      },
       { id:'extract', method:'POST', path:'/api/v1/extract-theme.json', label:'Image Extra', desc:'图片取色 API。纯 JS 进行 K-means 聚类并用语义引擎映射为 UI 标准变量。', usage:'POST 图片 URL，获取生成的 34 个 CSS 变量。', cache:'不缓存',
+        notes:'处理流程：下载图片 → 缩放到 200x200 → K-means（k=6）聚类提取主色调 → 语义引擎将聚类结果映射为 UI 语义角色（主色、背景色、文字色、强调色等）→ 输出标准 34 个 CSS 变量。支持 jpg/png/webp/avif 格式。图片 URL 必须可公开访问，超时 15 秒。返回的 _meta.extraction 包含聚类置信度评分。',
         params:[{name:'body',type:'textarea',label:'JSON Body',placeholder:'{\n  "imageUrl": "https://example.com/poster.jpg"\n}',optional:false}]
       }
     ]
@@ -126,47 +109,74 @@ const rawGroups = [
   {
     name: 'Tools & Assets',
     items: [
-      { id:'tailwind-config', method:'GET', path:'/api/v1/tailwind-config.json', label:'Tailwind Conf', desc:'生成 Tailwind CSS v3/v4 配置片段，处理 RGB 通道不透明度支持。', usage:'直接集成至 tailwind.config.js。', cache:'浏览器 1h' },
-      { id:'tokens', method:'GET', path:'/api/v1/tokens.json', label:'Design Tokens', desc:'导出符合 W3C DTCG 规范的 JSON 设计令牌。', usage:'用于导入 Figma 或 Style Dictionary。', cache:'浏览器 1h' },
-      { id:'svg-pattern', method:'GET', path:'/api/v1/today/pattern.css', label:'SVG Pattern', desc:'根据今日主题色生成几何图案背景纹理。', usage:'通过 <link> 引入并作为 background-image 使用。', cache:'浏览器 1h' },
-      { id:'weather-js', method:'GET', path:'/api/v1/today/weather.js', label:'Weather Particles', desc:'天气粒子动画脚本。云/雨/雪/雷暴特效。', usage:'引入 <script src="...">，自动定位并渲染 Canvas/DOM 粒子。', cache:'浏览器 1h / CDN 24h' },
-      { id:'favicon', method:'GET', path:'/api/v1/today/favicon.svg', label:'Dynamic Favicon', desc:'动态 Favicon。根据今日主题主色和字母实时生成 SVG。', usage:'在 <head> 中作为 icon 引入。', cache:'浏览器 1h' },
-      { id:'palette-badge', method:'GET', path:'/api/v1/today/palette.svg', label:'Palette Badge', desc:'今日主题调色盘 SVG 徽章，用于嵌入 README。', usage:'作为 <img> 标签引入即可。', cache:'浏览器 1h' },
+      { id:'tailwind-config', method:'GET', path:'/api/v1/tailwind-config.json', label:'Tailwind Conf', desc:'生成 Tailwind CSS v3/v4 配置片段，处理 RGB 通道不透明度支持。', usage:'直接集成至 tailwind.config.js。', cache:'浏览器 1h',
+        notes:'将 HEX 颜色转换为 RGB 通道格式（如 #ff6b6b → 255 107 107），以支持 Tailwind 的 opacity 修饰符（bg-primary/50 → rgba(255,107,107,0.5)）。同时生成对应的 CSS 变量声明和 Tailwind extend.colors 配置。兼容 v3 的 tailwind.config.js 和 v4 的 CSS-first 配置两种格式，通过 ?version= 参数切换。'
+      },
+      { id:'tokens', method:'GET', path:'/api/v1/tokens.json', label:'Design Tokens', desc:'导出符合 W3C DTCG 规范的 JSON 设计令牌。', usage:'用于导入 Figma 或 Style Dictionary。', cache:'浏览器 1h',
+        notes:'输出格式遵循 W3C Design Tokens Community Group 规范（DTCG Format）。每个 token 包含 $type（color、dimension、shadow 等）、$value、$description。可直接导入 Figma Tokens 插件、Style Dictionary 构建流程、或 Amazon Style Dictionary。包含所有 34 个 CSS 变量及其语义分组（color、spacing、typography、shadow）。'
+      },
+      { id:'svg-pattern', method:'GET', path:'/api/v1/today/pattern.css', label:'SVG Pattern', desc:'根据今日主题色生成几何图案背景纹理。', usage:'通过 <link> 引入并作为 background-image 使用。', cache:'浏览器 1h',
+        notes:'以主色为基调生成 data-uri 内联的 SVG 几何图案。图案类型每日轮换：波点、网格、斜纹、六边形、波浪等。CSS 中导出 .pattern-bg 和 .pattern-overlay 两个 class，分别适用于纯背景和叠加层。图案使用 opacity 0.08~0.15，不会喧宾夺主。'
+      },
+      { id:'weather-js', method:'GET', path:'/api/v1/today/weather.js', label:'Weather Particles', desc:'天气粒子动画脚本。云/雨/雪/雷暴特效。', usage:'引入 <script src="...">，自动定位并渲染 Canvas/DOM 粒子。', cache:'浏览器 1h / CDN 24h',
+        notes:'脚本自执行，无需手动初始化。自动创建 position:fixed 的全屏 Canvas 层，根据当日天气代码选择动画：晴天（浮动光点）、多云（漂移云朵）、雨天（下落雨滴+溅射）、雪天（飘落雪花+堆积）、雷暴（雨+随机闪电闪烁）。粒子数量随视口大小自适应，使用 requestAnimationFrame 保证 60fps。'
+      },
+      { id:'favicon', method:'GET', path:'/api/v1/today/favicon.svg', label:'Dynamic Favicon', desc:'动态 Favicon。根据今日主题主色和字母实时生成 SVG。', usage:'在 <head> 中作为 icon 引入。', cache:'浏览器 1h',
+        notes:'生成 32x32 的 SVG favicon：圆角矩形背景使用今日主题主色，前景白色文字为首字母（中文节日取首字，国际节日取英文首字母）。支持通过 ?text= 自定义文字、?bg= 自定义背景色。返回 Content-Type: image/svg+xml，可直接作为 <link rel="icon"> 的 href。'
+      },
+      { id:'palette-badge', method:'GET', path:'/api/v1/today/palette.svg', label:'Palette Badge', desc:'今日主题调色盘 SVG 徽章，用于嵌入 README。', usage:'作为 <img> 标签引入即可。', cache:'浏览器 1h',
+        notes:'生成 200x40 的横向调色盘徽章：5-6 个圆角色块并排展示今日主题的核心颜色，右侧显示主题名称。适合嵌入 GitHub README、个人主页、博客侧栏。支持 ?theme=dark 切换深色背景模式。返回 Content-Type: image/svg+xml。'
+      },
       { id:'search-color', method:'GET', path:'/api/v1/search/color.json', label:'Color Search', desc:'RGB 欧几里得距离计算相似颜色主题。', usage:'传入 hex 寻找最匹配的主题。', cache:'浏览器 1h',
+        notes:'将输入 HEX 转为 RGB 向量，与所有预设主题的主色计算三维欧几里得距离，按距离升序排列。支持 ?limit= 控制返回数量（默认 10，最大 50）。返回的每个结果附带 distance 数值（越小越相似，0 为精确匹配）和匹配主题的完整元数据。适用场景："这个品牌色有什么现成的主题？"',
         params:[{name:'hex',type:'text',label:'Hex颜色',placeholder:'ff6b6b',optional:false}, {name:'limit',type:'text',label:'数量限制',placeholder:'10',optional:true}]
       },
-      { id:'og-image', method:'GET', path:'/api/v1/theme/{id}/og.svg', label:'OG Image SVG', desc:'1200x630 的社交分享图 SVG 渲染端点。', usage:'用于 og:image meta 标签。', cache:'365d immutable' }
+      { id:'og-image', method:'GET', path:'/api/v1/theme/{id}/og.svg', label:'OG Image SVG', desc:'1200x630 的社交分享图 SVG 渲染端点。', usage:'用于 og:image meta 标签。', cache:'365d immutable',
+        notes:'生成 1200x630 尺寸的 SVG 社交分享卡。布局：左侧大色块（主题主色）+ 主题名称与描述 + 调色盘预览条。适合作为 <meta property="og:image"> 的 content 值。预设主题预渲染为静态 SVG 文件（CDN 缓存 365 天），社区主题实时生成。'
+      }
     ]
   },
   {
     name: 'Environment Context',
     items: [
       { id:'weather-theme', method:'GET', path:'/api/v1/weather-theme.json', label:'Weather Adaptive', desc:'跨平台嗅探地理位置，调用 Open-Meteo 并匹配对应的天气氛围主题。', usage:'支持通过 ?lat= & ?lon= 覆盖 IP 检测结果。', cache:'30min',
+        notes:'处理流程：从请求头（CF-IPCountry、X-Client-Lat/Lon、Cloudflare 头）自动嗅探位置 → 调用 Open-Meteo 免费天气 API 获取当前天气代码 → 匹配天气-主题映射表（晴→暖色调、阴→低饱和、雨→冷蓝、雪→纯白、雷暴→深紫暗色）→ 返回对应主题的 today.json 数据 + weather 元信息。天气代码映射覆盖 WMO 标准全部 29 种天气类型。',
         params:[{name:'lat',type:'text',label:'纬度',placeholder:'35.68',optional:true}, {name:'lon',type:'text',label:'经度',placeholder:'139.76',optional:true}]
       },
-      { id:'status-override', method:'GET', path:'/api/v1/status-override.json', label:'Status Override', desc:'系统状态主题。维护(纯灰)/哀悼(暗黑+滤镜)/故障(红色警示)。', usage:'用于兜底页及重大状态提示。', cache:'5min' }
+      { id:'status-override', method:'GET', path:'/api/v1/status-override.json', label:'Status Override', desc:'系统状态主题。维护(纯灰)/哀悼(暗黑+滤镜)/故障(红色警示)。', usage:'用于兜底页及重大状态提示。', cache:'5min',
+        notes:'三种全局状态模式：maintenance — 所有颜色替换为灰色阶，页面添加 "系统维护中" 横幅提示，所有 API 继续正常响应；mourning — 全局去饱和 + 灰度滤镜 + 降低亮度，适用于全国哀悼日等场景；incident — 主色替换为警示红色，页面顶部显示故障公告栏。状态由运营人员通过管理后台切换，所有客户端 5 分钟内生效。'
+      }
     ]
   },
   {
     name: 'Community Data',
     items: [
       { id:'diy-list', method:'GET', path:'/api/v1/diy/themes.json', label:'Themes List', desc:'分页、排序、过滤获取社区已审核的主题。', usage:'支持多种维度的 tag 查询。', cache:'1min',
+        notes:'默认按提交时间倒序（new），?sort=hot 按点赞数降序。tag 参数支持 8 种分类：dark、light、warm、cool、vibrant、minimal、nature、tech。分页从 1 开始，size 最大 100。返回的每个主题包含：id、name、author、tags、likes、createdAt、previewColors（5 个预览色块）。审核状态为 "approved" 的主题才会出现在列表中。',
         params:[{name:'sort',type:'select',label:'排序',options:['new','hot'],optional:true}, {name:'page',type:'text',label:'页码',placeholder:'1',optional:true}, {name:'size',type:'text',label:'数量',placeholder:'20',optional:true}, {name:'tag',type:'select',label:'标签',options:['','dark','light','warm','cool','vibrant','minimal','nature','tech'],optional:true}]
       },
-      { id:'diy-single', method:'GET', path:'/api/v1/diy/theme.json', label:'Theme Detail', desc:'获取单个社区主题，包含点赞数和作者信息。', usage:'?id= 传入主题ID。', cache:'5min' },
+      { id:'diy-single', method:'GET', path:'/api/v1/diy/theme.json', label:'Theme Detail', desc:'获取单个社区主题，包含点赞数和作者信息。', usage:'?id= 传入主题ID。', cache:'5min',
+        notes:'返回完整的社区主题数据：cssVars（34 个属性）、author（作者昵称+头像 URL）、likes（点赞数）、createdAt（提交时间）、status（审核状态）。同时返回 hasLiked 字段（基于当前请求的 IP+UA 判断是否已点赞）。如果主题 ID 不存在或未通过审核，返回 404。'
+      },
       { id:'diy-submit', method:'POST', path:'/api/v1/diy/submit.json', label:'Submit Theme', desc:'提交新主题进入待审队列。', usage:'提供严格的数据 Schema 验证，返回 warnings。', cache:'不缓存',
+        notes:'提交规范：name 2-30 字符、author 2-20 字符、cssVars 必须包含至少 8 个标准属性（--color-primary 和 --color-bg 为必填）。服务器端对颜色值格式做严格校验（仅接受 #RRGGBB 或 #RRGGBBAA）。同一 IP+UA 每小时最多提交 3 次。审核通过后自动出现在社区列表，通常在 24 小时内完成。返回 warnings 数组提示配色建议（如对比度不足）。',
         params:[{name:'body',type:'textarea',label:'Body',placeholder:'{\n  "name": "Cyber",\n  "author": "You",\n  "cssVars": {"--color-primary":"#ff0","--color-bg":"#000"}\n}',optional:false}]
       },
-      { id:'diy-like', method:'POST', path:'/api/v1/diy/like.json', label:'Like Theme', desc:'为社区主题点赞。基于 IP + UA + UUID 防刷保护。', usage:'请求限流 10次/分钟。', cache:'不缓存' }
+      { id:'diy-like', method:'POST', path:'/api/v1/diy/like.json', label:'Like Theme', desc:'为社区主题点赞。基于 IP + UA + UUID 防刷保护。', usage:'请求限流 10次/分钟。', cache:'不缓存',
+        notes:'防刷机制：同一 IP+UA 组合对同一主题只能点赞一次（再次请求为取消点赞）。同时维护浏览器端 UUID（localStorage），即使 IP 变更也能识别重复操作。每分钟全局限流 10 次，超出返回 429。点赞数变更实时生效，但排行榜缓存 1 分钟。'
+      }
     ]
   },
   {
     name: 'AI & Telemetry',
     items: [
       { id:'ai-generate', method:'POST', path:'/api/v1/ai/generate.json', label:'AI Generate', desc:'根据描述生成 CSS 配色。支持规则引擎或 DeepSeek。', usage:'POST 描述文本。', cache:'不缓存',
-        params:[{name:'body',type:'textarea',label:'Body',placeholder:'{\n  "prompt": "neon cyberpunk matrix"\n}',optional:false}]
+        notes:'双引擎策略：简单描述（如 "dark blue theme"）使用本地规则引擎，毫秒级响应且免费；复杂描述（如 "neon cyberpunk matrix with purple accents"）自动路由到 DeepSeek API 进行语义理解。DeepSeek 调用有每日配额限制（100 次/IP/天），超出后回退到规则引擎。返回标准 34 个 cssVars 结构，与 today.json 格式一致，可直接注入页面。',
+        params:[{name:'body',type:'textarea',label:'Body',placeholder:'{"prompt": "neon cyberpunk matrix"}',optional:false}]
       },
-      { id:'ai-describe', method:'POST', path:'/api/v1/ai/describe.json', label:'AI Describe', desc:'输入 CSS 变量，AI 分析并返回中文风格描述。', usage:'逆向推理主题风格。', cache:'不缓存' }
+      { id:'ai-describe', method:'POST', path:'/api/v1/ai/describe.json', label:'AI Describe', desc:'输入 CSS 变量，AI 分析并返回中文风格描述。', usage:'逆向推理主题风格。', cache:'不缓存',
+        notes:'AI Generate 的逆向操作：输入一组 cssVars，AI 分析色相分布、饱和度、亮度、对比度等特征，输出风格描述（中文为主，可附带 en 英文翻译）和风格标签（如 ["dark","tech","cool"]）。适用场景：用户上传截图取色后理解配色风格、为已有主题补全元数据。响应包含 styleName（风格名称）、description（长描述）、tags（标签数组）、mood（情感倾向分析）。'
+      }
     ]
   }
 ];
@@ -191,8 +201,11 @@ const flatJSON = JSON.stringify(flat);
     <!-- ====== LEFT SIDEBAR ====== -->
     <aside class="sidebar">
       <div class="sidebar-header">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5z" fill="currentColor"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2"/></svg>
-        <span style="font-weight:700; font-size:15px; margin-left:12px; letter-spacing: -0.01em;">API Playground</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5z" fill="var(--color-primary, #6366f1)"/>
+          <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" />
+        </svg>
+        <span style="font-weight:600; font-size:14px; margin-left:10px; letter-spacing: 0.03em;">ThemeDist API</span>
       </div>
 
       <div class="sidebar-scroll" id="pg-sidebar">
@@ -211,10 +224,10 @@ const flatJSON = JSON.stringify(flat);
           </div>
         ))}
 
-        <div class="nav-group" style="margin-top: 24px; border-top: 1px solid var(--border-subtle); padding-top: 24px;">
+        <div class="nav-group" style="margin-top: 32px; border-top: 1px solid var(--color-border, #27272a); padding-top: 24px;">
            <button class="nav-item custom" id="custom-url-toggle">
              <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3H4a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1v-3"/><path d="M16 2L9 9"/><path d="M11 2h5v5"/></svg>
-             <span class="path" style="margin-left:8px; font-weight: 500;">Custom Request</span>
+             <span class="path" style="margin-left:8px;">Custom Request</span>
            </button>
         </div>
       </div>
@@ -240,11 +253,8 @@ const flatJSON = JSON.stringify(flat);
             <span class="url-prefix" id="url-prefix">{siteUrl}</span>
             <input type="text" class="url-input" id="url-input" value="/api/v1/today.json" spellcheck="false" autocomplete="off" />
           </div>
-          <button class="btn-send" id="pg-send" onclick="window.__doSend()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9 22 2z"/></svg>
-            Send Request
-          </button>
-          <span class="kbd-hint"><kbd>Ctrl</kbd>+<kbd>Enter</kbd></span>
+          <button class="btn-send" id="pg-send" onclick="window.__doSend()">Send Request</button>
+          <span class="kbd-hint">Ctrl+Enter</span>
         </div>
 
         <div class="rate-limit-hint" id="pg-send-hint"></div>
@@ -267,8 +277,8 @@ const flatJSON = JSON.stringify(flat);
 
           <div id="body-section" style="display:none;">
             <div class="panel-title">
-              <span>Body <span class="badge" style="margin-left:8px; background:var(--bg-base); border: 1px solid var(--border-subtle); color:var(--text-secondary); padding: 2px 6px; border-radius: 4px; font-size:10px;">JSON</span></span>
-              <button class="btn-add" id="body-format">Format JSON</button>
+              <span>Body <span class="badge" style="margin-left:8px; background:#27272a; color:#a1a1aa; font-size:10px; padding:2px 6px; border-radius:4px;">JSON</span></span>
+              <button class="btn-add" id="body-format">Format</button>
             </div>
             <textarea class="body-editor" id="body-editor" spellcheck="false"></textarea>
             <div class="feedback" id="body-feedback"></div>
@@ -276,24 +286,21 @@ const flatJSON = JSON.stringify(flat);
 
           <!-- Light Docs Area -->
           <div class="docs-mini">
-            <div class="panel-title" style="margin-top:24px;">Documentation</div>
+            <div class="panel-title" style="margin-top:32px;">Documentation</div>
             <div class="docs-card">
-              <p id="docs-desc-mini" class="text-muted" style="font-size:13px; margin:0 0 16px;">—</p>
-              <div class="docs-meta" style="display:flex; gap:32px; margin-bottom:16px;">
-                <div><span style="font-size:10px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);">Cache Policy</span><br><span id="docs-cache" style="font-size:12px;color:var(--accent); font-family: var(--font-mono);">—</span></div>
-                <div><span style="font-size:10px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);">Usage Hint</span><br><span id="docs-usage" style="font-size:12px;color:var(--text-primary);">—</span></div>
+              <p id="docs-card-desc" class="text-muted" style="font-size:13px; margin:0 0 12px; line-height:1.5;">—</p>
+              <div class="docs-meta" style="display:flex; gap:24px; margin-bottom:12px;">
+                <div><span style="font-size:10px;text-transform:uppercase;color:var(--text-muted, #71717a);">Cache</span><br><span id="docs-cache" style="font-size:12px;color:#a5b4fc;font-weight:500;">—</span></div>
+                <div><span style="font-size:10px;text-transform:uppercase;color:var(--text-muted, #71717a);">Usage</span><br><span id="docs-usage" style="font-size:12px;font-weight:500;">—</span></div>
               </div>
-              <div id="docs-notes" style="font-size:12.5px;color:var(--text-secondary);line-height:1.6;margin-bottom:16px;background:var(--bg-base);padding:12px;border-radius:6px;border:1px dashed var(--border-subtle);"></div>
+              <div id="docs-notes" style="font-size:12px;color:var(--text-secondary, #e4e4e7);line-height:1.6;margin-bottom:12px;"></div>
               <div id="docs-fields" style="display:none;margin-bottom:12px;">
-                <span style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--text-muted);">Response Fields</span>
-                <table class="res-headers-table" id="docs-fields-table" style="margin-top:8px;"></table>
+                <span style="font-size:10px;text-transform:uppercase;color:var(--text-muted, #71717a);">Response Fields</span>
+                <table class="res-headers-table" id="docs-fields-table" style="margin-top:6px;"></table>
               </div>
             </div>
             <pre id="docs-curl" class="code-block curl-block"></pre>
-            <button class="btn-add" id="copy-curl-btn" style="margin-top:12px; width: 100%;">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-              Copy cURL Command
-            </button>
+            <button class="btn-add" id="copy-curl-btn" style="margin-top:8px;">Copy cURL</button>
           </div>
 
         </div>
@@ -304,10 +311,10 @@ const flatJSON = JSON.stringify(flat);
 
           <!-- Tabs -->
           <div class="res-tabs" id="res-tabs">
-            <button class="res-tab active" data-tab="response">Response Preview</button>
-            <button class="res-tab" data-tab="history">Request History</button>
+            <button class="res-tab active" data-tab="response">Response</button>
+            <button class="res-tab" data-tab="history">History</button>
             <button class="res-tab-btn" id="history-clear" title="Clear all history" style="display:none;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
             </button>
           </div>
 
@@ -320,21 +327,21 @@ const flatJSON = JSON.stringify(flat);
                 <span id="res-size" class="res-size"></span>
               </div>
               <button class="btn-icon" id="res-copy" title="Copy response">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
               </button>
             </div>
 
             <div class="res-content-area">
-              <div id="pg-empty" class="empty-state empty-state-full">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.2" style="margin-bottom:16px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                <p style="margin:0 0 6px; color:var(--text-primary); font-weight:500;">Ready to send</p>
-                <p style="margin:0; font-size:12px; color:var(--text-secondary);">Hit <strong style="color:var(--accent)">Send Request</strong> to execute, or press <kbd>Ctrl+Enter</kbd></p>
+              <div id="pg-empty" class="empty-state" style="padding:64px 24px;">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.25" style="margin-bottom:16px;"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                <p style="margin:0 0 4px;">Hit <strong style="color:var(--accent, #6366f1)">Send Request</strong> to execute.</p>
+                <p style="margin:0; font-size:11px; color:var(--text-muted, #71717a);">Or press <kbd style="background:var(--bg-elevated, #18181b);border:1px solid var(--border-subtle, #27272a);border-radius:3px;padding:1px 6px;font-family:var(--font-mono);font-size:10px;">Ctrl+Enter</kbd></p>
               </div>
 
-              <div id="pg-loading" class="empty-state empty-state-full" style="display:none;">
+              <div id="pg-loading" class="empty-state" style="display:none; padding:64px 24px;">
                 <div class="spinner"></div>
-                <span style="color:var(--text-primary); font-weight:500; font-size:13px;">Executing request...</span>
-                <span style="color:var(--text-muted); font-size:11px; margin-top:6px; display:block; font-family:var(--font-mono);" id="pg-loading-url"></span>
+                <span style="color:var(--text-muted, #71717a); font-size:13px;">Sending request...</span>
+                <span style="color:var(--text-muted, #71717a); font-size:11px; margin-top:4px; display:block;" id="pg-loading-url"></span>
               </div>
 
               <div id="pg-error" class="error-state" style="display:none;">
@@ -342,7 +349,7 @@ const flatJSON = JSON.stringify(flat);
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
                   <strong style="color:#ef4444;">Request Failed</strong>
                 </div>
-                <span id="pg-error-msg" style="font-size:12px; color:var(--text-secondary); line-height: 1.5;"></span>
+                <span id="pg-error-msg" style="font-size:12px; color:var(--text-secondary, #e4e4e7);"></span>
               </div>
 
               <div id="res-content" style="display:none; flex-direction:column; flex:1; min-height:0; overflow:hidden;">
@@ -360,10 +367,10 @@ const flatJSON = JSON.stringify(flat);
           <!-- History Panel -->
           <div class="history-panel" id="history-panel" style="display:none;">
             <div class="history-list" id="history-list"></div>
-            <div class="empty-state empty-state-full" id="history-empty">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.2" style="margin-bottom:16px;"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-              <p style="color:var(--text-primary); font-weight:500; font-size:13px; margin:0 0 6px;">No request history yet.</p>
-              <p style="color:var(--text-secondary); font-size:12px; margin:0;">Requests you send will appear here.</p>
+            <div class="empty-state" id="history-empty" style="padding:48px 24px;">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3" style="margin-bottom:12px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <p style="color:var(--text-muted, #71717a); font-size:13px; margin:0;">No request history yet.</p>
+              <p style="color:var(--text-muted, #71717a); font-size:11px; margin:4px 0 0;">Requests you send will appear here.</p>
             </div>
           </div>
 
@@ -375,382 +382,405 @@ const flatJSON = JSON.stringify(flat);
 </Layout>
 
 <style is:global>
-  :root {
-    /* Safe fallbacks in case Layout.astro variables are absent */
-    --bg-base: var(--color-bg, #09090b);
-    --bg-sidebar: var(--color-bg, #09090b);
-    --bg-surface: var(--color-surface, #121214);
-    --bg-elevated: color-mix(in srgb, var(--color-surface, #18181b) 55%, var(--color-bg, #09090b));
-    --border-subtle: var(--color-border, #27272a);
-    --border-strong: color-mix(in srgb, var(--color-border, #27272a) 180%, var(--color-text-muted, #a1a1aa));
-    --text-primary: var(--color-text, #f4f4f5);
-    --text-secondary: var(--color-text-muted, #a1a1aa);
-    --text-muted: color-mix(in srgb, var(--color-text-muted, #a1a1aa) 55%, transparent);
-    
-    --accent: var(--color-primary, #8b5cf6);
-    --accent-blue: #3b82f6;
-    --accent-green: #10b981;
-    --accent-red: #ef4444;
-    
-    --font-mono: var(--font-mono, 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace);
-    --font-body: var(--font-body, 'Inter', system-ui, -apple-system, sans-serif);
-    
-    --ambient-1: color-mix(in srgb, var(--accent) 15%, transparent);
-    --ambient-2: color-mix(in srgb, var(--accent-blue) 15%, transparent);
-    
-    --radii: 8px;
-    --glass-blur: blur(12px);
-  }
-
   html, body {
     margin: 0; padding: 0;
     height: 100%;
-    background: var(--bg-base);
-    color: var(--text-primary);
-    font-family: var(--font-body);
   }
 </style>
 
 <style>
   .dashboard-layout {
+    /* Set fallbacks for standard Theme variables */
+    --bg-base:        var(--color-bg, #09090b);
+    --bg-sidebar:     var(--color-bg, #09090b);
+    --bg-surface:     var(--color-surface, #0f0f11);
+    --bg-elevated:    color-mix(in srgb, var(--color-surface, #18181b) 55%, var(--color-bg, #09090b));
+    --border-subtle:  var(--color-border, #222226);
+    --border-strong:  color-mix(in srgb, var(--color-border, #3f3f46) 180%, var(--color-text-muted, #71717a));
+    --text-primary:   var(--color-text, #f4f4f5);
+    --text-secondary: var(--color-text-muted, #a1a1aa);
+    --text-muted:     color-mix(in srgb, var(--color-text-muted, #71717a) 45%, transparent);
+    --accent:         var(--color-primary, #6366f1);
+    --accent-blue:    #3b82f6;
+    --accent-green:   #10b981;
+    --accent-red:     #f43f5e;
+    --font-mono:      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --font-body:      system-ui, -apple-system, sans-serif;
+    --radii:          10px;
+    --glass-blur:     blur(12px);
+    --ambient-1:      color-mix(in srgb, var(--accent) 15%, transparent);
+    --ambient-2:      color-mix(in srgb, var(--accent-blue) 12%, transparent);
+
     display: flex;
     height: 100vh;
     overflow: hidden;
-    position: relative;
-    z-index: 1;
-    transition: background 0.6s ease, color 0.6s ease;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    transition: background 0.6s cubic-bezier(0.16, 1, 0.3, 1), color 0.6s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   /* ====== AMBIENT BACKGROUND ====== */
-  .pg-amb { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+  .pg-amb {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+  }
   .pg-amb-orb {
-    position: absolute; border-radius: 50%; filter: blur(120px);
-    animation: orbDrift 20s ease-in-out infinite alternate;
+    position: absolute; border-radius: 50%; filter: blur(140px);
+    animation: orbDrift 25s ease-in-out infinite;
     will-change: transform; opacity: 0.6;
   }
-  .pg-amb-orb:nth-child(1) { width: 500px; height: 500px; top: -15%; left: -5%; background: var(--ambient-1); animation-delay: 0s; }
-  .pg-amb-orb:nth-child(2) { width: 400px; height: 400px; bottom: -10%; right: -5%; background: var(--ambient-2); animation-delay: -5s; }
+  .pg-amb-orb:nth-child(1) {
+    width: 550px; height: 550px;
+    top: -15%; left: -5%;
+    background: var(--ambient-1);
+    animation-delay: 0s;
+  }
+  .pg-amb-orb:nth-child(2) {
+    width: 450px; height: 450px;
+    bottom: -15%; right: -5%;
+    background: var(--ambient-2);
+    animation-delay: -5s;
+  }
   .pg-amb-grain {
-    position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.04;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    background-repeat: repeat; background-size: 256px 256px;
+    position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
   }
 
   @keyframes orbDrift {
-    0%   { transform: translate(0, 0) scale(1); }
-    50%  { transform: translate(5%, 3%) scale(1.05); }
-    100% { transform: translate(-3%, 4%) scale(0.95); }
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(6%, -4%) scale(1.05); }
+    50% { transform: translate(-3%, 3%) scale(0.95); }
+    75% { transform: translate(-4%, -2%) scale(1.02); }
   }
 
   /* ====== SIDEBAR ====== */
-  .sidebar {
-    width: 280px; flex-shrink: 0;
-    border-right: 1px solid var(--border-subtle);
-    display: flex; flex-direction: column;
-    background: color-mix(in srgb, var(--bg-sidebar) 70%, transparent);
-    backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
-    position: relative; z-index: 2;
-  }
-  .sidebar-header {
-    height: 64px; display: flex; align-items: center; padding: 0 24px;
-    border-bottom: 1px solid var(--border-subtle); flex-shrink: 0;
-    color: var(--text-primary);
-  }
+  .sidebar { width: 280px; flex-shrink: 0; border-right: 1px solid var(--border-subtle); display: flex; flex-direction: column; background: var(--bg-sidebar); position: relative; z-index: 1; }
+  .sidebar-header { height: 64px; display: flex; align-items: center; padding: 0 24px; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; color: var(--text-primary); }
   .sidebar-scroll { flex: 1; overflow-y: auto; padding: 24px 0; }
-  .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+  .sidebar-scroll::-webkit-scrollbar { width: 5px; }
   .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
-  .sidebar-scroll::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+  .sidebar-scroll::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--color-text-muted, #71717a) 20%, transparent); border-radius: 99px; }
 
   .nav-group { margin-bottom: 24px; }
-  .nav-group-title {
-    padding: 0 24px; font-size: 11px; text-transform: uppercase;
-    letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 12px; font-weight: 700;
-  }
+  .nav-group-title { padding: 0 24px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 10px; font-weight: 700; }
   .nav-item {
-    display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 24px 8px 22px;
-    border: none; background: transparent; color: var(--text-secondary); font-size: 13px;
-    cursor: pointer; text-align: left; border-left: 2px solid transparent; transition: all 0.2s;
+    display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 24px 10px 22px;
+    border: none; background: transparent; color: var(--text-secondary); font-size: 13.5px;
+    cursor: pointer; text-align: left; border-left: 2px solid transparent; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .nav-item:hover { color: var(--text-primary); background: color-mix(in srgb, var(--text-primary) 4%, transparent); }
-  .nav-item.active {
-    border-left-color: var(--accent); color: var(--text-primary);
-    background: color-mix(in srgb, var(--accent) 8%, transparent); font-weight: 500;
-  }
+  .nav-item:hover { color: var(--text-primary); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  .nav-item.active { border-left-color: var(--accent); color: var(--text-primary); background: color-mix(in srgb, var(--accent) 10%, transparent); font-weight: 500; }
   .nav-item.custom { padding-left: 24px; }
   .nav-item.custom.active { padding-left: 22px; }
 
-  .method { font-family: var(--font-mono); font-size: 10px; font-weight: 700; min-width: 32px; letter-spacing: 0.02em; }
+  .method { font-family: var(--font-mono); font-size: 10px; font-weight: 700; min-width: 36px; text-align: left; letter-spacing: 0.02em; }
   .method.GET { color: var(--accent-green); }
   .method.POST { color: var(--accent-blue); }
-  .path { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-mono); font-size: 12.5px; }
+  .path { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.85; }
+  .nav-item:hover .path { opacity: 1; }
 
   /* ====== MAIN CONTENT ====== */
-  .main-content {
-    flex: 1; display: flex; flex-direction: column; overflow: hidden;
-    background: color-mix(in srgb, var(--bg-surface) 60%, transparent);
-    position: relative; z-index: 1; min-width: 0;
-  }
+  .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-surface); position: relative; z-index: 1; min-width: 0; }
 
-  .main-header { flex-shrink: 0; padding: 48px 48px 0 48px; }
-  .page-header { margin-bottom: 24px; }
-  .page-title { font-size: 28px; font-weight: 700; margin: 0 0 8px 0; color: var(--text-primary); letter-spacing: -0.02em; }
-  .page-desc { font-size: 14px; color: var(--text-secondary); margin: 0; max-width: 800px; line-height: 1.6; }
+  /* Fixed Header */
+  .main-header { flex-shrink: 0; padding: 32px 40px 0 40px; }
+
+  /* Page Header */
+  .page-header { margin-bottom: 20px; }
+  .page-title { font-size: 24px; font-weight: 700; margin: 0 0 6px 0; color: var(--text-primary); letter-spacing: -0.02em; }
+  .page-desc { font-size: 13.5px; color: var(--text-secondary); margin: 0; max-width: 800px; line-height: 1.6; }
 
   /* URL Bar */
   .url-bar-container {
     display: flex; align-items: center; border: 1px solid var(--border-subtle); border-radius: var(--radii);
     background: var(--bg-elevated); overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s;
     backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
   }
   .url-bar-container:focus-within {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent), 0 4px 20px rgba(0,0,0,0.2);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
   }
-  .url-method {
-    padding: 0 16px; background: transparent; border: none; border-right: 1px solid var(--border-subtle);
-    color: var(--text-primary); font-weight: 700; font-family: var(--font-mono); font-size: 13px;
-    outline: none; cursor: pointer; align-self: stretch; transition: background 0.2s;
-  }
-  .url-method:focus, .url-method:hover { background: color-mix(in srgb, var(--text-primary) 5%, transparent); }
+  .url-method { padding: 0 16px; background: transparent; border: none; border-right: 1px solid var(--border-subtle); color: var(--text-primary); font-weight: 700; font-family: var(--font-mono); font-size: 13px; outline: none; cursor: pointer; align-self: stretch; transition: background 0.2s; }
+  .url-method:focus { background: rgba(255, 255, 255, 0.02); }
   .url-input-wrap { flex: 1; display: flex; align-items: center; padding: 0 16px; min-width: 0; }
-  .url-prefix { color: var(--text-muted); font-family: var(--font-mono); font-size: 13.5px; user-select: none; flex-shrink: 0; }
-  .url-input {
-    flex: 1; background: transparent; border: none; color: var(--text-primary);
-    font-family: var(--font-mono); font-size: 13.5px; outline: none; padding: 14px 0 14px 4px; min-width: 0;
-  }
+  .url-prefix { color: var(--text-muted); font-family: var(--font-mono); font-size: 13px; user-select: none; flex-shrink: 0; letter-spacing: -0.01em; }
+  .url-input { flex: 1; background: transparent; border: none; color: var(--text-primary); font-family: var(--font-mono); font-size: 13px; outline: none; padding: 12px 0 12px 4px; min-width: 0; }
   .btn-send {
-    display: flex; align-items: center; justify-content: center;
-    padding: 0 24px; background: var(--accent); color: #fff;
+    padding: 0 28px; background: var(--accent); color: #fff;
     border: none; font-weight: 600; font-size: 13.5px; cursor: pointer; align-self: stretch;
-    transition: background 0.2s, opacity 0.2s; font-family: var(--font-body); white-space: nowrap;
+    transition: opacity 0.2s, filter 0.2s;
+    font-family: var(--font-body); white-space: nowrap;
   }
-  .btn-send:hover { background: color-mix(in srgb, var(--accent) 80%, #fff); }
-  .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-send:hover { filter: brightness(1.12); }
+  .btn-send:disabled { opacity: 0.4; cursor: not-allowed; filter: none; }
 
-  kbd {
-    background: var(--bg-surface); border: 1px solid var(--border-subtle); border-bottom-width: 2px;
-    border-radius: 4px; padding: 2px 6px; font-family: var(--font-mono); font-size: 10px; color: var(--text-secondary);
-    margin: 0 2px;
+  .kbd-hint {
+    font-size: 10px; color: var(--text-muted);
+    font-family: var(--font-mono); padding: 0 16px;
+    opacity: 0.55; user-select: none; white-space: nowrap;
   }
-  .kbd-hint { font-size: 11px; color: var(--text-muted); padding: 0 16px 0 8px; user-select: none; white-space: nowrap; display: flex; align-items: center; }
 
-  .rate-limit-hint { min-height: 24px; font-size: 12px; color: var(--accent-red); font-weight: 500; margin-top: 8px; }
+  .pg-send-hint-container { min-height: 24px; padding-top: 6px; }
+  .rate-limit-hint { font-size: 12px; color: var(--accent-red); font-weight: 500; }
 
   /* Content Grid */
-  .content-grid {
-    flex: 1; min-height: 0; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
-    gap: 32px; padding: 24px 48px 48px 48px;
-  }
-  @media (max-width: 1100px) { .content-grid { grid-template-columns: 1fr; overflow-y: auto; } .main-content { overflow-y: auto; } }
-  @media (max-width: 768px) { .dashboard-layout { flex-direction: column; } .sidebar { width: 100%; height: 250px; border-right: none; border-bottom: 1px solid var(--border-subtle); } .main-header, .content-grid { padding: 24px; } }
+  .content-grid { flex: 1; min-height: 0; overflow: hidden; display: grid; grid-template-columns: 1.1fr 1fr; gap: 32px; padding: 16px 40px 40px 40px; }
+  @media (max-width: 1200px) { .content-grid { grid-template-columns: 1fr; overflow-y: auto; } }
 
-  .panel-title {
-    font-size: 13px; font-weight: 700; color: var(--text-primary); margin: 0 0 16px 0;
-    text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
-  }
+  .panel-title { font-size: 12px; font-weight: 700; color: var(--text-primary); margin: 0 0 14px 0; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; opacity: 0.9; }
 
   /* ====== REQUEST COLUMN ====== */
-  .request-col { overflow-y: auto; min-height: 0; padding-right: 4px; display: flex; flex-direction: column; }
+  .request-col { overflow-y: auto; min-height: 0; padding-right: 6px; }
   .request-col::-webkit-scrollbar { width: 5px; }
   .request-col::-webkit-scrollbar-track { background: transparent; }
-  .request-col::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+  .request-col::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--color-text-muted, #71717a) 25%, transparent); border-radius: 99px; }
 
   /* ====== PARAMETERS ====== */
-  .params-box {
-    background: var(--bg-elevated); border: 1px solid var(--border-subtle);
-    border-radius: var(--radii); padding: 8px; margin-bottom: 24px; flex-shrink: 0;
-  }
-  .params-list { display: flex; flex-direction: column; gap: 4px; }
+  .params-box { background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radii); padding: 8px; margin-bottom: 24px; backdrop-filter: var(--glass-blur); }
+  .params-list { display: flex; flex-direction: column; gap: 6px; }
 
   .param-row {
-    display: grid; grid-template-columns: 140px auto 1fr 32px; align-items: center; gap: 8px;
-    border-radius: 6px; background: var(--bg-base); border: 1px solid transparent;
-    transition: all 0.2s; padding: 2px 4px;
+    display: flex; align-items: center; gap: 0;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid transparent;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
   }
-  .param-row:hover { border-color: color-mix(in srgb, var(--accent) 20%, var(--border-subtle)); background: color-mix(in srgb, var(--accent) 3%, var(--bg-base)); }
-  .param-row:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 15%, transparent); }
+  .param-row:hover {
+    border-color: color-mix(in srgb, var(--accent) 15%, var(--border-subtle));
+    background: color-mix(in srgb, var(--accent) 2%, rgba(0, 0, 0, 0.15));
+  }
+  .param-row:focus-within {
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 8%, transparent);
+    background: color-mix(in srgb, var(--accent) 4%, rgba(0, 0, 0, 0.15));
+  }
 
   .param-key {
-    background: transparent; border: none; color: var(--accent); font-family: var(--font-mono);
-    font-size: 12.5px; font-weight: 600; outline: none; padding: 8px; width: 100%; box-sizing: border-box;
+    flex: 0 0 180px; min-width: 0;
+    background: transparent; border: none;
+    color: var(--accent); font-family: var(--font-mono);
+    font-size: 12.5px; font-weight: 600; outline: none;
+    padding: 9px 0 9px 12px;
+    letter-spacing: 0.01em;
   }
-  .param-key::placeholder { color: color-mix(in srgb, var(--accent) 30%, transparent); font-weight: 400; }
+  .param-key::placeholder { color: color-mix(in srgb, var(--accent) 30%, transparent); }
+  .param-key:read-only { color: var(--accent); }
 
-  .param-eq { color: var(--text-muted); font-family: var(--font-mono); font-size: 13px; padding: 0; user-select: none; }
-
-  .param-val, .param-val-sel {
-    background: transparent; border: none; color: var(--text-primary); font-family: var(--font-mono);
-    font-size: 13px; outline: none; padding: 8px; width: 100%; box-sizing: border-box;
+  .param-eq {
+    color: var(--text-muted); font-family: var(--font-mono);
+    font-size: 12px; font-weight: 400;
+    padding: 0 6px; flex-shrink: 0; user-select: none;
+    opacity: 0.5;
   }
-  .param-val::placeholder { color: var(--text-muted); }
-  .param-val-sel { color: var(--text-secondary); cursor: pointer; }
+
+  .param-val {
+    flex: 1; min-width: 0;
+    background: transparent; border: none;
+    color: var(--text-primary); font-family: var(--font-mono);
+    font-size: 12.5px; outline: none;
+    padding: 9px 12px 9px 0;
+  }
+  .param-val::placeholder { color: color-mix(in srgb, var(--color-text-muted, #71717a) 35%, transparent); }
+
+  .param-val-sel {
+    flex: 1; min-width: 0;
+    background: transparent; border: none;
+    color: var(--text-primary); font-family: var(--font-mono);
+    font-size: 12.5px; outline: none;
+    padding: 9px 12px 9px 0;
+    cursor: pointer; appearance: none;
+  }
 
   .param-del {
-    width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
-    background: transparent; border: none; color: var(--text-muted); border-radius: 5px;
-    cursor: pointer; opacity: 0; transition: all 0.2s;
+    flex-shrink: 0; width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent; border: none;
+    color: var(--text-muted); border-radius: 5px;
+    cursor: pointer; opacity: 0; transition: opacity 0.15s, color 0.15s, background 0.15s;
+    margin-right: 2px;
   }
-  .param-row:hover .param-del, .param-row:focus-within .param-del { opacity: 1; }
-  .param-del:hover { color: var(--accent-red); background: color-mix(in srgb, var(--accent-red) 15%, transparent); }
+  .param-row:hover .param-del,
+  .param-row:focus-within .param-del { opacity: 1; }
+  .param-del:hover { color: var(--accent-red); background: rgba(244, 63, 94, 0.1); }
 
-  .btn-icon {
-    width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
-    background: transparent; border: none; color: var(--text-secondary); border-radius: 6px;
-    cursor: pointer; transition: all 0.2s; flex-shrink: 0;
-  }
-  .btn-icon:hover { background: color-mix(in srgb, var(--text-primary) 8%, transparent); color: var(--text-primary); }
+  .btn-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; color: var(--text-secondary); border-radius: 6px; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+  .btn-icon:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--text-primary); }
   .btn-icon.copied { color: var(--accent-green); }
 
   .btn-add {
-    background: color-mix(in srgb, var(--text-primary) 5%, transparent);
-    border: 1px solid var(--border-subtle); color: var(--text-secondary); font-size: 11.5px; font-weight: 600;
-    padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s; font-family: var(--font-body);
-    display: flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border-subtle));
+    color: var(--accent); font-size: 11px; font-weight: 600;
+    padding: 5px 14px; border-radius: 6px; cursor: pointer;
+    transition: all 0.2s; font-family: var(--font-body); white-space: nowrap; letter-spacing: 0.02em;
   }
-  .btn-add:hover { background: color-mix(in srgb, var(--text-primary) 10%, transparent); color: var(--text-primary); border-color: var(--border-strong); }
+  .btn-add:hover {
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 35%, var(--border-subtle));
+    color: var(--text-primary);
+  }
 
-  .empty-state { text-align: center; color: var(--text-muted); font-size: 13px; padding: 24px; }
-  .empty-state-full { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; flex: 1; min-height: 200px; padding: 48px 24px; }
-  .error-state { padding: 24px; background: color-mix(in srgb, var(--accent-red) 10%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--accent-red) 20%, transparent); }
+  .empty-state { text-align: center; color: var(--text-muted); font-size: 13px; padding: 24px; line-height: 1.5; }
+  .error-state { padding: 24px; background: rgba(244, 63, 94, 0.04); border: 1px solid rgba(244, 63, 94, 0.15); border-radius: var(--radii); margin-bottom: 16px; }
 
   /* Body Editor */
-  .body-editor {
-    width: 100%; min-height: 140px; height: 220px; max-height: 500px;
-    background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radii);
-    color: var(--text-primary); font-family: var(--font-mono); font-size: 13px; line-height: 1.5;
-    padding: 16px; resize: vertical; outline: none; transition: border-color 0.2s; box-sizing: border-box;
-  }
-  .body-editor:focus { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 15%, transparent); }
-  .feedback { font-size: 12px; margin-top: 8px; min-height: 18px; font-weight: 500; }
-  .feedback.ok { color: var(--accent-green); }
-  .feedback.err { color: var(--accent-red); }
+  .body-editor { width: 100%; height: 200px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radii); color: var(--text-primary); font-family: var(--font-mono); font-size: 13px; padding: 16px; resize: vertical; outline: none; transition: border-color 0.2s; box-sizing: border-box; line-height: 1.5; }
+  .body-editor:focus { border-color: var(--accent); }
+  .feedback { font-size: 12px; margin-top: 8px; min-height: 18px; font-weight: 500; } .feedback.ok { color: var(--accent-green); } .feedback.err { color: var(--accent-red); }
 
   /* Light Docs */
-  .docs-card {
-    background: transparent; border: 1px solid var(--border-subtle);
-    border-radius: var(--radii); padding: 16px 20px; margin-bottom: 16px;
-  }
-  .curl-block {
-    white-space: pre-wrap; word-break: break-all; margin: 0; padding: 16px;
-    background: #000; border: 1px solid var(--border-subtle); border-radius: var(--radii);
-    color: #a1a1aa; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6;
-  }
+  .docs-card { background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radii); padding: 18px; margin-bottom: 16px; backdrop-filter: var(--glass-blur); }
+  .curl-block { white-space: pre-wrap; word-break: break-all; margin: 0; padding: 16px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radii); color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; line-height: 1.5; }
 
   /* ====== RESPONSE COLUMN ====== */
   .response-col { display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 
   /* Response Tabs */
-  .res-tabs { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; margin-bottom: 16px; }
+  .res-tabs {
+    display: flex; align-items: center; gap: 4px;
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0; margin-bottom: 16px;
+  }
   .res-tab {
-    padding: 10px 16px; background: transparent; border: none; color: var(--text-secondary);
-    font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font-body);
-    border-bottom: 2px solid transparent; transition: all 0.2s; margin-bottom: -1px;
+    padding: 10px 18px;
+    background: transparent; border: none;
+    color: var(--text-muted); font-size: 12.5px; font-weight: 600;
+    cursor: pointer; font-family: var(--font-body);
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
   }
   .res-tab:hover { color: var(--text-primary); }
-  .res-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-  .res-tab-btn {
-    margin-left: auto; padding: 6px 8px; background: transparent; border: none;
-    color: var(--text-muted); cursor: pointer; border-radius: 4px; transition: all 0.2s;
+  .res-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
   }
-  .res-tab-btn:hover { color: var(--accent-red); background: color-mix(in srgb, var(--accent-red) 15%, transparent); }
+  .res-tab-btn {
+    margin-left: auto; padding: 6px;
+    background: transparent; border: none;
+    color: var(--text-muted); cursor: pointer; border-radius: 6px;
+    transition: color 0.2s, background 0.2s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .res-tab-btn:hover { color: var(--accent-red); background: rgba(244,63,94,0.1); }
 
   /* ====== RESPONSE BOX ====== */
-  .response-box { flex: 1; min-height: 0; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radii); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-  .res-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border-subtle); background: var(--bg-surface); flex-shrink: 0; }
-  .res-status-wrap { display: flex; align-items: center; gap: 16px; }
-  .status-code { font-family: var(--font-mono); font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 4px; letter-spacing: 0.05em; }
-  .status-code.ok { color: var(--accent-green); background: color-mix(in srgb, var(--accent-green) 15%, transparent); }
-  .status-code.err { color: var(--accent-red); background: color-mix(in srgb, var(--accent-red) 15%, transparent); }
-  .res-time { font-family: var(--font-mono); font-size: 12.5px; font-weight: 500; }
+  .response-box { flex: 1; min-height: 0; background: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: var(--radii); display: flex; flex-direction: column; overflow: hidden; }
+  .res-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border-subtle); background: var(--bg-elevated); flex-shrink: 0; }
+  .res-status-wrap { display: flex; align-items: center; gap: 12px; }
+  .status-code { font-family: var(--font-mono); font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 5px; letter-spacing: 0.01em; }
+  .status-code.ok { color: var(--accent-green); background: color-mix(in srgb, var(--accent-green) 12%, transparent); }
+  .status-code.err { color: var(--accent-red); background: color-mix(in srgb, var(--accent-red) 12%, transparent); }
+  .res-time { font-family: var(--font-mono); font-size: 11.5px; font-weight: 500; }
   .res-time.fast { color: var(--accent-green); }
-  .res-time.medium { color: #fbbf24; }
+  .res-time.medium { color: #f59e0b; }
   .res-time.slow { color: var(--accent-red); }
-  .res-size { color: var(--text-secondary); font-family: var(--font-mono); font-size: 12.5px; }
+  .res-size { color: var(--text-muted); font-family: var(--font-mono); font-size: 11.5px; }
 
   .res-content-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+
   #res-content { overflow: hidden; }
 
-  .res-headers { background: var(--bg-surface); border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; }
-  .res-headers summary { padding: 12px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); cursor: pointer; list-style: none; user-select: none; transition: background 0.2s; }
-  .res-headers summary:hover { background: color-mix(in srgb, var(--text-primary) 4%, transparent); color: var(--text-primary); }
+  .res-headers { background: var(--bg-elevated); border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; }
+  .res-headers summary { padding: 12px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); cursor: pointer; list-style: none; user-select: none; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: space-between; }
   .res-headers summary::-webkit-details-marker { display: none; }
-  .res-headers-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 12px; }
-  .res-headers-table td { padding: 8px 16px; border-top: 1px solid var(--border-subtle); color: var(--text-secondary); }
-  .res-headers-table td:first-child { color: var(--text-primary); font-weight: 600; width: 30%; }
+  .res-headers summary::after { content: '▼'; font-size: 8px; transition: transform 0.2s; opacity: 0.7; }
+  .res-headers[open] summary::after { transform: rotate(180deg); }
+  .res-headers-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11.5px; }
+  .res-headers-table td { padding: 6px 16px; border-top: 1px solid var(--border-subtle); color: var(--text-secondary); line-height: 1.4; }
+  .res-headers-table td:first-child { color: var(--text-primary); font-weight: 600; width: 32%; }
 
-  .fill-block {
-    flex: 1; margin: 0; padding: 20px; background: transparent; border: none; overflow-y: auto;
-    color: var(--text-secondary); font-family: var(--font-mono); font-size: 13.5px; line-height: 1.6;
-    white-space: pre-wrap; word-break: break-all; min-height: 0;
-  }
-  .fill-block::-webkit-scrollbar { width: 6px; height: 6px; }
-  .fill-block::-webkit-scrollbar-track { background: transparent; }
-  .fill-block::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+  .fill-block { flex: 1; margin: 0; padding: 16px; background: transparent; border: none; overflow-y: auto; color: var(--text-secondary); font-family: var(--font-mono); font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-all; min-height: 0; }
 
-  .res-preview { padding: 32px; display: flex; justify-content: center; align-items: center; background: repeating-conic-gradient(#18181b 0% 25%, #27272a 0% 50%) 50% / 20px 20px; border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; min-height: 200px; }
-  .res-preview img { max-width: 100%; max-height: 400px; object-fit: contain; border-radius: var(--radii); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+  .res-preview { padding: 24px; display: flex; justify-content: center; background: radial-gradient(circle, rgba(24,24,27,0.8) 0%, rgba(9,9,11,0.95) 100%); border-bottom: 1px solid var(--border-subtle); flex-shrink: 0; }
+  .res-preview img { max-width: 100%; max-height: 260px; border-radius: var(--radii); box-shadow: 0 12px 40px rgba(0,0,0,0.6); border: 1px solid var(--border-subtle); }
 
-  .spinner { width: 28px; height: 28px; border: 2.5px solid var(--border-subtle); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s cubic-bezier(0.5, 0.1, 0.4, 0.9) infinite; margin: 0 auto 16px; }
+  .spinner { width: 24px; height: 24px; border: 2px solid var(--border-subtle); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   /* Syntax Highlighting */
-  .hl-key { color: #7dd3fc; font-weight: 500; }
-  .hl-str { color: #a7f3d0; }
-  .hl-num { color: #fca5a5; }
-  .hl-bool { color: #c4b5fd; font-weight: 600; }
+  .hl-key { color: #f43f5e; font-weight: 500; }
+  .hl-str { color: #34d399; }
+  .hl-num { color: #3b82f6; }
+  .hl-bool { color: #a78bfa; }
 
   /* ====== HISTORY PANEL ====== */
   .history-panel {
-    flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column;
-    background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radii);
+    flex: 1; min-height: 0; overflow-y: auto;
+    display: flex; flex-direction: column;
+    background: var(--bg-base);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radii);
   }
   .history-panel::-webkit-scrollbar { width: 5px; }
   .history-panel::-webkit-scrollbar-track { background: transparent; }
-  .history-panel::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+  .history-panel::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--color-text-muted, #71717a) 30%, transparent); border-radius: 99px; }
 
   .history-list { display: flex; flex-direction: column; }
+
   .history-item {
-    display: flex; align-items: center; gap: 16px; padding: 16px 20px;
-    border-bottom: 1px solid var(--border-subtle); cursor: pointer;
-    transition: background 0.2s, border-color 0.2s; border-left: 3px solid transparent; position: relative;
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    border-left: 3px solid transparent;
+    position: relative;
   }
-  .history-item:hover { background: color-mix(in srgb, var(--accent) 4%, transparent); border-left-color: var(--accent); }
+  .history-item:hover {
+    background: color-mix(in srgb, var(--accent) 3%, var(--bg-elevated));
+    border-left-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  }
   .history-item:last-child { border-bottom: none; }
 
-  .history-item-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
-  .history-item-status-dot.err { background: var(--accent-red); box-shadow: 0 0 8px var(--accent-red); }
+  .history-item-status-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    background: var(--accent-green);
+  }
+  .history-item-status-dot.err { background: var(--accent-red); }
 
   .history-item-method {
-    font-family: var(--font-mono); font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 4px;
-    min-width: 40px; text-align: center; flex-shrink: 0; letter-spacing: 0.05em;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+    padding: 3px 8px; border-radius: 4px; min-width: 34px; text-align: center;
+    flex-shrink: 0; letter-spacing: 0.02em;
   }
-  .history-item-method.GET { color: var(--accent-green); background: color-mix(in srgb, var(--accent-green) 15%, transparent); }
-  .history-item-method.POST { color: var(--accent-blue); background: color-mix(in srgb, var(--accent-blue) 15%, transparent); }
+  .history-item-method.GET { color: var(--accent-green); background: color-mix(in srgb, var(--accent-green) 12%, transparent); }
+  .history-item-method.POST { color: var(--accent-blue); background: color-mix(in srgb, var(--accent-blue) 12%, transparent); }
 
-  .history-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-  .history-item-path { font-family: var(--font-mono); font-size: 13.5px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .history-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 
-  .history-item-meta { display: flex; align-items: center; gap: 16px; font-family: var(--font-mono); font-size: 11.5px; color: var(--text-secondary); }
+  .history-item-path {
+    font-family: var(--font-mono); font-size: 12.5px; font-weight: 600;
+    color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .history-item-meta {
+    display: flex; align-items: center; gap: 14px;
+    font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);
+  }
   .history-item-status-code { font-weight: 700; }
   .history-item-status-code.ok { color: var(--accent-green); }
   .history-item-status-code.err { color: var(--accent-red); }
   .history-item-duration.fast { color: var(--accent-green); }
-  .history-item-duration.medium { color: #fbbf24; }
+  .history-item-duration.medium { color: #f59e0b; }
   .history-item-duration.slow { color: var(--accent-red); }
-  .history-item-time { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+  .history-item-time { font-size: 10px; color: var(--text-muted); white-space: nowrap; }
 
-  .history-item-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; opacity: 0.3; transition: opacity 0.2s; }
-  .history-item:hover .history-item-actions { opacity: 1; }
+  .history-item-actions { display: flex; gap: 6px; flex-shrink: 0; align-items: center; }
   .history-item-action {
-    display: flex; align-items: center; gap: 6px; padding: 6px 12px;
-    background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 6px;
-    color: var(--text-secondary); font-family: var(--font-body); font-size: 12px; font-weight: 600;
-    cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    display: flex; align-items: center; gap: 5px;
+    padding: 6px 12px;
+    background: transparent; border: 1px solid var(--border-subtle); border-radius: 6px;
+    color: var(--text-secondary); font-family: var(--font-body); font-size: 11px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
   }
-  .history-item-action:hover { background: color-mix(in srgb, var(--accent) 15%, transparent); border-color: var(--accent); color: var(--text-primary); }
-  .history-item-action.delete { border-color: transparent; color: var(--text-muted); background: transparent; padding: 6px; }
-  .history-item-action.delete:hover { color: var(--accent-red); background: color-mix(in srgb, var(--accent-red) 15%, transparent); }
+  .history-item-action:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); border-color: color-mix(in srgb, var(--accent) 25%, var(--border-subtle)); color: var(--text-primary); }
+  .history-item-action.delete { border-color: transparent; color: var(--text-muted); }
+  .history-item-action.delete:hover { color: var(--accent-red); background: rgba(244,63,94,0.08); border-color: rgba(244,63,94,0.15); }
+
+  .history-item-action svg { flex-shrink: 0; }
 </style>
 
 <script define:vars={{ siteUrl, flatJSON }}>
@@ -759,108 +789,113 @@ const flatJSON = JSON.stringify(flat);
 </script>
 
 <script>
-  var siteUrl = window.__SITE_URL__ || window.location.origin;
-  var FLAT = JSON.parse(window.__FLAT_JSON__);
-  var activeEP = FLAT[0];
-  var isCustom = false;
-  var lastResBody = '';
-  
-  // Manage Blob URLs to prevent memory leaks
-  var activeBlobUrls = [];
-  function cleanupBlobs() {
-    while(activeBlobUrls.length > 5) {
-      URL.revokeObjectURL(activeBlobUrls.shift());
-    }
-  }
+  const siteUrl = window.__SITE_URL__;
+  const FLAT = JSON.parse(window.__FLAT_JSON__);
+  let activeEP = FLAT[0];
+  let isCustom = false;
+  let lastResBody = '';
+  let lastResCT = '';
+  let activeObjectURL = null;
 
-  // ── Debounce & Quota ──
-  var lastRequestTime = 0;
-  var DEBOUNCE_MS = 500;
-  var DAILY_LIMIT = 100;
-  var dailyCount = 0;
+  // ── Debounce ──
+  let lastRequestTime = 0;
+  const DEBOUNCE_MS = 500;
+
+  // ── Daily Quota ──
+  const DAILY_LIMIT = 100;
+  let dailyCount = 0;
 
   function loadDailyCount() {
     try {
-      var data = JSON.parse(localStorage.getItem('pg-daily') || '{}');
-      var today = new Date().toISOString().slice(0, 10);
+      const data = JSON.parse(localStorage.getItem('pg-daily') || '{}');
+      const today = new Date().toISOString().slice(0, 10);
       dailyCount = (data.date === today) ? (data.count || 0) : 0;
     } catch(e) { dailyCount = 0; }
   }
 
   function incrementDailyCount() {
     dailyCount++;
-    var today = new Date().toISOString().slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
     try { localStorage.setItem('pg-daily', JSON.stringify({ date: today, count: dailyCount })); } catch(e) {}
     updateQuotaHint();
     return dailyCount;
   }
 
   function updateQuotaHint() {
-    var hint = getEl('pg-send-hint');
-    var remaining = DAILY_LIMIT - dailyCount;
-    if (remaining <= 20) {
-      hint.style.color = remaining <= 5 ? 'var(--accent-red)' : '#fbbf24';
-      hint.textContent = 'Daily quota: ' + dailyCount + '/' + DAILY_LIMIT + ' (' + remaining + ' left)';
+    const hint = getEl('pg-send-hint');
+    const remaining = DAILY_LIMIT - dailyCount;
+    if (remaining <= 15) {
+      hint.style.color = remaining <= 5 ? 'var(--accent-red)' : '#f59e0b';
+      hint.textContent = 'Daily quota: ' + dailyCount + '/' + DAILY_LIMIT + ' (' + remaining + ' remaining)';
     } else {
       hint.textContent = '';
     }
   }
 
-  // ── Response Cache (in-memory) ──
-  var responseCache = new Map();
-  var CACHE_TTL = 5 * 60 * 1000; 
+  // ── Response Cache (in-memory, session only) ──
+  const responseCache = new Map();
+  const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
   function getCached(method, url) {
-    var key = method + '::' + url;
-    var entry = responseCache.get(key);
+    const key = method + '::' + url;
+    const entry = responseCache.get(key);
     if (!entry) return null;
     if (Date.now() - entry.time > CACHE_TTL) {
-      responseCache.delete(key); return null;
+      responseCache.delete(key);
+      return null;
     }
     return entry;
   }
 
   function setCached(method, url, data) {
-    var key = method + '::' + url;
-    if (responseCache.size >= 30) {
-      var firstKey = responseCache.keys().next().value;
+    const key = method + '::' + url;
+    if (responseCache.size >= 50) {
+      const firstKey = responseCache.keys().next().value;
       responseCache.delete(firstKey);
     }
     responseCache.set(key, { time: Date.now(), data: data });
   }
 
   // ── History ──
-  var HISTORY_KEY = 'pg-history';
-  var HISTORY_MAX = 50;
-  var historyEntries = [];
+  const HISTORY_KEY = 'pg-history';
+  const HISTORY_MAX = 50;
+  let historyEntries = [];
 
   function loadHistory() {
     try {
-      var raw = localStorage.getItem(HISTORY_KEY);
+      const raw = localStorage.getItem(HISTORY_KEY);
       historyEntries = raw ? JSON.parse(raw) : [];
-    } catch(e) { historyEntries = []; }
+    } catch(e) {
+      historyEntries = [];
+    }
   }
 
   function persistHistory() {
-    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(historyEntries)); } catch(e) {}
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(historyEntries));
+    } catch(e) {}
   }
 
   function addHistoryEntry(entry) {
     historyEntries.unshift(entry);
-    if (historyEntries.length > HISTORY_MAX) historyEntries = historyEntries.slice(0, HISTORY_MAX);
+    if (historyEntries.length > HISTORY_MAX) {
+      historyEntries = historyEntries.slice(0, HISTORY_MAX);
+    }
     persistHistory();
   }
 
   function deleteHistoryEntry(id) {
-    historyEntries = historyEntries.filter(function(e) { return e.id !== id; });
-    persistHistory(); renderHistoryPanel();
+    historyEntries = historyEntries.filter(e => e.id !== id);
+    persistHistory();
+    renderHistoryPanel();
   }
 
   function clearAllHistory() {
-    historyEntries = []; persistHistory(); renderHistoryPanel();
+    historyEntries = [];
+    persistHistory();
+    renderHistoryPanel();
   }
 
-  // Utilities
   function formatBytes(bytes) {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
@@ -873,9 +908,14 @@ const flatJSON = JSON.stringify(flat);
     return (ms / 1000).toFixed(0) + 's';
   }
 
-  function durationClass(ms) { return ms < 200 ? 'fast' : (ms < 800 ? 'medium' : 'slow'); }
+  function durationClass(ms) {
+    if (ms < 150) return 'fast';
+    if (ms < 600) return 'medium';
+    return 'slow';
+  }
+
   function formatTimestamp(ts) {
-    var diff = Date.now() - ts;
+    const diff = Date.now() - ts;
     if (diff < 60000) return 'just now';
     if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
     if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
@@ -887,8 +927,8 @@ const flatJSON = JSON.stringify(flat);
 
   // ── Sync URL & Prefix ──
   function syncURLPrefix() {
-    var path = getEl('url-input').value.trim();
-    var isAbs = path.startsWith('http://') || path.startsWith('https://');
+    const path = getEl('url-input').value.trim();
+    const isAbs = path.startsWith('http://') || path.startsWith('https://');
     getEl('url-prefix').style.display = isAbs ? 'none' : 'inline-block';
   }
   getEl('url-input').addEventListener('input', syncURLPrefix);
@@ -896,34 +936,38 @@ const flatJSON = JSON.stringify(flat);
   // ── Rendering Docs & Content ──
   function showDocs(ep) {
     getEl('docs-title').textContent = ep.label || 'Custom Request';
-    getEl('docs-desc').textContent = ep.desc || 'Construct and test any API endpoint.';
-    getEl('docs-desc-mini').textContent = ep.desc || 'Custom request configuration.';
-    getEl('docs-usage').textContent = ep.usage || 'N/A';
-    getEl('docs-cache').textContent = ep.cache || 'No cache';
+    getEl('docs-desc').textContent = ep.desc || 'Send custom API request.';
+    getEl('docs-card-desc').textContent = ep.desc || '—';
+    getEl('docs-usage').textContent = ep.usage || '—';
+    getEl('docs-cache').textContent = ep.cache || '—';
     getEl('docs-curl').textContent = ep.curlExample || ('curl ' + siteUrl + (ep.path || '/'));
 
-    var notesEl = getEl('docs-notes');
-    if (ep.notes) { notesEl.innerHTML = esc(ep.notes); notesEl.style.display = ''; } else { notesEl.style.display = 'none'; }
+    const notesEl = getEl('docs-notes');
+    if (ep.notes) {
+      notesEl.textContent = ep.notes;
+      notesEl.style.display = '';
+    } else {
+      notesEl.style.display = 'none';
+    }
 
-    var fieldsEl = getEl('docs-fields');
-    var fieldsTable = getEl('docs-fields-table');
+    const fieldsEl = getEl('docs-fields');
+    const fieldsTable = getEl('docs-fields-table');
     if (ep.responseFields && ep.responseFields.length) {
       fieldsTable.innerHTML = ep.responseFields.map(f =>
-        '<tr><td><code>' + esc(f.name) + '</code> <br><span style="color:var(--text-muted);font-size:10px;">' + esc(f.type) + '</span></td><td>' + esc(f.desc) + '</td></tr>'
+        '<tr><td style="padding-left:0;"><code>' + esc(f.name) + '</code> <span style="color:var(--text-muted);font-size:10px;">' + esc(f.type) + '</span></td><td style="padding-right:0;">' + esc(f.desc) + '</td></tr>'
       ).join('');
       fieldsEl.style.display = '';
-    } else { fieldsEl.style.display = 'none'; }
+    } else {
+      fieldsEl.style.display = 'none';
+    }
   }
 
   getEl('copy-curl-btn').addEventListener('click', function() {
-    var curlCode = getEl('docs-curl').textContent;
-    navigator.clipboard.writeText(curlCode).then(function() {
-      var btn = getEl('copy-curl-btn');
-      var original = btn.innerHTML;
-      btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><polyline points="20 6 9 17 4 12"></polyline></svg> Copied Successfully';
-      btn.style.color = 'var(--accent-green)';
-      btn.style.borderColor = 'var(--accent-green)';
-      setTimeout(function() { btn.innerHTML = original; btn.style.color = ''; btn.style.borderColor = ''; }, 2000);
+    const curlCode = getEl('docs-curl').textContent;
+    navigator.clipboard.writeText(curlCode).then(() => {
+      const btn = getEl('copy-curl-btn');
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy cURL'; }, 1500);
     });
   });
 
@@ -941,17 +985,13 @@ const flatJSON = JSON.stringify(flat);
     highlightSidebar();
     showDocs(activeEP);
 
-    var isPost = activeEP.method === 'POST' || activeEP.method === 'PUT';
-    getEl('body-section').style.display = isPost ? 'block' : 'none';
-    if (isPost) {
-      var bp = (activeEP.params || []).find(function(p) { return p.name === 'body'; });
-      if (bp && bp.placeholder) {
-        try { getEl('body-editor').value = JSON.stringify(JSON.parse(bp.placeholder), null, 2); } 
-        catch(e) { getEl('body-editor').value = bp.placeholder; }
-      } else { getEl('body-editor').value = ''; }
+    getEl('body-section').style.display = activeEP.method === 'POST' ? 'block' : 'none';
+    if (activeEP.method === 'POST') {
+      const bp = (activeEP.params || []).find(p => p.name === 'body');
+      getEl('body-editor').value = bp ? (bp.placeholder || '') : '';
     }
 
-    getEl('pg-empty').style.display = 'flex';
+    getEl('pg-empty').style.display = '';
     getEl('pg-loading').style.display = 'none';
     getEl('pg-error').style.display = 'none';
     getEl('res-content').style.display = 'none';
@@ -960,56 +1000,69 @@ const flatJSON = JSON.stringify(flat);
   window.__selectEndpoint = selectEndpoint;
 
   function highlightSidebar() {
-    document.querySelectorAll('.nav-item').forEach(function(el) {
+    document.querySelectorAll('.nav-item').forEach(el => {
       el.classList.toggle('active', el.getAttribute('data-idx') === String(activeEP._idx));
     });
   }
 
   // ── Params Rendering ──
   function renderParams() {
-    var list = getEl('params-list'); list.innerHTML = '';
-    var params = isCustom ? [] : (activeEP.params || []);
+    const list = getEl('params-list');
+    list.innerHTML = '';
+    const params = isCustom ? [] : (activeEP.params || []);
 
     if (params.length === 0 || (params.length === 1 && params[0].name === 'body')) {
-      getEl('no-params').style.display = 'block'; list.style.display = 'none'; return;
+      getEl('no-params').style.display = 'block';
+      list.style.display = 'none';
+      return;
     }
 
-    getEl('no-params').style.display = 'none'; list.style.display = 'flex';
+    getEl('no-params').style.display = 'none';
+    list.style.display = 'flex';
 
-    params.forEach(function(p) {
+    params.forEach(p => {
       if (p.name === 'body') return;
-      var row = document.createElement('div'); row.className = 'param-row';
-      var valHTML = p.type === 'select'
-        ? '<select class="param-val-sel" data-param="' + p.name + '">' + (p.options||[]).map(function(o){ return '<option value="' + o + '">' + (o||'—') + '</option>'; }).join('') + '</select>'
+      const row = document.createElement('div');
+      row.className = 'param-row';
+      const valHTML = p.type === 'select'
+        ? '<select class="param-val-sel" data-param="' + p.name + '">' + (p.options||[]).map(o => '<option value="' + o + '">' + (o||'—') + '</option>').join('') + '</select>'
         : '<input class="param-val" type="text" data-param="' + p.name + '" placeholder="' + (p.placeholder||'') + '" />';
 
       row.innerHTML =
         '<input class="param-key" type="text" value="' + p.name + '" readonly />' +
-        '<span class="param-eq">=</span>' + valHTML +
+        '<span class="param-eq">=</span>' +
+        valHTML +
         '<button class="param-del" title="Clear value">' +
-          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>' +
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>' +
         '</button>';
       row.querySelector('.param-del').addEventListener('click', function() {
-        var input = row.querySelector('.param-val, .param-val-sel');
-        if (input) { if (input.tagName === 'SELECT') input.selectedIndex = 0; else input.value = ''; }
+        const input = row.querySelector('.param-val, .param-val-sel');
+        if (input) {
+          if (input.tagName === 'SELECT') input.selectedIndex = 0; else input.value = '';
+        }
       });
       list.appendChild(row);
     });
   }
 
   getEl('param-add').addEventListener('click', function() {
-    getEl('no-params').style.display = 'none'; getEl('params-list').style.display = 'flex';
-    var row = document.createElement('div'); row.className = 'param-row';
+    getEl('no-params').style.display = 'none';
+    getEl('params-list').style.display = 'flex';
+    const row = document.createElement('div');
+    row.className = 'param-row';
     row.innerHTML =
       '<input class="param-key" type="text" placeholder="Key" />' +
       '<span class="param-eq">=</span>' +
       '<input class="param-val" type="text" placeholder="Value" />' +
       '<button class="param-del" title="Remove">' +
-        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>' +
+        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>' +
       '</button>';
     row.querySelector('.param-del').addEventListener('click', function() {
       row.remove();
-      if(getEl('params-list').children.length===0) { getEl('no-params').style.display = 'block'; getEl('params-list').style.display = 'none'; }
+      if(getEl('params-list').children.length === 0) {
+        getEl('no-params').style.display = 'block';
+        getEl('params-list').style.display = 'none';
+      }
     });
     getEl('params-list').appendChild(row);
   });
@@ -1017,35 +1070,42 @@ const flatJSON = JSON.stringify(flat);
   // ── Custom URL ──
   getEl('custom-url-toggle').addEventListener('click', function() {
     isCustom = true;
-    document.querySelectorAll('.nav-item').forEach(function(el) { el.classList.remove('active'); });
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     getEl('custom-url-toggle').classList.add('active');
 
-    getEl('url-input').value = '/api/v1/'; syncURLPrefix();
-    getEl('params-list').innerHTML = ''; getEl('no-params').style.display = 'block'; getEl('params-list').style.display = 'none';
-    getEl('body-section').style.display = getEl('method-select').value === 'POST' ? 'block' : 'none';
-    showDocs({ label: 'Custom Request', method: 'GET', path: '/api/v1/', desc: 'Construct dynamic requests to any endpoint.' });
+    getEl('url-input').value = '/api/v1/';
+    syncURLPrefix();
+
+    getEl('params-list').innerHTML = '';
+    getEl('no-params').style.display = 'block';
+    getEl('params-list').style.display = 'none';
+    getEl('body-section').style.display = 'block';
+    showDocs({ label: 'Custom Request', method: 'GET', path: '/api/v1/' });
   });
 
   getEl('method-select').addEventListener('change', function() {
-    getEl('body-section').style.display = (this.value === 'POST' || this.value === 'PUT') ? 'block' : 'none';
+    getEl('body-section').style.display = this.value === 'POST' ? 'block' : 'none';
   });
 
   function buildURL() {
-    var path = getEl('url-input').value.trim();
-    var isAbs = path.startsWith('http://') || path.startsWith('https://');
+    let path = getEl('url-input').value.trim();
+    const isAbs = path.startsWith('http://') || path.startsWith('https://');
     if (!isAbs && path.charAt(0) !== '/') path = '/' + path;
 
-    var rows = getEl('params-list').querySelectorAll('.param-row');
-    var qp = [];
-    rows.forEach(function(row) {
-      var keyInput = row.querySelector('.param-key');
-      var valInput = row.querySelector('.param-val, .param-val-sel');
-      var key = keyInput ? keyInput.value.trim() : '';
-      var val = valInput ? valInput.value.trim() : '';
+    const rows = getEl('params-list').querySelectorAll('.param-row');
+    const qp = [];
+    rows.forEach(row => {
+      const keyInput = row.querySelector('.param-key');
+      const valInput = row.querySelector('.param-val, .param-val-sel');
+      const key = keyInput ? keyInput.value.trim() : '';
+      const val = valInput ? valInput.value.trim() : '';
+      const placeholder = valInput ? valInput.getAttribute('placeholder') : '';
 
       if (!key) return;
       if (path.includes('{' + key + '}')) {
-        path = path.replace('{' + key + '}', encodeURIComponent(val));
+        // Fallback to placeholder if parameter is empty to prevent bad requests
+        const finalVal = val || placeholder || 'xxx';
+        path = path.replace('{' + key + '}', encodeURIComponent(finalVal));
       } else if (val) {
         qp.push(encodeURIComponent(key) + '=' + encodeURIComponent(val));
       }
@@ -1058,55 +1118,69 @@ const flatJSON = JSON.stringify(flat);
 
   // Body Formatter
   getEl('body-format').addEventListener('click', function() {
-    var val = getEl('body-editor').value;
-    if(!val.trim()) return;
     try {
+      const val = getEl('body-editor').value;
       getEl('body-editor').value = JSON.stringify(JSON.parse(val), null, 2);
-      getEl('body-feedback').textContent = 'Valid JSON'; getEl('body-feedback').className = 'feedback ok';
+      getEl('body-feedback').textContent = 'Format OK';
+      getEl('body-feedback').className = 'feedback ok';
     } catch(e) {
-      getEl('body-feedback').textContent = 'Invalid JSON: ' + e.message; getEl('body-feedback').className = 'feedback err';
+      getEl('body-feedback').textContent = 'Invalid JSON';
+      getEl('body-feedback').className = 'feedback err';
     }
-    setTimeout(function() { getEl('body-feedback').textContent = ''; }, 3000);
+    setTimeout(() => { getEl('body-feedback').textContent = ''; }, 2000);
   });
 
-  // ── Safe JSON Highlight ──
+  // ── Highlighting Engines ──
   function hlJSON(t) {
-    var escaped = esc(t);
-    // Keys
-    escaped = escaped.replace(/(&quot;.*?&quot;)(?=\s*:)/g, '<span class="hl-key">$1</span>');
-    // String Values
-    escaped = escaped.replace(/:\s*(&quot;.*?&quot;)/g, ': <span class="hl-str">$1</span>');
-    // Booleans/Null
-    escaped = escaped.replace(/\b(true|false|null)\b/g, '<span class="hl-bool">$1</span>');
-    // Numbers
-    escaped = escaped.replace(/:\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g, ': <span class="hl-num">$1</span>');
-    return escaped;
+    return t.replace(/("(?:[^"\\]|\\.)*")\s*:/g, '<span class="hl-key">$1</span>:')
+      .replace(/"((?:[^"\\]|\\.)*)"/g, '<span class="hl-str">"$1"</span>')
+      .replace(/\b(true|false|null)\b/g, '<span class="hl-bool">$1</span>')
+      .replace(/:\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g, ': <span class="hl-num">$1</span>');
+  }
+
+  function hlCSS(t) {
+    return t.replace(/([^{]+)\s*\{/g, '<span class="hl-key">$1</span> {')
+      .replace(/([\w-]+)\s*:/g, '<span class="hl-bool">$1</span>:')
+      .replace(/:\s*([^;]+);/g, ': <span class="hl-str">$1</span>;');
   }
 
   // ── Tab Switching ──
   function switchTab(tabName) {
-    document.querySelectorAll('.res-tab').forEach(function(t) { t.classList.toggle('active', t.getAttribute('data-tab') === tabName); });
+    document.querySelectorAll('.res-tab').forEach(t => {
+      t.classList.toggle('active', t.getAttribute('data-tab') === tabName);
+    });
     getEl('response-box').style.display = tabName === 'response' ? 'flex' : 'none';
     getEl('history-panel').style.display = tabName === 'history' ? 'flex' : 'none';
   }
 
-  document.querySelectorAll('.res-tab').forEach(function(tab) {
-    tab.addEventListener('click', function() { switchTab(this.getAttribute('data-tab')); });
+  document.querySelectorAll('.res-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      switchTab(this.getAttribute('data-tab'));
+    });
   });
 
-  getEl('history-clear').addEventListener('click', function() { if (confirm('Clear all request history?')) clearAllHistory(); });
+  getEl('history-clear').addEventListener('click', function() {
+    if (confirm('Clear all request history?')) clearAllHistory();
+  });
 
   // ── History Rendering ──
   function renderHistoryPanel() {
-    var list = getEl('history-list'); var empty = getEl('history-empty'); var clearBtn = getEl('history-clear');
+    const list = getEl('history-list');
+    const empty = getEl('history-empty');
+    const clearBtn = getEl('history-clear');
 
     if (historyEntries.length === 0) {
-      list.innerHTML = ''; empty.style.display = 'flex'; clearBtn.style.display = 'none'; return;
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      clearBtn.style.display = 'none';
+      return;
     }
-    empty.style.display = 'none'; clearBtn.style.display = 'block';
 
-    list.innerHTML = historyEntries.map(function(e) {
-      var ok = e.status < 400;
+    empty.style.display = 'none';
+    clearBtn.style.display = 'block';
+
+    list.innerHTML = historyEntries.map(e => {
+      const ok = e.status < 400;
       return '<div class="history-item" data-id="' + e.id + '">' +
         '<span class="history-item-status-dot' + (ok ? '' : ' err') + '"></span>' +
         '<span class="history-item-method ' + e.method + '">' + e.method + '</span>' +
@@ -1121,170 +1195,285 @@ const flatJSON = JSON.stringify(flat);
         '</span>' +
         '<span class="history-item-actions">' +
           '<button class="history-item-action" data-action="rerun">' +
-            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>' +
-            ' Rerun' +
+            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>' +
+            ' Re-run' +
           '</button>' +
           '<button class="history-item-action delete" data-action="delete" title="Delete">' +
-            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>' +
+            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>' +
           '</button>' +
         '</span>' +
       '</div>';
     }).join('');
 
-    list.querySelectorAll('.history-item-action').forEach(function(btn) {
+    list.querySelectorAll('.history-item-action').forEach(btn => {
       btn.addEventListener('click', function(e) {
         e.stopPropagation();
-        var id = this.closest('.history-item').getAttribute('data-id');
-        var action = this.getAttribute('data-action');
+        const id = this.closest('.history-item').getAttribute('data-id');
+        const action = this.getAttribute('data-action');
         if (action === 'rerun') rerunHistoryEntry(id);
         if (action === 'delete') deleteHistoryEntry(id);
       });
     });
 
-    list.querySelectorAll('.history-item').forEach(function(item) {
-      item.addEventListener('click', function() { viewHistoryResponse(this.getAttribute('data-id')); });
+    list.querySelectorAll('.history-item').forEach(item => {
+      item.addEventListener('click', function() {
+        const id = this.getAttribute('data-id');
+        viewHistoryResponse(id);
+      });
     });
   }
 
   function rerunHistoryEntry(id) {
-    var entry = historyEntries.find(function(e) { return e.id === id; });
+    const entry = historyEntries.find(e => e.id === id);
     if (!entry) return;
-    switchTab('response'); getEl('method-select').value = entry.method; getEl('url-input').value = entry.path; syncURLPrefix(); doSend();
+    switchTab('response');
+    getEl('method-select').value = entry.method;
+    getEl('url-input').value = entry.path;
+    syncURLPrefix();
+    doSend();
   }
 
   function viewHistoryResponse(id) {
-    var entry = historyEntries.find(function(e) { return e.id === id; });
+    const entry = historyEntries.find(e => e.id === id);
     if (!entry) return;
     switchTab('response');
 
-    getEl('pg-empty').style.display = 'none'; getEl('pg-loading').style.display = 'none'; getEl('pg-error').style.display = 'none';
-    getEl('res-content').style.display = 'flex'; getEl('res-toolbar').style.display = 'flex';
+    getEl('pg-empty').style.display = 'none';
+    getEl('pg-loading').style.display = 'none';
+    getEl('pg-error').style.display = 'none';
+    getEl('res-content').style.display = 'flex';
+    getEl('res-toolbar').style.display = 'flex';
 
     getEl('res-status').className = 'status-code ' + (entry.status < 400 ? 'ok' : 'err');
-    getEl('res-status').textContent = entry.status + ' ' + entry.statusText + ' (History)';
-    getEl('res-time').textContent = formatDuration(entry.duration); getEl('res-time').className = 'res-time ' + durationClass(entry.duration);
+    getEl('res-status').textContent = entry.status + ' ' + entry.statusText;
+    getEl('res-time').textContent = formatDuration(entry.duration);
+    getEl('res-time').className = 'res-time ' + durationClass(entry.duration);
     getEl('res-size').textContent = formatBytes(entry.size);
 
-    var formatted = esc(entry.responseBody);
-    if (entry.responseBody.startsWith('[Binary Image Data]')) {
-       formatted = '<div class="empty-state"><i>Image binary data not stored in history. Rerun to view.</i></div>';
-    } else if (entry.contentType && entry.contentType.includes('json')) {
+    revokeObjectUrl();
+
+    let isImg = entry.contentType && entry.contentType.includes('image/');
+    let formatted = esc(entry.responseBody);
+
+    if (isImg) {
+      getEl('res-preview').style.display = 'flex';
+      if (entry.contentType.includes('svg')) {
+        const svgBlob = new Blob([entry.responseBody], { type: 'image/svg+xml' });
+        activeObjectURL = URL.createObjectURL(svgBlob);
+        getEl('res-preview').innerHTML = '<img src="' + activeObjectURL + '" alt="Preview" />';
+      } else {
+        getEl('res-preview').innerHTML = '<div class="empty-state" style="padding:16px;">Binary image metadata cannot be previewed in historical record view. Re-run request to view live payload.</div>';
+      }
+    } else {
+      getEl('res-preview').style.display = 'none';
+    }
+
+    if (entry.contentType && entry.contentType.includes('json')) {
       try { formatted = hlJSON(JSON.stringify(JSON.parse(entry.responseBody), null, 2)); } catch(e) {}
+    } else if (entry.contentType && entry.contentType.includes('css')) {
+      formatted = hlCSS(entry.responseBody);
     }
     
-    getEl('res-body').innerHTML = formatted; getEl('res-preview').style.display = 'none'; getEl('res-headers').innerHTML = ''; getEl('hdr-count').textContent = '0';
+    getEl('res-body').innerHTML = formatted;
+    getEl('res-headers').innerHTML = '';
+    getEl('hdr-count').textContent = '0';
+  }
+
+  function revokeObjectUrl() {
+    if (activeObjectURL) {
+      URL.revokeObjectURL(activeObjectURL);
+      activeObjectURL = null;
+    }
   }
 
   // ── Action: Send ──
   function doSend() {
-    var now = Date.now();
+    const now = Date.now();
+
+    // Debounce: ignore rapid-fire clicks
     if (now - lastRequestTime < DEBOUNCE_MS) return;
     lastRequestTime = now;
 
+    // Daily quota check
     if (dailyCount >= DAILY_LIMIT) {
-      getEl('pg-empty').style.display = 'none'; getEl('res-content').style.display = 'none'; getEl('res-toolbar').style.display = 'none';
-      getEl('pg-loading').style.display = 'none'; getEl('pg-error').style.display = 'block';
+      getEl('pg-empty').style.display = 'none';
+      getEl('res-content').style.display = 'none';
+      getEl('res-toolbar').style.display = 'none';
+      getEl('pg-loading').style.display = 'none';
+      getEl('pg-error').style.display = 'block';
       getEl('pg-error-msg').textContent = 'Daily request limit reached (' + DAILY_LIMIT + '/' + DAILY_LIMIT + '). Try again tomorrow.';
       return;
     }
 
-    var m = getEl('method-select').value;
-    var url = buildURL();
+    const m = getEl('method-select').value;
+    const url = buildURL();
 
+    // Check in-memory cache for GET requests
     if (m === 'GET') {
-      var cached = getCached(m, url);
-      if (cached) { displayResponse(cached.data, true); return; }
+      const cached = getCached(m, url);
+      if (cached) {
+        displayResponse(cached, true);
+        return;
+      }
     }
 
-    getEl('pg-empty').style.display = 'none'; getEl('res-content').style.display = 'none'; getEl('res-toolbar').style.display = 'none';
-    getEl('pg-error').style.display = 'none'; getEl('pg-loading').style.display = 'flex';
-    getEl('pg-loading-url').textContent = m + ' ' + url; getEl('pg-send').disabled = true;
+    getEl('pg-empty').style.display = 'none';
+    getEl('res-content').style.display = 'none';
+    getEl('res-toolbar').style.display = 'none';
+    getEl('pg-error').style.display = 'none';
+    getEl('pg-loading').style.display = 'block';
+    getEl('pg-loading-url').textContent = m + ' ' + url;
+    getEl('pg-send').disabled = true;
 
-    var t0 = performance.now();
-    var bodyVal = getEl('body-editor').value.trim();
-    var headers = {}; if ((m === 'POST' || m === 'PUT') && bodyVal) headers['Content-Type'] = 'application/json';
+    const t0 = performance.now();
+    const bodyVal = getEl('body-editor').value.trim();
+    const headers = {};
+    if (m === 'POST' && bodyVal) headers['Content-Type'] = 'application/json';
 
-    fetch(url, { method: m, headers: headers, body: (m === 'POST' || m === 'PUT') && bodyVal ? bodyVal : undefined })
-    .then(async function(res) {
-      var elapsed = Math.round(performance.now() - t0);
-      var hdrRows = '', hdrNum = 0;
-      res.headers.forEach(function(v, k) { hdrRows += '<tr><td>' + esc(k) + '</td><td>' + esc(v) + '</td></tr>'; hdrNum++; });
-      getEl('res-headers').innerHTML = hdrRows; getEl('hdr-count').textContent = hdrNum;
+    fetch(url, { method: m, headers: headers, body: m === 'POST' && bodyVal ? bodyVal : undefined })
+    .then(res => {
+      const elapsed = Math.round(performance.now() - t0);
 
-      var contentType = res.headers.get('content-type') || '';
-      var isImage = contentType.includes('image/');
+      let hdrRows = '', hdrNum = 0;
+      res.headers.forEach((v, k) => { hdrRows += '<tr><td>' + esc(k) + '</td><td>' + esc(v) + '</td></tr>'; hdrNum++; });
+      getEl('res-headers').innerHTML = hdrRows;
+      getEl('hdr-count').textContent = String(hdrNum);
+
+      lastResCT = res.headers.get('content-type') || '';
       
-      var text = '', blobUrl = '', bodySize = 0;
-      if (isImage) {
-        var blob = await res.blob();
-        bodySize = blob.size;
-        blobUrl = URL.createObjectURL(blob);
-        activeBlobUrls.push(blobUrl); cleanupBlobs();
-        text = '[Binary Image Data]';
-      } else {
-        text = await res.text();
-        bodySize = new Blob([text]).size;
-      }
+      // Binary response detection: do not use text() on images except SVGs
+      const isImg = lastResCT.includes('image/');
+      const isSvg = lastResCT.includes('svg');
+      const isBinaryImage = isImg && !isSvg;
 
-      lastResBody = text;
-      var responseData = { status: res.status, statusText: res.statusText, elapsed: elapsed, bodySize: bodySize, contentType: contentType, text: text, blobUrl: blobUrl, ok: res.ok };
-      
-      if (m === 'GET' && res.ok && !isImage) setCached(m, url, responseData);
-      displayResponse(responseData, false);
-      incrementDailyCount();
+      const responsePromise = isBinaryImage ? res.blob() : res.text();
 
-      addHistoryEntry({
-        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
-        timestamp: Date.now(), method: m, path: getEl('url-input').value.trim(), fullUrl: url,
-        status: res.status, statusText: res.statusText, duration: elapsed, size: bodySize, contentType: contentType,
-        responseBody: isImage ? '[Binary Image Data]' : (text.length > 20480 ? text.slice(0, 20480) + '\n... (truncated)' : text)
+      return responsePromise.then(bodyData => {
+        let textContent = '';
+        let bodySize = 0;
+        let imgBlob = null;
+
+        if (isBinaryImage) {
+          imgBlob = bodyData;
+          bodySize = bodyData.size;
+          textContent = '[Binary Image Data - Live Preview Rendered]';
+        } else {
+          textContent = bodyData;
+          bodySize = new Blob([textContent]).size;
+          if (isSvg) {
+            imgBlob = new Blob([textContent], { type: 'image/svg+xml' });
+          }
+        }
+
+        lastResBody = textContent;
+
+        const responseData = {
+          status: res.status,
+          statusText: res.statusText,
+          elapsed: elapsed,
+          bodySize: bodySize,
+          contentType: lastResCT,
+          text: textContent,
+          blob: imgBlob,
+          ok: res.ok,
+          cached: false
+        };
+
+        if (m === 'GET' && res.ok) {
+          setCached(m, url, responseData);
+        }
+
+        displayResponse(responseData, false);
+        incrementDailyCount();
+
+        // Save history (Limit length of stored response body strings to 15KB)
+        addHistoryEntry({
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+          timestamp: Date.now(),
+          method: m,
+          path: getEl('url-input').value.trim(),
+          fullUrl: url,
+          status: res.status,
+          statusText: res.statusText,
+          duration: elapsed,
+          size: bodySize,
+          contentType: lastResCT,
+          responseBody: textContent.length > 15360 ? textContent.slice(0, 15360) + '\n... (truncated)' : textContent
+        });
+        renderHistoryPanel();
       });
-      renderHistoryPanel();
-    }).catch(function(err) {
-      getEl('pg-loading').style.display = 'none'; getEl('pg-error').style.display = 'block';
-      getEl('pg-error-msg').textContent = 'Network or CORS error. ' + (err.message || 'Failed to connect.');
-    }).finally(function() {
+    }).catch(err => {
+      getEl('pg-loading').style.display = 'none';
+      getEl('pg-error').style.display = 'block';
+      getEl('pg-error-msg').textContent = err.message || 'Failed to connect.';
+    }).finally(() => {
       getEl('pg-send').disabled = false;
     });
   }
 
   function displayResponse(data, fromCache) {
-    var preview = getEl('res-preview');
-    if (data.blobUrl) {
-      preview.innerHTML = '<img src="' + data.blobUrl + '" alt="Response Image Preview" />';
+    revokeObjectUrl();
+    const preview = getEl('res-preview');
+    
+    if (data.blob) {
+      activeObjectURL = URL.createObjectURL(data.blob);
+      preview.innerHTML = '<img src="' + activeObjectURL + '" alt="Response Image Preview" />';
       preview.style.display = 'flex';
     } else {
       preview.style.display = 'none';
     }
 
-    var formattedText = esc(data.text);
-    if (data.contentType && data.contentType.includes('json') && data.text !== '[Binary Image Data]') {
-      try { formattedText = hlJSON(JSON.stringify(JSON.parse(data.text), null, 2)); } catch(e) {}
+    let formattedText = esc(data.text);
+    if (data.contentType) {
+      if (data.contentType.includes('json')) {
+        try { formattedText = hlJSON(JSON.stringify(JSON.parse(data.text), null, 2)); } catch(e) {}
+      } else if (data.contentType.includes('css')) {
+        formattedText = hlCSS(data.text);
+      }
     }
     getEl('res-body').innerHTML = formattedText;
 
     getEl('res-status').className = 'status-code ' + (data.ok ? 'ok' : 'err');
-    getEl('res-status').textContent = data.status + ' ' + data.statusText + (fromCache ? ' (Cached)' : '');
-    getEl('res-time').textContent = fromCache ? '0ms' : formatDuration(data.elapsed);
-    getEl('res-time').className = 'res-time' + (fromCache ? ' fast' : ' ' + durationClass(data.elapsed));
+    let statusLabel = data.status + ' ' + data.statusText;
+    if (fromCache) statusLabel += ' (cached)';
+    getEl('res-status').textContent = statusLabel;
+    
+    getEl('res-time').textContent = fromCache ? '(cache)' : formatDuration(data.elapsed);
+    getEl('res-time').className = 'res-time' + (fromCache ? '' : ' ' + durationClass(data.elapsed));
     getEl('res-size').textContent = formatBytes(data.bodySize);
 
-    getEl('pg-loading').style.display = 'none'; getEl('res-toolbar').style.display = 'flex'; getEl('res-content').style.display = 'flex';
+    getEl('pg-loading').style.display = 'none';
+    getEl('res-toolbar').style.display = 'flex';
+    getEl('res-content').style.display = 'flex';
   }
   window.__doSend = doSend;
 
-  document.addEventListener('keydown', function(e) { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doSend(); } });
+  document.addEventListener('keydown', e => { 
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { 
+      e.preventDefault(); 
+      doSend(); 
+    } 
+  });
 
   getEl('res-copy').addEventListener('click', function() {
-    navigator.clipboard.writeText(lastResBody).then(function() {
-      var btn = getEl('res-copy');
-      btn.classList.add('copied'); btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
-      setTimeout(function() {
-        btn.classList.remove('copied'); btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
-      }, 2000);
+    navigator.clipboard.writeText(lastResBody).then(() => {
+      const btn = getEl('res-copy');
+      btn.classList.add('copied');
+      btn.setAttribute('title', 'Copied!');
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.setAttribute('title', 'Copy response');
+      }, 1500);
     });
   });
 
+  // Clean-up object URL on unload
+  window.addEventListener('unload', revokeObjectUrl);
+
   // Init
-  loadDailyCount(); updateQuotaHint(); loadHistory(); renderHistoryPanel(); selectEndpoint(0);
+  loadDailyCount();
+  updateQuotaHint();
+  loadHistory();
+  renderHistoryPanel();
+  selectEndpoint(0);
 </script>
