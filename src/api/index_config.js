@@ -4502,6 +4502,12 @@ const OmniConfig = {
                 pointer-events: none;
                 opacity: 0.6;
             }
+        
+/* 落日呼吸发光动画 */
+                @keyframes sunBreathe {
+                    0% { filter: drop-shadow(0 0 10px rgba(255,0,85,0.3)) brightness(1); }
+                    100% { filter: drop-shadow(0 0 30px rgba(255,77,0,0.6)) brightness(1.15); }
+                }
         ` 
     },
     extensions:[
@@ -4525,14 +4531,7 @@ const OmniConfig = {
                 animation: sunBreathe 4s ease-in-out infinite alternate;
             "></div>
 
-            <style>
-                /* 落日呼吸发光动画 */
-                @keyframes sunBreathe {
-                    0% { filter: drop-shadow(0 0 10px rgba(255,0,85,0.3)) brightness(1); }
-                    100% { filter: drop-shadow(0 0 30px rgba(255,77,0,0.6)) brightness(1.15); }
-                }
-            </style>
-            ` 
+                        ` 
         }
     ]
 },
@@ -4721,8 +4720,7 @@ const OmniConfig = {
         customCss: `
             /* 1. 冰原极夜底色与雪地微弱反射光 */
             body {
-                background-color: #010208;
-                background-image: radial-gradient(ellipse 150% 100% at 50% 110%, rgba(8, 47, 73, 0.6) 0%, rgba(2, 6, 23, 0.8) 50%, #010208 100%);
+                background: transparent;
             }
             
             /* 2. 极致通透的流光玻璃 UI */
@@ -4788,19 +4786,15 @@ const OmniConfig = {
             @keyframes auroraTextFlow {
                 to { background-position: -300% center; }
             }
-        ` 
-    },
-    extensions:[
-        { 
-            type: 'html', 
-            content: `
-            <style>
-                /* =========================================
+        
+/* =========================================
                    极地光场引擎 (Polar Aurora Engine Pro)
                    ========================================= */
                 .aurora-container {
                     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-                    z-index: -2; overflow: hidden; pointer-events: none;
+                    z-index: 0; overflow: hidden; pointer-events: none;
+                    background-color: #010208;
+                    background-image: radial-gradient(ellipse 150% 100% at 50% 110%, rgba(8, 47, 73, 0.6) 0%, rgba(2, 6, 23, 0.8) 50%, #010208 100%);
                 }
 
                 /* 1. 高清北极星星轨 */
@@ -4936,8 +4930,12 @@ const OmniConfig = {
                     15% { transform: rotate(var(--angle, 145deg)) translateX(100vw); opacity: 0; }
                     100% { transform: rotate(var(--angle, 145deg)) translateX(100vw); opacity: 0; }
                 }
-            </style>
-            
+        ` 
+    },
+    extensions:[
+        { 
+            type: 'html', 
+            content: `
             <div class="aurora-container">
                 <div class="polar-stars"></div>
                 <div class="aurora-rays"></div>

@@ -830,9 +830,9 @@ function navClass(path: string) {
   </div>
   <div class="amb-grain"></div>
   <div id="td-extensions"></div>
-  <script id="td-exts-json" type="application/json">
-    {extensionsJSON}
-  </script>
+  {extensions && extensions.length > 0 && (
+    <Fragment set:html={`<script id="td-exts-json" type="application/json">${extensionsJSON}</script>`} />
+  )}
   {extensions && extensions.length > 0 && (
     <script is:inline>
       (function() {

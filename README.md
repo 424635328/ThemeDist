@@ -377,6 +377,7 @@ curl https://themedist.netlify.app/api/v1/today.json
 | `cssVars` | 34 个 CSS 自定义属性键值对（含自动生成的 `-rgb` 通道变体，共约 44 个） |
 | `customCss` | 主题专属 CSS 动画（无自定义 CSS 时为空字符串 `""`） |
 | `extensions` | 声明式装饰元素数组，支持 `floating`（安全浮动字符）和 `decorative`（经清洗的 HTML 片段）。始终为数组，无扩展时为空数组 `[]` |
+| `clickEffect` | 声明式点击特效配置，含 `spawn` 数组。无特效时为 `null`。详见 [API 文档](https://themedist.vercel.app/api/docs#clickeffect-ref) |
 | `logoText` | 主题 Logo 文字标识 |
 | `logoColors` | Logo 渐变色 hex 字符串数组 |
 | `available` | 可用主题总数（预设 + 社区） |
@@ -595,7 +596,7 @@ curl -X POST https://themedist.netlify.app/api/v1/diy/submit.json \
 ```
 
 必填字段：`name`、`author`、`cssVars`（必须包含 `--color-primary` 和 `--color-bg`）。
-可选字段：`customCss`（最大 16KB）、`extensions`（最大 20 个，仅支持 `floating` 和 `decorative` 类型）、`tags`（最多 5 个）。
+可选字段：`customCss`（最大 16KB）、`extensions`（最大 20 个，仅支持 `floating` 和 `decorative` 类型）、`clickEffect`（点击特效声明，详见 API 文档）、`tags`（最多 5 个）。
 
 成功响应（201）：
 
