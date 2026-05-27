@@ -492,7 +492,7 @@ fetch('${siteUrl}/api/v1/today.json')
   position: relative;
   text-align: center;
   padding: 64px 24px 80px;
-  overflow: hidden;
+  overflow: clip;
 }
 
 /* ambient orbs */
@@ -971,7 +971,7 @@ fetch('${siteUrl}/api/v1/today.json')
   JS-created DOM nodes don't carry Astro scoping attributes)
   ═══════════════════════════════════════════════════════ -->
 <style is:global>
-  /* ── Weather container: fixed wallpaper layer ── */
+  /* ── Theme extensions container ── */
   #td-extensions {
     position: fixed !important;
     top: 0 !important;
@@ -983,9 +983,21 @@ fetch('${siteUrl}/api/v1/today.json')
     overflow: hidden !important;
   }
 
-  /* ── Cloud: extreme subtlety, parallax depth ── */
+  /* ── Weather container: separate layer above theme extensions ── */
+  #wa-layer {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 2 !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+  }
+
+  /* ── Cloud: parallax depth ── */
   .wa-cloud {
-    position: absolute; pointer-events: none; z-index: -1;
+    position: absolute; pointer-events: none; z-index: 0;
     will-change: transform;
   }
   .wa-cloud.wa-animate { animation: wa-drift linear infinite; }
@@ -996,16 +1008,16 @@ fetch('${siteUrl}/api/v1/today.json')
 
   /* ── Rain ── */
   .wa-raindrop {
-    position: absolute; pointer-events: none; z-index: -1;
-    font-size: 16px; opacity: 0.18;
+    position: absolute; pointer-events: none; z-index: 0;
+    font-size: 16px; opacity: 0.28;
     color: var(--color-text-muted);
     will-change: transform;
   }
   .wa-raindrop.wa-animate { animation: wa-fall linear infinite; }
   @keyframes wa-fall {
     0%   { transform: translateY(-8vh); opacity: 0; }
-    8%   { opacity: 0.25; }
-    92%  { opacity: 0.25; }
+    8%   { opacity: 0.4; }
+    92%  { opacity: 0.4; }
     100% { transform: translateY(108vh); opacity: 0; }
   }
 
@@ -1025,8 +1037,8 @@ fetch('${siteUrl}/api/v1/today.json')
 
   /* ── Snow ── */
   .wa-snowflake {
-    position: absolute; pointer-events: none; z-index: -1;
-    font-size: 13px; opacity: 0.22;
+    position: absolute; pointer-events: none; z-index: 0;
+    font-size: 13px; opacity: 0.32;
     color: var(--color-text-muted);
     will-change: transform;
   }
@@ -1087,9 +1099,9 @@ fetch('${siteUrl}/api/v1/today.json')
 <style is:global>
   /* Force content layer above the weather wallpaper */
   .nav     { position: sticky !important; z-index: 100 !important; }
-  .content { position: relative !important; z-index: 2 !important; }
-  .footer  { position: relative !important; z-index: 2 !important; }
-  .hp-hero { position: relative !important; z-index: 2 !important; }
+  .content { position: relative !important; z-index: 3 !important; }
+  .footer  { position: relative !important; z-index: 3 !important; }
+  .hp-hero { position: relative !important; z-index: 3 !important; }
 </style>
 
 <script>
@@ -1231,12 +1243,6 @@ fetch('${siteUrl}/api/v1/today.json')
       try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: data })); } catch {}
     }
 
-    // ── Collision detection: count existing floating extensions ──
-    function countExistingParticles() {
-      var exts = document.querySelectorAll('#td-extensions > div, #td-extensions > *');
-      return exts.length;
-    }
-
     // ── Toast UI ──
     function showToast(icon, text) {
       var toast = document.getElementById('wa-toast');
@@ -1281,7 +1287,7 @@ fetch('${siteUrl}/api/v1/today.json')
     function makeEl(tag, cls, text) {
       var el = document.createElement(tag);
       el.className = cls + ' wa-particle';
-      el.style.cssText = 'z-index:-1;pointer-events:none;';
+      el.style.cssText = 'z-index:0;pointer-events:none;';
       if (text) el.textContent = text;
       return el;
     }
@@ -1309,17 +1315,15 @@ fetch('${siteUrl}/api/v1/today.json')
     function renderParticles(type) {
       clearWeatherParticles();
       var fragment = document.createDocumentFragment();
-      var container = document.getElementById('td-extensions');
+      var container = document.getElementById('wa-layer');
 
-      // Ensure container has the fixed wallpaper-layer CSS
+      // Ensure weather-only container exists
       if (!container) {
         container = document.createElement('div');
-        container.id = 'td-extensions';
+        container.id = 'wa-layer';
         document.body.appendChild(container);
       }
 
-      var existingCount = countExistingParticles();
-      var densityScale = existingCount > 15 ? 0.35 : existingCount > 8 ? 0.6 : 1;
       var motionClass = prefersReducedMotion ? '' : 'wa-animate';
 
       if (type === 'clear' || type === 'sunny') {
@@ -1330,11 +1334,11 @@ fetch('${siteUrl}/api/v1/today.json')
       } else if (type === 'clouds') {
         // 5 clouds with parallax depth layers
         var cloudDefs = [
-          { w: 160, h: 70, scale: 0.45, dur: 85, opacity: 0.028, blur: 3, depth: 'far' },
-          { w: 200, h: 85, scale: 0.55, dur: 75, opacity: 0.032, blur: 2, depth: 'far' },
-          { w: 130, h: 55, scale: 0.70, dur: 60, opacity: 0.040, blur: 1, depth: 'mid' },
-          { w: 180, h: 75, scale: 0.85, dur: 50, opacity: 0.048, blur: 0, depth: 'mid' },
-          { w: 220, h: 90, scale: 1.05, dur: 38, opacity: 0.058, blur: 0, depth: 'near' },
+          { w: 160, h: 70, scale: 0.45, dur: 85, opacity: 0.06, blur: 3, depth: 'far' },
+          { w: 200, h: 85, scale: 0.55, dur: 75, opacity: 0.07, blur: 2, depth: 'far' },
+          { w: 130, h: 55, scale: 0.70, dur: 60, opacity: 0.09, blur: 1, depth: 'mid' },
+          { w: 180, h: 75, scale: 0.85, dur: 50, opacity: 0.11, blur: 0, depth: 'mid' },
+          { w: 220, h: 90, scale: 1.05, dur: 38, opacity: 0.15, blur: 0, depth: 'near' },
         ];
 
         for (var ci = 0; ci < cloudDefs.length; ci++) {
@@ -1346,7 +1350,7 @@ fetch('${siteUrl}/api/v1/today.json')
           c.style.top = Math.max(6, Math.min(45, topPct)) + '%';
           c.style.width = cd.w + 'px';
           c.style.height = cd.h + 'px';
-          c.style.opacity = String(cd.opacity * densityScale);
+          c.style.opacity = String(cd.opacity);
           c.style.transform = 'scale(' + cd.scale + ')';
           c.style.transformOrigin = 'center center';
           if (cd.blur > 0) c.style.filter = 'blur(' + cd.blur + 'px)';
@@ -1374,7 +1378,7 @@ fetch('${siteUrl}/api/v1/today.json')
           f.style.top = (8 + fi * 22) + '%';
           f.style.width = (280 + fi * 80) + 'px';
           f.style.height = '28px';
-          f.style.opacity = String((0.03 + fi * 0.006) * densityScale);
+          f.style.opacity = String(0.06 + fi * 0.01);
           f.style.filter = 'blur(' + (6 + fi * 3) + 'px)';
           f.style.animationDuration = (90 + fi * 15) + 's';
           f.style.animationDelay = '-' + (Math.random() * 90).toFixed(1) + 's';
@@ -1392,7 +1396,7 @@ fetch('${siteUrl}/api/v1/today.json')
         }
 
       } else if (type === 'rain' || type === 'drizzle') {
-        var rainCount = Math.round((isMobile ? 22 : 40) * densityScale);
+        var rainCount = isMobile ? 22 : 40;
         for (var ri = 0; ri < rainCount; ri++) {
           var d = makeEl('div', 'wa-raindrop ' + motionClass, '|');
           d.style.left = (Math.random() * 98) + '%';
@@ -1400,12 +1404,12 @@ fetch('${siteUrl}/api/v1/today.json')
           d.style.animationDuration = (0.55 + Math.random() * 0.7) + 's';
           d.style.animationDelay = '-' + (Math.random() * 2).toFixed(2) + 's';
           d.style.fontSize = (10 + Math.random() * 10) + 'px';
-          d.style.opacity = String(0.10 + Math.random() * 0.18);
+          d.style.opacity = String(0.20 + Math.random() * 0.20);
           fragment.appendChild(d);
         }
 
       } else if (type === 'snow') {
-        var snowCount = Math.round((isMobile ? 18 : 32) * densityScale);
+        var snowCount = isMobile ? 18 : 32;
         for (var si = 0; si < snowCount; si++) {
           var fl = makeEl('div', 'wa-snowflake ' + motionClass);
           fl.textContent = Math.random() > 0.5 ? '❄' : '❅';
@@ -1414,13 +1418,13 @@ fetch('${siteUrl}/api/v1/today.json')
           fl.style.animationDuration = (5 + Math.random() * 6) + 's';
           fl.style.animationDelay = '-' + (Math.random() * 6).toFixed(2) + 's';
           fl.style.fontSize = (7 + Math.random() * 14) + 'px';
-          fl.style.opacity = String(0.10 + Math.random() * 0.20);
+          fl.style.opacity = String(0.25 + Math.random() * 0.25);
           fragment.appendChild(fl);
         }
 
       } else if (type === 'thunderstorm') {
         // Rain + flash
-        var trCount = Math.round((isMobile ? 22 : 40) * densityScale);
+        var trCount = isMobile ? 22 : 40;
         for (var ti = 0; ti < trCount; ti++) {
           var td = makeEl('div', 'wa-raindrop ' + motionClass, '|');
           td.style.left = (Math.random() * 98) + '%';
@@ -1428,7 +1432,7 @@ fetch('${siteUrl}/api/v1/today.json')
           td.style.animationDuration = (0.5 + Math.random() * 0.6) + 's';
           td.style.animationDelay = '-' + (Math.random() * 1.5).toFixed(2) + 's';
           td.style.fontSize = (11 + Math.random() * 12) + 'px';
-          td.style.opacity = String(0.14 + Math.random() * 0.20);
+          td.style.opacity = String(0.24 + Math.random() * 0.20);
           fragment.appendChild(td);
         }
         var flash = document.createElement('div'); flash.className = 'wa-flash wa-particle';

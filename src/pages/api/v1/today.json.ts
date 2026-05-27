@@ -67,6 +67,11 @@ export async function GET({ url }: { url: URL }) {
 
   const directory = [...staticDir.slice(0, 20), ...communityDir.slice(0, 10)];
 
+  // Filter out empty decorative extensions to avoid inflating collision detection counts
+  const filteredExtensions = (theme.extensions || []).filter(
+    (ext: any) => ext.type !== 'decorative' || (ext.html && ext.html.trim())
+  );
+
   const bodyObj: Record<string, any> = {
     date: tz ? getDateStrForTimezone(tz) : new Date().toISOString().slice(0, 10),
     generatedAt: new Date().toISOString(),
@@ -74,7 +79,7 @@ export async function GET({ url }: { url: URL }) {
     presetName: theme.presetName,
     cssVars,
     customCss: theme.customCss || null,
-    extensions: theme.extensions || null,
+    extensions: filteredExtensions.length > 0 ? filteredExtensions : null,
     clickEffect: theme.clickEffect || null,
     logoText: theme.logoText || null,
     logoColors: theme.logoColors || null,

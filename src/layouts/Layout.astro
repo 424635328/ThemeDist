@@ -19,7 +19,10 @@ const clickEffectJSON = clickEffect?.spawn?.length
   : 'null';
 
 const extensionsJSON = extensions
-  ? JSON.stringify(extensions, null, 2).replace(/<\/script/gi, '<\\/script')
+  ? JSON.stringify(
+      extensions.filter((ext: any) => ext.type !== 'decorative' || (ext.html && ext.html.trim())),
+      null, 2
+    ).replace(/<\/script/gi, '<\\/script')
   : '[]';
 
 const brandGradient = logoColors && logoColors.length >= 2
