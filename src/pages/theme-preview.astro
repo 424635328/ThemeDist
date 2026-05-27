@@ -77,7 +77,7 @@ import Layout from '../layouts/Layout.astro';
                     </div>
                   </div>
                   <div class="tp-showcase-meta">
-                    <div class="tp-showcase-stat" id="tp-stat-vars">34 CSS 变量</div>
+                    <div class="tp-showcase-stat" id="tp-stat-vars">48 CSS 变量</div>
                     <div class="tp-showcase-stat" id="tp-stat-name">—</div>
                     <div class="tp-showcase-stat" id="tp-stat-exts">0 扩展</div>
                   </div>
@@ -1591,7 +1591,7 @@ import Layout from '../layouts/Layout.astro';
 
     var extsCount = Array.isArray(theme.extensions) ? theme.extensions.length : 0;
     var stats = [
-      {label: 'CSS Variables', val: '34'},
+      {label: 'CSS Variables', val: '48'},
       {label: 'Extensions', val: String(extsCount)},
       {label: 'Preset', val: theme.preset || 'custom'},
       {label: 'Dark Theme', val: isDark ? 'Yes' : 'No'},
@@ -1656,19 +1656,20 @@ import Layout from '../layouts/Layout.astro';
 必须包含以下顶层字段：
 - preset: 字符串，英文短标识符，如 "starry-night"（必填）
 - presetName: 字符串，显示名称，可含 emoji，≤100 字符，如 "🌌 星夜"（必填）
-- cssVars: 对象，34 个 CSS 变量（必填，见下）
+- cssVars: 对象，48 个 CSS 变量（必填，见下）
 - customCss: 字符串，CSS 动画和样式（选填，≤16384 字符）
 - extensions: 数组，浮动/装饰元素（选填，≤20 个元素）
 - clickEffect: 对象，点击特效声明（选填，见下）
 - logoText: 字符串或 null
 - logoColors: 颜色数组或 null
 
-【cssVars — 34 个变量，全部必填】
+【cssVars — 48 个变量，基础 42 个必填（服务端自动补齐 RGB 通道变体）】
   色板：--color-primary --color-secondary --color-accent --color-bg --color-surface --color-text --color-text-muted --color-border
   排版：--font-heading --font-body --font-mono --text-base --text-lg --text-xl --text-2xl --text-sm
   间距：--space-unit --space-1 --space-2 --space-3 --space-4 --space-6 --space-8 --space-12 --radii --content-max
   效果：--shadow-sm --shadow-md --shadow-lg --glass-bg --glass-blur --noise-opacity
   氛围：--ambient-1 --ambient-2
+  Z-Index 层级契约：--td-z-base --td-z-float --td-z-weather --td-z-fx
   注意：值中禁止使用 ; { } 字符，禁止 @import / url() / expression() / javascript: / behavior / -moz-binding
 
 【customCss 规则】
@@ -1691,7 +1692,7 @@ import Layout from '../layouts/Layout.astro';
     fontSize: CSS 字号，如 "24px"（字符串）
     opacity: 0.0~1.0（必须是 number 类型，写 0.7 而非 "0.7"，字符串会被丢弃）
     animation: CSS animation 简写（字符串，如 "drift 6s ease-in-out infinite"）
-    zIndex: 整数，-1~99999（必须是 number 类型，写 0 而非 "0"，字符串会被丢弃）
+    zIndex: 整数，-1~99999（必须是 number 类型，输出时自动映射到合约范围：>100→9999，<0→-10，0-100 保留原值）
     ❌ 不支持的字段（会被丢弃）：color, background, width, height, border, class, style 等
 
   · decorative — 装饰 HTML 片段（DocumentFragment 安全解析，on* 事件和 <script>/<iframe> 会被剥离）：

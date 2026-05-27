@@ -40,7 +40,7 @@ const injectCode = `// ThemeDist — 生产级主题接入（推荐）
 })();
 
 function applyTheme(d) {
-  // 注入 34 个 CSS 变量到 :root
+  // 注入 48 个 CSS 变量到 :root
   Object.entries(d.cssVars).forEach(([k, v]) =>
     document.documentElement.style.setProperty(k, v)
   );
@@ -74,7 +74,7 @@ function applyTheme(d) {
 }`;
 
 const cssCode = `/* ==========================================
-   ThemeDist CSS 变量速查（5 大类 34 个变量）
+   ThemeDist CSS 变量速查（6 大类 48 个变量）
    变量由 JS 注入到 :root，直接 var() 引用即可
    ========================================== */
 
@@ -243,7 +243,7 @@ fetch('${siteUrl}/api/v1/today.json')
           <span class="hp-stat-label">内置主题</span>
         </div>
         <div class="hp-stat">
-          <span class="hp-stat-num">34</span>
+          <span class="hp-stat-num">48</span>
           <span class="hp-stat-label">CSS 变量</span>
         </div>
         <div class="hp-stat">
@@ -446,7 +446,7 @@ fetch('${siteUrl}/api/v1/today.json')
         <div class="hp-code-top">
           <span class="hp-code-dots"><i></i><i></i><i></i></span>
           <span class="hp-code-title">2. CSS 变量速查</span>
-          <span class="hp-code-badge">5 大类 · 34 个变量</span>
+          <span class="hp-code-badge">6 大类 · 48 个变量</span>
         </div>
         <p class="hp-code-desc">变量注入到 <code>:root</code> 后，在 CSS 中直接 <code>var()</code> 引用。覆盖色板、字号、间距、阴影、毛玻璃、氛围光球。</p>
         <div class="hp-code-block">

@@ -1000,14 +1000,14 @@ import Layout from '../layouts/Layout.astro';
   });
 
   function buildDeepSeekPrompt(description) {
-    return `你是一位世界级主题配色设计师。根据用户描述生成一套完整的 CSS 主题：包含 34 个 CSS 变量 + 粒子动画特效 CSS。
+    return `你是一位世界级主题配色设计师。根据用户描述生成一套完整的 CSS 主题：包含 42 个 CSS 基础变量（服务端自动补齐 RGB 通道变体至 48 个）+ 粒子动画特效 CSS。
 
 用户描述: "${description}"
 
 ## 强制规则
 - 所有变量键名以双横线 -- 开头
 - --color-primary 和 --color-bg 必填
-- 返回完整 34 个变量：--color-primary/secondary/accent/bg/surface/text/text-muted/border, --font-heading/body/mono, --text-base/lg/xl/2xl/sm, --space-unit/1/2/3/4/6/8/12, --radii, --content-max, --shadow-sm/md/lg, --glass-bg/blur, --noise-opacity, --ambient-1/2
+- 返回完整 42 个基础变量：--color-primary/secondary/accent/bg/surface/text/text-muted/border, --font-heading/body/mono, --text-base/lg/xl/2xl/sm, --space-unit/1/2/3/4/6/8/12, --radii, --content-max, --shadow-sm/md/lg, --glass-bg/blur, --noise-opacity, --ambient-1/2, --td-z-base/float/weather/fx
 - 深色主题 bg<surface<border 亮度，text>text-muted；浅色反之
 
 ## 粒子特效要求（customCss 字段）
@@ -1021,7 +1021,7 @@ import Layout from '../layouts/Layout.astro';
 {
   "name": "主题名",
   "tags": ["dark"],
-  "cssVars": { "--color-primary": "#hex", ...全部34个 },
+  "cssVars": { "--color-primary": "#hex", ...全部42个基础变量 },
   "customCss": "/* @keyframes + 粒子 class 定义 */",
   "extensions": [{"type":"floating","char":"✨","top":"30%","left":"15%","fontSize":"18px","opacity":0.3,"animation":"orbFloat 6s ease-in-out infinite"}]
 }`;

@@ -28,44 +28,6 @@ const communityDir = communityThemes.map((t) => ({
 const directory = [...staticDir.slice(0, 20), ...communityDir.slice(0, 10)];
 const totalAvailable = staticDir.length + communityDir.length;
 
-const minimalResponse = JSON.stringify({
-  date: new Date().toISOString().slice(0, 10),
-  generatedAt: new Date().toISOString(),
-  preset: today.preset,
-  presetName: today.presetName,
-  cssVars: Object.fromEntries(
-    Object.entries(today.cssVars).slice(0, 8)
-  ),
-  customCss: today.customCss ? "(theme-specific CSS animations)" : null,
-  extensions: today.extensions ? [{ type: "floating", char: "🏮", top: "20%", left: "5%", opacity: 0.3 }] : null,
-  clickEffect: today.clickEffect || null,
-  logoText: today.logoText || null,
-  logoColors: today.logoColors || null,
-  available: totalAvailable,
-  directory: directory.slice(0, 4),
-  dailyIsCommunity: !!communityDaily,
-  apiVersion: "v1",
-  layerContext: { hasBackgroundOverlay: true, hasInteractiveElements: false, particleDensity: "low", safeWeatherZIndex: "var(--td-z-weather, 20)" },
-}, null, 2);
-
-const fullResponse = JSON.stringify({
-  date: new Date().toISOString().slice(0, 10),
-  generatedAt: new Date().toISOString(),
-  preset: today.preset,
-  presetName: today.presetName,
-  cssVars: today.cssVars,
-  customCss: today.customCss || null,
-  extensions: today.extensions || null,
-  clickEffect: today.clickEffect || null,
-  logoText: today.logoText || null,
-  logoColors: today.logoColors || null,
-  available: totalAvailable,
-  directory,
-  dailyIsCommunity: !!communityDaily,
-  apiVersion: "v1",
-  layerContext: today.layerContext,
-}, null, 2);
-
 const siteUrl = Astro.url.origin;
 
 const curlCmd = `curl ${siteUrl}/api/v1/today.json`;
@@ -421,7 +383,10 @@ function applyTheme(d) {
       <p class="text-muted" style="font-size:12px;margin-bottom:14px"><code>/api/v1/theme/{'{preset}'}.json</code>、<code>/api/v1/theme/random.json</code>、<code>/api/v1/date=MM-DD</code> 结构一致，均包含 <code>layerContext</code> 图层元数据。区别：不含 <code>date</code>、<code>generatedAt</code>、<code>available</code>、<code>directory</code>、<code>dailyIsCommunity</code>。</p>
 
       <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px">示例响应</h3>
-      <pre style="max-height:400px;overflow-y:auto;margin-bottom:40px"><code>{minimalResponse}</code></pre>
+      <div style="margin-bottom:40px">
+        <div id="live-response-loading" style="padding:20px;text-align:center;color:var(--color-text-muted);font-size:13px">正在获取实时 API 数据...</div>
+        <pre id="live-response-block" style="max-height:500px;overflow-y:auto;display:none"><code id="live-response-code"></code></pre>
+      </div>
 
       <!-- ====== CSS VARS ====== -->
       <h2 id="css-vars" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">CSS 变量参考</h2>
@@ -488,7 +453,7 @@ function applyTheme(d) {
               <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">fontSize</td><td style="padding:7px 14px">否</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">CSS 尺寸</td><td style="padding:7px 14px;font-size:12px">字号</td></tr>
               <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">opacity</td><td style="padding:7px 14px">否</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">0.0 ~ 1.0</td><td style="padding:7px 14px;font-size:12px">透明度，自动 clamp 到 [0, 1]</td></tr>
               <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">animation</td><td style="padding:7px 14px">否</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">CSS animation 128 字</td><td style="padding:7px 14px;font-size:12px">如 <code>"swing 4s ease-in-out infinite"</code>，XSS 清洗（去除 expression/javascript:）</td></tr>
-              <tr><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">zIndex</td><td style="padding:7px 14px">否</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">-1 ~ 99999</td><td style="padding:7px 14px;font-size:12px">层级，自动 clamp</td></tr>
+              <tr><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">zIndex</td><td style="padding:7px 14px">否</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">-1 ~ 99999</td><td style="padding:7px 14px;font-size:12px">层级。输出时自动映射到合约范围：&gt;100→9999(fx)，&lt;0→-10(base)，0-100 保留原值</td></tr>
             </tbody>
           </table>
         </div>
@@ -1154,8 +1119,9 @@ export function useThemeDist() {
 
       <!-- ====== FULL RESPONSE ====== -->
       <h2 id="full" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;margin-bottom:14px;margin-top:40px">完整响应示例（今日）</h2>
-      <p class="text-muted" style="font-size:13px;margin-bottom:12px">当前主题：<strong>{today.presetName}</strong></p>
-      <pre style="max-height:600px;overflow-y:auto"><code>{fullResponse}</code></pre>
+      <p class="text-muted" style="font-size:13px;margin-bottom:12px">实时数据，每次刷新页面获取最新 API 返回值。</p>
+      <div id="full-response-loading" style="padding:20px;text-align:center;color:var(--color-text-muted);font-size:13px">正在获取完整响应...</div>
+      <pre id="full-response-block" style="max-height:600px;overflow-y:auto;display:none"><code id="full-response-code"></code></pre>
 
     </div>
   </section>
@@ -1372,6 +1338,13 @@ export function useThemeDist() {
       .toc-sub {font-size:11px;padding:4px 10px 4px 22px;}
       .copy-all-fab {bottom:80px;right:16px;padding:0 16px;height:40px;font-size:12px;}
     }
+
+    /* JSON syntax highlighting */
+    .hl-key { color: #7dd3fc; }
+    .hl-str { color: #86efac; }
+    .hl-num { color: #fbbf24; }
+    .hl-bool { color: #c084fc; }
+    .hl-null { color: #94a3b8; font-style: italic; }
   </style>
 
   <script>
@@ -1488,5 +1461,47 @@ export function useThemeDist() {
         }, 1800);
       } catch { window.__toast?.('复制失败'); }
     });
+  </script>
+
+  <!-- Live API response fetcher -->
+  <script is:inline>
+    (function() {
+      function syntaxHighlight(json) {
+        if (typeof json !== 'string') json = JSON.stringify(json, null, 2);
+        return json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"([^"]+)"(?=\s*:)/g, '<span class="hl-key">"$1"</span>')
+          .replace(/:\s*"([^"]*)"/g, ': <span class="hl-str">"$1"</span>')
+          .replace(/:\s*(true|false)/g, ': <span class="hl-bool">$1</span>')
+          .replace(/:\s*(null)/g, ': <span class="hl-null">$1</span>')
+          .replace(/:\s*(-?\d+\.?\d*)/g, ': <span class="hl-num">$1</span>');
+      }
+
+      function renderToBlock(data, loadingId, blockId, codeId) {
+        var loading = document.getElementById(loadingId);
+        var block = document.getElementById(blockId);
+        var code = document.getElementById(codeId);
+        if (!loading || !block || !code) return;
+        loading.style.display = 'none';
+        block.style.display = 'block';
+        code.innerHTML = syntaxHighlight(data);
+      }
+
+      function showError(loadingId, msg) {
+        var loading = document.getElementById(loadingId);
+        if (loading) loading.textContent = msg;
+      }
+
+      // Fetch live response for the "示例响应" section
+      fetch('/api/v1/today.json')
+        .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function(data) { renderToBlock(data, 'live-response-loading', 'live-response-block', 'live-response-code'); })
+        .catch(function(e) { showError('live-response-loading', '获取失败: ' + e.message); });
+
+      // Fetch live response for the "完整响应示例" section
+      fetch('/api/v1/today.json')
+        .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function(data) { renderToBlock(data, 'full-response-loading', 'full-response-block', 'full-response-code'); })
+        .catch(function(e) { showError('full-response-loading', '获取失败: ' + e.message); });
+    })();
   </script>
 </Layout>
