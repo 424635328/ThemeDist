@@ -1,14 +1,14 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import { getDailyTheme, getAllThemes } from '../../utils/daily-theme';
-import { getDailyCommunityTheme } from '../../utils/omni-bridge';
+import { getDailyCommunityTheme, getCommunityThemes } from '../../utils/omni-bridge';
 
 const communityDaily = await getDailyCommunityTheme();
 const today = communityDaily || getDailyTheme();
 const allThemes = getAllThemes();
-const totalAvailable = allThemes.length;
+const communityThemes = await getCommunityThemes(50);
 
-const directory = allThemes.map((t) => ({
+const staticDir = allThemes.map((t) => ({
   preset: t.preset,
   name: t.presetName,
   primary: t.cssVars['--color-primary'],
@@ -16,13 +16,23 @@ const directory = allThemes.map((t) => ({
   logoText: t.logoText || null,
 }));
 
+const communityDir = communityThemes.map((t) => ({
+  preset: t.preset,
+  name: t.presetName,
+  primary: t.cssVars['--color-primary'],
+  accent: t.cssVars['--color-accent'],
+  logoText: null,
+  community: true,
+}));
+
+const directory = [...staticDir.slice(0, 20), ...communityDir.slice(0, 10)];
+const totalAvailable = staticDir.length + communityDir.length;
+
 const minimalResponse = JSON.stringify({
   date: new Date().toISOString().slice(0, 10),
+  generatedAt: new Date().toISOString(),
   preset: today.preset,
   presetName: today.presetName,
-  generatedAt: new Date().toISOString(),
-  dailyIsCommunity: !!communityDaily,
-  apiVersion: "v1",
   cssVars: Object.fromEntries(
     Object.entries(today.cssVars).slice(0, 8)
   ),
@@ -33,15 +43,15 @@ const minimalResponse = JSON.stringify({
   logoColors: today.logoColors || null,
   available: totalAvailable,
   directory: directory.slice(0, 4),
+  dailyIsCommunity: !!communityDaily,
+  apiVersion: "v1",
 }, null, 2);
 
 const fullResponse = JSON.stringify({
   date: new Date().toISOString().slice(0, 10),
+  generatedAt: new Date().toISOString(),
   preset: today.preset,
   presetName: today.presetName,
-  generatedAt: new Date().toISOString(),
-  dailyIsCommunity: !!communityDaily,
-  apiVersion: "v1",
   cssVars: today.cssVars,
   customCss: today.customCss || null,
   extensions: today.extensions || null,
@@ -50,6 +60,8 @@ const fullResponse = JSON.stringify({
   logoColors: today.logoColors || null,
   available: totalAvailable,
   directory,
+  dailyIsCommunity: !!communityDaily,
+  apiVersion: "v1",
 }, null, 2);
 
 const siteUrl = Astro.url.origin;
@@ -391,11 +403,11 @@ function applyTheme(d) {
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">preset</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">预设标识符 (kebab-case)</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">presetName</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">人类可读名称</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">cssVars</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object</td><td style="padding:9px 16px">34 个 CSS 自定义属性键值对（5 组：Colors / Typography / Spacing / Effects / Ambient）。颜色变量自动附带 <code>-rgb</code> 通道变体</td></tr>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">customCss</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">主题专属 CSS（动画 keyframes、特效样式）。无自定义 CSS 时为空字符串 <code>""</code></td></tr>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">extensions</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array</td><td style="padding:9px 16px">声明式装饰元素数组，支持 <code>floating</code> 和 <code>decorative</code> 两种类型。无扩展时为空数组 <code>[]</code>。最多 20 个。</td></tr>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">clickEffect</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object</td><td style="padding:9px 16px">声明式点击特效配置，包含 <code>spawn</code> 数组。无特效时为 <code>null</code>。详见 <a href="#clickeffect-ref">ClickEffect 参考</a></td></tr>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">logoText</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">主题 Logo 文字标识</td></tr>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">logoColors</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array</td><td style="padding:9px 16px">Logo 渐变色 hex 字符串数组。无 Logo 颜色时为空数组 <code>[]</code></td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">customCss</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string | null</td><td style="padding:9px 16px">主题专属 CSS（动画 keyframes、特效样式）。无自定义 CSS 时为 <code>null</code></td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">extensions</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array | null</td><td style="padding:9px 16px">声明式装饰元素数组，支持 <code>floating</code> 和 <code>decorative</code> 两种类型。无扩展时为 <code>null</code>。最多 20 个。</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">clickEffect</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object | null</td><td style="padding:9px 16px">声明式点击特效配置，包含 <code>spawn</code> 数组。无特效时为 <code>null</code>。详见 <a href="#clickeffect-ref">ClickEffect 参考</a></td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">logoText</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string | null</td><td style="padding:9px 16px">主题 Logo 文字标识</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">logoColors</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array | null</td><td style="padding:9px 16px">Logo 渐变色 hex 字符串数组。无 Logo 颜色时为 <code>null</code></td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">available</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">number</td><td style="padding:9px 16px">可用主题总数</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">directory</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array</td><td style="padding:9px 16px">轻量索引 <code>[{'\{'}preset, name, primary, accent, logoText{'}\}'}]</code></td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">dailyIsCommunity</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">boolean</td><td style="padding:9px 16px"><code>true</code> 表示今日主题来自社区投稿</td></tr>
@@ -739,14 +751,19 @@ module.exports = {
           </tr></thead>
           <tbody>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">date</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">ISO 日期 YYYY-MM-DD</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">generatedAt</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">ISO 8601 生成时间戳</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">preset</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">主题预设标识符</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">presetName</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">主题可读名称</td></tr>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">author</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">主题作者（"themedist" 或社区作者名）</td></tr>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">available</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">number</td><td style="padding:9px 16px">可用主题总数</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">cssVars</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object</td><td style="padding:9px 16px">CSS 自定义属性键值对（已完成 XSS 清洗）</td></tr>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">customCss</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">主题专属 CSS（已完成 XSS 清洗）</td></tr>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">extensions</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array</td><td style="padding:9px 16px">HTML 装饰片段数组（已完成 XSS 清洗）</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">customCss</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string | null</td><td style="padding:9px 16px">主题专属 CSS（已完成 XSS 清洗）</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">extensions</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array | null</td><td style="padding:9px 16px">HTML 装饰片段数组（已完成 XSS 清洗）</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">clickEffect</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object | null</td><td style="padding:9px 16px">点击特效配置</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">logoText</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string | null</td><td style="padding:9px 16px">主题 Logo 文字</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">logoColors</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array | null</td><td style="padding:9px 16px">Logo 渐变色</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">available</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">number</td><td style="padding:9px 16px">可用主题总数</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">directory</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array</td><td style="padding:9px 16px">主题目录列表</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">dailyIsCommunity</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">boolean</td><td style="padding:9px 16px">今日主题是否来自社区</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">apiVersion</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">API 版本号</td></tr>
             <tr><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">_meta</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object</td><td style="padding:9px 16px">安全元信息：<code>sanitized</code>（是否已清洗）、<code>schemaValid</code>（结构校验）、<code>timestamp</code>（处理时间）</td></tr>
           </tbody>
         </table>
@@ -754,19 +771,24 @@ module.exports = {
 
       <h3 style="font-size:14px;font-weight:700;letter-spacing:-0.01em;margin-bottom:10px">示例响应</h3>
       <pre style="max-height:400px;overflow-y:auto;margin-bottom:14px"><code>{String.raw`{
-  "date": "2026-05-24",
-  "preset": "minimal-blue",
-  "presetName": "Minimal Blue",
-  "author": "themedist",
-  "available": 12,
-  "cssVars": { "--color-primary": "#3b82f6" },
+  "date": "2026-05-27",
+  "generatedAt": "2026-05-27T08:39:34.536Z",
+  "preset": "aurora-ethereal-pro",
+  "presetName": "✨ 幻空",
+  "cssVars": { "--color-primary": "#06b6d4", "--color-bg": "#000106", "..." },
   "customCss": "...",
   "extensions": [ ... ],
+  "clickEffect": null,
+  "logoText": "AURORA",
+  "logoColors": ["#6ee7b7", "#06b6d4", "#a855f7", "#6ee7b7"],
+  "available": 152,
   "directory": [ ... ],
+  "dailyIsCommunity": false,
+  "apiVersion": "v1",
   "_meta": {
     "sanitized": true,
     "schemaValid": true,
-    "timestamp": "2026-05-24T12:00:00.000Z"
+    "timestamp": "2026-05-27T09:57:48.808Z"
   }
 }`}</code></pre>
 
@@ -936,7 +958,7 @@ module.exports = {
   -H 'Content-Type: application/json' \
   -d '{'{'}"name":"My Theme","author":"You","cssVars":{'{'}"--color-primary":"#ff6b6b","--color-bg":"#1a1a2e"{'}'},"customCss":"body {'{'} ... {'}'}","extensions":[{'{'}"type":"floating","char":"✨"{'}'}],"tags":["dark","vibrant"]{'}'}'</code></pre></div>
         <p class="text-muted" style="font-size:12px;margin-top:6px">必填: <code>name</code>, <code>author</code>, <code>cssVars</code>（必须含 <code>--color-primary</code> 和 <code>--color-bg</code>）。可选: <code>customCss</code>, <code>extensions</code>, <code>tags</code>（最多 5 个）。提交后进入审核队列。</p>
-        <p class="text-muted" style="font-size:12px;margin-top:4px">成功响应 <code style="color:#22c55e">201</code>：<code>{'{'} success: true, theme: {'{'} id, name, ... {'}'}, warnings?: [...] {'}'}</code>。如果有 <code>warnings</code> 数组，说明部分字段被自动调整（如不支持的类型被移除）。</p>
+        <p class="text-muted" style="font-size:12px;margin-top:4px">成功响应 <code style="color:#22c55e">201</code>：<code>{'{'} success: true, theme: {'{'} id, name, ... {'}'}, warnings?: [...], apiVersion: "v1" {'}'}</code>。如果有 <code>warnings</code> 数组，说明部分字段被自动调整（如不支持的类型被移除）。</p>
 
         <h3 id="community-suggest-tags" style="font-size:14px;font-weight:700;margin:20px 0 12px">推荐标签</h3>
         <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl</span></div><pre class="cmd-block"><code>curl -X POST {siteUrl}/api/v1/diy/suggest-tags.json \
@@ -949,7 +971,7 @@ module.exports = {
         <div class="cmd-group" style="margin-bottom:0"><div class="cmd-header"><span class="cmd-label">curl</span></div><pre class="cmd-block"><code>curl -X POST {siteUrl}/api/v1/diy/like.json \
   -H 'Content-Type: application/json' \
   -d '{'{'}"id":"abc12345"{'}'}'</code></pre></div>
-        <p class="text-muted" style="font-size:12px;margin-top:6px">服务器基于 IP + User-Agent 指纹去重，同一用户对同一主题仅计一次。返回 <code>{'{'}likes: number, voted: boolean{'}'}</code>。</p>
+        <p class="text-muted" style="font-size:12px;margin-top:6px">服务器基于 IP + User-Agent 指纹去重，同一用户对同一主题仅计一次。返回 <code>{'{'}likes: number, voted: boolean, apiVersion: "v1"{'}'}</code>。</p>
       </div>
 
       <!-- ====== STEPS ====== -->
