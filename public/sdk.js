@@ -1,14 +1,17 @@
 /**
  * ThemeDist Runner — Web Component SDK
- * v1.0
+ * v2.0
  *
  * Usage:
- *   <themedist-runner api="https://themedist.netlify.app/api/v1/today.json" save-shadow="true"></themedist-runner>
+ *   <themedist-runner api="https://themedist.netlify.app/api/v1/today.json"></themedist-runner>
  *   <script src="https://themedist.netlify.app/sdk.js" defer></script>
  *
  * CSS variables are injected into global :root so your entire site adapts.
  * Decorations (floating chars, decorative HTML) are isolated in Shadow DOM
  * to prevent style/DOM pollution of the host page.
+ *
+ * v2.0: Full layer isolation with CSS contract variables, pointer-events safety,
+ *       isolation:isolate stacking context, customCss sandboxed in Shadow DOM.
  */
 (function () {
   const CACHE_KEY = 'td_runner_cache';
@@ -40,10 +43,12 @@
     }
 
     async connectedCallback() {
-      const todayStr = new Date().toISOString().slice(0, 10);
+      var todayStr = new Date().toISOString().slice(0, 10);
 
       // 1. Try cached data first
-      const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+      try {
+        var cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+      } catch (e) { cached = null; }
       if (cached && cached.date === todayStr) {
         this.applyTheme(cached.data);
         return;
@@ -51,12 +56,13 @@
 
       // 2. Fetch from API
       try {
-        const res = await fetch(this.api);
+        var res = await fetch(this.api);
         if (!res.ok) throw new Error('HTTP ' + res.status);
-        const theme = await res.json();
+        var theme = await res.json();
 
-        const cacheData = { date: todayStr, data: theme };
-        localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+        try {
+          localStorage.setItem(CACHE_KEY, JSON.stringify({ date: todayStr, data: theme }));
+        } catch (e) { /* quota exceeded — ignore */ }
         this.applyTheme(theme);
       } catch (err) {
         console.warn('ThemeDist: fetch failed, using stale cache', err.message);
@@ -72,33 +78,59 @@
         });
       }
 
-      // 2.2 Inject global custom CSS (animations, keyframes)
+      // 2.2 Build Shadow DOM content (isolates customCss + extensions)
+      var shadowParts = [];
+
+      // Host isolation: uses contract z-index, prevents pointer-events escape
+      shadowParts.push(
+        ':host{' +
+          'position:fixed;top:0;left:0;width:100vw;height:100vh;' +
+          'pointer-events:none!important;' +
+          'z-index:var(--td-z-base,-10);' +
+          'isolation:isolate;' +
+          'overflow:hidden;' +
+        '}' +
+        '.floating-char{position:fixed;pointer-events:none;z-index:var(--td-z-float,10)}' +
+        '.deco-layer{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none}'
+      );
+
+      // 2.3 Inject customCss INSIDE Shadow DOM (sandboxed, won't leak to host)
       if (theme.customCss) {
-        var styleEl = document.getElementById('td-runner-global-css');
-        if (!styleEl) {
-          styleEl = document.createElement('style');
-          styleEl.id = 'td-runner-global-css';
-          document.head.appendChild(styleEl);
-        }
-        styleEl.textContent = theme.customCss;
+        shadowParts.push(theme.customCss);
       }
 
-      // 2.3 Render extensions in isolated Shadow DOM
+      var styleEl = document.createElement('style');
+      styleEl.textContent = shadowParts.join('\n');
+      this.shadowRoot.innerHTML = '';
+      this.shadowRoot.appendChild(styleEl);
+
+      // 2.4 Render extensions in isolated Shadow DOM
       if (theme.extensions && theme.extensions.length) {
         this.renderShadowExtensions(theme.extensions);
+      }
+
+      // 2.5 Inject keyframes into document head (animations need to run globally)
+      if (theme.customCss) {
+        var globalStyle = document.getElementById('td-runner-keyframes');
+        if (!globalStyle) {
+          globalStyle = document.createElement('style');
+          globalStyle.id = 'td-runner-keyframes';
+          document.head.appendChild(globalStyle);
+        }
+        // Extract only @keyframes blocks for global injection
+        var keyframes = '';
+        var kfRe = /@keyframes\s+[\s\S]*?\{[\s\S]*?\}\s*\}/g;
+        var match;
+        while ((match = kfRe.exec(theme.customCss)) !== null) {
+          keyframes += match[0] + '\n';
+        }
+        globalStyle.textContent = keyframes;
       }
     }
 
     renderShadowExtensions(exts) {
-      // Clear previous decorations
-      this.shadowRoot.innerHTML = '';
-
-      // Base reset styles inside Shadow DOM
-      var resetStyle = document.createElement('style');
-      resetStyle.textContent =
-        ':host{position:fixed;top:0;left:0;width:0;height:0;pointer-events:none;z-index:2147483647}' +
-        '.floating-char{position:fixed;pointer-events:none}';
-      this.shadowRoot.appendChild(resetStyle);
+      var decoLayer = document.createElement('div');
+      decoLayer.className = 'deco-layer';
 
       var self = this;
       exts.slice(0, 20).forEach(function (ext) {
@@ -113,10 +145,9 @@
             ext.fontSize && 'font-size:' + safeDim(ext.fontSize),
             ext.animation && 'animation:' + safeVal(ext.animation),
             typeof ext.opacity === 'number' && 'opacity:' + ext.opacity,
-            typeof ext.zIndex === 'number' && 'z-index:' + ext.zIndex,
           ].filter(Boolean).join(';');
           el.textContent = String(ext.char).slice(0, 4);
-          self.shadowRoot.appendChild(el);
+          decoLayer.appendChild(el);
         } else if (ext.type === 'decorative' && ext.html) {
           var tpl = document.createElement('template');
           tpl.innerHTML = ext.html;
@@ -126,9 +157,11 @@
               if (/^on/i.test(attr.name)) node.removeAttribute(attr.name);
             });
           });
-          self.shadowRoot.appendChild(frag);
+          decoLayer.appendChild(frag);
         }
       });
+
+      self.shadowRoot.appendChild(decoLayer);
     }
   }
 

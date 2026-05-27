@@ -48,13 +48,13 @@ const rawGroups = [
   {
     name: 'Core API',
     items: [
-      { id:'today', method:'GET', path:'/api/v1/today.json', label:'Today Theme', desc:'获取每日主题的完整数据。包含 34 个 CSS 自定义属性、自定义 CSS 动画、声明式装饰元素数组。', usage:'将 cssVars 注入 :root，推荐配合 localStorage 缓存。', cache:'浏览器 1h / CDN 24h',
-        notes:'返回的 cssVars 对象包含 --color-primary、--color-bg、--color-surface、--color-text、--radii、--shadow 等 34 个标准 CSS 自定义属性。同时返回 decorations 数组（可直接渲染为 SVG 或 DOM 装饰）、animations 对象（包含 @keyframes 定义）、以及 meta 元数据（主题名、日期、节日信息）。支持 ?tz= 参数按目标时区计算日期。',
+      { id:'today', method:'GET', path:'/api/v1/today.json', label:'Today Theme', desc:'获取每日主题的完整数据。包含 48 个 CSS 自定义属性（含 Z-Index 层级契约与 RGB 通道变体）、自定义 CSS 动画、声明式装饰元素数组。', usage:'将 cssVars 注入 :root，推荐配合 localStorage 缓存。', cache:'浏览器 1h / CDN 24h',
+        notes:'返回的 cssVars 对象包含 --color-primary、--color-bg、--color-surface、--color-text、--radii、--shadow、--td-z-base/float/weather/fx 等 48 个标准 CSS 自定义属性。同时返回 layerContext 图层元数据（hasBackgroundOverlay、particleDensity、safeWeatherZIndex 等，供天气脚本和 SDK 智能决策）、extensions 装饰元素数组、customCss 动画样式。支持 ?tz= 参数按目标时区计算日期。',
         responseFields:[
-          {name:'cssVars',type:'object',desc:'34 个 CSS 自定义属性键值对'},
-          {name:'decorations',type:'array',desc:'声明式装饰元素（位置、形状、颜色）'},
-          {name:'animations',type:'object',desc:'CSS @keyframes 动画定义'},
-          {name:'meta',type:'object',desc:'主题名、日期、节日、调色板等元数据'},
+          {name:'cssVars',type:'object',desc:'48 个 CSS 自定义属性键值对（6 组 + RGB 通道变体）'},
+          {name:'customCss',type:'string',desc:'主题专属 CSS 动画（经 z-index 合约重写 + pointer-events 注入）'},
+          {name:'extensions',type:'array',desc:'声明式装饰元素（空项已过滤，pointer-events 已注入）'},
+          {name:'layerContext',type:'object',desc:'图层元数据：hasBackgroundOverlay / particleDensity / safeWeatherZIndex'},
         ],
         params:[
           {name:'tz',type:'text',label:'时区',placeholder:'Asia/Shanghai',optional:true},
@@ -69,11 +69,11 @@ const rawGroups = [
         notes:'此端点运行在独立域名 themedist-monitor.vercel.app 上，作为安全隔离层。所有 CSS 属性值经过 DOMPurify 级清洗，移除 potential XSS 向量（expression()、url()、javascript: 等）。返回的 _meta.safe 布尔值标识数据是否通过全部安全检查。适用于用户生成内容（UGC）平台或第三方嵌入场景。'
       },
       { id:'date-lookup', method:'GET', path:'/api/v1/date={date}', label:'Date Lookup', desc:'按日期查询主题，格式 MM-DD（如 02-14 查询情人节）。', usage:'用于日历组件、节日预览等场景。', cache:'浏览器 1h',
-        notes:'路径参数 {date} 必须为 MM-DD 格式（如 01-01、12-25）。查询逻辑按优先级：精确日期匹配 → 同月同日（忽略年份）→ 最近节日回退。返回的数据结构与 today.json 完全一致。未来日期不会返回错误，而是返回该日期对应的历史主题；如果该日期无历史数据，则回退到当日主题。',
+        notes:'路径参数 {date} 必须为 MM-DD 格式（如 01-01、12-25）。返回结构与 today.json 一致：48 个 cssVars、layerContext、extensions、customCss。包含 dailyIsCommunity 布尔字段标识是否为社区主题。',
         params:[{name:'date',type:'text',label:'日期',placeholder:'02-14',optional:false,isPath:true}]
       },
       { id:'preset', method:'GET', path:'/api/v1/theme/{id}.json', label:'Theme Detail', desc:'获取指定预设或社区主题的完整数据。', usage:'用于固定主题或主题商店详情页。', cache:'预设 365d / 社区 1h',
-        notes:'预设主题 ID 如 yozakura-reverie、ocean-depths、cyber-neon 等从静态 CDN 提供，缓存 365 天（immutable）。社区主题 ID（DIY 提交的）从数据库查询，缓存 1 小时。返回结构同 today.json，包含完整 cssVars、decorations、animations、meta。不存在的 ID 返回 404。',
+        notes:'预设主题 ID 如 yozakura-reverie、ocean-depths、cyber-neon 等从静态 CDN 提供，缓存 365 天（immutable）。社区主题 ID（DIY 提交的）从数据库查询，缓存 1 小时。返回结构同 today.json：48 个 cssVars、layerContext、extensions（空项已过滤）、customCss（z-index 已重写为合约变量、pointer-events 已注入）。不存在的 ID 返回 404。',
         params:[{name:'id',type:'text',label:'主题ID',placeholder:'yozakura-reverie',optional:false,isPath:true}]
       },
       { id:'random', method:'GET', path:'/api/v1/theme/random.json', label:'Random Theme', desc:'随机获取一个主题。支持池子过滤和确定性随机种子。', usage:'用于换肤按钮。相同 seed 始终返回相同结果。', cache:'不缓存',
@@ -100,8 +100,8 @@ const rawGroups = [
       { id:'shiki', method:'GET', path:'/api/v1/theme/{id}/shiki.json', label:'Shiki Theme', desc:'将主题变量映射为 Shiki / VS Code 的 TextMate Token 颜色。', usage:'用于代码高亮组件或直接导入 VS Code。', cache:'365d immutable',
         notes:'依据 TextMate 语法规范，将主题的主色、背景色、文字色映射为标准 token 类型：keyword、string、number、comment、function、variable、type 等 20+ 种语义标记。同时生成 editor.background、editor.foreground、editor.lineHighlight 等 VS Code 工作台颜色。输出为标准的 JSON TextMate 主题格式，可直接作为 VS Code / Shiki 的 theme 配置。'
       },
-      { id:'extract', method:'POST', path:'/api/v1/extract-theme.json', label:'Image Extra', desc:'图片取色 API。纯 JS 进行 K-means 聚类并用语义引擎映射为 UI 标准变量。', usage:'POST 图片 URL，获取生成的 34 个 CSS 变量。', cache:'不缓存',
-        notes:'处理流程：下载图片 → 缩放到 200x200 → K-means（k=6）聚类提取主色调 → 语义引擎将聚类结果映射为 UI 语义角色（主色、背景色、文字色、强调色等）→ 输出标准 34 个 CSS 变量。支持 jpg/png/webp/avif 格式。图片 URL 必须可公开访问，超时 15 秒。返回的 _meta.extraction 包含聚类置信度评分。',
+      { id:'extract', method:'POST', path:'/api/v1/extract-theme.json', label:'Image Extra', desc:'图片取色 API。纯 JS 进行 K-means 聚类并用语义引擎映射为 UI 标准变量。', usage:'POST 图片 URL，获取生成的 46 个 CSS 变量（含 RGB 通道与 Z-Index 契约）。', cache:'不缓存',
+        notes:'处理流程：下载图片 → 解码像素 → 每 10 个像素采样 → K-means（k=5）聚类提取主色调 → 色彩语义引擎映射为 UI 语义角色（主色、背景色、文字色、强调色等）→ 调用 enrichCssVars 补齐 RGB 通道变体和 Z-Index 层级契约变量 → 输出 46 个标准 CSS 变量。支持 JPEG/PNG，最大 5MB，抓取超时 5s。返回 layerContext 图层元数据和 apiVersion。',
         params:[{name:'body',type:'textarea',label:'JSON Body',placeholder:'{\n  "imageUrl": "https://example.com/poster.jpg"\n}',optional:false}]
       }
     ]
@@ -113,7 +113,7 @@ const rawGroups = [
         notes:'将 HEX 颜色转换为 RGB 通道格式（如 #ff6b6b → 255 107 107），以支持 Tailwind 的 opacity 修饰符（bg-primary/50 → rgba(255,107,107,0.5)）。同时生成对应的 CSS 变量声明和 Tailwind extend.colors 配置。'
       },
       { id:'tokens', method:'GET', path:'/api/v1/tokens.json', label:'Design Tokens', desc:'导出符合 W3C DTCG 规范的 JSON 设计令牌。', usage:'用于导入 Figma 或 Style Dictionary。', cache:'浏览器 1h',
-        notes:'输出格式遵循 W3C Design Tokens Community Group 规范（DTCG Format）。每个 token 包含 $type（color、dimension、shadow 等）、$value、$description。可直接导入 Figma Tokens 插件、Style Dictionary 构建流程、或 Amazon Style Dictionary。包含所有 34 个 CSS 变量及其语义分组（color、spacing、typography、shadow）。'
+        notes:'输出格式遵循 W3C Design Tokens Community Group 规范（DTCG Format）。每个 token 包含 $type（color、dimension、shadow 等）、$value、$description。可直接导入 Figma Tokens 插件、Style Dictionary 构建流程、或 Amazon Style Dictionary。包含所有 48 个 CSS 变量及其语义分组（color、typography、fontSize、space、effects）。'
       },
       { id:'svg-pattern', method:'GET', path:'/api/v1/today/pattern.css', label:'SVG Pattern', desc:'根据今日主题色生成几何图案背景纹理。', usage:'通过 <link> 引入并作为 background-image 使用。', cache:'浏览器 1h',
         notes:'以主色为基调生成 data-uri 内联的 SVG 几何图案。图案类型每日轮换：波点、网格、斜纹、六边形、波浪等。CSS 中导出 .pattern-bg 和 .pattern-overlay 两个 class，分别适用于纯背景和叠加层。图案使用 opacity 0.08~0.15，不会喧宾夺主。'
@@ -144,7 +144,7 @@ const rawGroups = [
         params:[{name:'lat',type:'text',label:'纬度',placeholder:'35.68',optional:true}, {name:'lon',type:'text',label:'经度',placeholder:'139.76',optional:true}]
       },
       { id:'status-override', method:'GET', path:'/api/v1/status-override.json', label:'Status Override', desc:'系统状态主题。维护(纯灰)/哀悼(暗黑+滤镜)/故障(红色警示)。', usage:'用于兜底页及重大状态提示。', cache:'5min',
-        notes:'三种全局状态模式：maintenance — 所有颜色替换为灰色阶，页面添加 "系统维护中" 横幅提示，所有 API 继续正常响应；mourning — 全局去饱和 + 灰度滤镜 + 降低亮度，适用于全国哀悼日等场景；incident — 主色替换为警示红色，页面顶部显示故障公告栏。状态由运营人员通过管理后台切换，所有客户端 5 分钟内生效。',
+        notes:'三种全局状态模式：maintenance — 所有颜色替换为灰色阶，页面添加 "系统维护中" 横幅提示，所有 API 继续正常响应；mourning — 全局去饱和 + 灰度滤镜 + 降低亮度，适用于全国哀悼日等场景；incident — 主色替换为警示红色，页面顶部显示故障公告栏。返回 48 个 cssVars（含 RGB 通道变体和 Z-Index 层级契约），与 today.json 格式一致。状态由运营人员通过管理后台切换，所有客户端 5 分钟内生效。',
         params:[{name:'status',type:'select',label:'状态模式',options:['','maintenance','mourning','incident'],optional:false}]
       }
     ]
@@ -153,15 +153,15 @@ const rawGroups = [
     name: 'Community Data',
     items: [
       { id:'diy-list', method:'GET', path:'/api/v1/diy/themes.json', label:'Themes List', desc:'分页、排序、过滤获取社区已审核的主题。', usage:'支持多种维度的 tag 查询。', cache:'1min',
-        notes:'默认按提交时间倒序（new），?sort=hot 按点赞数降序。tag 参数支持 8 种分类：dark、light、warm、cool、vibrant、minimal、nature、tech。分页从 1 开始，size 最大 100。返回的每个主题包含：id、name、author、tags、likes、createdAt、previewColors（5 个预览色块）。审核状态为 "approved" 的主题才会出现在列表中。',
+        notes:'默认按提交时间倒序（new），?sort=hot 按点赞数降序。tag 参数支持 8 种分类：dark、light、warm、cool、vibrant、minimal、nature、tech。分页从 1 开始，size 最大 100。返回的每个主题已经过 processThemePayload 处理：customCss 的 z-index 已重写为合约变量、pointer-events:none 已注入、空扩展已过滤。',
         params:[{name:'sort',type:'select',label:'排序',options:['new','hot'],optional:true}, {name:'page',type:'text',label:'页码',placeholder:'1',optional:true}, {name:'size',type:'text',label:'数量',placeholder:'20',optional:true}, {name:'tag',type:'select',label:'标签',options:['','dark','light','warm','cool','vibrant','minimal','nature','tech'],optional:true}]
       },
       { id:'diy-single', method:'GET', path:'/api/v1/diy/theme.json', label:'Theme Detail', desc:'获取单个社区主题，包含点赞数和作者信息。', usage:'?id= 传入主题ID。', cache:'5min',
-        notes:'返回完整的社区主题数据：cssVars（34 个属性）、author（作者昵称+头像 URL）、likes（点赞数）、createdAt（提交时间）、status（审核状态）。同时返回 hasLiked 字段（基于当前请求的 IP+UA 判断是否已点赞）。如果主题 ID 不存在或未通过审核，返回 404。',
+        notes:'返回完整的社区主题数据：cssVars（含 RGB 通道变体和 Z-Index 契约变量）、customCss（z-index 已重写、pointer-events 已注入）、extensions（空项已过滤）、layerContext（图层元数据）、author、likes、createdAt、status。如果主题 ID 不存在或未通过审核，返回 404。',
         params:[{name:'id',type:'text',label:'主题ID',placeholder:'abc123',optional:false}]
       },
       { id:'diy-submit', method:'POST', path:'/api/v1/diy/submit.json', label:'Submit Theme', desc:'提交新主题进入待审队列。', usage:'提供严格的数据 Schema 验证，返回 warnings。', cache:'不缓存',
-        notes:'提交规范：name 2-30 字符、author 2-20 字符、cssVars 必须包含至少 8 个标准属性（--color-primary 和 --color-bg 为必填）。服务器端对颜色值格式做严格校验（仅接受 #RRGGBB 或 #RRGGBBAA）。同一 IP+UA 每小时最多提交 3 次。审核通过后自动出现在社区列表，通常在 24 小时内完成。返回 warnings 数组提示配色建议（如对比度不足）。',
+        notes:'提交规范：name 2-30 字符、author 2-20 字符、cssVars 必须包含 --color-primary 和 --color-bg。服务端自动补齐结构性变量（排版/间距/阴影/Z-Index 契约）和 RGB 通道变体，存储前调用 enrichCssVars 确保返回的 cssVars 完整（约 44+ 个键）。审核通过后自动出现在社区列表，通常在 24 小时内完成。返回 warnings 数组提示配色建议（如对比度不足）。',
         params:[{name:'body',type:'textarea',label:'Body',placeholder:'{\n  "name": "Cyber",\n  "author": "You",\n  "cssVars": {"--color-primary":"#ff0","--color-bg":"#000"}\n}',optional:false}]
       },
       { id:'diy-like', method:'POST', path:'/api/v1/diy/like.json', label:'Like Theme', desc:'为社区主题点赞。基于 IP + UA + UUID 防刷保护。', usage:'请求限流 10次/分钟。', cache:'不缓存',
@@ -177,12 +177,12 @@ const rawGroups = [
   {
     name: 'AI & Telemetry',
     items: [
-      { id:'ai-generate', method:'POST', path:'/api/v1/ai/generate.json', label:'AI Generate', desc:'根据文字描述生成完整 CSS 主题配色。支持 OpenAI 智能生成或本地规则引擎降级。', usage:'POST JSON body，字段 description 为主题描述。返回含 34 个 CSS 变量、动画特效、标签的完整主题。', cache:'不缓存',
-        notes:'双引擎策略：简单描述（如 "dark blue theme"）使用本地规则引擎，毫秒级响应且免费；复杂描述（如 "neon cyberpunk matrix with purple accents"）自动路由到 OpenAI（需配置 OPENAI_API_KEY）进行语义理解。每日配额 100 次/IP，超出后回退到规则引擎。返回标准 34 个 cssVars 结构，与 today.json 格式一致，可直接注入页面。支持的关键词：ocean/sunset/forest/sakura/cyber/midnight/dark/light。',
+      { id:'ai-generate', method:'POST', path:'/api/v1/ai/generate.json', label:'AI Generate', desc:'根据文字描述生成完整 CSS 主题配色。支持 OpenAI 智能生成或本地规则引擎降级。', usage:'POST JSON body，字段 description 为必填。返回含 48 个 CSS 变量、动画特效、标签的完整主题。', cache:'不缓存',
+        notes:'双引擎策略：简单描述（如 "dark blue theme"）使用本地规则引擎，毫秒级响应且免费；复杂描述（如 "neon cyberpunk matrix with purple accents"）自动路由到 OpenAI（需配置 OPENAI_API_KEY）进行语义理解。每日配额 100 次/IP，超出后回退到规则引擎。返回标准 48 个 cssVars 结构，与 today.json 格式一致，可直接注入页面。支持的关键词：ocean/sunset/forest/sakura/cyber/midnight/dark/light。',
         params:[{name:'body',type:'textarea',label:'JSON Body — 字段 description 为必填',placeholder:'{\n  "description": "赛博朋克霓虹矩阵"\n}',optional:false}],
         responseFields:[
           {name:'name',type:'string',desc:'AI 推断的主题名称'},
-          {name:'cssVars',type:'object',desc:'34 个 CSS 自定义属性（与 today.json 格式一致）'},
+          {name:'cssVars',type:'object',desc:'48 个 CSS 自定义属性（与 today.json 格式一致）'},
           {name:'tags',type:'array',desc:'风格标签（如 dark/light、vibrant/minimal）'},
           {name:'customCss',type:'string',desc:'主题配套的纯 CSS 动画特效（@keyframes）'},
           {name:'description',type:'string',desc:'回显原始输入描述'},

@@ -2,6 +2,7 @@ import { getAllThemes } from '../../../../utils/daily-theme';
 import { get, isReady } from '../../../../lib/redis';
 import { getThemeWithLikes } from '../../../../lib/themes-db';
 import { getDayOfYear } from '../../../../utils/date';
+import { processThemePayload } from '../../../../utils/sanitize';
 
 export const prerender = false;
 
@@ -57,6 +58,11 @@ export async function GET({ params }: { params: { poolId: string } }) {
       });
     }
 
+    const processed = processThemePayload({
+      customCss: theme.customCss || undefined,
+      extensions: theme.extensions || undefined,
+    });
+
     return new Response(JSON.stringify({
       poolId,
       date: new Date().toISOString().slice(0, 10),
@@ -64,10 +70,11 @@ export async function GET({ params }: { params: { poolId: string } }) {
       preset: theme.preset,
       presetName: theme.presetName,
       cssVars: theme.cssVars,
-      customCss: theme.customCss || null,
-      extensions: theme.extensions || null,
+      customCss: processed.customCss || null,
+      extensions: processed.extensions,
       clickEffect: theme.clickEffect || null,
       apiVersion: 'v1',
+      layerContext: processed.layerContext,
     }, null, 2), {
       headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS_HEADERS, 'Cache-Control': 'public, max-age=3600' },
     });

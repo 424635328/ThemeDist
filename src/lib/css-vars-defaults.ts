@@ -39,4 +39,10 @@ export const STRUCTURAL_CSS_VARS: Record<string, string> = {
 
   // Noise
   '--noise-opacity': '0',
+
+  // Z-Index layer contract
+  '--td-z-base': '-10',
+  '--td-z-float': '10',
+  '--td-z-weather': '20',
+  '--td-z-fx': '9999',
 };

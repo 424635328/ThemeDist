@@ -45,6 +45,7 @@ const minimalResponse = JSON.stringify({
   directory: directory.slice(0, 4),
   dailyIsCommunity: !!communityDaily,
   apiVersion: "v1",
+  layerContext: { hasBackgroundOverlay: true, hasInteractiveElements: false, particleDensity: "low", safeWeatherZIndex: "var(--td-z-weather, 20)" },
 }, null, 2);
 
 const fullResponse = JSON.stringify({
@@ -62,6 +63,7 @@ const fullResponse = JSON.stringify({
   directory,
   dailyIsCommunity: !!communityDaily,
   apiVersion: "v1",
+  layerContext: today.layerContext,
 }, null, 2);
 
 const siteUrl = Astro.url.origin;
@@ -112,7 +114,7 @@ function applyTheme(d) {
       <div class="card" style="margin-bottom:36px;padding:24px 28px">
         <p class="text-muted" style="font-size:14px;line-height:1.75;margin:0">
           ThemeDist 是<strong>每日自动轮换的主题分发 API</strong>。主题由 CDN 边缘函数实时计算，无需定时构建。
-          客户端 GET <code>/api/v1/today.json</code>，将返回的 34 个 CSS 自定义属性注入 <code>:root</code>，即可获得当日主题。
+          客户端 GET <code>/api/v1/today.json</code>，将返回的 48 个 CSS 自定义属性注入 <code>:root</code>，即可获得当日主题。
           同时提供<strong>社区主题</strong>（用户投稿 / 点赞 / 分享）和 <strong>AI 生成</strong> 等完整 API。
           无认证（公开端点），支持 CORS 跨域。写操作（投稿/点赞）设有滑动窗口限流。
         </p>
@@ -402,7 +404,7 @@ function applyTheme(d) {
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">generatedAt</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">ISO 8601 生成时间戳</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">preset</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">预设标识符 (kebab-case)</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">presetName</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">人类可读名称</td></tr>
-            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">cssVars</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object</td><td style="padding:9px 16px">34 个 CSS 自定义属性键值对（5 组：Colors / Typography / Spacing / Effects / Ambient）。颜色变量自动附带 <code>-rgb</code> 通道变体</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">cssVars</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object</td><td style="padding:9px 16px">48 个 CSS 自定义属性键值对（6 组：Colors / Typography / Spacing / Effects / Ambient / Z-Index）。颜色和氛围变量自动附带 <code>-rgb</code> 通道变体</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">customCss</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string | null</td><td style="padding:9px 16px">主题专属 CSS（动画 keyframes、特效样式）。无自定义 CSS 时为 <code>null</code></td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">extensions</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array | null</td><td style="padding:9px 16px">声明式装饰元素数组，支持 <code>floating</code> 和 <code>decorative</code> 两种类型。无扩展时为 <code>null</code>。最多 20 个。</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">clickEffect</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object | null</td><td style="padding:9px 16px">声明式点击特效配置，包含 <code>spawn</code> 数组。无特效时为 <code>null</code>。详见 <a href="#clickeffect-ref">ClickEffect 参考</a></td></tr>
@@ -411,11 +413,12 @@ function applyTheme(d) {
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">available</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">number</td><td style="padding:9px 16px">可用主题总数</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">directory</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array</td><td style="padding:9px 16px">轻量索引 <code>[{'\{'}preset, name, primary, accent, logoText{'}\}'}]</code></td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">dailyIsCommunity</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">boolean</td><td style="padding:9px 16px"><code>true</code> 表示今日主题来自社区投稿</td></tr>
-            <tr><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">apiVersion</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">API 版本号，当前为 <code>"v1"</code></td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">apiVersion</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">API 版本号，当前为 <code>"v1"</code></td></tr>
+            <tr><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">layerContext</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object</td><td style="padding:9px 16px">图层元数据，供客户端（天气脚本等）智能决策渲染策略。详见下方说明</td></tr>
           </tbody>
         </table>
       </div>
-      <p class="text-muted" style="font-size:12px;margin-bottom:14px"><code>/api/v1/theme/{'{preset}'}.json</code> 结构一致，但不含 <code>date</code>、<code>generatedAt</code>、<code>available</code>、<code>directory</code>。</p>
+      <p class="text-muted" style="font-size:12px;margin-bottom:14px"><code>/api/v1/theme/{'{preset}'}.json</code>、<code>/api/v1/theme/random.json</code>、<code>/api/v1/date=MM-DD</code> 结构一致，均包含 <code>layerContext</code> 图层元数据。区别：不含 <code>date</code>、<code>generatedAt</code>、<code>available</code>、<code>directory</code>、<code>dailyIsCommunity</code>。</p>
 
       <h3 style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px">示例响应</h3>
       <pre style="max-height:400px;overflow-y:auto;margin-bottom:40px"><code>{minimalResponse}</code></pre>
@@ -450,6 +453,12 @@ function applyTheme(d) {
 
             <tr><td colspan="2" style="padding:8px 14px;font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 4%, transparent)">AMBIENT 氛围</td></tr>
             <tr><td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">--ambient-1 / --ambient-2</td><td style="padding:8px 14px;font-size:12px">氛围光球 rgba 颜色</td></tr>
+
+            <tr><td colspan="2" style="padding:8px 14px;font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 4%, transparent)">Z-INDEX 层级契约</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">--td-z-base</td><td style="padding:8px 14px;font-size:12px">底层环境 (-10)：极光、全屏星空等背景层</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">--td-z-float</td><td style="padding:8px 14px;font-size:12px">悬浮层 (10)：飘落的 Emoji、装饰粒子</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">--td-z-weather</td><td style="padding:8px 14px;font-size:12px">天气层 (20)：官方天气脚本的确定插入层级</td></tr>
+            <tr><td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">--td-z-fx</td><td style="padding:8px 14px;font-size:12px">瞬时特效层 (9999)：点击涟漪、爆炸粒子</td></tr>
           </tbody>
         </table>
       </div>
@@ -641,7 +650,8 @@ module.exports = {
       <div class="card" style="margin-bottom:36px;padding:24px 28px">
         <p class="text-muted" style="font-size:13px;line-height:1.6;margin:0 0 18px 0">
           ThemeDist 提供官方轻量化 Web Component <code>&lt;themedist-runner&gt;</code>，将 CSS 变量注入全局 <code>:root</code>，
-          并将装饰元素隔离在 Shadow DOM 中，防止样式污染宿主页面。内置 localStorage 缓存和网络降级。
+          并将装饰元素和自定义 CSS 隔离在 Shadow DOM 中。通过 <code>isolation: isolate</code> 创建完全封闭的层叠上下文，
+          主题内部的 <code>z-index</code> 绝不会逃逸干扰宿主页面。内置 localStorage 缓存和网络降级。
         </p>
 
         <h3 style="font-size:14px;font-weight:700;letter-spacing:-0.01em;margin-bottom:10px">快速接入</h3>
@@ -668,7 +678,9 @@ module.exports = {
           <p style="font-size:13px;font-weight:600;margin:0 0 4px">安全设计</p>
           <p style="font-size:12px;color:var(--color-text-muted);line-height:1.6;margin:0">
             <strong>CSS 变量</strong>：注入到全局 <code>:root</code>，确保全站样式生效。<br/>
-            <strong>装饰元素</strong>：隔离在 Shadow DOM 中，通过 <code>textContent</code> 和 <code>&lt;template&gt;</code> 安全渲染，绝无 innerHTML 注入风险。<br/>
+            <strong>装饰元素 + 自定义 CSS</strong>：隔离在 Shadow DOM 中，<code>customCss</code> 不再注入 <code>document.head</code>，彻底防止样式污染宿主页面。<br/>
+            <strong>层叠隔离</strong>：<code>:host</code> 使用 <code>isolation: isolate</code> + <code>--td-z-base</code> 合约变量，主题内部 <code>z-index</code> 绝不逃逸。<br/>
+            <strong>交互穿透</strong>：<code>:host</code> 强制 <code>pointer-events: none</code>，所有装饰元素不可阻挡宿主 UI 点击。<br/>
             <strong>缓存降级</strong>：同日访问零网络开销，fetch 失败时自动使用过期缓存。
           </p>
         </div>
@@ -764,6 +776,8 @@ module.exports = {
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">directory</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">array</td><td style="padding:9px 16px">主题目录列表</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">dailyIsCommunity</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">boolean</td><td style="padding:9px 16px">今日主题是否来自社区</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">apiVersion</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">API 版本号</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">apiVersion</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">string</td><td style="padding:9px 16px">API 版本号</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">layerContext</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object</td><td style="padding:9px 16px">图层元数据，供客户端智能决策渲染策略</td></tr>
             <tr><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">_meta</td><td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--color-text-muted)">object</td><td style="padding:9px 16px">安全元信息：<code>sanitized</code>（是否已清洗）、<code>schemaValid</code>（结构校验）、<code>timestamp</code>（处理时间）</td></tr>
           </tbody>
         </table>
@@ -863,7 +877,7 @@ module.exports = {
         <p class="text-muted" style="font-size:12px;margin-top:10px">
           <strong>限制：</strong>仅支持 JPEG/PNG，最大 5MB，抓取超时 5s。<br/>
           <strong>返回：</strong><code>sourcePalette</code>（提取的 5 个 hex）、<code>isDark</code>（暗色/亮色标记）、
-          <code>cssVars</code>（34 个标准 CSS 变量）、<code>customCss</code>（自动生成的渐变背景）。
+          <code>cssVars</code>（46 个标准 CSS 变量，含 Z-Index 层级契约与 <code>-rgb</code> 通道变体）、<code>customCss</code>（自动生成的渐变背景）。
         </p>
       </div>
 

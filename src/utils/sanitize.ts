@@ -424,6 +424,163 @@ export function applyOverrides(cssVars: Record<string, string>, overridesQuery: 
 const SAFE_CLASS_RE = /^[a-zA-Z][\w-]*$/;
 const SAFE_CSS_VALUE_RE = /^[a-zA-Z0-9%#(),.\s\-+]+$/;
 
+// ─── Layer context analysis ───
+
+interface LayerContext {
+  hasBackgroundOverlay: boolean;
+  hasInteractiveElements: boolean;
+  particleDensity: 'none' | 'low' | 'medium' | 'high';
+  safeWeatherZIndex: string;
+}
+
+/**
+ * Analyze a processed theme's CSS + extensions to produce layer metadata.
+ * Used by the API to let clients make informed rendering decisions.
+ */
+export function buildLayerContext(
+  customCss: string | null | undefined,
+  extensions: any[] | null | undefined,
+): LayerContext {
+  const ctx: LayerContext = {
+    hasBackgroundOverlay: false,
+    hasInteractiveElements: false,
+    particleDensity: 'none',
+    safeWeatherZIndex: 'var(--td-z-weather, 20)',
+  };
+
+  // Detect full-screen fixed/absolute overlays in custom CSS
+  if (customCss) {
+    const hasFixedOverlay = /position\s*:\s*(fixed|absolute)[^}]{0,200}(100(vw|vh|%)|inset\s*:\s*0)/i.test(customCss)
+      || /(100(vw|vh|%)|inset\s*:\s*0)[^}]{0,200}position\s*:\s*(fixed|absolute)/i.test(customCss);
+    ctx.hasBackgroundOverlay = hasFixedOverlay;
+
+    // Detect interactive elements (click handlers via JS patterns that survived sanitization)
+    ctx.hasInteractiveElements = /\bcursor\s*:\s*pointer\b/i.test(customCss);
+  }
+
+  // Estimate particle density from extension count
+  const extCount = (extensions || []).length;
+  if (extCount === 0) ctx.particleDensity = 'none';
+  else if (extCount <= 3) ctx.particleDensity = 'low';
+  else if (extCount <= 8) ctx.particleDensity = 'medium';
+  else ctx.particleDensity = 'high';
+
+  return ctx;
+}
+
+// ─── Full theme payload processing (Phase 2: server-side rewrite) ───
+
+interface ProcessedTheme {
+  customCss?: string | null;
+  extensions?: any[] | null;
+  layerContext: LayerContext;
+}
+
+/**
+ * Process a theme payload before API output:
+ * 1. Filter empty extensions
+ * 2. Force pointer-events: none on decorative extensions
+ * 3. Rewrite z-index values to use contract variables
+ * 4. Inject pointer-events: none into full-screen CSS overlays
+ * 5. Build layerContext metadata
+ */
+export function processThemePayload(raw: {
+  customCss?: string | null;
+  extensions?: any[] | null;
+}): ProcessedTheme {
+  let { customCss, extensions } = raw;
+
+  // ── 1. Extensions cleaning and forced rewrite ──
+  if (Array.isArray(extensions)) {
+    extensions = extensions
+      .filter((ext: any) => {
+        // Drop empty decorative nodes
+        if (ext?.type === 'decorative' && (!ext.html || !ext.html.trim())) return false;
+        // Drop empty floating nodes
+        if (ext?.type === 'floating' && (!ext.char || !ext.char.trim())) return false;
+        return true;
+      })
+      .map((ext: any) => {
+        if (ext.type === 'floating') {
+          // Only rewrite zIndex when out of contract range; preserve author intent otherwise
+          if (typeof ext.zIndex === 'number') {
+            if (ext.zIndex > 100) ext.zIndex = 9999;
+            else if (ext.zIndex < 0) ext.zIndex = -10;
+            // 0-100: keep as-is (within float range)
+          }
+          return ext;
+        }
+        if (ext.type === 'decorative' && ext.html) {
+          // Force pointer-events: none on top-level tags in decorative HTML
+          let html = ext.html;
+
+          // Tags with existing style attr: append pointer-events
+          html = html.replace(
+            /(<div|<span|<section|<aside|<header|<footer|<main|<article|<figure)([^>]*?)style=(["'])([^"']*?)(\3)([^>]*>)/gi,
+            (_m: string, tag: string, pre: string, q: string, style: string, _q2: string, post: string) => {
+              if (/pointer-events/i.test(style)) return `${tag}${pre}style=${q}${style}${q}${post}`;
+              return `${tag}${pre}style=${q}${style};pointer-events:none!important${q}${post}`;
+            },
+          );
+
+          // Tags without style attr: inject it
+          html = html.replace(
+            /(<div|<span|<section|<aside|<header|<footer|<main|<article|<figure)(?![^>]*style=)([^>]*>)/gi,
+            `$1 style="pointer-events:none!important"$2`,
+          );
+
+          return { ...ext, html };
+        }
+        return ext;
+      });
+  }
+
+  // ── 2. CustomCss forced z-index rewrite + pointer-events injection ──
+  if (customCss) {
+    let css = customCss;
+
+    // A. Rewrite z-index values to contract variables
+    // Full-screen overlay containers → base layer
+    css = css.replace(
+      /(\.[a-zA-Z0-9_-]+[^{]*\{[^}]*position\s*:\s*(fixed|absolute)[^}]*?(?:100(vw|vh|%)|inset\s*:\s*0)[^}]*)z-index\s*:\s*[^;]+;/gi,
+      '$1z-index:var(--td-z-base,-10)!important;',
+    );
+    // Also inject z-index into full-screen containers that lack one
+    css = css.replace(
+      /(\.[a-zA-Z0-9_-]+\{[^}]*(?:position\s*:\s*(?:fixed|absolute))[^}]*?(?:100(?:vw|vh|%)|inset\s*:\s*0)[^}]*?)(}\s*)/gi,
+      (_m: string, block: string, close: string) => {
+        if (/z-index/i.test(block)) return `${block}${close}`;
+        return `${block}z-index:var(--td-z-base,-10)!important;${close}`;
+      },
+    );
+
+    // B. Rewrite remaining z-index declarations
+    css = css.replace(/z-index\s*:\s*(-?\d+)\s*(!important)?\s*;/gi, (_m: string, zVal: string) => {
+      const z = parseInt(zVal, 10);
+      if (z <= 0) return 'z-index:var(--td-z-base,-10);';
+      if (z > 0 && z < 9999) return 'z-index:var(--td-z-float,10);';
+      return 'z-index:var(--td-z-fx,9999);';
+    });
+
+    // C. Inject pointer-events: none into fixed/absolute blocks missing it
+    css = css.replace(
+      /(position\s*:\s*(?:fixed|absolute)\s*;)(?!\s*pointer-events)/gi,
+      '$1pointer-events:none!important;',
+    );
+
+    customCss = css;
+  }
+
+  // ── 3. Build layer context metadata ──
+  const layerContext = buildLayerContext(customCss, extensions);
+
+  return {
+    customCss,
+    extensions: (Array.isArray(extensions) && extensions.length > 0) ? extensions : null,
+    layerContext,
+  };
+}
+
 export function sanitizeClickEffect(raw: any): ClickEffectConfig | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const spawn = raw.spawn;

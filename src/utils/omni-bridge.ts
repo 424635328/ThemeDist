@@ -3,7 +3,7 @@ import OmniConfig from '../api/index_config.js';
 import type { ComposedTheme, AnyExtension, ThemeTag } from '../themes/types';
 import { isReady, zrevrange, get, zcard } from '../lib/redis';
 import { cacheGet, cacheSet } from '../lib/cache';
-import { parseLegacyExtension, sanitizeClickEffect } from './sanitize';
+import { parseLegacyExtension, sanitizeClickEffect, processThemePayload } from './sanitize';
 import { sanitizeExtensionsOutput, sanitizeCustomCss } from './sanitize';
 import { extractRgbChannels } from './color';
 import { getDayOfYear } from './date';
@@ -449,12 +449,21 @@ function inferTagsFromVars(cssVars: Record<string, string>): ThemeTag[] {
 }
 
 function communityToComposed(ct: CommunityThemeRaw): ComposedTheme {
+  const sanitizedCss = sanitizeCustomCss(ct.customCss) || undefined;
+  const sanitizedExts = sanitizeExtensionsOutput(ct.extensions);
+
+  // Run full layer-safety pipeline (pointer-events, z-index rewrite, empty filter)
+  const processed = processThemePayload({
+    customCss: sanitizedCss,
+    extensions: sanitizedExts,
+  });
+
   return {
     preset: `community-${ct.id}`,
     presetName: ct.name,
     cssVars: enrichCssVars(ct.cssVars),
-    customCss: sanitizeCustomCss(ct.customCss) || undefined,
-    extensions: sanitizeExtensionsOutput(ct.extensions),
+    customCss: processed.customCss || undefined,
+    extensions: processed.extensions || undefined,
     tags: (ct.tags?.length ? ct.tags.filter(Boolean) : undefined) || inferTagsFromVars(ct.cssVars),
     clickEffect: sanitizeClickEffect(ct.clickEffect),
   };

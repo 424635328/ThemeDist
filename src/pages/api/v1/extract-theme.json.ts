@@ -2,7 +2,9 @@ import type { APIRoute } from 'astro';
 import jpeg from 'jpeg-js';
 import { PNG } from 'pngjs';
 import { hexToRgb, getLuminance, getContrastRatio, rgbToHex } from '../../../utils/color';
+import { enrichCssVars } from '../../../utils/omni-bridge';
 import { STRUCTURAL_CSS_VARS } from '../../../lib/css-vars-defaults';
+import { buildLayerContext } from '../../../utils/sanitize';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -232,11 +234,13 @@ export const POST: APIRoute = async ({ request }) => {
   const secondaryColor = hexPalette[2] || primaryColor;
   const accentColor = hexPalette[3] || primaryColor;
 
-  const cssVars = buildCssVars(
+  const cssVars = enrichCssVars(buildCssVars(
     primaryColor, secondaryColor, accentColor,
     bgColor, surfaceColor, textColor, textMutedColor,
     isDark,
-  );
+  ));
+
+  const customCss = `body { background: linear-gradient(135deg, var(--color-bg) 0%, var(--color-surface) 100%); }`;
 
   return new Response(JSON.stringify({
     success: true,
@@ -244,7 +248,9 @@ export const POST: APIRoute = async ({ request }) => {
     isDark,
     themeName: 'Extracted Theme',
     cssVars,
-    customCss: `body { background: linear-gradient(135deg, var(--color-bg) 0%, var(--color-surface) 100%); }`,
+    customCss,
+    apiVersion: 'v1',
+    layerContext: buildLayerContext(customCss, null),
   }, null, 2), {
     headers: {
       'Content-Type': 'application/json',

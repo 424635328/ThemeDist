@@ -1,7 +1,7 @@
 import { getAllThemes } from '../../../../utils/daily-theme';
 import { get as redisGet } from '../../../../lib/redis';
 import { sanitizeCustomCss } from '../../../../utils/sanitize';
-import { sanitizeExtensionsOutput } from '../../../../utils/sanitize';
+import { sanitizeExtensionsOutput, processThemePayload } from '../../../../utils/sanitize';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -18,17 +18,22 @@ export async function GET({ params }: { params: { preset: string } }) {
     try {
       const ct = await redisGet<any>(`td:theme:${redisId}`);
       if (ct) {
+        const processed = processThemePayload({
+          customCss: sanitizeCustomCss(ct.customCss) || undefined,
+          extensions: sanitizeExtensionsOutput(ct.extensions) || undefined,
+        });
         return new Response(
           JSON.stringify({
             preset: presetId,
             presetName: ct.name,
             cssVars: ct.cssVars,
-            customCss: sanitizeCustomCss(ct.customCss) || null,
-            extensions: sanitizeExtensionsOutput(ct.extensions) || null,
+            customCss: processed.customCss || null,
+            extensions: processed.extensions,
             clickEffect: ct.clickEffect || null,
             logoText: null,
             logoColors: null,
             apiVersion: 'v1',
+            layerContext: processed.layerContext,
           }),
           {
             headers: {
@@ -60,18 +65,24 @@ export async function GET({ params }: { params: { preset: string } }) {
     });
   }
 
+  const processed = processThemePayload({
+    customCss: theme.customCss,
+    extensions: theme.extensions,
+  });
+
   return new Response(
     JSON.stringify(
       {
         preset: theme.preset,
         presetName: theme.presetName,
         cssVars: theme.cssVars,
-        customCss: theme.customCss || null,
-        extensions: theme.extensions || null,
+        customCss: processed.customCss || null,
+        extensions: processed.extensions,
         clickEffect: theme.clickEffect || null,
         logoText: theme.logoText || null,
         logoColors: theme.logoColors || null,
         apiVersion: 'v1',
+        layerContext: processed.layerContext,
       },
       null,
       2,

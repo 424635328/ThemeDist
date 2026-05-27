@@ -1,4 +1,6 @@
 import type { APIRoute } from 'astro';
+import { enrichCssVars } from '../../../utils/omni-bridge';
+import { STRUCTURAL_CSS_VARS } from '../../../lib/css-vars-defaults';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -129,7 +131,7 @@ export const GET: APIRoute = async ({ url }) => {
     });
   }
 
-  const cssVars = STATUS_THEMES[status];
+  const cssVars = enrichCssVars({ ...STATUS_THEMES[status], ...STRUCTURAL_CSS_VARS });
 
   return new Response(JSON.stringify({
     status,

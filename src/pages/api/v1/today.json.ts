@@ -1,7 +1,7 @@
 import { getDailyTheme, getAllThemes } from '../../../utils/daily-theme';
 import { getCommunityThemes, getDailyCommunityTheme, getDateTheme, getDateStrForTimezone, getMMDDForTimezone } from '../../../utils/omni-bridge';
 import { cacheGet, cacheSet } from '../../../lib/cache';
-import { applyOverrides } from '../../../utils/sanitize';
+import { applyOverrides, processThemePayload } from '../../../utils/sanitize';
 
 export const prerender = false;
 
@@ -67,10 +67,12 @@ export async function GET({ url }: { url: URL }) {
 
   const directory = [...staticDir.slice(0, 20), ...communityDir.slice(0, 10)];
 
-  // Filter out empty decorative extensions to avoid inflating collision detection counts
-  const filteredExtensions = (theme.extensions || []).filter(
-    (ext: any) => ext.type !== 'decorative' || (ext.html && ext.html.trim())
-  );
+  // Process theme payload: filter empty extensions, rewrite z-index,
+  // inject pointer-events: none, build layer context metadata
+  const processed = processThemePayload({
+    customCss: theme.customCss,
+    extensions: theme.extensions,
+  });
 
   const bodyObj: Record<string, any> = {
     date: tz ? getDateStrForTimezone(tz) : new Date().toISOString().slice(0, 10),
@@ -78,8 +80,8 @@ export async function GET({ url }: { url: URL }) {
     preset: theme.preset,
     presetName: theme.presetName,
     cssVars,
-    customCss: theme.customCss || null,
-    extensions: filteredExtensions.length > 0 ? filteredExtensions : null,
+    customCss: processed.customCss || null,
+    extensions: processed.extensions,
     clickEffect: theme.clickEffect || null,
     logoText: theme.logoText || null,
     logoColors: theme.logoColors || null,
@@ -87,6 +89,7 @@ export async function GET({ url }: { url: URL }) {
     directory,
     dailyIsCommunity: !!(!tz && await getDailyCommunityTheme()),
     apiVersion: 'v1',
+    layerContext: processed.layerContext,
   };
   if (overridesRaw) bodyObj.appliedOverrides = true;
 

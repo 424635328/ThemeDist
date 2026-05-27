@@ -1,6 +1,7 @@
 import { getDateTheme, getAllThemes } from '../../../utils/daily-theme';
 import { getCommunityThemes } from '../../../utils/omni-bridge';
 import { cacheGet, cacheSet } from '../../../lib/cache';
+import { processThemePayload } from '../../../utils/sanitize';
 
 export const prerender = false;
 
@@ -37,6 +38,10 @@ export async function GET({ params }: { params: { param: string } }) {
 
   try {
     const theme = await getDateTheme(dateStr);
+    const processed = processThemePayload({
+      customCss: theme.customCss,
+      extensions: theme.extensions,
+    });
 
     const allThemes = getAllThemes();
     const communityThemes = await getCommunityThemes(50);
@@ -67,14 +72,16 @@ export async function GET({ params }: { params: { param: string } }) {
         preset: theme.preset,
         presetName: theme.presetName,
         cssVars: theme.cssVars,
-        customCss: theme.customCss || null,
-        extensions: theme.extensions || null,
+        customCss: processed.customCss || null,
+        extensions: processed.extensions,
         clickEffect: theme.clickEffect || null,
         logoText: theme.logoText || null,
         logoColors: theme.logoColors || null,
         available: staticDir.length + communityDir.length,
         directory,
+        dailyIsCommunity: false,
         apiVersion: 'v1',
+        layerContext: processed.layerContext,
       },
       null,
       2,

@@ -2,6 +2,7 @@ export const prerender = false;
 
 import { getThemeWithLikes } from '../../../../lib/themes-db';
 import { isReady } from '../../../../lib/redis';
+import { processThemePayload } from '../../../../utils/sanitize';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -34,7 +35,18 @@ export async function GET({ url }: { url: URL }) {
     });
   }
 
-  return new Response(JSON.stringify({ ...theme, apiVersion: 'v1' }), {
+  const processed = processThemePayload({
+    customCss: theme.customCss || undefined,
+    extensions: theme.extensions || undefined,
+  });
+
+  return new Response(JSON.stringify({
+    ...theme,
+    customCss: processed.customCss || null,
+    extensions: processed.extensions,
+    layerContext: processed.layerContext,
+    apiVersion: 'v1',
+  }), {
     status: 200,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300', ...CORS },
   });

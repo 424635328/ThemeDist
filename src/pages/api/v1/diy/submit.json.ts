@@ -3,6 +3,8 @@ export const prerender = false;
 import { submitTheme } from '../../../../lib/themes-db';
 import { isReady } from '../../../../lib/redis';
 import { sanitizeText, sanitizeCustomCss, validateUserExtensions, collectExtensionWarnings, sanitizeClickEffect } from '../../../../utils/sanitize';
+import { enrichCssVars } from '../../../../utils/omni-bridge';
+import { STRUCTURAL_CSS_VARS } from '../../../../lib/css-vars-defaults';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -47,10 +49,13 @@ export async function POST({ request }: { request: Request }) {
     const extensions = validateUserExtensions(rawExts);
     const extWarnings = collectExtensionWarnings(rawExts);
 
+    // Enrich cssVars: merge structural defaults + generate RGB channel variants
+    const enrichedCssVars = enrichCssVars({ ...STRUCTURAL_CSS_VARS, ...cssVars });
+
     const theme = await submitTheme({
       name: sanitizeText(name),
       author: sanitizeText(author),
-      cssVars,
+      cssVars: enrichedCssVars,
       customCss: sanitizeCustomCss(customCss),
       extensions,
       clickEffect: sanitizeClickEffect(rawClickEffect),
