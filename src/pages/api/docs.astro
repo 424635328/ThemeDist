@@ -646,7 +646,7 @@ module.exports = {
 
         <h3 style="font-size:14px;font-weight:700;letter-spacing:-0.01em;margin-bottom:10px">快速接入</h3>
         <pre style="margin-bottom:18px"><code>{String.raw`<!-- 一行标签，自动完成 CSS 变量注入 + 装饰渲染 + 缓存降级 -->
-<themedist-runner api="/api/v1/today.json" save-shadow="true"></themedist-runner>
+<themedist-runner api="${siteUrl}/api/v1/today.json" save-shadow="true"></themedist-runner>
 <script src="${siteUrl}/sdk.js" defer></script>`}</code></pre>
 
         <h3 style="font-size:14px;font-weight:700;letter-spacing:-0.01em;margin-bottom:10px">属性</h3>

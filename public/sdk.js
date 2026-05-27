@@ -3,8 +3,8 @@
  * v1.0
  *
  * Usage:
- *   <themedist-runner api="/api/v1/today.json" save-shadow="true"></themedist-runner>
- *   <script src="/sdk.js" defer></script>
+ *   <themedist-runner api="https://themedist.netlify.app/api/v1/today.json" save-shadow="true"></themedist-runner>
+ *   <script src="https://themedist.netlify.app/sdk.js" defer></script>
  *
  * CSS variables are injected into global :root so your entire site adapts.
  * Decorations (floating chars, decorative HTML) are isolated in Shadow DOM
