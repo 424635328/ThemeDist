@@ -1,4 +1,4 @@
-import type { AnyExtension, DecorativeExtension, ThemeExtension } from '../themes/types';
+import type { AnyExtension, DecorativeExtension, ThemeExtension, ClickEffectConfig, ClickSpawnDef } from '../themes/types';
 
 /** Max extensions per theme */
 const MAX_EXTENSIONS = 20;
@@ -424,7 +424,7 @@ export function applyOverrides(cssVars: Record<string, string>, overridesQuery: 
 const SAFE_CLASS_RE = /^[a-zA-Z][\w-]*$/;
 const SAFE_CSS_VALUE_RE = /^[a-zA-Z0-9%#(),.\s\-+]+$/;
 
-export function sanitizeClickEffect(raw: any): ClickSpawnDef[] | undefined {
+export function sanitizeClickEffect(raw: any): ClickEffectConfig | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const spawn = raw.spawn;
   if (!Array.isArray(spawn) || spawn.length === 0) return undefined;
@@ -463,5 +463,5 @@ export function sanitizeClickEffect(raw: any): ClickSpawnDef[] | undefined {
 
     cleaned.push(entry);
   }
-  return cleaned.length > 0 ? cleaned : undefined;
+  return cleaned.length > 0 ? { spawn: cleaned } : undefined;
 }

@@ -4,7 +4,7 @@ import { get, set, zadd, zincrby, zrevrange, zscore, zcard, zrem, del, sadd, sis
 export type ThemeStatus = 'pending' | 'approved' | 'rejected';
 export type ThemeTag = string;
 
-import type { AnyExtension } from '../themes/types';
+import type { AnyExtension, ClickEffectConfig } from '../themes/types';
 import { validateUserExtensions } from '../utils/sanitize';
 
 export interface CommunityTheme {
@@ -19,6 +19,7 @@ export interface CommunityTheme {
   extensions?: AnyExtension[] | null;
   status: ThemeStatus;
   tags?: ThemeTag[];
+  clickEffect?: ClickEffectConfig | null;
 }
 
 interface SubmitInput {
@@ -28,6 +29,7 @@ interface SubmitInput {
   customCss?: string;
   extensions?: any[];
   tags?: string[];
+  clickEffect?: any;
 }
 
 function makeId(): string {
@@ -60,6 +62,7 @@ export async function submitTheme(input: SubmitInput): Promise<CommunityTheme | 
     extensions: validateUserExtensions(input.extensions) ?? null,
     status: 'pending',
     tags: Array.isArray(input.tags) ? input.tags.filter(Boolean).slice(0, 5) : undefined,
+    clickEffect: input.clickEffect || null,
   };
 
   const ok = await set(themeKey(id), theme, { ex: 86400 });

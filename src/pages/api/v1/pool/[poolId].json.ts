@@ -66,6 +66,7 @@ export async function GET({ params }: { params: { poolId: string } }) {
       cssVars: theme.cssVars,
       customCss: theme.customCss || null,
       extensions: theme.extensions || null,
+      clickEffect: theme.clickEffect || null,
       apiVersion: 'v1',
     }, null, 2), {
       headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS_HEADERS, 'Cache-Control': 'public, max-age=3600' },

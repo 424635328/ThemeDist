@@ -456,7 +456,7 @@ function communityToComposed(ct: CommunityThemeRaw): ComposedTheme {
     customCss: sanitizeCustomCss(ct.customCss) || undefined,
     extensions: sanitizeExtensionsOutput(ct.extensions),
     tags: (ct.tags?.length ? ct.tags.filter(Boolean) : undefined) || inferTagsFromVars(ct.cssVars),
-    clickEffect: sanitizeClickEffect(ct.clickEffect) as any,
+    clickEffect: sanitizeClickEffect(ct.clickEffect),
   };
 }
 

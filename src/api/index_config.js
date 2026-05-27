@@ -4148,25 +4148,6 @@ const OmniConfig = {
                 will-change: transform;
             }
 
-            /* --- 新增：交互特效 CSS --- */
-            
-            /* 1. 点击产生的爆炸气泡 */
-                        
-            /* 2. 水波纹涟漪 */
-            .omni-ripple {
-                position: fixed;
-                border-radius: 50%;
-                border: 2px solid rgba(143, 211, 244, 0.4);
-                pointer-events: none;
-                z-index: 40;
-                transform: translate(-50%, -50%);
-                animation: rippleSpread 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-            }
-            @keyframes rippleSpread {
-                0% { width: 0; height: 0; opacity: 1; }
-                100% { width: 200px; height: 200px; opacity: 0; }
-            }
-
             /* 3. 鼠标跟随探照灯 */
             .omni-cursor-light {
                 position: fixed;
@@ -4248,12 +4229,7 @@ const OmniConfig = {
             <div class="omni-cursor-light" style="left: calc(var(--mx) * 100vw); top: calc(var(--my) * 100vh);"></div>
 	        `}
 	    ]
-	,
-        clickEffect: {
-            spawn: [
-                { className: "omni-ripple", duration: 800 }
-            ]
-        }},
+	},
 {
     id: 'hyperspace-cinema', 
     name: '🚀 HYPERSPACE',
