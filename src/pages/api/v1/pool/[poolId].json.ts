@@ -46,7 +46,7 @@ export async function GET({ params }: { params: { poolId: string } }) {
 
     if (selectedId.startsWith('community-')) {
       const ct = await getThemeWithLikes(selectedId.replace('community-', ''));
-      if (ct) theme = { preset: `community-${ct.id}`, presetName: ct.name, cssVars: ct.cssVars, customCss: ct.customCss || null, extensions: ct.extensions || null };
+      if (ct) theme = { preset: `community-${ct.id}`, presetName: ct.name, cssVars: ct.cssVars, customCss: ct.customCss || null, extensions: ct.extensions || null, clickEffect: ct.clickEffect || null };
     } else {
       theme = allStatic.find(t => t.preset === selectedId);
     }

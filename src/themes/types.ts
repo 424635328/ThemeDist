@@ -44,6 +44,23 @@ export type ThemeTag =
   | 'fantasy'
   | 'industrial';
 
+/** A single element spawned by the click-effect engine on each click. */
+export interface ClickSpawnDef {
+  className: string;
+  style?: string;
+  count?: number;
+  angleDeg?: number;
+  angleSpread?: number;
+  offsetX?: number;
+  offsetY?: number;
+  duration: number;
+}
+
+/** Declarative click-effect config. Themes define what to spawn; the Layout.astro engine executes it. */
+export interface ClickEffectConfig {
+  spawn: ClickSpawnDef[];
+}
+
 /** The single theme data model — all themes flow through this shape.
  *  OmniConfig entries, community themes, and fallback themes all conform. */
 export interface ComposedTheme {
@@ -52,6 +69,7 @@ export interface ComposedTheme {
   cssVars: Record<string, string>;
   customCss?: string;
   extensions?: AnyExtension[];
+  clickEffect?: ClickEffectConfig;
   logoText?: string;
   logoColors?: string[];
   tags?: ThemeTag[];

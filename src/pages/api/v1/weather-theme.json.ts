@@ -141,6 +141,7 @@ export const GET: APIRoute = async ({ request, locals, url }) => {
       cssVars: theme.cssVars,
       customCss: theme.customCss || null,
       extensions: theme.extensions || null,
+      clickEffect: theme.clickEffect || null,
     },
   }, null, 2), {
     headers: {

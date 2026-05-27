@@ -4151,20 +4151,7 @@ const OmniConfig = {
             /* --- 新增：交互特效 CSS --- */
             
             /* 1. 点击产生的爆炸气泡 */
-            .omni-click-pop {
-                position: fixed;
-                border-radius: 50%;
-                border: 1px solid rgba(0, 242, 254, 0.5);
-                box-shadow: inset 0 0 10px rgba(0, 242, 254, 0.6);
-                pointer-events: none;
-                z-index: 50;
-                animation: popRise 1.2s ease-out forwards;
-            }
-            @keyframes popRise {
-                0% { transform: scale(0.5) translateY(0); opacity: 1; }
-                100% { transform: scale(2) translateY(-100px); opacity: 0; }
-            }
-
+                        
             /* 2. 水波纹涟漪 */
             .omni-ripple {
                 position: fixed;
@@ -4232,18 +4219,6 @@ const OmniConfig = {
                 margin-top:  calc((var(--my) - 0.5) * -30px);
             }
 
-            /* 6. 点击涟漪 (纯CSS :active) */
-            body:active::after {
-                content: '';
-                position: fixed; inset: 0; pointer-events: none; z-index: 9999;
-                background: radial-gradient(circle at calc(var(--mx) * 100vw) calc(var(--my) * 100vh),
-                    rgba(0, 242, 254, 0.15) 0%, transparent 60%);
-                animation: clickRipple 0.6s ease-out forwards;
-            }
-            @keyframes clickRipple {
-                0%   { opacity: 1; transform: scale(0.5); }
-                100% { opacity: 0; transform: scale(2); }
-            }
         ` 
     },
     extensions:[
@@ -4273,7 +4248,12 @@ const OmniConfig = {
             <div class="omni-cursor-light" style="left: calc(var(--mx) * 100vw); top: calc(var(--my) * 100vh);"></div>
 	        `}
 	    ]
-	},
+	,
+        clickEffect: {
+            spawn: [
+                { className: "omni-ripple", duration: 800 }
+            ]
+        }},
 {
     id: 'hyperspace-cinema', 
     name: '🚀 HYPERSPACE',
@@ -5093,6 +5073,19 @@ const OmniConfig = {
             <div class="omni-ember" style="left: 65%; --s: 1.1; --o: 0.85;--dir: 1; animation: emberRise 5.5s cubic-bezier(0.25, 1, 0.5, 1) infinite 5.5s;"></div>
         `}
     ]
+},
+    {
+    id: "onyx-gold",
+    name: "✦ ONYX",
+    logo: { type: "text", text: "ONYX·GOLD", colors:["#f7f3eb", "#d4af37", "#b8941f", "#f7f3eb"] },
+    theme: {
+        bgBase: "#050404", textMain: "#f7f3eb", textMuted: "#9d9488", accentRgb: "212, 175, 55",
+        avatarGrad1: "#0f0e0d", avatarGrad2: "#3d3020",
+        ambient1: "rgba(212, 175, 55, 0.06)", ambient2: "rgba(180, 140, 40, 0.04)",
+        customCss: `@keyframes goldFloat{0%{transform:translateY(110vh) translateX(0) scale(0);opacity:0}10%{opacity:.9}80%{opacity:.3}100%{transform:translateY(-10vh) translateX(var(--gx,20px)) scale(1.3);opacity:0}}@keyframes goldTwinkle{0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1.3)}}@keyframes goldSpark{0%{transform:translate(-50%,-50%) scale(0);opacity:1}40%{transform:translate(-50%,-50%) scale(.8);opacity:.7}100%{transform:translate(-50%,-50%) scale(1.6);opacity:0}}@keyframes goldSparkLine{0%{width:0;opacity:.8}100%{width:40px;opacity:0}}@keyframes goldRingExpand{0%{transform:translate(-50%,-50%) scale(0);border-width:1.5px;opacity:.7}100%{transform:translate(-50%,-50%) scale(1.5);border-width:.2px;opacity:0}}@keyframes goldSheen{0%{transform:translateX(-30%) skewX(-8deg);opacity:0}40%{opacity:.15}80%{opacity:.08}100%{transform:translateX(30%) skewX(-8deg);opacity:0}}body{background-color:#050404;background-image:radial-gradient(ellipse 100% 80% at 50% 40%,rgba(40,30,15,.2) 0%,transparent 60%),radial-gradient(ellipse 60% 60% at 80% 20%,rgba(212,175,55,.04) 0%,transparent 50%),radial-gradient(ellipse 50% 50% at 20% 80%,rgba(180,140,40,.03) 0%,transparent 50%)}.gold-dust{position:fixed;border-radius:50%;background:radial-gradient(circle,rgba(212,175,55,.9) 0%,rgba(180,140,40,.4) 40%,transparent 70%);pointer-events:none;z-index:1;animation:goldFloat var(--gdur,20s) ease-in-out infinite var(--gdel,0s)}.gold-dust.twinkle{animation:goldTwinkle var(--gtwin,3s) ease-in-out infinite var(--gtdel,0s)}.onyx-click-spark{position:fixed;border-radius:50%;width:8px;height:8px;background:#d4af37;box-shadow:0 0 8px #d4af37,0 0 20px rgba(212,175,55,.6);pointer-events:none;z-index:50;animation:goldSpark .9s ease-out forwards}.onyx-click-spark-line{position:fixed;height:1px;background:linear-gradient(to right,#d4af37,transparent);pointer-events:none;z-index:49;animation:goldSparkLine .7s ease-out forwards}.onyx-click-ring{position:fixed;border-radius:50%;width:40px;height:40px;border:1.2px solid rgba(212,175,55,.5);pointer-events:none;z-index:48;animation:goldRingExpand 1s cubic-bezier(.25,.46,.45,.94) forwards}.onyx-cursor-glow{position:fixed;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(212,175,55,.07) 0%,rgba(180,140,40,.03) 25%,transparent 60%);pointer-events:none;z-index:-1;filter:blur(15px);transform:translate(-50%,-50%);transition:left .5s ease-out,top .5s ease-out;mix-blend-mode:screen}.onyx-sheen{position:fixed;top:0;left:-20%;width:60%;height:100vh;background:linear-gradient(105deg,transparent 30%,rgba(212,175,55,.06) 50%,transparent 70%);pointer-events:none;z-index:0;animation:goldSheen 10s ease-in-out infinite}.text-logo{font-weight:800!important;letter-spacing:5px;background:linear-gradient(180deg,#f7f3eb 0%,#d4af37 50%,#b8941f 100%);background-size:100% 200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 8px rgba(212,175,55,.3))}button,a,input[type=submit],[role=button]{transition:all .35s cubic-bezier(.25,.1,.25,1)}button:hover,a:hover,input[type=submit]:hover,[role=button]:hover{box-shadow:0 0 16px rgba(212,175,55,.2);transform:translateY(-1px)}.search-box{background:rgba(15,14,13,.7)!important;backdrop-filter:blur(20px)!important;-webkit-backdrop-filter:blur(20px)!important;border:1px solid rgba(212,175,55,.15)!important;border-radius:1px!important;box-shadow:inset 0 1px 0 rgba(212,175,55,.05),0 6px 30px rgba(0,0,0,.5)!important;transition:all .5s ease!important}.search-box:hover,.search-box:focus-within{border-color:rgba(212,175,55,.45)!important;box-shadow:inset 0 1px 0 rgba(212,175,55,.1),0 8px 36px rgba(212,175,55,.08),0 0 80px rgba(212,175,55,.03)!important}.search-input{color:#f7f3eb!important}.search-input::placeholder{color:#7a7268!important;opacity:.45}.action-btn{border-radius:1px!important;border:1px solid rgba(212,175,55,.25)!important;color:#d4c4a8!important;transition:all .35s cubic-bezier(.25,.1,.25,1)!important}.action-btn:hover{background:rgba(212,175,55,.08)!important;border-color:rgba(212,175,55,.55)!important;box-shadow:0 0 24px rgba(212,175,55,.12),inset 0 0 30px rgba(212,175,55,.03)!important;color:#f7f3eb!important}a{color:#d4af37}`
+    },
+    extensions:[{type:"html",content:`<div class=gold-dust style=left:5%;width:3px;height:3px;--gdur:22s;--gdel:0s;--gx:12px></div><div class=gold-dust style=left:15%;width:2px;height:2px;--gdur:26s;--gdel:3s;--gx:-18px></div><div class=gold-dust style=left:25%;width:4px;height:4px;--gdur:19s;--gdel:1s;--gx:22px></div><div class=gold-dust style=left:35%;width:2px;height:2px;--gdur:24s;--gdel:5s;--gx:-8px></div><div class=gold-dust style=left:45%;width:3px;height:3px;--gdur:21s;--gdel:2s;--gx:15px></div><div class=gold-dust style=left:55%;width:2px;height:2px;--gdur:27s;--gdel:7s;--gx:-20px></div><div class=gold-dust style=left:65%;width:4px;height:4px;--gdur:18s;--gdel:4s;--gx:25px></div><div class=gold-dust style=left:72%;width:2px;height:2px;--gdur:23s;--gdel:6s;--gx:-12px></div><div class=gold-dust style=left:82%;width:3px;height:3px;--gdur:25s;--gdel:1.5s;--gx:18px></div><div class=gold-dust style=left:90%;width:2px;height:2px;--gdur:20s;--gdel:3.5s;--gx:-25px></div><div class=gold-dust twinkle style=left:40%;width:3px;height:3px;--gtwin:4s;--gtdel:0s></div><div class=gold-dust twinkle style=left:75%;width:2px;height:2px;--gtwin:3.5s;--gtdel:2s></div><div class=onyx-sheen style=top:15%;animation-delay:0s></div><div class=onyx-sheen style=top:55%;animation-delay:-5s;animation-duration:12s></div><div class=onyx-cursor-glow style=left:calc(var(--mx)*100vw);top:calc(var(--my)*100vh)></div>`}],
+    clickEffect: { spawn: [{ className: "onyx-click-spark", duration: 900 }, { className: "onyx-click-spark-line", count: 4, offsetX: 6, angleSpread: 360, duration: 700 }, { className: "onyx-click-ring", duration: 1000 }] }
 }
     ],
 

@@ -3,7 +3,7 @@ import OmniConfig from '../api/index_config.js';
 import type { ComposedTheme, AnyExtension, ThemeTag } from '../themes/types';
 import { isReady, zrevrange, get, zcard } from '../lib/redis';
 import { cacheGet, cacheSet } from '../lib/cache';
-import { parseLegacyExtension } from './sanitize';
+import { parseLegacyExtension, sanitizeClickEffect } from './sanitize';
 import { sanitizeExtensionsOutput, sanitizeCustomCss } from './sanitize';
 import { extractRgbChannels } from './color';
 import { getDayOfYear } from './date';
@@ -25,6 +25,7 @@ interface OmniThemeEntry {
     customCss?: string;
   };
   extensions?: any[];
+  clickEffect?: { spawn: any[] };
   type?: string;
 }
 
@@ -151,6 +152,7 @@ export function omniToComposed(entry: OmniThemeEntry): ComposedTheme {
       '--ambient-2': t.ambient2,
     }),
     tags: inferTags(entry),
+    clickEffect: entry.clickEffect as any,
   };
 }
 
@@ -400,6 +402,7 @@ interface CommunityThemeRaw {
   customCss: string | null;
   extensions?: AnyExtension[] | null;
   tags?: string[];
+  clickEffect?: any;
 }
 
 function inferTagsFromVars(cssVars: Record<string, string>): ThemeTag[] {
@@ -453,6 +456,7 @@ function communityToComposed(ct: CommunityThemeRaw): ComposedTheme {
     customCss: sanitizeCustomCss(ct.customCss) || undefined,
     extensions: sanitizeExtensionsOutput(ct.extensions),
     tags: (ct.tags?.length ? ct.tags.filter(Boolean) : undefined) || inferTagsFromVars(ct.cssVars),
+    clickEffect: sanitizeClickEffect(ct.clickEffect) as any,
   };
 }
 

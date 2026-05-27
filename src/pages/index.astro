@@ -437,9 +437,6 @@ fetch('${siteUrl}/api/v1/today.json')
         </div>
         <p class="hp-code-desc">将这段脚本放在 <code>&lt;/body&gt;</code> 前，自动完成变量注入、localStorage 缓存和网络降级。42 行覆盖全部特性。</p>
         <div class="hp-code-block">
-          <button class="hp-copy-btn" data-copy="code1" title="复制代码">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          </button>
           <pre><code id="code1">{injectCode}</code></pre>
         </div>
       </div>
@@ -453,9 +450,6 @@ fetch('${siteUrl}/api/v1/today.json')
         </div>
         <p class="hp-code-desc">变量注入到 <code>:root</code> 后，在 CSS 中直接 <code>var()</code> 引用。覆盖色板、字号、间距、阴影、毛玻璃、氛围光球。</p>
         <div class="hp-code-block">
-          <button class="hp-copy-btn" data-copy="code2" title="复制代码">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          </button>
           <pre><code id="code2">{cssCode}</code></pre>
         </div>
       </div>
@@ -469,9 +463,6 @@ fetch('${siteUrl}/api/v1/today.json')
         </div>
         <p class="hp-code-desc">用 <code>&lt;link&gt;</code> 标签阻塞引入 <code>/api/v1/today.css</code>，确保 CSS 变量在首帧渲染前就绪。再异步获取 JSON 装载特效。</p>
         <div class="hp-code-block">
-          <button class="hp-copy-btn" data-copy="code3" title="复制代码">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          </button>
           <pre><code id="code3">{linkCode}</code></pre>
         </div>
       </div>
@@ -926,24 +917,6 @@ fetch('${siteUrl}/api/v1/today.json')
 .hp-code-block code { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
 
 /* copy button */
-.hp-copy-btn {
-  position: absolute; top: 10px; right: 14px; z-index: 2;
-  display: flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px; border-radius: 8px;
-  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
-  color: var(--color-text-muted); cursor: pointer;
-  transition: all 0.2s ease;
-}
-.hp-copy-btn:hover {
-  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
-  border-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
-  color: var(--color-primary);
-}
-.hp-copy-btn.copied {
-  background: #22c55e22; border-color: #22c55e44; color: #22c55e;
-}
-
 /* ============================================
    CTA
    ============================================ */
@@ -1126,24 +1099,6 @@ fetch('${siteUrl}/api/v1/today.json')
     var el = document.getElementById('hp-date');
     if (el) el.textContent = d.getFullYear() + '/' + (d.getMonth()+1) + '/' + d.getDate();
   })();
-
-  // ── Copy buttons ──
-  document.querySelectorAll('.hp-copy-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var id = this.dataset.copy;
-      var code = document.getElementById(id);
-      if (!code) return;
-      navigator.clipboard.writeText(code.textContent || '').then(function() {
-        btn.classList.add('copied');
-        var orig = btn.querySelector('svg');
-        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-        setTimeout(function() {
-          btn.classList.remove('copied');
-          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-        }, 1800);
-      }).catch(function(){});
-    });
-  });
 
   // ── Security status from monitor API ──
   (function() {

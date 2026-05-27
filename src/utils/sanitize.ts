@@ -418,3 +418,50 @@ export function applyOverrides(cssVars: Record<string, string>, overridesQuery: 
 
   return result;
 }
+
+// ─── Click-effect config sanitization (for community themes) ───
+
+const SAFE_CLASS_RE = /^[a-zA-Z][\w-]*$/;
+const SAFE_CSS_VALUE_RE = /^[a-zA-Z0-9%#(),.\s\-+]+$/;
+
+export function sanitizeClickEffect(raw: any): ClickSpawnDef[] | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const spawn = raw.spawn;
+  if (!Array.isArray(spawn) || spawn.length === 0) return undefined;
+
+  const cleaned: ClickSpawnDef[] = [];
+  for (const item of spawn.slice(0, 10)) {
+    if (!item || typeof item !== 'object') continue;
+
+    const className = String(item.className || '').trim();
+    if (!SAFE_CLASS_RE.test(className)) continue;
+
+    const duration = parseInt(item.duration, 10);
+    if (isNaN(duration) || duration < 100 || duration > 5000) continue;
+
+    const entry: ClickSpawnDef = { className, duration };
+
+    if (typeof item.style === 'string') {
+      const s = item.style.slice(0, 256).replace(/[;{}]/g, '').trim();
+      if (s && SAFE_CSS_VALUE_RE.test(s)) entry.style = s;
+    }
+    if (typeof item.count === 'number' && item.count >= 1 && item.count <= 20) {
+      entry.count = Math.floor(item.count);
+    }
+    if (typeof item.angleDeg === 'number' && isFinite(item.angleDeg)) {
+      entry.angleDeg = item.angleDeg;
+    }
+    if (typeof item.angleSpread === 'number' && isFinite(item.angleSpread)) {
+      entry.angleSpread = Math.min(360, Math.abs(item.angleSpread));
+    }
+    if (typeof item.offsetX === 'number' && isFinite(item.offsetX)) {
+      entry.offsetX = item.offsetX;
+    }
+    if (typeof item.offsetY === 'number' && isFinite(item.offsetY)) {
+      entry.offsetY = item.offsetY;
+    }
+
+    cleaned.push(entry);
+  }
+  return cleaned.length > 0 ? cleaned : undefined;
+}

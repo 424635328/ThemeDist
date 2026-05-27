@@ -4,7 +4,7 @@ import { getDailyCommunityTheme } from '../utils/omni-bridge';
 
 const communityDaily = await getDailyCommunityTheme();
 const theme = communityDaily || getDailyTheme();
-const { cssVars, presetName, customCss, extensions, logoText, logoColors } = theme;
+const { cssVars, presetName, customCss, extensions, logoText, logoColors, clickEffect } = theme;
 
 const style = Object.entries(cssVars)
   .map(([k, v]) => `${k}:${v}`)
@@ -14,6 +14,10 @@ const currentPath = Astro.url.pathname;
 
 const themeStyleTag = `<style>:root{${style}}</style>`;
 const customCssTag = customCss ? `<style id="td-custom-css">${customCss}</style>` : '';
+const clickEffectJSON = clickEffect?.spawn?.length
+  ? JSON.stringify(clickEffect)
+  : 'null';
+
 const extensionsJSON = extensions
   ? JSON.stringify(extensions, null, 2).replace(/<\/script/gi, '<\\/script')
   : '[]';
@@ -1065,6 +1069,7 @@ function navClass(path: string) {
               style.id = 'preview-custom-css';
               style.textContent = data.customCss;
               document.head.appendChild(style);
+              if (data.clickEffect && window.__tdReinitClicks) { window.__tdReinitClicks(data.clickEffect); }
             }
 
             var oldExt = document.getElementById('preview-extensions');
@@ -1180,6 +1185,77 @@ function navClass(path: string) {
       }, { passive: true });
     })();
 
+
+    // ── Generic click-effect engine (reads declarative config from #td-click-cfg) ──
+    (function initClickEffects() {
+      var cfgEl = document.getElementById('td-click-cfg');
+      if (!cfgEl || !cfgEl.textContent) return;
+      var cfg;
+      try { cfg = JSON.parse(cfgEl.textContent); } catch(e) { return; }
+      if (!cfg || !cfg.spawn || !cfg.spawn.length) return;
+
+      function spawnAll(e) {
+        cfg.spawn.forEach(function(def) {
+          var count = def.count || 1;
+          var baseAngle = (def.angleDeg || 0) * Math.PI / 180;
+          var spread = (def.angleSpread || 0) * Math.PI / 180;
+          for (var i = 0; i < count; i++) {
+            var el = document.createElement('div');
+            el.className = def.className;
+            var angle = baseAngle + (count > 1 ? (i / count) * Math.PI * 2 + (Math.random() - 0.5) * spread : (Math.random() - 0.5) * spread);
+            var dist = (def.offsetX || 0);
+            var ox = Math.cos(angle) * dist;
+            var oy = Math.sin(angle) * (def.offsetY || dist);
+            var style = 'left:' + (e.clientX + ox) + 'px;top:' + (e.clientY + oy) + 'px;';
+            if (def.style) style += def.style;
+            el.style.cssText = style;
+            document.body.appendChild(el);
+            setTimeout(function() { el.remove(); }, def.duration || 800);
+          }
+        });
+      }
+
+      document.addEventListener('click', spawnAll, { passive: true });
+      window.__tdClickCleanup = function() {
+        document.removeEventListener('click', spawnAll);
+        window.__tdClickCleanup = null;
+      };
+    })();
+
+    // ── Re-init click effects for preview theme switching ──
+    window.__tdReinitClicks = function(clickEffect) {
+      if (window.__tdClickCleanup) { window.__tdClickCleanup(); window.__tdClickCleanup = null; }
+      var cfgEl = document.getElementById('td-click-cfg');
+      if (cfgEl) cfgEl.textContent = clickEffect ? JSON.stringify(clickEffect) : 'null';
+      // Re-run the init function
+      var st = document.getElementById('td-click-cfg');
+      if (!st || !st.textContent || st.textContent === 'null') return;
+      var cfg;
+      try { cfg = JSON.parse(st.textContent); } catch(e) { return; }
+      if (!cfg || !cfg.spawn || !cfg.spawn.length) return;
+      function spawnAll(e) {
+        cfg.spawn.forEach(function(def) {
+          var count = def.count || 1;
+          var baseAngle = (def.angleDeg || 0) * Math.PI / 180;
+          var spread = (def.angleSpread || 0) * Math.PI / 180;
+          for (var i = 0; i < count; i++) {
+            var el = document.createElement('div');
+            el.className = def.className;
+            var angle = baseAngle + (count > 1 ? (i / count) * Math.PI * 2 + (Math.random() - 0.5) * spread : (Math.random() - 0.5) * spread);
+            var dist = (def.offsetX || 0);
+            var ox = Math.cos(angle) * dist;
+            var oy = Math.sin(angle) * (def.offsetY || dist);
+            var style = 'left:' + (e.clientX + ox) + 'px;top:' + (e.clientY + oy) + 'px;';
+            if (def.style) style += def.style;
+            el.style.cssText = style;
+            document.body.appendChild(el);
+            setTimeout(function() { el.remove(); }, def.duration || 800);
+          }
+        });
+      }
+      document.addEventListener('click', spawnAll, { passive: true });
+      window.__tdClickCleanup = function() { document.removeEventListener('click', spawnAll); window.__tdClickCleanup = null; };
+    };
     // Back to top + nav scroll effect
     const btop = document.getElementById('btop');
     const navEl = document.getElementById('nav');

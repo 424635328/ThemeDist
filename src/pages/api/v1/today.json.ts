@@ -75,6 +75,7 @@ export async function GET({ url }: { url: URL }) {
     cssVars,
     customCss: theme.customCss || null,
     extensions: theme.extensions || null,
+    clickEffect: theme.clickEffect || null,
     logoText: theme.logoText || null,
     logoColors: theme.logoColors || null,
     available: staticDir.length + communityDir.length,

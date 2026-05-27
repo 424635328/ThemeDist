@@ -1659,6 +1659,7 @@ import Layout from '../layouts/Layout.astro';
 - cssVars: 对象，34 个 CSS 变量（必填，见下）
 - customCss: 字符串，CSS 动画和样式（选填，≤16384 字符）
 - extensions: 数组，浮动/装饰元素（选填，≤20 个元素）
+- clickEffect: 对象，点击特效声明（选填，见下）
 - logoText: 字符串或 null
 - logoColors: 颜色数组或 null
 
@@ -1698,6 +1699,17 @@ import Layout from '../layouts/Layout.astro';
     html: 完整 HTML 字符串（必填），可使用内联 style 和 class，遵守上述坐标规则
     注意：html 中的粒子元素同样必须遵守坐标规则
 
+【clickEffect 规则 — 点击特效声明】
+  · spawn: 数组，每个元素定义一个点击时创建的 DOM 元素（使用 document.createElement，安全渲染）
+  · 每项字段：
+    - className: CSS 类名（必填，需在 customCss 中定义对应的 @keyframes 动画）
+    - duration: 自动移除时间(ms)，范围 100-5000（必填）
+    - count: 生成数量，默认 1，≤20
+    - angleSpread: 扩散角度(deg)，360 表示均匀圆周分布
+    - offsetX / offsetY: 距点击点的偏移(px)
+  · 示例: {"clickEffect":{"spawn":[{"className":"my-ripple","duration":800},{"className":"my-spark","count":4,"angleSpread":360,"offsetX":6,"duration":700}]}}
+  · 注意：className 指向的 CSS 类必须在 customCss 中定义，使用 position:fixed 定位，@keyframes 控制动画
+
 【参考示例 — 一个高质量的完整主题】
 \`\`\`json
 ${JSON.stringify(EXAMPLE, null, 2)}
@@ -1735,6 +1747,7 @@ ${currentTheme ? `【当前主题 — 可在此基础上修改】\n\`\`\`json\n$
           cssVars: currentTheme.cssVars,
           customCss: currentTheme.customCss || undefined,
           extensions: currentTheme.extensions || undefined,
+          clickEffect: currentTheme.clickEffect || undefined,
           tags,
         }),
       });
