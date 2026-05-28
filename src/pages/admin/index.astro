@@ -88,6 +88,41 @@ const siteUrl = Astro.url.origin;
           </div>
         </div>
 
+        <!-- Status Override Section -->
+        <div id="status-override-section" class="status-override-card card card-glass">
+          <div class="status-override-header">
+            <p class="t-label" style="display:flex;align-items:center;gap:6px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Emergency Control
+            </p>
+            <h2 style="font-size:20px;font-weight:800;margin-top:4px">系统状态覆盖</h2>
+          </div>
+          <div class="status-override-body">
+            <div class="status-indicator-row">
+              <span class="status-indicator-label">当前状态:</span>
+              <span id="status-indicator" class="status-badge status-badge-normal">正常运行</span>
+            </div>
+            <div class="status-override-btns">
+              <button class="btn status-btn status-btn-maintenance" data-action="activate" data-status="maintenance">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                维护模式
+              </button>
+              <button class="btn status-btn status-btn-mourning" data-action="activate" data-status="mourning">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 18a5 5 0 0 0-10 0"/><line x1="12" y1="2" x2="12" y2="9"/><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"/><line x1="1" y1="18" x2="3" y2="18"/><line x1="21" y1="18" x2="23" y2="18"/><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"/><line x1="23" y1="22" x2="1" y2="22"/><line x1="16" y1="5" x2="19" y2="2"/><line x1="2" y1="2" x2="5" y2="5"/></svg>
+                哀悼模式
+              </button>
+              <button class="btn status-btn status-btn-incident" data-action="activate" data-status="incident">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                事件模式
+              </button>
+              <button class="btn status-btn status-btn-deactivate" id="btn-deactivate-override" disabled>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                恢复正常
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- System Dangling Keys Warn Box -->
         <div id="dangling-keys-warning" class="card dangling-warning-box">
           <div class="warning-title-row">
@@ -783,6 +818,153 @@ const siteUrl = Astro.url.origin;
     background: color-mix(in srgb, var(--rv-primary) 6%, transparent);
   }
 
+  /* ─── Status Override Section ─── */
+  .status-override-card {
+    padding: 24px;
+    margin-bottom: 24px;
+    border-radius: 16px;
+    border: 1.5px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 40%, transparent);
+    backdrop-filter: blur(var(--glass-blur, 12px));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 12px));
+    animation: slideInCard 0.3s var(--dash-transition);
+  }
+  .status-override-header {
+    margin-bottom: 16px;
+  }
+  .status-override-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .status-indicator-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .status-indicator-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+  }
+  .status-badge {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 14px;
+    border-radius: 50px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.3s ease;
+  }
+  .status-badge::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .status-badge-normal {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+  }
+  .status-badge-normal::before {
+    background: #10b981;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.5);
+    animation: livePulse 2s infinite;
+  }
+  .status-badge-maintenance {
+    background: rgba(113, 113, 122, 0.1);
+    color: #71717a;
+    border: 1px solid rgba(113, 113, 122, 0.2);
+  }
+  .status-badge-maintenance::before {
+    background: #71717a;
+  }
+  .status-badge-mourning {
+    background: rgba(63, 63, 70, 0.15);
+    color: #a1a1aa;
+    border: 1px solid rgba(63, 63, 70, 0.3);
+  }
+  .status-badge-mourning::before {
+    background: #52525b;
+  }
+  .status-badge-incident {
+    background: rgba(239, 68, 68, 0.08);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+  }
+  .status-badge-incident::before {
+    background: #ef4444;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+    animation: livePulse 2s infinite;
+  }
+  @keyframes livePulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0px rgba(16, 185, 129, 0.4); }
+    50% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  }
+  .status-override-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .status-btn {
+    height: 40px;
+    padding: 0 18px;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 10px;
+    gap: 7px;
+    transition: all 0.25s ease;
+  }
+  .status-btn:active { transform: scale(0.97); }
+  .status-btn-maintenance {
+    background: color-mix(in srgb, #71717a 10%, transparent);
+    color: #71717a;
+    border: 1.5px solid rgba(113, 113, 122, 0.3);
+  }
+  .status-btn-maintenance:hover:not(:disabled) {
+    background: color-mix(in srgb, #71717a 18%, transparent);
+    border-color: #71717a;
+    box-shadow: 0 4px 12px rgba(113, 113, 122, 0.15);
+  }
+  .status-btn-mourning {
+    background: color-mix(in srgb, #3f3f46 10%, transparent);
+    color: #a1a1aa;
+    border: 1.5px solid rgba(63, 63, 70, 0.3);
+  }
+  .status-btn-mourning:hover:not(:disabled) {
+    background: color-mix(in srgb, #3f3f46 18%, transparent);
+    border-color: #52525b;
+    box-shadow: 0 4px 12px rgba(63, 63, 70, 0.15);
+  }
+  .status-btn-incident {
+    background: color-mix(in srgb, #ef4444 8%, transparent);
+    color: #ef4444;
+    border: 1.5px solid rgba(239, 68, 68, 0.25);
+  }
+  .status-btn-incident:hover:not(:disabled) {
+    background: color-mix(in srgb, #ef4444 15%, transparent);
+    border-color: #ef4444;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+  }
+  .status-btn-deactivate {
+    background: color-mix(in srgb, #10b981 8%, transparent);
+    color: #10b981;
+    border: 1.5px solid rgba(16, 185, 129, 0.25);
+    margin-left: auto;
+  }
+  .status-btn-deactivate:hover:not(:disabled) {
+    background: color-mix(in srgb, #10b981 15%, transparent);
+    border-color: #10b981;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+  }
+  .status-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
   /* ─── Responsive Media ─── */
   @media (max-width: 640px) {
     #admin-dashboard-container .review-card-body {
@@ -815,6 +997,12 @@ const siteUrl = Astro.url.origin;
     .admin-toolbar {
       position: static;
       backdrop-filter: none;
+    }
+    .status-override-btns {
+      flex-direction: column;
+    }
+    .status-btn-deactivate {
+      margin-left: 0;
     }
   }
 </style>
@@ -1212,6 +1400,94 @@ const siteUrl = Astro.url.origin;
         }
       }
     });
+
+    // ─── Status Override Controls ───
+    const statusIndicator = document.getElementById('status-indicator');
+    const btnDeactivateOverride = document.getElementById('btn-deactivate-override');
+    const activateBtns = document.querySelectorAll<HTMLElement>('.status-btn[data-action="activate"]');
+    let currentOverrideStatus = '';
+
+    const STATUS_LABELS: Record<string, string> = {
+      maintenance: '维护模式',
+      mourning: '哀悼模式',
+      incident: '事件模式',
+    };
+
+    function updateOverrideUI(active: boolean, status?: string) {
+      if (!statusIndicator) return;
+      if (active && status) {
+        currentOverrideStatus = status;
+        statusIndicator.textContent = STATUS_LABELS[status] || status;
+        statusIndicator.className = `status-badge status-badge-${status}`;
+        if (btnDeactivateOverride) (btnDeactivateOverride as HTMLButtonElement).disabled = false;
+        activateBtns.forEach(btn => {
+          if (btn.dataset.status === status) {
+            (btn as HTMLButtonElement).disabled = true;
+          } else {
+            (btn as HTMLButtonElement).disabled = false;
+          }
+        });
+      } else {
+        currentOverrideStatus = '';
+        statusIndicator.textContent = '正常运行';
+        statusIndicator.className = 'status-badge status-badge-normal';
+        if (btnDeactivateOverride) (btnDeactivateOverride as HTMLButtonElement).disabled = true;
+        activateBtns.forEach(btn => { (btn as HTMLButtonElement).disabled = false; });
+      }
+    }
+
+    async function loadOverrideStatus() {
+      try {
+        const res = await fetch('/api/v1/admin/status-override.json');
+        if (!res.ok) return;
+        const data = await res.json();
+        updateOverrideUI(data.active, data.status);
+      } catch (e) {
+        console.error('[ThemeDist Admin] Failed to load override status:', e);
+      }
+    }
+
+    async function setOverride(action: string, status?: string) {
+      try {
+        const body: Record<string, string> = { action };
+        if (status) body.status = status;
+        const res = await fetch('/api/v1/admin/status-override.json', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (data.success) {
+          if (action === 'activate') {
+            window.__toast?.(`已激活 ${STATUS_LABELS[status || '']} 覆盖`);
+            updateOverrideUI(true, status);
+          } else {
+            window.__toast?.('已恢复正常主题');
+            updateOverrideUI(false);
+          }
+        } else {
+          window.__toast?.(data.error || '操作失败');
+        }
+      } catch {
+        window.__toast?.('服务端响应异常');
+      }
+    }
+
+    activateBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const status = btn.dataset.status || '';
+        const label = STATUS_LABELS[status] || status;
+        if (!confirm(`确定要启用「${label}」吗？全站主题将被立即覆盖，所有访问者将看到紧急状态主题。`)) return;
+        setOverride('activate', status);
+      });
+    });
+
+    btnDeactivateOverride?.addEventListener('click', () => {
+      if (!confirm('确定要恢复正常主题吗？所有访问者将立即恢复看到每日主题。')) return;
+      setOverride('deactivate');
+    });
+
+    loadOverrideStatus();
 
     loadThemes();
   }

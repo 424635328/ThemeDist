@@ -1,10 +1,29 @@
 ---
 import { getDailyTheme } from '../utils/daily-theme';
-import { getDailyCommunityTheme } from '../utils/omni-bridge';
+import { getDailyCommunityTheme, enrichCssVars } from '../utils/omni-bridge';
+import { get as redisGet } from '../lib/redis';
+import { STATUS_THEMES } from '../lib/status-themes';
+import { STRUCTURAL_CSS_VARS } from '../lib/css-vars-defaults';
+
+const override = await redisGet<{ status: string; activatedAt: string }>('td:status-override');
+let isOverrideActive = false;
+let overrideStatus = '';
 
 const communityDaily = await getDailyCommunityTheme();
-const theme = communityDaily || getDailyTheme();
-const { cssVars, presetName, customCss, extensions, logoText, logoColors, clickEffect } = theme;
+let theme = communityDaily || getDailyTheme();
+let { cssVars, presetName, customCss, extensions, logoText, logoColors, clickEffect } = theme;
+
+if (override && STATUS_THEMES[override.status]) {
+  isOverrideActive = true;
+  overrideStatus = override.status;
+  cssVars = enrichCssVars({ ...STATUS_THEMES[override.status], ...STRUCTURAL_CSS_VARS });
+  presetName = `紧急覆盖: ${override.status}`;
+  customCss = undefined;
+  extensions = undefined;
+  clickEffect = undefined;
+  logoText = 'ThemeDist';
+  logoColors = ['#71717a', '#a1a1aa'];
+}
 
 const style = Object.entries(cssVars)
   .map(([k, v]) => `${k}:${v}`)
@@ -54,6 +73,7 @@ function navClass(path: string) {
   <!-- Critical: inject today's CSS variables -->
   <Fragment set:html={themeStyleTag} />
   {customCss && <Fragment set:html={customCssTag} />}
+  {overrideStatus === 'mourning' && <style is:inline>body { filter: grayscale(100%); transition: filter 0.8s ease; }</style>}
 
   <style is:inline>
     /* ============================================
@@ -780,6 +800,33 @@ function navClass(path: string) {
     }
 
     /* ============================================
+       OVERRIDE BANNER
+       ============================================ */
+    .override-banner {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+      padding: 10px 24px;
+      text-align: center;
+      font-size: 13px; font-weight: 700; letter-spacing: 0.04em;
+      color: var(--color-text);
+      background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+      border-bottom: 2px solid var(--color-primary);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      animation: bannerSlideIn 0.5s ease both;
+    }
+    .override-banner[data-status="incident"] {
+      border-bottom-color: #ef4444;
+      background: color-mix(in srgb, #fef2f2 90%, transparent);
+    }
+    .override-banner[data-status="mourning"] {
+      border-bottom-color: #3f3f46;
+    }
+    @keyframes bannerSlideIn {
+      from { opacity: 0; transform: translateY(-100%); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ============================================
        UTILITY
        ============================================ */
     .text-center { text-align: center; }
@@ -826,6 +873,13 @@ function navClass(path: string) {
   </style>
 </head>
 <body>
+  {isOverrideActive && (
+    <div class="override-banner" data-status={overrideStatus}>
+      {overrideStatus === 'maintenance' && '⚙️ 系统维护中 — 部分功能可能暂停服务'}
+      {overrideStatus === 'mourning' && '🕯️ 深切哀悼'}
+      {overrideStatus === 'incident' && '🚨 系统异常 — 团队正在紧急处理'}
+    </div>
+  )}
   <div class="amb">
     <div class="amb-orb"></div>
     <div class="amb-orb"></div>

@@ -1,7 +1,10 @@
 import { getDailyTheme, getAllThemes } from '../../../utils/daily-theme';
-import { getCommunityThemes, getDailyCommunityTheme, getDateTheme, getDateStrForTimezone, getMMDDForTimezone } from '../../../utils/omni-bridge';
+import { getCommunityThemes, getDailyCommunityTheme, getDateTheme, getDateStrForTimezone, getMMDDForTimezone, enrichCssVars } from '../../../utils/omni-bridge';
 import { cacheGet, cacheSet } from '../../../lib/cache';
 import { applyOverrides, processThemePayload } from '../../../utils/sanitize';
+import { get as redisGet } from '../../../lib/redis';
+import { STATUS_THEMES } from '../../../lib/status-themes';
+import { STRUCTURAL_CSS_VARS } from '../../../lib/css-vars-defaults';
 
 export const prerender = false;
 
@@ -18,6 +21,33 @@ const CACHE_HEADERS = {
 export async function GET({ url }: { url: URL }) {
   const tz = url.searchParams.get('tz');
   const overridesRaw = url.searchParams.get('overrides');
+
+  // Check for active status override before cache
+  const override = await redisGet<{ status: string; activatedAt: string }>('td:status-override');
+  if (override && STATUS_THEMES[override.status]) {
+    const cssVars = enrichCssVars({ ...STATUS_THEMES[override.status], ...STRUCTURAL_CSS_VARS });
+    const body = JSON.stringify({
+      date: new Date().toISOString().slice(0, 10),
+      generatedAt: new Date().toISOString(),
+      preset: `status-${override.status}`,
+      presetName: `紧急覆盖: ${override.status}`,
+      cssVars,
+      customCss: null,
+      extensions: [],
+      clickEffect: null,
+      logoText: null,
+      logoColors: null,
+      override: { status: override.status, activatedAt: override.activatedAt },
+      apiVersion: 'v1',
+    }, null, 2);
+    return new Response(body, {
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'public, max-age=10, s-maxage=30',
+        ...CORS_HEADERS,
+      },
+    });
+  }
 
   const todayKey = `today:${new Date().toISOString().slice(0, 10)}` + (tz ? `:tz:${tz}` : '');
   const cached = cacheGet<string>(todayKey);
