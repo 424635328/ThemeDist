@@ -153,6 +153,10 @@ const siteUrl = Astro.url.origin;
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
               <span>批量驳回</span>
             </button>
+            <button id="btn-moderate-all" class="btn btn-outline action-btn-moderate-all" disabled>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+              <span>审查全部</span>
+            </button>
             <button id="btn-refresh" class="btn btn-ghost action-btn-refresh">
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M2 8a6 6 0 0110.47-4M14 8a6 6 0 01-10.47 4M2 2v4h4M14 14v-4h-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
               <span>刷新</span>
@@ -1030,32 +1034,85 @@ const siteUrl = Astro.url.origin;
     transition: all 0.2s;
     vertical-align: middle;
     margin-left: 6px;
+    flex-shrink: 0;
   }
   .btn-moderate:hover {
     background: var(--color-surface, rgba(255,255,255,0.05));
     color: var(--color-primary, #6366f1);
     border-color: var(--color-primary, #6366f1);
   }
-  .moderation-result {
-    margin-top: 8px;
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-size: 12px;
-    line-height: 1.6;
+  .mod-spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: mod-spin 0.6s linear infinite;
   }
+  @keyframes mod-spin { to { transform: rotate(360deg); } }
+
+  /* Risk badge */
+  .review-risk-badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.03em;
+    padding: 2px 8px; border-radius: 99px;
+    margin-left: 6px; vertical-align: middle;
+    flex-shrink: 0;
+  }
+  .risk-safe  { background: rgba(34,197,94,0.15); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+  .risk-warn  { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+  .risk-danger { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.35); }
+
+  .action-btn-moderate-all {
+    color: #22c55e;
+    border-color: rgba(34,197,94,0.3);
+    background: rgba(34,197,94,0.06);
+  }
+  .action-btn-moderate-all:hover {
+    background: rgba(34,197,94,0.14);
+    border-color: #22c55e;
+    color: #22c55e;
+  }
+  .action-btn-moderate-all:disabled {
+    opacity: 0.4;
+  }
+
+  .moderation-result {
+    margin-top: 10px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 1.7;
+    background: color-mix(in srgb, var(--color-surface) 50%, transparent);
+    border: 1px solid var(--color-border);
+    animation: modFadeIn 0.25s ease;
+  }
+  @keyframes modFadeIn { from { opacity: 0; transform: translateY(-4px); } }
   .mod-safe {
     color: #22c55e;
     font-weight: 600;
+    display: flex; align-items: center; gap: 5px;
   }
-  .mod-unsafe {
+  .mod-warn {
+    color: #f59e0b;
+    font-weight: 600;
+    display: flex; align-items: center; gap: 5px;
+    margin-bottom: 6px;
+  }
+  .mod-danger {
     color: #ef4444;
     font-weight: 600;
-    margin-bottom: 4px;
+    display: flex; align-items: center; gap: 5px;
+    margin-bottom: 6px;
   }
   .mod-issue {
-    color: var(--color-text-muted, #94a3b8);
-    padding: 2px 0;
+    padding: 3px 0;
+    font-size: 11px;
+    line-height: 1.6;
   }
+  .mod-issue-critical { color: #fca5a5; }
+  .mod-issue-warning  { color: #fcd34d; }
+  .mod-issue-info     { color: var(--color-text-muted, #94a3b8); }
 
   /* ─── Recently Approved / Rollback ─── */
   .rollback-card {
@@ -1178,6 +1235,7 @@ const siteUrl = Astro.url.origin;
     const selectedCount = document.getElementById('selected-count');
     const btnApprove = document.getElementById('btn-approve');
     const btnReject = document.getElementById('btn-reject');
+    const btnModerateAll = document.getElementById('btn-moderate-all');
     const btnRefresh = document.getElementById('btn-refresh');
     const btnRetry = document.getElementById('btn-retry');
     const countBadge = document.getElementById('pending-count-badge');
@@ -1205,6 +1263,7 @@ const siteUrl = Astro.url.origin;
       const hasSelection = selected.size > 0;
       if (btnApprove) btnApprove.disabled = !hasSelection;
       if (btnReject) btnReject.disabled = !hasSelection;
+      if (btnModerateAll) btnModerateAll.disabled = themes.length === 0;
       if (selectAll) {
         selectAll.checked = themes.length > 0 && selected.size === themes.length;
         selectAll.indeterminate = selected.size > 0 && selected.size < themes.length;
@@ -1270,7 +1329,8 @@ const siteUrl = Astro.url.origin;
                   <span class="review-badge-dot"></span>
                   待审核
                 </span>
-                <button class="btn-moderate" data-id="${t.id}" title="内容审查" onclick="moderateTheme('${t.id}')">
+                <span class="review-risk-badge" data-risk-id="${escapeAttr(t.id)}" style="display:none" title="内容安全评分"></span>
+                <button class="btn-moderate" data-id="${t.id}" title="智能内容审查" onclick="moderateTheme('${t.id}')">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
                 </button>
                 <span class="review-ttl ${ttlUrgent ? 'ttl-urgent' : ttlWarn ? 'ttl-warn' : ''}" title="自动过期倒计时">
@@ -1412,6 +1472,9 @@ const siteUrl = Astro.url.origin;
         });
 
         updateSelection();
+
+        // Auto-run moderation on loaded themes
+        autoModerateAll();
       } catch (err) {
         console.error('[ThemeDist Admin Error] Failed to fetch review list:', err);
         if (loadingEl) loadingEl.style.display = 'none';
@@ -1668,6 +1731,7 @@ const siteUrl = Astro.url.origin;
             window.__toast?.('已恢复正常主题');
             updateOverrideUI(false);
           }
+          setTimeout(() => location.reload(), 800);
         } else {
           window.__toast?.(data.error || '操作失败');
         }
@@ -1690,9 +1754,124 @@ const siteUrl = Astro.url.origin;
       setOverride('deactivate');
     });
 
+    btnModerateAll?.addEventListener('click', () => autoModerateAll());
+
     loadOverrideStatus();
 
     loadThemes();
+
+    // ── Moderation Functions ──
+    function renderModerationResult(card, data) {
+      const existing = card.querySelector('.moderation-result');
+      if (existing) existing.remove();
+
+      const result = document.createElement('div');
+      result.className = 'moderation-result';
+
+      if (data.safe && data.issues.length === 0) {
+        result.innerHTML = `<div class="mod-safe">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="2"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          全部通过 · 评分 ${data.score ?? 100}/100
+        </div>`;
+      } else {
+        const sevLabel = data.safe ? '审查通过（有提示）' : '发现问题';
+        const sevClass = data.safe ? 'mod-warn' : 'mod-danger';
+        const issuesHtml = data.issues.map(i => {
+          const sevIcon = i.severity === 'critical' ? '🔴' : i.severity === 'warning' ? '🟡' : 'ℹ️';
+          const sevCls = 'mod-issue-' + i.severity;
+          return `<div class="mod-issue ${sevCls}">
+            ${sevIcon} <strong>${escapeHtml(i.category)}</strong>: ${escapeHtml(i.description)}
+          </div>`;
+        }).join('');
+        result.innerHTML = `
+          <div class="${sevClass}">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2l6 11H2L8 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6v3.5M8 11.5h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            ${sevLabel} · 评分 ${data.score}/100
+            ${data.wcag ? ' · WCAG: ' + (data.wcag.passes ? '✓' : '✗') : ''}
+          </div>
+          ${data.wcag && !data.wcag.passes ? `<div class="mod-issue mod-issue-info">
+            ℹ️ <strong>accessibility</strong>: 文字对比度 ${data.wcag.textOnBg}:1 (需≥4.5), 主色对比度 ${data.wcag.primaryOnBg}:1 (需≥3)
+          </div>` : ''}
+          ${issuesHtml}
+        `;
+      }
+
+      card.querySelector('.review-main')?.appendChild(result);
+    }
+
+    function updateRiskBadge(card, data) {
+      const badge = card.querySelector('.review-risk-badge');
+      if (!badge) return;
+      badge.style.display = 'inline-flex';
+      const score = data.score ?? 100;
+      if (score >= 90) {
+        badge.className = 'review-risk-badge risk-safe';
+        badge.textContent = score + '分';
+      } else if (score >= 60) {
+        badge.className = 'review-risk-badge risk-warn';
+        badge.textContent = score + '分';
+      } else {
+        badge.className = 'review-risk-badge risk-danger';
+        badge.textContent = score + '分';
+      }
+    }
+
+    async function moderateTheme(id) {
+      const card = document.querySelector(`[data-id="${id}"]`);
+      if (!card) return;
+      const existingBadge = card.querySelector('.moderation-result');
+      if (existingBadge) { existingBadge.remove(); return; }
+
+      const btn = card.querySelector('.btn-moderate');
+      const origHTML = btn?.innerHTML || '';
+      if (btn) btn.innerHTML = '<span class="mod-spinner"></span>';
+
+      try {
+        const csrf = document.cookie.match(/csrf_token=([^;]+)/)?.[1] || '';
+        const res = await fetch('/api/v1/admin/moderate.json', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+          body: JSON.stringify({ id }),
+        });
+        const data = await res.json();
+        renderModerationResult(card, data);
+        updateRiskBadge(card, data);
+      } catch {
+        window.__toast?.('审查请求失败', 'error');
+      } finally {
+        if (btn) btn.innerHTML = origHTML;
+      }
+    }
+
+    async function autoModerateAll() {
+      const cards = listEl?.querySelectorAll('.review-card');
+      if (!cards || cards.length === 0) return;
+      if (btnModerateAll) btnModerateAll.disabled = true;
+
+      const csrf = document.cookie.match(/csrf_token=([^;]+)/)?.[1] || '';
+      let done = 0;
+
+      for (const card of cards) {
+        const id = card.dataset.id;
+        if (!id) continue;
+        try {
+          const res = await fetch('/api/v1/admin/moderate.json', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+            body: JSON.stringify({ id }),
+          });
+          const data = await res.json();
+          renderModerationResult(card, data);
+          updateRiskBadge(card, data);
+          done++;
+        } catch { /* skip */ }
+      }
+
+      if (btnModerateAll) btnModerateAll.disabled = false;
+      window.__toast?.(`已完成 ${done}/${cards.length} 个主题审查`, 'info');
+    }
+
+    window.moderateTheme = moderateTheme;
   }
 
   function isLightReview(hex) {
@@ -1716,35 +1895,4 @@ const siteUrl = Astro.url.origin;
   function escapeAttr(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
   // ── Moderation ──
-  async function moderateTheme(id) {
-    const card = document.querySelector(`[data-id="${id}"]`);
-    if (!card) return;
-    const existingBadge = card.querySelector('.moderation-result');
-    if (existingBadge) { existingBadge.remove(); return; }
-
-    try {
-      const csrf = document.cookie.match(/csrf_token=([^;]+)/)?.[1] || '';
-      const res = await fetch('/api/v1/admin/moderate.json', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
-        body: JSON.stringify({ id }),
-      });
-      const data = await res.json();
-      const badge = document.createElement('div');
-      badge.className = 'moderation-result';
-      if (data.safe) {
-        badge.innerHTML = '<span class="mod-safe">✓ 安全</span>';
-      } else {
-        const issues = (data.issues || []).map(i => {
-          const icon = i.severity === 'critical' ? '🔴' : '🟡';
-          return `<div class="mod-issue">${icon} <strong>${i.category}</strong>: ${escapeHtml(i.description)}</div>`;
-        }).join('');
-        badge.innerHTML = `<div class="mod-unsafe">⚠ 发现问题</div>${issues}`;
-      }
-      card.querySelector('.review-header')?.appendChild(badge);
-    } catch {
-      window.__toast?.('审查请求失败');
-    }
-  }
-  window.moderateTheme = moderateTheme;
 </script>

@@ -108,8 +108,6 @@ function navClass(path: string) {
   <!-- Critical: inject today's CSS variables -->
   <Fragment set:html={themeStyleTag} />
   {customCss && <Fragment set:html={customCssTag} />}
-  {overrideStatus === 'mourning' && <style is:inline>body { filter: grayscale(100%); transition: filter 0.8s ease; }</style>}
-
   <style is:inline>
     /* ============================================
        RESET & BASE
@@ -244,14 +242,12 @@ function navClass(path: string) {
       background: transparent;
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
-      border-bottom: 1px solid transparent;
-      transition: background 0.5s ease, backdrop-filter 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
+      transition: background 0.5s ease, backdrop-filter 0.5s ease, box-shadow 0.5s ease;
     }
     .nav.scrolled, .nav.open {
       background: color-mix(in srgb, var(--color-bg) 68%, transparent);
       backdrop-filter: blur(28px) saturate(1.4);
       -webkit-backdrop-filter: blur(28px) saturate(1.4);
-      border-bottom-color: color-mix(in srgb, var(--color-border) 60%, transparent);
       box-shadow:
         0 1px 0 0 color-mix(in srgb, var(--color-primary) 12%, transparent),
         0 4px 24px rgba(0,0,0,0.06);
@@ -376,6 +372,12 @@ function navClass(path: string) {
       0%, 100% { transform: translateX(-100%); }
       50%      { transform: translateX(100%); }
     }
+
+    /* Emergency override badge variants */
+    .nav-badge-override { font-size: 13px; letter-spacing: 0.06em; }
+    .nav-badge-maintenance { background: color-mix(in srgb, var(--color-primary) 14%, transparent); color: var(--color-primary); }
+    .nav-badge-mourning    { background: rgba(120,120,120,0.18); color: #a1a1aa; border-color: rgba(120,120,120,0.25); }
+    .nav-badge-incident    { background: rgba(239,68,68,0.18); color: #ef4444; border-color: rgba(239,68,68,0.35); }
 
     .nav-links { display: flex; align-items: center; gap: 4px; }
 
@@ -835,33 +837,6 @@ function navClass(path: string) {
     }
 
     /* ============================================
-       OVERRIDE BANNER
-       ============================================ */
-    .override-banner {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 999;
-      padding: 10px 24px;
-      text-align: center;
-      font-size: 13px; font-weight: 700; letter-spacing: 0.04em;
-      color: var(--color-text);
-      background: color-mix(in srgb, var(--color-surface) 90%, transparent);
-      border-bottom: 2px solid var(--color-primary);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      animation: bannerSlideIn 0.5s ease both;
-    }
-    .override-banner[data-status="incident"] {
-      border-bottom-color: #ef4444;
-      background: color-mix(in srgb, #fef2f2 90%, transparent);
-    }
-    .override-banner[data-status="mourning"] {
-      border-bottom-color: #3f3f46;
-    }
-    @keyframes bannerSlideIn {
-      from { opacity: 0; transform: translateY(-100%); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* ============================================
        UTILITY
        ============================================ */
     .text-center { text-align: center; }
@@ -1077,13 +1052,7 @@ function navClass(path: string) {
   </style>
 </head>
 <body>
-  {isOverrideActive && (
-    <div class="override-banner" data-status={overrideStatus}>
-      {overrideStatus === 'maintenance' && '⚙️ 系统维护中 — 部分功能可能暂停服务'}
-      {overrideStatus === 'mourning' && '🕯️ 深切哀悼'}
-      {overrideStatus === 'incident' && '🚨 系统异常 — 团队正在紧急处理'}
-    </div>
-  )}
+  {overrideStatus === 'mourning' && <div style="position:fixed;inset:0;z-index:2147483647;pointer-events:none;backdrop-filter:grayscale(100%);-webkit-backdrop-filter:grayscale(100%)"></div>}
   <div class="amb">
     <div class="amb-orb"></div>
     <div class="amb-orb"></div>
@@ -1091,10 +1060,8 @@ function navClass(path: string) {
   </div>
   <div class="amb-grain"></div>
   <div id="td-extensions"></div>
-  {extensions && extensions.length > 0 && (
+  {extensions && extensions.length > 0 && (<>
     <Fragment set:html={`<script id="td-exts-json" type="application/json">${extensionsJSON}</script>`} />
-  )}
-  {extensions && extensions.length > 0 && (
     <script is:inline>
       (function() {
         var el = document.getElementById('td-exts-json');
@@ -1135,14 +1102,14 @@ function navClass(path: string) {
         });
       })();
     </script>
-  )}
+  </>)}
 
   <nav class="nav" id="nav">
     <a href="/" class="nav-home" aria-label="首页">
       <div class="nav-orb"></div>
       <span class="nav-brand" style={`background:${brandGradient};-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text`}>ThemeDist</span>
     </a>
-    <span class="nav-badge">{logoText || presetName}</span>
+    <span class={'nav-badge' + (isOverrideActive ? ' nav-badge-override nav-badge-' + overrideStatus : '')}>{isOverrideActive ? (overrideStatus === 'maintenance' ? '⚙️ 维护模式' : overrideStatus === 'mourning' ? '🕯️ 哀悼模式' : '🚨 事件模式') : (logoText || presetName)}</span>
     <button class="nav-toggle" id="nav-toggle" aria-label="菜单">☰</button>
     <div class="nav-links" id="nav-links">
       <a href="/theme-store" class={navClass('/theme-store')}>主题商店</a>

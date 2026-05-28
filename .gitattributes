@@ -1,0 +1,89 @@
+# ── Default ──
+* text=auto
+
+# ── Shell scripts (must be LF on Windows too) ──
+*.sh            text eol=lf
+scripts/**      text eol=lf
+
+# ── Windows batch (must be CRLF) ──
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+
+# ── Source code: force LF for cross-platform consistency ──
+*.ts            text eol=lf
+*.tsx           text eol=lf
+*.js            text eol=lf
+*.jsx           text eol=lf
+*.mjs           text eol=lf
+*.cjs           text eol=lf
+*.astro         text eol=lf
+*.css           text eol=lf
+*.scss          text eol=lf
+*.html          text eol=lf
+*.json          text eol=lf
+*.md            text eol=lf
+*.mdx           text eol=lf
+*.yaml          text eol=lf
+*.yml           text eol=lf
+*.toml          text eol=lf
+*.env.*         text eol=lf
+*.graphql       text eol=lf
+*.gql           text eol=lf
+
+# ── SVG is text (XML) ──
+*.svg           text eol=lf
+
+# ── Config / dotfiles ──
+.gitignore      text eol=lf
+.gitattributes  text eol=lf
+.npmrc          text eol=lf
+.editorconfig   text eol=lf
+.prettierrc     text eol=lf
+.eslintrc*      text eol=lf
+CLAUDE.md       text eol=lf
+LICENSE         text eol=lf
+
+# ── Lock files: treat as generated (avoid merge conflict markers) ──
+package-lock.json       -text -merge
+pnpm-lock.yaml          -text -merge
+yarn.lock               -text -merge
+bun.lockb               -text -merge
+
+# ── Binary assets ──
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.ico           binary
+*.webp          binary
+*.avif          binary
+*.bmp           binary
+*.tiff          binary
+
+# ── Fonts ──
+*.woff          binary
+*.woff2         binary
+*.ttf           binary
+*.eot           binary
+*.otf           binary
+
+# ── Audio ──
+*.mp3           binary
+*.wav           binary
+*.ogg           binary
+
+# ── Video ──
+*.mp4           binary
+*.webm          binary
+
+# ── Archives ──
+*.zip           binary
+*.tar           binary
+*.gz            binary
+*.tgz           binary
+*.rar           binary
+*.7z            binary
+
+# ── Compiled / bundled output ──
+*.wasm          binary
+*.node          binary
