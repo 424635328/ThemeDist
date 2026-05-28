@@ -1,7 +1,8 @@
 import type { APIRoute } from 'astro';
 import { getAllThemes } from '../../../../../utils/daily-theme';
 import { get as redisGet } from '../../../../../lib/redis';
-import { hexToRgb, getLuminance, getContrastRatio, evalAPCA } from '../../../../../utils/color';
+import { getContrastRatio, evalAPCA, generateContrastFix } from '../../../../../utils/color';
+import { enrichCssVars } from '../../../../../utils/omni-bridge';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -22,8 +23,9 @@ function evalWcag(ratio: number) {
   };
 }
 
-export const GET: APIRoute = async ({ params }) => {
+export const GET: APIRoute = async ({ params, url }) => {
   const id = params.id!;
+  const level = (url.searchParams.get('level') || 'aa') as 'aa' | 'aaa';
   let cssVars: Record<string, string>;
 
   if (id.startsWith('community-')) {
@@ -59,42 +61,44 @@ export const GET: APIRoute = async ({ params }) => {
   const surface = resolveCssVar(cssVars, '--color-surface', bg);
   const muted = resolveCssVar(cssVars, '--color-text-muted', '#6b7280');
 
-  const textOnBg = getContrastRatio(text, bg);
-  const primaryOnBg = getContrastRatio(primary, bg);
-  const secondaryOnBg = getContrastRatio(secondary, bg);
-  const mutedOnBg = getContrastRatio(muted, bg);
-  const textOnSurface = getContrastRatio(text, surface);
+  // Original evaluation
+  const originalEval = {
+    text_on_bg: { ...evalWcag(getContrastRatio(text, bg)), apca: evalAPCA(text, bg) },
+    primary_on_bg: { ...evalWcag(getContrastRatio(primary, bg)), apca: evalAPCA(primary, bg) },
+    secondary_on_bg: { ...evalWcag(getContrastRatio(secondary, bg)), apca: evalAPCA(secondary, bg) },
+    muted_on_bg: { ...evalWcag(getContrastRatio(muted, bg)), apca: evalAPCA(muted, bg) },
+    text_on_surface: { ...evalWcag(getContrastRatio(text, surface)), apca: evalAPCA(text, surface) },
+  };
 
-  const allRatios = [textOnBg, primaryOnBg, secondaryOnBg, mutedOnBg, textOnSurface];
-  const compliant = textOnBg >= 4.5;
+  // Auto-fix
+  const { fixed, changes } = generateContrastFix(cssVars, level);
 
-  const apcaEval = (fg: string, bg: string) => evalAPCA(fg, bg);
+  // Fixed evaluation
+  const fixedBg = resolveCssVar(fixed, '--color-bg', '#ffffff');
+  const fixedText = resolveCssVar(fixed, '--color-text', '#000000');
+  const fixedPrimary = resolveCssVar(fixed, '--color-primary', '#3b82f6');
+  const fixedSecondary = resolveCssVar(fixed, '--color-secondary', '#6366f1');
+  const fixedSurface = resolveCssVar(fixed, '--color-surface', fixedBg);
+  const fixedMuted = resolveCssVar(fixed, '--color-text-muted', '#6b7280');
 
-  const warnings: string[] = [];
-  if (textOnBg < 4.5) warnings.push('正文颜色在背景上对比度低于 4.5:1 (WCAG AA)，存在严重无障碍阅读障碍');
-  if (textOnBg < 3.0) warnings.push('正文颜色在背景上对比度低于 3.0:1 (WCAG AA 大文本)，急需修复');
-  if (primaryOnBg < 3.0) warnings.push('主色在背景上对比度低于 3.0:1，按钮/链接可能难以辨识');
+  const fixedEval = {
+    text_on_bg: { ...evalWcag(getContrastRatio(fixedText, fixedBg)), apca: evalAPCA(fixedText, fixedBg) },
+    primary_on_bg: { ...evalWcag(getContrastRatio(fixedPrimary, fixedBg)), apca: evalAPCA(fixedPrimary, fixedBg) },
+    secondary_on_bg: { ...evalWcag(getContrastRatio(fixedSecondary, fixedBg)), apca: evalAPCA(fixedSecondary, fixedBg) },
+    muted_on_bg: { ...evalWcag(getContrastRatio(fixedMuted, fixedBg)), apca: evalAPCA(fixedMuted, fixedBg) },
+    text_on_surface: { ...evalWcag(getContrastRatio(fixedText, fixedSurface)), apca: evalAPCA(fixedText, fixedSurface) },
+  };
+
+  // Merge fixed CSS vars with structural defaults and RGB channels
+  const fixedEnriched = enrichCssVars(fixed);
 
   return new Response(JSON.stringify({
     themeId: id,
-    compliant,
-    summary: {
-      worst: Number(Math.min(...allRatios).toFixed(2)),
-      best: Number(Math.max(...allRatios).toFixed(2)),
-      average: Number((allRatios.reduce((a, b) => a + b, 0) / allRatios.length).toFixed(2)),
-    },
-    apcaSummary: {
-      text_on_bg: apcaEval(text, bg),
-      primary_on_bg: apcaEval(primary, bg),
-    },
-    ratios: {
-      text_on_bg: { ...evalWcag(textOnBg), apca: apcaEval(text, bg) },
-      primary_on_bg: { ...evalWcag(primaryOnBg), apca: apcaEval(primary, bg) },
-      secondary_on_bg: { ...evalWcag(secondaryOnBg), apca: apcaEval(secondary, bg) },
-      muted_on_bg: { ...evalWcag(mutedOnBg), apca: apcaEval(muted, bg) },
-      text_on_surface: { ...evalWcag(textOnSurface), apca: apcaEval(text, surface) },
-    },
-    warnings,
+    level,
+    original: { ratios: originalEval },
+    fixed: { ratios: fixedEval },
+    changes,
+    cssVars: fixedEnriched,
   }, null, 2), {
     headers: {
       'Content-Type': 'application/json',

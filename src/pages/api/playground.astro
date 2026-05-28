@@ -61,6 +61,24 @@ const rawGroups = [
           {name:'overrides',type:'text',label:'CSS覆盖',placeholder:'--radii:0px',optional:true},
         ]
       },
+      { id:'today-wcag-fix', method:'GET', path:'/api/v1/today.json?wcag-fix=aa',
+        label: 'Today (WCAG Fix)', desc: '今日主题 + 自动修复 WCAG AA 对比度',
+        usage: '获取今日主题并自动修复颜色对比度问题', cache: '1h/24h',
+        notes: '支持 ?wcag-fix=aa (4.5:1) 和 ?wcag-fix=aaa (7.0:1)',
+        responseFields: [{name:'preset',type:'string',desc:'主题预设'},{name:'presetName',type:'string',desc:'预设名称'},{name:'cssVars',type:'object',desc:'CSS 变量'},{name:'wcagFixApplied',type:'boolean',desc:'是否应用了修复'},{name:'wcagChanges',type:'array',desc:'修复变更列表'}],
+      },
+      { id:'today-dual', method:'GET', path:'/api/v1/today.json?dual=true',
+        label: 'Today (Dual)', desc: '今日主题暗色/亮色双变体',
+        usage: '同时获取 light 和 dark 变体，支持 ?mode=class|data', cache: '1h/24h',
+        responseFields: [{name:'preset',type:'string',desc:'主题预设'},{name:'dual.light',type:'object',desc:'亮色变体'},{name:'dual.dark',type:'object',desc:'暗色变体'}],
+      },
+      { id:'today-locale', method:'GET', path:'/api/v1/today.json?locale=hi-IN',
+        label: 'Today (Locale)', desc: '地域化节日主题',
+        usage: '支持 hi-IN, ja-JP, en-US, pt-BR 等 locale 参数', cache: '1h/24h',
+        notes: '优先检查 locale 特定节日，然后回退到全局节日',
+        responseFields: [{name:'preset',type:'string',desc:'主题预设'},{name:'presetName',type:'string',desc:'预设名称'},{name:'cssVars',type:'object',desc:'CSS 变量'},{name:'locale',type:'string',desc:'当前 locale'}],
+        params:[{name:'locale',type:'text',label:'Locale',placeholder:'hi-IN',optional:true}]
+      },
       { id:'today-css', method:'GET', path:'/api/v1/today.css', label:'Today CSS', desc:'返回今日主题的纯 CSS（:root {} 变量块）。通过 link 标签阻塞引入可消除 FOUC。', usage:'在 head 中添加 <link rel="stylesheet" href="/api/v1/today.css">', cache:'浏览器 1h / CDN 24h',
         notes:'与 today.json 不同，此端点直接返回可用的 CSS 文本（Content-Type: text/css）。因为是阻塞样式表，浏览器会在渲染前等待其加载完成，彻底消除无样式内容闪烁（FOUC）。适合对首屏视觉一致性要求极高的页面。支持 ?tz= 和 ?overrides= 参数，行为与 today.json 一致。',
         params:[{name:'tz',type:'text',label:'时区',placeholder:'Asia/Shanghai',optional:true},{name:'overrides',type:'text',label:'CSS覆盖',placeholder:'--radii:0px',optional:true}]
@@ -75,6 +93,11 @@ const rawGroups = [
       { id:'preset', method:'GET', path:'/api/v1/theme/{id}.json', label:'Theme Detail', desc:'获取指定预设或社区主题的完整数据。', usage:'用于固定主题或主题商店详情页。', cache:'预设 365d / 社区 1h',
         notes:'预设主题 ID 如 yozakura-reverie、ocean-depths、cyber-neon 等从静态 CDN 提供，缓存 365 天（immutable）。社区主题 ID（DIY 提交的）从数据库查询，缓存 1 小时。返回结构同 today.json：48 个 cssVars、layerContext、extensions（空项已过滤）、customCss（z-index 已重写为合约变量、pointer-events 已注入）。不存在的 ID 返回 404。',
         params:[{name:'id',type:'text',label:'主题ID',placeholder:'yozakura-reverie',optional:false,isPath:true}]
+      },
+      { id:'events', method:'GET', path:'/api/v1/events', label:'Smart Polling', desc:'主题变更智能轮询',
+        usage:'返回 nextPoll 间隔，用于客户端智能检测主题变更', cache:'none',
+        notes:'UTC 零点附近 10s，状态覆盖期间 30s，正常 5min',
+        responseFields: [{name:'type',type:'string',desc:'事件类型'},{name:'theme',type:'object',desc:'主题数据'},{name:'statusOverride',type:'object',desc:'状态覆盖'},{name:'nextPoll',type:'number',desc:'下次轮询间隔(ms)'},{name:'timestamp',type:'number',desc:'时间戳'}],
       },
       { id:'random', method:'GET', path:'/api/v1/theme/random.json', label:'Random Theme', desc:'随机获取一个主题。支持池子过滤和确定性随机种子。', usage:'用于换肤按钮。相同 seed 始终返回相同结果。', cache:'不缓存',
         notes:'?pool=static 仅从预设主题池中随机；?pool=community 仅从社区池随机；?pool=all 或省略则混合两个池子。?seed= 接受任意字符串，相同种子始终返回相同主题（基于 deterministic hash，非 Math.random）。适用场景：每日换肤（seed=日期）、用户专属主题（seed=用户ID）、A/B 测试。',
@@ -91,6 +114,13 @@ const rawGroups = [
       { id:'wcag', method:'GET', path:'/api/v1/theme/{id}/wcag.json', label:'WCAG Audit', desc:'WCAG 2.1 无障碍诊断。评估颜色对比度及 AA/AAA 合规性。', usage:'诊断报告包含 compliant 总览标记和 warnings 修复建议。', cache:'浏览器 1h',
         notes:'自动检测主题中所有前景/背景颜色组合的对比度。报告包含：contrastRatios（每对颜色的对比度数值）、aaCompliant / aaaCompliant（各级别合规标记）、warnings（具体修复建议，如 "primary text on bg: 3.2:1，需要至少 4.5:1 满足 AA"）。同时检测大文本（≥18px bold）和小文本的不同标准。适用于上线前无障碍审查。'
       },
+      { id:'wcag-fix', method:'GET', path:'/api/v1/theme/daily-0/wcag-fix.json?level=aa', label:'WCAG Auto-Fix', desc:'自动修复对比度 + APCA 评估',
+        usage:'指定 level=aa 或 level=aaa，返回修复后的 CSS 变量',
+        cache:'24h/1y',
+        notes:'美感保护: 亮度调整限 ±25%，不足时生成 *-contrasted 衍生变量',
+        responseFields: [{name:'themeId',type:'string',desc:'主题 ID'},{name:'level',type:'string',desc:'WCAG 等级'},{name:'original',type:'object',desc:'原始变量'},{name:'fixed',type:'object',desc:'修复后变量'},{name:'changes',type:'array',desc:'变更列表'},{name:'cssVars',type:'object',desc:'最终 CSS 变量'}],
+        params:[{name:'level',type:'select',label:'WCAG 等级',options:['aa','aaa'],optional:true}]
+      },
       { id:'scale', method:'GET', path:'/api/v1/theme/{id}/scale.json', label:'Tailwind Scale', desc:'基于黑白插值法生成完整的 Tailwind 风格 50~950 色阶。', usage:'返回 primary/secondary/accent/background 四组 11 级色阶。', cache:'365d immutable',
         notes:'算法原理：将主题主色与 #000 和 #fff 分别在 OKLCH 色彩空间中做线性插值，生成从 50（最浅）到 950（最深）共 11 级色阶。每组色阶保持色调一致，仅亮度递增。返回 JSON 格式 { primary: {50:"#...", 100:"#...", ..., 950:"#..."}, secondary: {...}, accent: {...}, background: {...} }。可直接导入 Tailwind config 的 theme.colors 字段。'
       },
@@ -102,6 +132,13 @@ const rawGroups = [
       },
       { id:'extract', method:'POST', path:'/api/v1/extract-theme.json', label:'Image Extra', desc:'图片取色 API。纯 JS 进行 K-means 聚类并用语义引擎映射为 UI 标准变量。', usage:'POST 图片 URL，获取生成的 46 个 CSS 变量（含 RGB 通道与 Z-Index 契约）。', cache:'不缓存',
         notes:'处理流程：下载图片 → 解码像素 → 每 10 个像素采样 → K-means（k=5）聚类提取主色调 → 色彩语义引擎映射为 UI 语义角色（主色、背景色、文字色、强调色等）→ 调用 enrichCssVars 补齐 RGB 通道变体和 Z-Index 层级契约变量 → 输出 46 个标准 CSS 变量。支持 JPEG/PNG，最大 5MB，抓取超时 5s。返回 layerContext 图层元数据和 apiVersion。',
+        params:[{name:'body',type:'textarea',label:'JSON Body',placeholder:'{\n  "imageUrl": "https://example.com/poster.jpg"\n}',optional:false}]
+      },
+      { id:'extract-atmosphere', method:'POST', path:'/api/v1/extract-theme.json?mode=atmosphere', label:'Extract (Atmosphere)', desc:'图片提取 + 氛围分析',
+        usage:'上传图片 URL，自动检测氛围并生成匹配的 CSS 动画和装饰',
+        cache:'24h/1y',
+        notes:'支持 8 种氛围: cyber/ocean/forest/warm/space/elegant/minimal/vibrant',
+        responseFields: [{name:'cssVars',type:'object',desc:'CSS 变量'},{name:'customCss',type:'string',desc:'自定义 CSS'},{name:'atmosphere.mood',type:'string',desc:'检测到的氛围'},{name:'atmosphere.extensions',type:'array',desc:'氛围装饰元素'}],
         params:[{name:'body',type:'textarea',label:'JSON Body',placeholder:'{\n  "imageUrl": "https://example.com/poster.jpg"\n}',optional:false}]
       }
     ]
@@ -171,6 +208,13 @@ const rawGroups = [
       { id:'diy-suggest-tags', method:'POST', path:'/api/v1/diy/suggest-tags.json', label:'Suggest Tags', desc:'8 维度加权评分，推荐 19 类标签及置信度。', usage:'纯计算端点，无需 Redis。POST body 传入 cssVars 等。', cache:'不缓存',
         notes:'分析维度：颜色（多色投票 dark/light、warm/cool、vibrant/minimal、space/ocean/elegant/industrial）、字体（serif→elegant、mono→tech、cursive→fantasy）、内容（中/英/日三语关键词匹配 nature/tech/retro/holiday/space/ocean/seasonal/fantasy/industrial）、结构（复杂度→minimal/animated/elegant）、特效（@keyframes 数量→vibrant/animated、毛玻璃→glass、扫描线→retro、星尘→space、雪花→seasonal）、Emoji（🌸→nature、🚀→space、🌊→ocean 等）、对比度（AAA→elegant、极高→industrial）、色调协调（互补色→vibrant）。',
         params:[{name:'body',type:'textarea',label:'JSON Body',placeholder:'{\n  "cssVars": {"--color-primary":"#ff6b6b","--color-bg":"#1a1a2e"}\n}',optional:false}]
+      },
+      { id:'diy-fork', method:'POST', path:'/api/v1/diy/fork.json', label:'Fork Theme', desc:'分支现有主题',
+        usage:'Fork 现有主题并应用自定义修改',
+        cache:'none',
+        notes:'需提供 sourceId，可选 name/author/overrides',
+        responseFields: [{name:'id',type:'string',desc:'新主题 ID'},{name:'name',type:'string',desc:'主题名称'},{name:'forkedFrom',type:'string',desc:'源主题 ID'},{name:'status',type:'string',desc:'状态'}],
+        params:[{name:'sourceId',type:'text',label:'源主题 ID',placeholder:'abc123',optional:false},{name:'name',type:'text',label:'新主题名称',placeholder:'My Fork',optional:true},{name:'author',type:'text',label:'作者',placeholder:'You',optional:true},{name:'overrides',type:'textarea',label:'CSS 变量覆盖 (JSON)',placeholder:'{"--color-primary":"#ff0"}',optional:true}]
       }
     ]
   },
@@ -1240,8 +1284,8 @@ const flatJSON = JSON.stringify(flat);
     setTimeout(() => updateTabIndicator(document.querySelector('.res-tab.active')), 100);
     window.addEventListener('resize', () => updateTabIndicator(document.querySelector('.res-tab.active')));
 
-    getEl('history-clear').addEventListener('click', function() {
-      if (confirm('Clear all request history?')) {
+    getEl('history-clear').addEventListener('click', async function() {
+      if (await window.confirmDialog('Clear all request history?')) {
         historyEntries = [];
         persistHistory();
         renderHistoryPanel();

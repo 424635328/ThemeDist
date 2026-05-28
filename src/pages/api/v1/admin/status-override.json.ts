@@ -3,6 +3,7 @@ import { isAdmin, verifyCsrf } from '../../../../lib/auth';
 import { get as redisGet, set as redisSet, del as redisDel } from '../../../../lib/redis';
 import { cacheDeletePrefix } from '../../../../lib/cache';
 import { VALID_STATUSES } from '../../../../lib/status-themes';
+import { broadcastEvent } from '../events';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -90,6 +91,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
     await redisSet(REDIS_KEY, state);
     cacheDeletePrefix('today:');
+    broadcastEvent('status-override', { action: 'activated', status, activatedAt: state.activatedAt });
 
     return new Response(JSON.stringify({
       success: true,
@@ -104,6 +106,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   if (action === 'deactivate') {
     await redisDel(REDIS_KEY);
     cacheDeletePrefix('today:');
+    broadcastEvent('status-override', { action: 'deactivated' });
 
     return new Response(JSON.stringify({
       success: true,

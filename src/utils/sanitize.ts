@@ -1,4 +1,4 @@
-import type { AnyExtension, DecorativeExtension, ThemeExtension, ClickEffectConfig, ClickSpawnDef } from '../themes/types';
+import type { AnyExtension, DecorativeExtension, ThemeExtension, ClickEffectConfig, ClickSpawnDef, SoundExtension } from '../themes/types';
 
 /** Max extensions per theme */
 const MAX_EXTENSIONS = 20;
@@ -107,7 +107,38 @@ export function collectExtensionWarnings(raw: any): string[] {
 }
 
 /**
- * Validate user-submitted extensions. Allows 'floating' (safe) and 'decorative' (sanitized HTML).
+ * Validate a sound extension. Clamps all values to safe ranges.
+ */
+function validateSoundExtension(item: any): SoundExtension | null {
+  const trigger = item.trigger;
+  if (trigger !== 'click' && trigger !== 'hover' && trigger !== 'ambient') return null;
+
+  const synth = item.synth;
+  if (!synth || typeof synth !== 'object') return null;
+
+  const waveforms = ['sine', 'square', 'sawtooth', 'triangle'];
+  const waveform = waveforms.includes(synth.waveform) ? synth.waveform : 'sine';
+
+  return {
+    type: 'sound',
+    trigger,
+    synth: {
+      waveform: waveform as SoundExtension['synth']['waveform'],
+      frequency: Math.max(20, Math.min(20000, Number(synth.frequency) || 440)),
+      duration: Math.max(50, Math.min(5000, Number(synth.duration) || 200)),
+      volume: Math.max(0, Math.min(1, Number(synth.volume) || 0.3)),
+      attack: Math.max(0, Math.min(2000, Number(synth.attack) || 10)),
+      release: Math.max(0, Math.min(5000, Number(synth.release) || 100)),
+      filter: synth.filter ? {
+        type: synth.filter.type === 'highpass' ? 'highpass' : 'lowpass',
+        cutoff: Math.max(20, Math.min(20000, Number(synth.filter.cutoff) || 2000)),
+      } : undefined,
+    },
+  };
+}
+
+/**
+ * Validate user-submitted extensions. Allows 'floating' (safe), 'decorative' (sanitized HTML), and 'sound'.
  * Sanitizes all CSS values and HTML to prevent injection.
  */
 export function validateUserExtensions(raw: any): AnyExtension[] | undefined {
@@ -158,6 +189,9 @@ export function validateUserExtensions(raw: any): AnyExtension[] | undefined {
       if (html) {
         cleaned.push({ type: 'decorative', html });
       }
+    } else if (item.type === 'sound' && item.synth && typeof item.synth === 'object') {
+      const s = validateSoundExtension(item);
+      if (s) cleaned.push(s);
     }
   }
   return cleaned.length > 0 ? cleaned : undefined;
@@ -201,7 +235,7 @@ function tryParseFloating(html: string): ThemeExtension | null {
 
     switch (key) {
       case 'top': case 'left': case 'right': case 'bottom':
-        { const dim = sanitizeCssDimension(val); if (dim) (ext as Record<string, string>)[key] = dim; break; }
+        { const dim = sanitizeCssDimension(val); if (dim) (ext as any)[key] = dim; break; }
       case 'font-size': case 'fontsize':
         { const dim = sanitizeCssDimension(val); if (dim) ext.fontSize = dim; break; }
       case 'opacity':

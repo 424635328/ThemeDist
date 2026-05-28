@@ -1783,16 +1783,9 @@ ${currentTheme ? `【当前主题 — 可在此基础上修改】\n\`\`\`json\n$
     }
   });
 
-  // ── Toast ──
-  function toast(msg) {
-    const el = document.getElementById('toast') || (() => {
-      const d = document.createElement('div'); d.id = 'toast';
-      d.style.cssText = 'position:fixed;bottom:32px;left:50%;transform:translateX(-50%);z-index:300;padding:10px 22px;border-radius:10px;font-size:13px;font-weight:600;background:var(--color-surface);border:1px solid var(--color-primary);color:var(--color-text);box-shadow:0 8px 30px rgba(0,0,0,0.2);opacity:0;pointer-events:none;transition:opacity 0.3s;';
-      document.body.appendChild(d); return d;
-    })();
-    el.textContent = msg; el.style.opacity = '1';
-    clearTimeout(el._timer);
-    el._timer = setTimeout(() => { el.style.opacity = '0'; }, 1800);
+  // Toast: use global Toast system from Layout
+  function toast(msg, type) {
+    window.__toast(msg, type || 'info');
   }
 
   // ── Drag & drop JSON file ──

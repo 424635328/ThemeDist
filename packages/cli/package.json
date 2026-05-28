@@ -1,0 +1,9 @@
+{
+  "name": "themedist",
+  "version": "1.0.0",
+  "type": "module",
+  "bin": {
+    "themedist": "./bin.js"
+  },
+  "license": "MIT"
+}

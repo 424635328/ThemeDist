@@ -32,6 +32,13 @@ export async function POST({ request, cookies }: { request: Request; cookies: an
 
     if (verifyCredentials(account, password)) {
       setAdminCookie(cookies);
+      // Store account name for audit trail (readable by JS, used in review UI)
+      cookies.set('admin_account', account, {
+        httpOnly: false,
+        path: '/',
+        maxAge: 60 * 60 * 24,
+        sameSite: 'strict',
+      });
       return new Response(JSON.stringify({ success: true, apiVersion: 'v1' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json', ...CORS, ...NO_CACHE },

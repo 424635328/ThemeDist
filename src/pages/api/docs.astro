@@ -162,6 +162,26 @@ function applyTheme(d) {
               <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/date=MM-DD</td>
               <td style="padding:12px 18px;font-size:13px">按日期查询主题，格式 MM-DD（如 <code>/api/v1/date=02-14</code>）</td>
             </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/today.json?wcag-fix=aa|aaa</td>
+              <td style="padding:12px 18px;font-size:13px">Auto-fix WCAG contrast, returns patched CSS vars</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/today.json?dual=true</td>
+              <td style="padding:12px 18px;font-size:13px">Light + dark dual-theme variants (mode=class|data)</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/today.css?dual=true</td>
+              <td style="padding:12px 18px;font-size:13px">Dual-theme CSS output (.theme-light / .theme-dark)</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/events</td>
+              <td style="padding:12px 18px;font-size:13px">Smart polling — theme change detection + nextPoll interval</td>
+            </tr>
             <tr><td colspan="3" style="padding:8px 18px;font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 4%, transparent)">COMMUNITY 社区主题</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)">
               <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
@@ -187,6 +207,11 @@ function applyTheme(d) {
               <td style="padding:12px 18px"><span class="ep-tag post">POST</span></td>
               <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/diy/like.json</td>
               <td style="padding:12px 18px;font-size:13px">点赞社区主题（IP+UA 去重）</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag post">POST</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/diy/fork.json</td>
+              <td style="padding:12px 18px;font-size:13px">Fork an existing theme with overrides</td>
             </tr>
             <tr><td colspan="3" style="padding:8px 18px;font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 4%, transparent)">AI 生成</td></tr>
             <tr>
@@ -258,6 +283,11 @@ function applyTheme(d) {
             </tr>
             <tr style="border-bottom:1px solid var(--color-border)">
               <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/theme/{'{id}'}/wcag-fix.json?level=aa|aaa</td>
+              <td style="padding:12px 18px;font-size:13px">Auto-fix contrast + APCA evaluation</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
               <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/theme/{'{id}'}/scale.json</td>
               <td style="padding:12px 18px;font-size:13px">Tailwind 风格色阶生成（50~950，含 primary/secondary/accent/bg）</td>
             </tr>
@@ -303,6 +333,17 @@ function applyTheme(d) {
               <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/status-override.json?status=</td>
               <td style="padding:12px 18px;font-size:13px">系统状态覆盖主题（maintenance / mourning / incident）</td>
             </tr>
+            <tr><td colspan="3" style="padding:8px 18px;font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 4%, transparent)">Admin</td></tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag post">POST</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/admin/moderate.json</td>
+              <td style="padding:12px 18px;font-size:13px">Rule-based content moderation (epilepsy, security, performance)</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:12px 18px"><span class="ep-tag post">GET/POST</span></td>
+              <td style="padding:12px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600">/api/v1/admin/api-keys.json</td>
+              <td style="padding:12px 18px;font-size:13px">API key CRUD (create/revoke/list, tiered rate limits)</td>
+            </tr>
             <tr><td colspan="3" style="padding:8px 18px;font-size:10px;font-weight:700;letter-spacing:0.05em;color:var(--color-primary);background:color-mix(in srgb, var(--color-primary) 4%, transparent)">便捷工具</td></tr>
             <tr style="border-bottom:1px solid var(--color-border)">
               <td style="padding:12px 18px"><span class="ep-tag get">GET</span></td>
@@ -347,6 +388,21 @@ function applyTheme(d) {
               <td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">?overrides=</td>
               <td style="padding:9px 16px;font-size:12px">today.json<br/>today.css</td>
               <td style="padding:9px 16px;font-size:13px">微调 CSS 变量值。格式：<code>--key:val;--key2:val2</code>。如 <code>?overrides=--radii:0px;--font-body:monospace</code>。最多 20 对，自动 XSS 清洗。</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">?wcag-fix=aa|aaa</td>
+              <td style="padding:9px 16px;font-size:12px">today.json<br/>today.css</td>
+              <td style="padding:9px 16px;font-size:13px">Auto-adjusts foreground color lightness to meet WCAG contrast requirements. Beauty-safe: adjustments capped at ±25% lightness. Generates <code>--color-*-contrasted</code> fallback vars when cap is insufficient.</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--color-border)">
+              <td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">?dual=true&amp;mode=class|data</td>
+              <td style="padding:9px 16px;font-size:12px">today.json<br/>today.css</td>
+              <td style="padding:9px 16px;font-size:13px">Returns both light and dark theme variants. <code>mode=class</code> outputs <code>.theme-light</code>/<code>.theme-dark</code> CSS classes. <code>mode=data</code> outputs <code>[data-theme="light"]</code>/<code>[data-theme="dark"]</code> attribute selectors.</td>
+            </tr>
+            <tr>
+              <td style="padding:9px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600">?locale=hi-IN|ja-JP|en-US|pt-BR</td>
+              <td style="padding:9px 16px;font-size:12px">today.json<br/>today.css</td>
+              <td style="padding:9px 16px;font-size:13px">Locale-aware holiday theme selection. Checks locale-specific holidays before global ones. Supports Indian (Diwali, Holi), Japanese (Setsubun, Obon), US (Thanksgiving, July 4th), and Brazilian (Carnival, Dia dos Namorados) holidays.</td>
             </tr>
           </tbody>
         </table>
@@ -485,6 +541,29 @@ function applyTheme(d) {
             请将 JS 逻辑转换为 <code>"decorative"</code> HTML 片段 + <code>customCss</code> 中的 CSS 动画。
             详见下方「字段限制」表。
           </p>
+        </div>
+
+        <h3 id="ext-sound" style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:12px;margin-top:24px">类型 3: sound — Web Audio 合成</h3>
+        <p class="text-muted" style="font-size:12px;margin:0 0 10px">Declarative Web Audio API synthesis — no external audio files needed.</p>
+        <div class="card card-glass" style="padding:0;overflow:hidden;margin-bottom:16px">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="border-bottom:1px solid var(--color-border)">
+              <th style="text-align:left;padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:120px">字段</th>
+              <th style="text-align:left;padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:100px">类型</th>
+              <th style="text-align:left;padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">说明</th>
+            </tr></thead>
+            <tbody>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">type</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">"sound"</td><td style="padding:7px 14px;font-size:12px">Required</td></tr>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">trigger</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">"click" | "hover" | "ambient"</td><td style="padding:7px 14px;font-size:12px">When to play</td></tr>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">synth.waveform</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">"sine" | "square" | "sawtooth" | "triangle"</td><td style="padding:7px 14px;font-size:12px">Oscillator type</td></tr>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">synth.frequency</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">number (20-20000)</td><td style="padding:7px 14px;font-size:12px">Hz</td></tr>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">synth.duration</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">number (50-5000)</td><td style="padding:7px 14px;font-size:12px">ms</td></tr>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">synth.volume</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">number (0-1)</td><td style="padding:7px 14px;font-size:12px">Loudness</td></tr>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">synth.attack</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">number</td><td style="padding:7px 14px;font-size:12px">ms envelope attack</td></tr>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">synth.release</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">number</td><td style="padding:7px 14px;font-size:12px">ms envelope release</td></tr>
+              <tr><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600">synth.filter</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:10px">{`{ type, cutoff }`}</td><td style="padding:7px 14px;font-size:12px">Optional lowpass/highpass filter</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -648,6 +727,23 @@ module.exports = {
             <strong>交互穿透</strong>：<code>:host</code> 强制 <code>pointer-events: none</code>，所有装饰元素不可阻挡宿主 UI 点击。<br/>
             <strong>缓存降级</strong>：同日访问零网络开销，fetch 失败时自动使用过期缓存。
           </p>
+        </div>
+
+        <h3 style="font-size:14px;font-weight:700;letter-spacing:-0.01em;margin-bottom:10px;margin-top:20px">SDK v3.0 Features</h3>
+        <div class="card card-glass" style="padding:0;overflow:hidden;margin-bottom:16px">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="border-bottom:1px solid var(--color-border)">
+              <th style="text-align:left;padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:120px">Feature</th>
+              <th style="text-align:left;padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:200px">API</th>
+              <th style="text-align:left;padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">Description</th>
+            </tr></thead>
+            <tbody>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-weight:600;font-size:12px">User Pin</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">ThemeDistRunner.setPin('preset-id')</td><td style="padding:7px 14px;font-size:12px">Lock visitor to a specific theme</td></tr>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-weight:600;font-size:12px">Theme Mode</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">ThemeDistRunner.setMode('dark')</td><td style="padding:7px 14px;font-size:12px">Manual light/dark toggle ('light'|'dark'|'auto')</td></tr>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:7px 14px;font-weight:600;font-size:12px">Live Polling</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">&lt;themedist-runner live&gt;</td><td style="padding:7px 14px;font-size:12px">Auto-detect theme changes via smart polling</td></tr>
+              <tr><td style="padding:7px 14px;font-weight:600;font-size:12px">Sound</td><td style="padding:7px 14px;font-family:'JetBrains Mono',monospace;font-size:11px">Extensions with type: 'sound'</td><td style="padding:7px 14px;font-size:12px">Web Audio synthesis, respects reduced-motion</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -874,6 +970,26 @@ module.exports = {
           一个页面同时展示 5 个高级 API 的联动能力：天气感知 → 动态纹理 → 代码高亮 → 智能缓动 → WCAG 对比度。
           访问 <a href="/lab" style="color:var(--color-primary);font-weight:600">/lab</a> 查看。
         </p>
+      </div>
+
+      <h3 id="apca" style="font-size:15px;font-weight:700;letter-spacing:-0.02em;margin-bottom:10px;margin-top:20px">APCA Contrast (WCAG 3.0)</h3>
+      <div class="card" style="margin-bottom:36px;padding:24px 28px">
+        <p class="text-muted" style="font-size:13px;line-height:1.6;margin:0 0 14px 0">ThemeDist supports the APCA (Advanced Perceptual Contrast Algorithm) from the WCAG 3.0 draft. Unlike WCAG 2.1's symmetric formula, APCA uses polarity-aware asymmetric coefficients — dark text on light backgrounds and light text on dark backgrounds are evaluated differently.</p>
+        <div class="card card-glass" style="padding:0;overflow:hidden;margin-bottom:0">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="border-bottom:1px solid var(--color-border)">
+              <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:120px">Lc Range</th>
+              <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase;width:80px">Level</th>
+              <th style="text-align:left;padding:10px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;color:var(--color-text-muted);text-transform:uppercase">Use Case</th>
+            </tr></thead>
+            <tbody>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:12px">|Lc| &ge; 75</td><td style="padding:8px 16px;font-weight:700;color:var(--color-primary)">AAA</td><td style="padding:8px 16px;font-size:12px">Body text</td></tr>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:12px">|Lc| &ge; 60</td><td style="padding:8px 16px;font-weight:700;color:var(--color-primary)">AA</td><td style="padding:8px 16px;font-size:12px">Body text (minimum)</td></tr>
+              <tr style="border-bottom:1px solid var(--color-border)"><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:12px">|Lc| &ge; 45</td><td style="padding:8px 16px;font-weight:700;color:#f59e0b">AA Large</td><td style="padding:8px 16px;font-size:12px">Large text / UI controls</td></tr>
+              <tr><td style="padding:8px 16px;font-family:'JetBrains Mono',monospace;font-size:12px">|Lc| &lt; 45</td><td style="padding:8px 16px;font-weight:700;color:#ef4444">Fail</td><td style="padding:8px 16px;font-size:12px">Not readable</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- ====== ENV AWARE ====== -->

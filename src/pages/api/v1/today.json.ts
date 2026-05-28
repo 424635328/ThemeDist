@@ -5,6 +5,8 @@ import { applyOverrides, processThemePayload } from '../../../utils/sanitize';
 import { get as redisGet } from '../../../lib/redis';
 import { STATUS_THEMES } from '../../../lib/status-themes';
 import { STRUCTURAL_CSS_VARS } from '../../../lib/css-vars-defaults';
+import { generateContrastFix, isLightColor } from '../../../utils/color';
+import { deriveDarkVariant, deriveLightVariant } from '../../../utils/dark-mode';
 
 export const prerender = false;
 
@@ -21,6 +23,10 @@ const CACHE_HEADERS = {
 export async function GET({ url }: { url: URL }) {
   const tz = url.searchParams.get('tz');
   const overridesRaw = url.searchParams.get('overrides');
+  const wcagFix = url.searchParams.get('wcag-fix') as 'aa' | 'aaa' | null;
+  const dual = url.searchParams.get('dual') === 'true';
+  const dualMode = url.searchParams.get('mode') || 'class';
+  const locale = url.searchParams.get('locale');
 
   // Check for active status override before cache
   const override = await redisGet<{ status: string; activatedAt: string }>('td:status-override');
@@ -49,9 +55,10 @@ export async function GET({ url }: { url: URL }) {
     });
   }
 
+  const hasSpecialParams = wcagFix || dual || overridesRaw || locale;
   const todayKey = `today:${new Date().toISOString().slice(0, 10)}` + (tz ? `:tz:${tz}` : '');
   const cached = cacheGet<string>(todayKey);
-  if (cached && !overridesRaw) {
+  if (cached && !hasSpecialParams) {
     return new Response(cached, {
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
@@ -65,7 +72,7 @@ export async function GET({ url }: { url: URL }) {
   let theme;
   if (tz) {
     const dateStr = getMMDDForTimezone(tz);
-    theme = await getDateTheme(dateStr);
+    theme = await getDateTheme(dateStr, locale || undefined);
   } else {
     const communityDaily = await getDailyCommunityTheme();
     theme = communityDaily || getDailyTheme();
@@ -74,6 +81,26 @@ export async function GET({ url }: { url: URL }) {
   let cssVars = theme.cssVars;
   if (overridesRaw) {
     cssVars = applyOverrides(cssVars, overridesRaw);
+  }
+
+  // WCAG auto-fix
+  let wcagFixApplied = false;
+  let wcagChanges: any[] = [];
+  if (wcagFix) {
+    const { fixed, changes } = generateContrastFix(cssVars, wcagFix);
+    cssVars = fixed;
+    wcagFixApplied = true;
+    wcagChanges = changes;
+  }
+
+  // Dual-theme generation
+  let dualThemes: Record<string, any> | undefined;
+  if (dual) {
+    const bgHex = cssVars['--color-bg'] || '#000000';
+    const isLight = isLightColor(bgHex);
+    const lightTheme = isLight ? { ...theme, cssVars } : deriveLightVariant(theme);
+    const darkTheme = isLight ? deriveDarkVariant(theme) : { ...theme, cssVars };
+    dualThemes = { light: lightTheme, dark: darkTheme, mode: dualMode };
   }
 
   const allThemes = getAllThemes();
@@ -122,10 +149,13 @@ export async function GET({ url }: { url: URL }) {
     layerContext: processed.layerContext,
   };
   if (overridesRaw) bodyObj.appliedOverrides = true;
+  if (wcagFixApplied) { bodyObj.wcagFixApplied = true; bodyObj.wcagChanges = wcagChanges; }
+  if (dualThemes) bodyObj.dual = dualThemes;
+  if (locale) bodyObj.locale = locale;
 
   const body = JSON.stringify(bodyObj, null, 2);
 
-  if (!overridesRaw) {
+  if (!hasSpecialParams) {
     cacheSet(todayKey, body, 120_000); // 2 min in-memory cache
   }
 

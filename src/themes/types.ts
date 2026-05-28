@@ -19,8 +19,26 @@ export interface DecorativeExtension {
   html: string;
 }
 
-/** Any extension — floating (safe) or decorative (trusted-only). */
-export type AnyExtension = ThemeExtension | DecorativeExtension;
+/** Declarative Web Audio synthesis parameters for sound micro-interactions. */
+export interface WebAudioSynthParams {
+  waveform: 'sine' | 'square' | 'sawtooth' | 'triangle';
+  frequency: number;  // Hz (20-20000)
+  duration: number;   // ms (50-5000)
+  volume: number;     // 0-1
+  attack: number;     // ms envelope attack
+  release: number;    // ms envelope release
+  filter?: { type: 'lowpass' | 'highpass'; cutoff: number };
+}
+
+/** Sound micro-interaction extension — synthesized via Web Audio API. */
+export interface SoundExtension {
+  type: 'sound';
+  trigger: 'click' | 'hover' | 'ambient';
+  synth: WebAudioSynthParams;
+}
+
+/** Any extension — floating, decorative, or sound. */
+export type AnyExtension = ThemeExtension | DecorativeExtension | SoundExtension;
 
 /** Theme tags for classification */
 export type ThemeTag =

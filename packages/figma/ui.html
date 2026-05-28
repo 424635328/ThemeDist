@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  :root {
+    --bg: #1e1e2e;
+    --surface: #282840;
+    --border: #383850;
+    --text: #e0e0e0;
+    --text-muted: #888;
+    --primary: #818cf8;
+    --primary-hover: #6366f1;
+    --success: #34d399;
+    --error: #f87171;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg);
+    padding: 16px;
+    line-height: 1.5;
+  }
+
+  h1 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--primary);
+  }
+
+  .subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    margin-top: 12px;
+  }
+
+  input[type="text"] {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 12px;
+    font-family: ui-monospace, monospace;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  input[type="text"]:focus {
+    border-color: var(--primary);
+  }
+
+  button {
+    width: 100%;
+    padding: 9px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-top: 10px;
+  }
+
+  .btn-primary {
+    background: var(--primary);
+    color: #fff;
+  }
+  .btn-primary:hover { background: var(--primary-hover); }
+
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { background: var(--border); }
+
+  .btn-export {
+    background: transparent;
+    color: var(--primary);
+    border: 1px solid var(--primary);
+  }
+  .btn-export:hover { background: rgba(129, 140, 248, 0.1); }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 20px 0;
+  }
+
+  .status {
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    display: none;
+    word-break: break-all;
+  }
+
+  .status.success {
+    display: block;
+    background: rgba(52, 211, 153, 0.1);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+    color: var(--success);
+  }
+
+  .status.error {
+    display: block;
+    background: rgba(248, 113, 113, 0.1);
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    color: var(--error);
+  }
+
+  .status.loading {
+    display: block;
+    background: rgba(129, 140, 248, 0.1);
+    border: 1px solid rgba(129, 140, 248, 0.3);
+    color: var(--primary);
+  }
+
+  .output-area {
+    margin-top: 14px;
+    display: none;
+  }
+
+  .output-area.visible { display: block; }
+
+  textarea {
+    width: 100%;
+    height: 160px;
+    padding: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 11px;
+    font-family: ui-monospace, monospace;
+    resize: vertical;
+    outline: none;
+  }
+
+  textarea:focus { border-color: var(--primary); }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-top: 20px;
+    margin-bottom: 8px;
+  }
+
+  .copy-btn {
+    width: auto;
+    display: inline-block;
+    padding: 4px 10px;
+    margin-top: 6px;
+    font-size: 11px;
+    background: var(--surface);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .copy-btn:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<h1>ThemeDist</h1>
+<p class="subtitle">Import and export theme variables</p>
+
+<div class="section-label">API Source</div>
+<label for="api-url">Theme API URL</label>
+<input type="text" id="api-url"
+  value="https://themedist.netlify.app/api/v1/today.json"
+  placeholder="https://themedist.netlify.app/api/v1/today.json" />
+
+<button class="btn-primary" id="btn-import-today">Import Today's Theme</button>
+
+<label for="preset-id">Preset ID (optional)</label>
+<input type="text" id="preset-id" placeholder="e.g. pastel-dreams" />
+
+<button class="btn-secondary" id="btn-import-preset">Import Specific Theme</button>
+
+<div class="divider"></div>
+
+<div class="section-label">Export</div>
+<button class="btn-export" id="btn-export">Export Current Variables</button>
+
+<div id="status" class="status"></div>
+
+<div id="output-area" class="output-area">
+  <label>Exported Theme JSON</label>
+  <textarea id="output-json" readonly></textarea>
+  <button class="copy-btn" id="btn-copy">Copy to Clipboard</button>
+</div>
+
+<script>
+  const apiUrlInput = document.getElementById('api-url');
+  const presetIdInput = document.getElementById('preset-id');
+  const statusEl = document.getElementById('status');
+  const outputArea = document.getElementById('output-area');
+  const outputJson = document.getElementById('output-json');
+
+  function setStatus(text, type) {
+    statusEl.textContent = text;
+    statusEl.className = 'status ' + type;
+  }
+
+  function hideStatus() {
+    statusEl.className = 'status';
+  }
+
+  async function fetchTheme(url) {
+    setStatus('Fetching theme...', 'loading');
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return data;
+    } catch (e) {
+      throw new Error('Fetch failed: ' + e.message);
+    }
+  }
+
+  // Import today's theme
+  document.getElementById('btn-import-today').onclick = async () => {
+    try {
+      const url = apiUrlInput.value.trim();
+      if (!url) { setStatus('Please enter an API URL', 'error'); return; }
+      const theme = await fetchTheme(url);
+      const vars = theme.variables || theme.css || {};
+      parent.postMessage({
+        pluginMessage: {
+          type: 'import-theme',
+          variables: vars,
+          name: theme.name || 'ThemeDist',
+        }
+      }, '*');
+    } catch (e) {
+      setStatus(e.message, 'error');
+    }
+  };
+
+  // Import specific theme by preset ID
+  document.getElementById('btn-import-preset').onclick = async () => {
+    try {
+      const base = apiUrlInput.value.trim().replace(/\/today\.json$/, '');
+      const presetId = presetIdInput.value.trim();
+      if (!presetId) { setStatus('Please enter a preset ID', 'error'); return; }
+      const url = `${base}/presets/${presetId}.json`;
+      const theme = await fetchTheme(url);
+      const vars = theme.variables || theme.css || {};
+      parent.postMessage({
+        pluginMessage: {
+          type: 'import-theme',
+          variables: vars,
+          name: theme.name || presetId,
+        }
+      }, '*');
+    } catch (e) {
+      setStatus(e.message, 'error');
+    }
+  };
+
+  // Export current variables
+  document.getElementById('btn-export').onclick = () => {
+    parent.postMessage({ pluginMessage: { type: 'export-theme' } }, '*');
+    setStatus('Reading variables...', 'loading');
+  };
+
+  // Copy to clipboard
+  document.getElementById('btn-copy').onclick = () => {
+    const text = outputJson.value;
+    navigator.clipboard.writeText(text).then(() => {
+      setStatus('Copied to clipboard', 'success');
+    });
+  };
+
+  // Messages from code.js
+  window.onmessage = (event) => {
+    const msg = event.data.pluginMessage;
+    if (!msg) return;
+
+    if (msg.type === 'import-result') {
+      if (msg.success) {
+        setStatus(msg.message, 'success');
+      } else {
+        setStatus(msg.message, 'error');
+      }
+    }
+
+    if (msg.type === 'export-result') {
+      if (msg.success) {
+        const json = JSON.stringify(msg.theme, null, 2);
+        outputJson.value = json;
+        outputArea.classList.add('visible');
+        setStatus('Export complete', 'success');
+      } else {
+        setStatus(msg.message, 'error');
+      }
+    }
+  };
+</script>
+
+</body>
+</html>

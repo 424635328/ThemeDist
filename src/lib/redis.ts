@@ -39,7 +39,7 @@ export function isReady(): boolean {
 export async function sadd(key: string, ...members: string[]): Promise<number> {
   const c = getClient();
   if (!c) return 0;
-  try { return await c.sadd(key, ...members); } catch { return 0; }
+  try { return await (c as any).sadd(key, ...members) as number; } catch { return 0; }
 }
 
 export async function sismember(key: string, member: string): Promise<boolean> {
@@ -47,7 +47,7 @@ export async function sismember(key: string, member: string): Promise<boolean> {
   if (!c) return false;
   try {
     const r = await c.sismember(key, member);
-    return r === 1 || r === true;
+    return r === 1;
   } catch { return false; }
 }
 
@@ -150,12 +150,18 @@ export async function zrem(key: string, member: string): Promise<boolean> {
   try { await c.zrem(key, member); return true; } catch { return false; }
 }
 
+export async function zrange(key: string, start: number, stop: number): Promise<string[]> {
+  const c = getClient();
+  if (!c) return [];
+  try { return (await c.zrange<string[]>(key, start, stop)) || []; } catch { return []; }
+}
+
 // ─── Hash (哈希) 操作 ───
 
 export async function hgetall<T = any>(key: string): Promise<T | null> {
   const c = getClient();
   if (!c) return null;
-  try { return await c.hgetall<T>(key); } catch { return null; }
+  try { return await c.hgetall(key) as T | null; } catch { return null; }
 }
 
 export async function hset(key: string, data: Record<string, any>): Promise<number> {

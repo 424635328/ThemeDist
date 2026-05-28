@@ -1,10 +1,12 @@
 import type { APIRoute } from 'astro';
 import jpeg from 'jpeg-js';
 import { PNG } from 'pngjs';
-import { hexToRgb, getLuminance, getContrastRatio, rgbToHex } from '../../../utils/color';
+import { hexToRgb, hexToHsl, getLuminance, getContrastRatio, rgbToHex } from '../../../utils/color';
 import { enrichCssVars } from '../../../utils/omni-bridge';
 import { STRUCTURAL_CSS_VARS } from '../../../lib/css-vars-defaults';
 import { buildLayerContext } from '../../../utils/sanitize';
+
+export const prerender = false;
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -81,7 +83,212 @@ function buildCssVars(
   };
 }
 
+// ─── Atmosphere mode helpers ───
+
+type Mood = 'cyber' | 'ocean' | 'forest' | 'warm' | 'space' | 'elegant' | 'minimal' | 'vibrant';
+
+interface AtmosphereResult {
+  mood: Mood;
+  moodLabel: string;
+  customCss: string;
+  extensions: { type: 'floating' | 'overlay'; char?: string; opacity?: number; html?: string }[];
+  tags: string[];
+}
+
+function detectMood(hexPalette: string[], isDark: boolean): Mood {
+  const hsls = hexPalette.map(hexToHsl);
+
+  // Weighted analysis using cluster sizes (first = dominant)
+  const avgSat = hsls.reduce((s, h) => s + h.s, 0) / hsls.length;
+  const dominantH = hsls[0].h;
+  const dominantS = hsls[0].s;
+  const dominantL = hsls[0].l;
+
+  // Contrast: luminance spread between brightest and darkest
+  const luminances = hexPalette.map(h => { const [r, g, b] = hexToRgb(h); return getLuminance(r, g, b); });
+  const contrast = Math.max(...luminances) - Math.min(...luminances);
+
+  // Multi-hue check: count clusters in distinct hue buckets
+  const hueBuckets = new Set(hsls.map(h => Math.floor(h.h / 60)));
+  const isMultiHue = hueBuckets.size >= 3;
+
+  // Space/Cosmic: very dark dominant (L<0.15)
+  if (dominantL < 0.15) return 'space';
+
+  // Cyber/Neon: cool hue (200-300) + high saturation
+  if (dominantH >= 200 && dominantH <= 300 && dominantS > 0.6) return 'cyber';
+
+  // Ocean/Aqua: hue 170-210 + medium saturation
+  if (dominantH >= 170 && dominantH < 210 && dominantS >= 0.25) return 'ocean';
+
+  // Forest/Nature: hue 80-160 + medium saturation
+  if (dominantH >= 80 && dominantH < 160 && dominantS >= 0.2) return 'forest';
+
+  // Warm/Sunset: hue 0-40 or 330-360 + high saturation
+  if ((dominantH <= 40 || dominantH >= 330) && dominantS > 0.45) return 'warm';
+
+  // Vibrant/Party: high saturation + multi-hue
+  if (avgSat > 0.55 && isMultiHue) return 'vibrant';
+
+  // Elegant/Luxury: low saturation + high contrast
+  if (avgSat < 0.25 && contrast > 0.5) return 'elegant';
+
+  // Minimal: low saturation + low contrast
+  return 'minimal';
+}
+
+const MOOD_LABELS: Record<Mood, string> = {
+  cyber: 'Cyber/Neon',
+  ocean: 'Ocean/Aqua',
+  forest: 'Forest/Nature',
+  warm: 'Warm/Sunset',
+  space: 'Space/Cosmic',
+  elegant: 'Elegant/Luxury',
+  minimal: 'Minimal',
+  vibrant: 'Vibrant/Party',
+};
+
+function buildMoodCss(mood: Mood, primaryHex: string): string {
+  const reducedMotion = `\n@media (prefers-reduced-motion: reduce) { .atmos-anim { animation: none !important; } }`;
+
+  switch (mood) {
+    case 'cyber':
+      return `@keyframes atmos-scan {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 100%; }
+}
+.atmos-anim {
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, ${primaryHex}08 2px, ${primaryHex}08 4px);
+  animation: atmos-scan 4s linear infinite;
+  pointer-events: none;
+}${reducedMotion}`;
+
+    case 'ocean':
+      return `@keyframes atmos-wave {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-6px) rotate(1deg); }
+  75% { transform: translateY(4px) rotate(-1deg); }
+}
+.atmos-anim { animation: atmos-wave 6s ease-in-out infinite; }${reducedMotion}`;
+
+    case 'forest':
+      return `@keyframes atmos-drift {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 0.7; }
+  50% { transform: translate(8px, 12px) rotate(15deg); opacity: 1; }
+  100% { transform: translate(-4px, 24px) rotate(-10deg); opacity: 0.7; }
+}
+.atmos-anim { animation: atmos-drift 8s ease-in-out infinite; }${reducedMotion}`;
+
+    case 'warm':
+      return `@keyframes atmos-glow {
+  0%, 100% { opacity: 0.6; filter: brightness(1); }
+  50% { opacity: 1; filter: brightness(1.15); }
+}
+.atmos-anim { animation: atmos-glow 4s ease-in-out infinite; }${reducedMotion}`;
+
+    case 'space':
+      return `@keyframes atmos-twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.3); }
+}
+.atmos-anim { animation: atmos-twinkle 3s ease-in-out infinite; }${reducedMotion}`;
+
+    case 'elegant':
+      return `@keyframes atmos-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.atmos-anim {
+  background: linear-gradient(90deg, transparent 0%, ${primaryHex}15 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: atmos-shimmer 5s linear infinite;
+}${reducedMotion}`;
+
+    case 'vibrant':
+      return `@keyframes atmos-pulse {
+  0%, 100% { transform: scale(1); filter: hue-rotate(0deg); }
+  50% { transform: scale(1.05); filter: hue-rotate(20deg); }
+}
+.atmos-anim { animation: atmos-pulse 3s ease-in-out infinite; }${reducedMotion}`;
+
+    case 'minimal':
+      return `@keyframes atmos-fade {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+.atmos-anim { animation: atmos-fade 6s ease-in-out infinite; }${reducedMotion}`;
+  }
+}
+
+function buildExtensions(mood: Mood): AtmosphereResult['extensions'] {
+  switch (mood) {
+    case 'ocean':
+      return [
+        { type: 'floating', char: '\u{1FAB0}', opacity: 0.5 },
+        { type: 'floating', char: '~', opacity: 0.2 },
+      ];
+    case 'space':
+      return [
+        { type: 'floating', char: '✦', opacity: 0.3 },
+        { type: 'floating', char: '★', opacity: 0.15 },
+      ];
+    case 'forest':
+      return [
+        { type: 'floating', char: '\u{1F343}' },
+      ];
+    case 'cyber':
+      return [
+        { type: 'overlay', html: '<div style="position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,200,0.03) 2px,rgba(0,255,200,0.03) 4px);z-index:9999;"></div>' },
+      ];
+    case 'warm':
+      return [
+        { type: 'floating', char: '☀', opacity: 0.25 },
+      ];
+    case 'vibrant':
+      return [
+        { type: 'floating', char: '✨' },
+        { type: 'floating', char: '\u{1F389}', opacity: 0.6 },
+      ];
+    case 'elegant':
+      return [
+        { type: 'floating', char: '✧', opacity: 0.15 },
+      ];
+    case 'minimal':
+      return [];
+  }
+}
+
+function deriveTags(hexPalette: string[], isDark: boolean): string[] {
+  const tags: string[] = [];
+
+  tags.push(isDark ? 'dark' : 'light');
+
+  const hsls = hexPalette.map(hexToHsl);
+  const avgSat = hsls.reduce((s, h) => s + h.s, 0) / hsls.length;
+  tags.push(avgSat > 0.4 ? 'vibrant' : 'minimal');
+
+  // Warm vs cool: check if majority of hues are in warm range
+  const warmCount = hsls.filter(h => h.h <= 60 || h.h >= 300).length;
+  tags.push(warmCount > hsls.length / 2 ? 'warm' : 'cool');
+
+  return tags;
+}
+
+function buildAtmosphere(hexPalette: string[], isDark: boolean, primaryHex: string): AtmosphereResult {
+  const mood = detectMood(hexPalette, isDark);
+  return {
+    mood,
+    moodLabel: MOOD_LABELS[mood],
+    customCss: buildMoodCss(mood, primaryHex),
+    extensions: buildExtensions(mood),
+    tags: deriveTags(hexPalette, isDark),
+  };
+}
+
 export const POST: APIRoute = async ({ request }) => {
+  const mode = new URL(request.url).searchParams.get('mode');
+  const isAtmosphere = mode === 'atmosphere';
+
   let body: { imageUrl?: string };
   try {
     body = await request.json();
@@ -240,9 +447,9 @@ export const POST: APIRoute = async ({ request }) => {
     isDark,
   ));
 
-  const customCss = `body { background: linear-gradient(135deg, var(--color-bg) 0%, var(--color-surface) 100%); }`;
+  let customCss = `body { background: linear-gradient(135deg, var(--color-bg) 0%, var(--color-surface) 100%); }`;
 
-  return new Response(JSON.stringify({
+  const responseData: Record<string, unknown> = {
     success: true,
     sourcePalette: hexPalette,
     isDark,
@@ -251,7 +458,22 @@ export const POST: APIRoute = async ({ request }) => {
     customCss,
     apiVersion: 'v1',
     layerContext: buildLayerContext(customCss, null),
-  }, null, 2), {
+  };
+
+  if (isAtmosphere) {
+    const atmosphere = buildAtmosphere(hexPalette, isDark, primaryColor);
+    customCss += '\n' + atmosphere.customCss;
+    responseData.customCss = customCss;
+    responseData.layerContext = buildLayerContext(customCss, null);
+    responseData.atmosphere = {
+      mood: atmosphere.mood,
+      moodLabel: atmosphere.moodLabel,
+      extensions: atmosphere.extensions,
+      tags: atmosphere.tags,
+    };
+  }
+
+  return new Response(JSON.stringify(responseData, null, 2), {
     headers: {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-store',

@@ -176,6 +176,15 @@ const siteUrl = Astro.url.origin;
         <!-- Theme list container -->
         <div id="theme-list-admin" class="theme-grid-admin"></div>
 
+        <!-- Recently Approved (24h rollback window) -->
+        <div id="recently-approved-section" style="display:none;margin-top:48px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+            <h2 style="font-size:18px;font-weight:700;letter-spacing:-0.03em">近期通过 <span style="font-size:12px;font-weight:500;color:var(--color-text-muted)">（24 小时内可撤回）</span></h2>
+            <span id="recently-approved-count" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px;background:color-mix(in srgb, var(--color-primary) 14%, transparent);color:var(--color-primary)">0</span>
+          </div>
+          <div id="recently-approved-list" class="theme-grid-admin"></div>
+        </div>
+
         <!-- Error state -->
         <div id="error-state-admin" class="error-state-container">
           <div class="error-icon">⚠️</div>
@@ -1005,6 +1014,102 @@ const siteUrl = Astro.url.origin;
       margin-left: 0;
     }
   }
+
+  /* ─── Moderation ─── */
+  .btn-moderate {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--color-border, rgba(255,255,255,0.1));
+    border-radius: 6px;
+    background: transparent;
+    color: var(--color-text-muted, #94a3b8);
+    cursor: pointer;
+    transition: all 0.2s;
+    vertical-align: middle;
+    margin-left: 6px;
+  }
+  .btn-moderate:hover {
+    background: var(--color-surface, rgba(255,255,255,0.05));
+    color: var(--color-primary, #6366f1);
+    border-color: var(--color-primary, #6366f1);
+  }
+  .moderation-result {
+    margin-top: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .mod-safe {
+    color: #22c55e;
+    font-weight: 600;
+  }
+  .mod-unsafe {
+    color: #ef4444;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .mod-issue {
+    color: var(--color-text-muted, #94a3b8);
+    padding: 2px 0;
+  }
+
+  /* ─── Recently Approved / Rollback ─── */
+  .rollback-card {
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 20px;
+    background: color-mix(in srgb, var(--color-surface) 50%, transparent);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    margin-bottom: 10px;
+    transition: all 0.2s ease;
+  }
+  .rollback-card:hover {
+    border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
+  }
+  .rollback-info { flex: 1; min-width: 0; }
+  .rollback-name {
+    font-size: 14px; font-weight: 700; letter-spacing: -0.02em;
+    color: var(--color-text);
+    margin-bottom: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .rollback-meta {
+    font-size: 11px; color: var(--color-text-muted);
+    display: flex; gap: 10px; align-items: center;
+  }
+  .rollback-time {
+    font-size: 11px; font-weight: 600; white-space: nowrap;
+  }
+  .rollback-time-urgent { color: #f59e0b; }
+  .rollback-time-expired { color: var(--color-text-muted); }
+  .btn-rollback {
+    height: 34px; padding: 0 16px;
+    border-radius: 8px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid #f59e0b;
+    background: rgba(245,158,11,0.08);
+    color: #f59e0b;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+  .btn-rollback:hover {
+    background: rgba(245,158,11,0.18);
+    box-shadow: 0 0 14px rgba(245,158,11,0.15);
+  }
+  .btn-rollback:disabled {
+    opacity: 0.35; cursor: not-allowed;
+    border-color: var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    box-shadow: none;
+  }
 </style>
 
 <script>
@@ -1026,7 +1131,7 @@ const siteUrl = Astro.url.origin;
       const errorEl = document.getElementById('login-error');
 
       if (!account || !password) {
-        if (errorEl) { errorEl.textContent = '请完整填写管理员账号和密码'; errorEl.style.display = 'block'; }
+        window.__toast?.('请完整填写管理员账号和密码', 'warning');
         return;
       }
 
@@ -1038,12 +1143,13 @@ const siteUrl = Astro.url.origin;
         });
         const data = await res.json();
         if (res.ok && data.success) {
-          location.reload();
+          window.__toast?.('登录成功，正在跳转…');
+          setTimeout(() => location.reload(), 600);
         } else {
-          if (errorEl) { errorEl.textContent = data.error || '登录失败，凭证不匹配'; errorEl.style.display = 'block'; }
+          window.__toast?.(data.error || '登录失败，凭证不匹配', 'error');
         }
       } catch {
-        if (errorEl) { errorEl.textContent = '网络层发生传输故障，请稍后检查重试'; errorEl.style.display = 'block'; }
+        window.__toast?.('网络层发生传输故障，请稍后检查重试', 'error');
       }
     });
   }
@@ -1057,7 +1163,8 @@ const siteUrl = Astro.url.origin;
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'logout' }),
       });
-      location.reload();
+      window.__toast?.('已安全退出');
+      setTimeout(() => location.reload(), 400);
     });
   }
 
@@ -1077,6 +1184,9 @@ const siteUrl = Astro.url.origin;
     const toolbar = document.getElementById('toolbar');
     const warningBox = document.getElementById('dangling-keys-warning');
     const warningBadgeCount = document.getElementById('dangling-badge-count');
+    const recentlyApprovedSection = document.getElementById('recently-approved-section');
+    const recentlyApprovedList = document.getElementById('recently-approved-list');
+    const recentlyApprovedCount = document.getElementById('recently-approved-count');
 
     let themes = [];
     let selected = new Set();
@@ -1160,6 +1270,9 @@ const siteUrl = Astro.url.origin;
                   <span class="review-badge-dot"></span>
                   待审核
                 </span>
+                <button class="btn-moderate" data-id="${t.id}" title="内容审查" onclick="moderateTheme('${t.id}')">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+                </button>
                 <span class="review-ttl ${ttlUrgent ? 'ttl-urgent' : ttlWarn ? 'ttl-warn' : ''}" title="自动过期倒计时">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M8 4v5l3 2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
                   ${ttlMs <= 0 ? '已过期' : ttlHours > 0 ? ttlHours + 'h ' + ttlMins + 'm' : ttlMins + 'm'}
@@ -1252,6 +1365,9 @@ const siteUrl = Astro.url.origin;
 
         loadingEl.style.display = 'none';
 
+        // Always render recently approved (24h rollback) regardless of pending state
+        renderRecentlyApproved(data.recentlyApproved || []);
+
         if (pendingCount > 0 && themes.length === 0) {
           if (warningBox) {
             if (warningBadgeCount) warningBadgeCount.textContent = String(pendingCount);
@@ -1303,6 +1419,92 @@ const siteUrl = Astro.url.origin;
       }
     }
 
+    // ── Recently Approved Rendering ──
+    let rollbackTimer = 0;
+    function formatRemaining(approvedAt) {
+      const remaining = approvedAt + 86400000 - Date.now(); // 24h window
+      if (remaining <= 0) return { text: '已归档', expired: true };
+      const h = Math.floor(remaining / 3600000);
+      const m = Math.floor((remaining % 3600000) / 60000);
+      if (h > 0) return { text: `剩余 ${h}h ${m}m 可撤回`, expired: false, urgent: h < 2 };
+      return { text: `剩余 ${m}m 可撤回`, expired: false, urgent: true };
+    }
+
+    function renderRecentlyApproved(items) {
+      if (!recentlyApprovedSection || !recentlyApprovedList) return;
+      recentlyApprovedSection.style.display = 'block';
+
+      if (!items || items.length === 0) {
+        recentlyApprovedList.innerHTML = '<div class="card card-glass" style="padding:20px;text-align:center"><p class="text-muted" style="font-size:13px">暂无 24 小时内通过的主题</p></div>';
+        if (recentlyApprovedCount) recentlyApprovedCount.textContent = '0';
+        clearInterval(rollbackTimer);
+        return;
+      }
+      if (recentlyApprovedCount) recentlyApprovedCount.textContent = String(items.length);
+
+      recentlyApprovedList.innerHTML = items.map(t => {
+        const remaining = formatRemaining(t.approvedAt || 0);
+        const dateStr = new Date(t.createdAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        return `
+          <div class="rollback-card" id="rollback-${t.id}">
+            <div class="rollback-info">
+              <div class="rollback-name">${escapeHtml(t.name)}</div>
+              <div class="rollback-meta">
+                <span>${escapeHtml(t.author)}</span>
+                <span>·</span>
+                <span>提交于 ${dateStr}</span>
+                ${t.reviewedBy ? `<span>·</span><span style="color:var(--color-primary)">审核: ${escapeHtml(t.reviewedBy)}</span>` : ''}
+              </div>
+            </div>
+            <span class="rollback-time ${remaining.expired ? 'rollback-time-expired' : remaining.urgent ? 'rollback-time-urgent' : ''}" data-rollback-time="${t.id}" data-approved-at="${t.approvedAt || 0}">${remaining.text}</span>
+            <button class="btn-rollback" data-rollback-id="${t.id}" ${remaining.expired ? 'disabled' : ''}>${remaining.expired ? '已归档' : '撤回至待审'}</button>
+          </div>
+        `;
+      }).join('');
+
+      // Bind rollback buttons
+      recentlyApprovedList.querySelectorAll('.btn-rollback:not([disabled])').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.rollbackId || '';
+          if (!await confirmDialog('确认撤回至待审？\n\n撤回后，该主题将从公共社区下架，并回到待审列表中。主题的原始提交时间将保持不变。', true)) return;
+          try {
+            const res = await fetch('/api/v1/admin/review.json', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+              body: JSON.stringify({ action: 'rollback', id }),
+            });
+            const data = await res.json();
+            if (data.success) {
+              window.__toast?.('已撤回至待审列表');
+              loadThemes();
+            } else {
+              window.__toast?.(data.error || '撤回失败', 'error');
+            }
+          } catch {
+            window.__toast?.('撤回请求失败', 'error');
+          }
+        });
+      });
+
+      // Live countdown timer (update every 30s)
+      clearInterval(rollbackTimer);
+      rollbackTimer = setInterval(() => {
+        recentlyApprovedList.querySelectorAll('[data-rollback-time]').forEach(el => {
+          const approvedAt = parseInt(el.dataset.approvedAt || '0');
+          const remaining = formatRemaining(approvedAt);
+          el.textContent = remaining.text;
+          el.className = 'rollback-time ' + (remaining.expired ? 'rollback-time-expired' : remaining.urgent ? 'rollback-time-urgent' : '');
+          const btn = recentlyApprovedList.querySelector(`[data-rollback-id="${el.dataset.rollbackId}"]`);
+          if (btn) {
+            if (remaining.expired) {
+              btn.disabled = true;
+              btn.textContent = '已归档';
+            }
+          }
+        });
+      }, 30000);
+    }
+
     // Select all
     selectAll?.addEventListener('change', () => {
       if (selectAll.checked) {
@@ -1316,6 +1518,7 @@ const siteUrl = Astro.url.origin;
     // Approve
     btnApprove?.addEventListener('click', async () => {
       if (selected.size === 0) return;
+      if (!await confirmDialog(`确认通过选中的 ${selected.size} 个主题？\n\n通过后该主题将发布至社区商店，并有机会进入每日主题轮换池。你在 24 小时内仍可将其撤回。`)) return;
       btnApprove.disabled = true;
       btnReject.disabled = true;
       try {
@@ -1341,7 +1544,7 @@ const siteUrl = Astro.url.origin;
     // Reject
     btnReject?.addEventListener('click', async () => {
       if (selected.size === 0) return;
-      if (!confirm(`确定要彻底驳回并抹除这 ${selected.size} 个主题设计吗？本操作无法后撤。`)) return;
+      if (!await confirmDialog(`确定要彻底驳回并抹除这 ${selected.size} 个主题设计吗？本操作无法后撤。`, true)) return;
       btnApprove.disabled = true;
       btnReject.disabled = true;
       try {
@@ -1474,16 +1677,16 @@ const siteUrl = Astro.url.origin;
     }
 
     activateBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const status = btn.dataset.status || '';
         const label = STATUS_LABELS[status] || status;
-        if (!confirm(`确定要启用「${label}」吗？全站主题将被立即覆盖，所有访问者将看到紧急状态主题。`)) return;
+        if (!await confirmDialog(`确定要启用「${label}」吗？全站主题将被立即覆盖，所有访问者将看到紧急状态主题。`, true)) return;
         setOverride('activate', status);
       });
     });
 
-    btnDeactivateOverride?.addEventListener('click', () => {
-      if (!confirm('确定要恢复正常主题吗？所有访问者将立即恢复看到每日主题。')) return;
+    btnDeactivateOverride?.addEventListener('click', async () => {
+      if (!await confirmDialog('确定要恢复正常主题吗？所有访问者将立即恢复看到每日主题。')) return;
       setOverride('deactivate');
     });
 
@@ -1511,4 +1714,37 @@ const siteUrl = Astro.url.origin;
   // 安全转义函数
   function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function escapeAttr(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // ── Moderation ──
+  async function moderateTheme(id) {
+    const card = document.querySelector(`[data-id="${id}"]`);
+    if (!card) return;
+    const existingBadge = card.querySelector('.moderation-result');
+    if (existingBadge) { existingBadge.remove(); return; }
+
+    try {
+      const csrf = document.cookie.match(/csrf_token=([^;]+)/)?.[1] || '';
+      const res = await fetch('/api/v1/admin/moderate.json', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      const badge = document.createElement('div');
+      badge.className = 'moderation-result';
+      if (data.safe) {
+        badge.innerHTML = '<span class="mod-safe">✓ 安全</span>';
+      } else {
+        const issues = (data.issues || []).map(i => {
+          const icon = i.severity === 'critical' ? '🔴' : '🟡';
+          return `<div class="mod-issue">${icon} <strong>${i.category}</strong>: ${escapeHtml(i.description)}</div>`;
+        }).join('');
+        badge.innerHTML = `<div class="mod-unsafe">⚠ 发现问题</div>${issues}`;
+      }
+      card.querySelector('.review-header')?.appendChild(badge);
+    } catch {
+      window.__toast?.('审查请求失败');
+    }
+  }
+  window.moderateTheme = moderateTheme;
 </script>

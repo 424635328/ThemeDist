@@ -227,11 +227,47 @@ export async function getDailyCommunityTheme(): Promise<ComposedTheme | null> {
   }
 }
 
+/** Region-specific holidays by locale prefix */
+const LOCALE_HOLIDAYS: Record<string, Record<string, any>> = {
+  'hi': { // India
+    'L10-15': { logo: { text: '🪔 排灯节 Diwali', colors: ['#f97316', '#eab308'] }, theme: { bgBase: '#1a0a00', textMain: '#fef3c7', textMuted: '#f59e0b', accentRgb: '249,115,22', avatarGrad1: '#f97316', avatarGrad2: '#eab308', ambient1: 'rgba(249,115,22,0.2)', ambient2: 'rgba(234,179,8,0.15)', customCss: '@keyframes diyas { 0%,100%{opacity:0.6} 50%{opacity:1} } .particle-diyas{animation:diyas 2s ease-in-out infinite}' }, extensions: [{ type:'floating', char:'🪔', top:'20%', left:'10%', fontSize:'2rem', opacity:0.8, animation:'float 4s ease-in-out infinite' }] },
+    'L03-15': { logo: { text: '🎨 洒红节 Holi', colors: ['#ec4899', '#8b5cf6'] }, theme: { bgBase: '#fdf2f8', textMain: '#831843', textMuted: '#db2777', accentRgb: '236,72,153', avatarGrad1: '#ec4899', avatarGrad2: '#8b5cf6', ambient1: 'rgba(236,72,153,0.15)', ambient2: 'rgba(139,92,246,0.1)' } },
+  },
+  'ja': { // Japan
+    '02-03': { logo: { text: '👹 节分 Setsubun', colors: ['#ef4444', '#f59e0b'] }, theme: { bgBase: '#fef2f2', textMain: '#991b1b', textMuted: '#dc2626', accentRgb: '239,68,68', avatarGrad1: '#ef4444', avatarGrad2: '#f59e0b', ambient1: 'rgba(239,68,68,0.12)', ambient2: 'rgba(245,158,11,0.1)' } },
+    'L07-15': { logo: { text: '🏮 盂兰盆节 Obon', colors: ['#f97316', '#dc2626'] }, theme: { bgBase: '#0c0a09', textMain: '#fef3c7', textMuted: '#f59e0b', accentRgb: '249,115,22', avatarGrad1: '#f97316', avatarGrad2: '#dc2626', ambient1: 'rgba(249,115,22,0.15)', ambient2: 'rgba(220,38,38,0.1)' } },
+  },
+  'en-US': { // United States
+    '11-THU-4': { logo: { text: '🦃 Thanksgiving', colors: ['#f59e0b', '#92400e'] }, theme: { bgBase: '#fffbeb', textMain: '#78350f', textMuted: '#b45309', accentRgb: '245,158,11', avatarGrad1: '#f59e0b', avatarGrad2: '#92400e', ambient1: 'rgba(245,158,11,0.12)', ambient2: 'rgba(146,64,14,0.08)' } },
+    '07-04': { logo: { text: '🇺🇸 Independence Day', colors: ['#3b82f6', '#ef4444'] }, theme: { bgBase: '#eff6ff', textMain: '#1e3a5f', textMuted: '#3b82f6', accentRgb: '59,130,246', avatarGrad1: '#3b82f6', avatarGrad2: '#ef4444', ambient1: 'rgba(59,130,246,0.1)', ambient2: 'rgba(239,68,68,0.08)' } },
+  },
+  'pt-BR': { // Brazil
+    '02-MON-BEFORE-LENT': { logo: { text: '🎭 Carnival', colors: ['#a855f7', '#22c55e'] }, theme: { bgBase: '#0f0a1a', textMain: '#f0abfc', textMuted: '#a855f7', accentRgb: '168,85,247', avatarGrad1: '#a855f7', avatarGrad2: '#22c55e', ambient1: 'rgba(168,85,247,0.2)', ambient2: 'rgba(34,197,94,0.15)' } },
+    '06-12': { logo: { text: '💕 Dia dos Namorados', colors: ['#ec4899', '#f43f5e'] }, theme: { bgBase: '#fdf2f8', textMain: '#831843', textMuted: '#db2777', accentRgb: '236,72,153', avatarGrad1: '#ec4899', avatarGrad2: '#f43f5e', ambient1: 'rgba(236,72,153,0.12)', ambient2: 'rgba(244,63,94,0.08)' } },
+  },
+};
+
+/** Get locale-specific holidays for a given locale string. */
+function getLocaleHolidays(locale: string | null): Record<string, any> | null {
+  if (!locale) return null;
+  // Try exact match first (e.g., 'en-US'), then prefix (e.g., 'en')
+  if (LOCALE_HOLIDAYS[locale]) return LOCALE_HOLIDAYS[locale];
+  const prefix = locale.split('-')[0].toLowerCase();
+  if (LOCALE_HOLIDAYS[prefix]) return LOCALE_HOLIDAYS[prefix];
+  return null;
+}
+
+/** Check if today is the Nth weekday of a month (for Thanksgiving-style holidays). */
+function isNthWeekdayOfMonth(date: Date, weekday: number, n: number): boolean {
+  if (date.getDay() !== weekday) return false;
+  return Math.ceil(date.getDate() / 7) === n;
+}
+
 /**
  * Get the theme for a specific date (MM-DD format).
- * Selection priority: lunar holiday → gregorian holiday → community (every 3rd day) → dailyPool.
+ * Selection priority: locale holiday → lunar holiday → gregorian holiday → community (every 3rd day) → dailyPool.
  */
-export async function getDateTheme(dateStr: string): Promise<ComposedTheme> {
+export async function getDateTheme(dateStr: string, locale?: string): Promise<ComposedTheme> {
   const dailyPool = (OmniConfig.dailyPool || []) as OmniThemeEntry[];
   if (dailyPool.length === 0) {
     return omniToComposed({
@@ -267,20 +303,47 @@ export async function getDateTheme(dateStr: string): Promise<ComposedTheme> {
     type: 'holiday',
   });
 
+  // 0. Locale-specific holidays
+  if (locale) {
+    const localeHolidays = getLocaleHolidays(locale);
+    if (localeHolidays) {
+      // Check standard MM-DD keys
+      if (localeHolidays[dateStr]) {
+        return omniToComposed(wrapEntry(localeHolidays[dateStr], `locale-${dateStr}`));
+      }
+      // Check special US Thanksgiving (4th Thursday of November)
+      if (dateStr.startsWith('11-') && targetDate.getDay() === 4 && isNthWeekdayOfMonth(targetDate, 4, 4)) {
+        if (localeHolidays['11-THU-4']) {
+          return omniToComposed(wrapEntry(localeHolidays['11-THU-4'], 'locale-thanksgiving'));
+        }
+      }
+      // Check lunar keys too
+      try {
+        const lunar = Lunar.fromDate(targetDate);
+        const lMonth = String(Math.abs(lunar.getMonth())).padStart(2, '0');
+        const lDay = String(lunar.getDay()).padStart(2, '0');
+        const lunarKey = `L${lMonth}-${lDay}`;
+        if (localeHolidays[lunarKey]) {
+          return omniToComposed(wrapEntry(localeHolidays[lunarKey], `locale-${lunarKey}`));
+        }
+      } catch {}
+    }
+  }
+
   // 1. Lunar holiday
   try {
     const lunar = Lunar.fromDate(targetDate);
     const lMonth = String(Math.abs(lunar.getMonth())).padStart(2, '0');
     const lDay = String(lunar.getDay()).padStart(2, '0');
     const lunarKey = `L${lMonth}-${lDay}`;
-    if (OmniConfig.holidays?.[lunarKey]) {
-      return omniToComposed(wrapEntry(OmniConfig.holidays[lunarKey], `holiday-${lunarKey.toLowerCase()}`));
+    if (OmniConfig.holidays?.[lunarKey as keyof typeof OmniConfig.holidays]) {
+      return omniToComposed(wrapEntry(OmniConfig.holidays[lunarKey as keyof typeof OmniConfig.holidays], `holiday-${lunarKey.toLowerCase()}`));
     }
   } catch { /* skip if lunar conversion fails */ }
 
   // 2. Gregorian holiday
-  if (OmniConfig.holidays?.[dateStr]) {
-    return omniToComposed(wrapEntry(OmniConfig.holidays[dateStr], `holiday-${dateStr.toLowerCase()}`));
+  if (OmniConfig.holidays?.[dateStr as keyof typeof OmniConfig.holidays]) {
+    return omniToComposed(wrapEntry(OmniConfig.holidays[dateStr as keyof typeof OmniConfig.holidays], `holiday-${dateStr.toLowerCase()}`));
   }
 
   // 3. Crazy Thursday
@@ -321,7 +384,7 @@ export function getAllOmniThemes(): ComposedTheme[] {
 
   // 2. All holiday themes (gregorian MM-DD + lunar LMM-DD)
   if (OmniConfig.holidays) {
-    const holidays = OmniConfig.holidays as Record<string, OmniThemeEntry>;
+    const holidays = OmniConfig.holidays as unknown as Record<string, OmniThemeEntry>;
     for (const [key, entry] of Object.entries(holidays)) {
       const composed = omniToComposed({
         id: `holiday-${key.toLowerCase()}`,
@@ -464,7 +527,7 @@ function communityToComposed(ct: CommunityThemeRaw): ComposedTheme {
     cssVars: enrichCssVars(ct.cssVars),
     customCss: processed.customCss || undefined,
     extensions: processed.extensions || undefined,
-    tags: (ct.tags?.length ? ct.tags.filter(Boolean) : undefined) || inferTagsFromVars(ct.cssVars),
+    tags: ((ct.tags?.length ? ct.tags.filter(Boolean) : undefined) || inferTagsFromVars(ct.cssVars)) as ThemeTag[] | undefined,
     clickEffect: sanitizeClickEffect(ct.clickEffect),
   };
 }

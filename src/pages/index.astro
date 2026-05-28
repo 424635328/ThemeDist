@@ -12,66 +12,18 @@ const secondary = today.cssVars['--color-secondary'];
 const accent = today.cssVars['--color-accent'];
 const siteUrl = Astro.url.origin;
 
-const injectCode = `// ThemeDist — 生产级主题接入（推荐）
-// 当日缓存 localStorage，跨日自动刷新，网络故障降级
+const injectCode = `// ThemeDist SDK v3.0 — 一行接入
+// <script src="https://themedist.netlify.app/sdk.js" defer><\/script>
+// <themedist-runner api="https://themedist.netlify.app/api/v1/today.json"><\/themedist-runner>
 
-(async () => {
-  const KEY = 'td_theme';
-  const today = new Date().toISOString().slice(0, 10);
+// 可选：锁定用户偏好主题
+ThemeDistRunner.setPin('dark-minimal');
 
-  // ① 命中当日缓存 → 直接应用（零网络开销）
-  const cached = JSON.parse(localStorage.getItem(KEY) || 'null');
-  if (cached?.date === today) return applyTheme(cached);
+// 可选：手动切换暗色/亮色模式
+ThemeDistRunner.setMode('dark'); // 'light' | 'dark' | 'auto'
 
-  // ② 请求今日主题
-  try {
-    const res = await fetch('${siteUrl}/api/v1/today.json');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const t = await res.json();
-    const data = { date: t.date, cssVars: t.cssVars, customCss: t.customCss, extensions: t.extensions };
-    localStorage.setItem(KEY, JSON.stringify(data));
-    applyTheme(data);
-  } catch (err) {
-    // ③ 网络故障 → 降级使用过期缓存
-    console.warn('ThemeDist: fetch failed, using stale cache', err.message);
-    const fallback = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (fallback) applyTheme(fallback);
-  }
-})();
-
-function applyTheme(d) {
-  // 注入 48 个 CSS 变量到 :root
-  Object.entries(d.cssVars).forEach(([k, v]) =>
-    document.documentElement.style.setProperty(k, v)
-  );
-
-  // 注入主题专属 CSS（keyframes 动画、节日特效样式）
-  if (d.customCss) {
-    const s = document.createElement('style');
-    s.setAttribute('data-themedist', '');
-    s.textContent = d.customCss;
-    document.head.appendChild(s);
-  }
-
-  // 渲染浮动装饰元素（emoji、节日粒子）
-  if (d.extensions) {
-    d.extensions.forEach(ext => {
-      if (ext.type !== 'floating') return;
-      const el = document.createElement('div');
-      el.style.cssText = [
-        'position:fixed', 'pointer-events:none',
-        ext.top && 'top:' + ext.top, ext.left && 'left:' + ext.left,
-        ext.right && 'right:' + ext.right, ext.bottom && 'bottom:' + ext.bottom,
-        ext.fontSize && 'font-size:' + ext.fontSize,
-        ext.animation && 'animation:' + ext.animation,
-        ext.zIndex != null && 'z-index:' + ext.zIndex,
-        ext.opacity != null && 'opacity:' + ext.opacity,
-      ].filter(Boolean).join(';');
-      el.textContent = ext.char;
-      document.body.appendChild(el);
-    });
-  }
-}`;
+// 可选：启用实时轮询（智能检测主题变更）
+// <themedist-runner live api="..."><\/themedist-runner>`;
 
 const cssCode = `/* ==========================================
    ThemeDist CSS 变量速查（6 大类 48 个变量）
@@ -255,6 +207,14 @@ fetch('${siteUrl}/api/v1/today.json')
           <span class="hp-stat-label">正常运行</span>
         </div>
       </div>
+
+      <!-- Feature tags -->
+      <div class="hp-stat-chips">
+        <span class="hp-stat-chip" style="--sc:#8b5cf6">WCAG/APCA 无障碍</span>
+        <span class="hp-stat-chip" style="--sc:#06b6d4">暗色/亮色双生</span>
+        <span class="hp-stat-chip" style="--sc:#f59e0b">i18n 节日池</span>
+        <span class="hp-stat-chip" style="--sc:#22c55e">主题分支</span>
+      </div>
     </div>
   </section>
 
@@ -359,7 +319,7 @@ fetch('${siteUrl}/api/v1/today.json')
       <p class="hp-section-sub">一套完整的视觉主题系统，开箱即用</p>
     </div>
 
-    <div class="hp-features">
+    <div class="hp-features" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">
       <div class="hp-feat reveal reveal-d1">
         <div class="hp-feat-icon">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
@@ -414,6 +374,42 @@ fetch('${siteUrl}/api/v1/today.json')
           <p>背景图 + CSS Blend Mode · Opacity 精细控制，丰富的视觉氛围层</p>
         </div>
       </div>
+      <div class="hp-feat reveal reveal-d1">
+        <div class="hp-feat-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div>
+          <h3>WCAG 智能修复</h3>
+          <p>自动检测并修复对比度问题，支持 WCAG 2.1 AA/AAA 和 APCA (WCAG 3.0) 标准</p>
+        </div>
+      </div>
+      <div class="hp-feat reveal reveal-d1">
+        <div class="hp-feat-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </div>
+        <div>
+          <h3>暗色/亮色双生</h3>
+          <p>一键派生完美协调的 Dark Mode 变体，非线性饱和度衰减避免视觉疲劳</p>
+        </div>
+      </div>
+      <div class="hp-feat reveal reveal-d2">
+        <div class="hp-feat-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        </div>
+        <div>
+          <h3>i18n 节日主题</h3>
+          <p>支持印度排灯节、日本节分、美国感恩节等地域化节日自动匹配</p>
+        </div>
+      </div>
+      <div class="hp-feat reveal reveal-d2">
+        <div class="hp-feat-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        </div>
+        <div>
+          <h3>声音微交互</h3>
+          <p>Web Audio API 声明式合成参数，零外部音频文件，支持 reduced-motion</p>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -433,9 +429,9 @@ fetch('${siteUrl}/api/v1/today.json')
         <div class="hp-code-top">
           <span class="hp-code-dots"><i></i><i></i><i></i></span>
           <span class="hp-code-title">1. 生产级 JS 接入（推荐）</span>
-          <span class="hp-code-badge">含缓存 · 降级 · 特效</span>
+          <span class="hp-code-badge">SDK v3.0 · 一行接入</span>
         </div>
-        <p class="hp-code-desc">将这段脚本放在 <code>&lt;/body&gt;</code> 前，自动完成变量注入、localStorage 缓存和网络降级。42 行覆盖全部特性。</p>
+        <p class="hp-code-desc">引入 <code>&lt;script&gt;</code> 标签和 <code>&lt;themedist-runner&gt;</code> 自定义元素，SDK 自动完成变量注入、缓存和暗色/亮色切换。</p>
         <div class="hp-code-block">
           <pre><code id="code1">{injectCode}</code></pre>
         </div>
@@ -465,6 +461,36 @@ fetch('${siteUrl}/api/v1/today.json')
         <div class="hp-code-block">
           <pre><code id="code3">{linkCode}</code></pre>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================
+       WHAT'S NEW
+       ================================================ -->
+  <section class="hp-section" id="whats-new" style="text-align:center">
+    <p class="hp-eyebrow">v3.0 新特性</p>
+    <h2 class="hp-section-title">全方位进化</h2>
+    <div class="hp-new-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;max-width:960px;margin:24px auto 0">
+      <div class="card card-glass" style="padding:20px;text-align:left">
+        <div style="font-size:24px;margin-bottom:8px">♿</div>
+        <h4 style="font-size:14px;font-weight:700;margin-bottom:4px">WCAG/APCA 自动修复</h4>
+        <p style="font-size:12px;color:var(--color-text-muted);line-height:1.5">?wcag-fix=aa 一键修复对比度</p>
+      </div>
+      <div class="card card-glass" style="padding:20px;text-align:left">
+        <div style="font-size:24px;margin-bottom:8px">🌓</div>
+        <h4 style="font-size:14px;font-weight:700;margin-bottom:4px">暗色/亮色双生</h4>
+        <p style="font-size:12px;color:var(--color-text-muted);line-height:1.5">?dual=true 同时返回两个变体</p>
+      </div>
+      <div class="card card-glass" style="padding:20px;text-align:left">
+        <div style="font-size:24px;margin-bottom:8px">🌍</div>
+        <h4 style="font-size:14px;font-weight:700;margin-bottom:4px">i18n 节日池</h4>
+        <p style="font-size:12px;color:var(--color-text-muted);line-height:1.5">?locale=hi-IN 印度/日本/巴西节日</p>
+      </div>
+      <div class="card card-glass" style="padding:20px;text-align:left">
+        <div style="font-size:24px;margin-bottom:8px">🔀</div>
+        <h4 style="font-size:14px;font-weight:700;margin-bottom:4px">主题分支</h4>
+        <p style="font-size:12px;color:var(--color-text-muted);line-height:1.5">Fork 现有主题并二次创作</p>
       </div>
     </div>
   </section>
@@ -683,6 +709,19 @@ fetch('${siteUrl}/api/v1/today.json')
 }
 .hp-stat-label {
   display: block; font-size: 12px; color: var(--color-text-muted); margin-top: 2px;
+}
+
+/* stat chips */
+.hp-stat-chips {
+  display: flex; justify-content: center; gap: 8px; margin-top: 20px; flex-wrap: wrap;
+}
+.hp-stat-chip {
+  display: inline-flex; align-items: center;
+  padding: 4px 12px; border-radius: 99px;
+  font-size: 12px; font-weight: 600;
+  background: color-mix(in srgb, var(--sc, var(--color-primary)) 12%, transparent);
+  color: var(--sc, var(--color-primary));
+  border: 1px solid color-mix(in srgb, var(--sc, var(--color-primary)) 25%, transparent);
 }
 
 /* ============================================

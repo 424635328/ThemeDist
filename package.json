@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "test": "node --test tests/api.test.js",
+    "test:watch": "node --test --watch tests/api.test.js"
   },
   "dependencies": {
     "@astrojs/netlify": "^7.0.10",

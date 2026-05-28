@@ -1,0 +1,13 @@
+{
+  "name": "@themedist/svelte",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "module": "index.js",
+  "types": "index.d.ts",
+  "exports": {
+    ".": { "import": "./index.js", "types": "./index.d.ts" }
+  },
+  "peerDependencies": { "svelte": ">=4.0.0" },
+  "license": "MIT"
+}

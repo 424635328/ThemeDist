@@ -105,6 +105,7 @@ const initialAssetsJSON = JSON.stringify(availableAssets);
           <button class="editor-tab" data-tab="vars" id="tab-vars">CSS 变量</button>
           <button class="editor-tab" data-tab="css" id="tab-css">自定义 CSS</button>
           <button class="editor-tab" data-tab="exts" id="tab-exts">Extensions</button>
+          <button class="editor-tab" data-tab="gradients" id="tab-gradients">渐变</button>
           <button class="editor-tab" data-tab="image" id="tab-image">图片取色</button>
           <button class="editor-tab" data-tab="assets" id="tab-assets">素材库</button>
           <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
@@ -207,6 +208,38 @@ const initialAssetsJSON = JSON.stringify(availableAssets);
             placeholder='[{"type":"floating","char":"🪷","top":"20%","left":"5%","fontSize":"30px","opacity":0.3,"animation":"swing 4s ease-in-out infinite"}]'
             style="width:100%;height:420px;padding:20px;border-radius:14px;border:1.5px solid var(--color-border);background:color-mix(in srgb, var(--color-text) 3%, var(--color-bg));color:var(--color-text);font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;line-height:1.65;resize:vertical;outline:none;tab-size:2"
           >{selected.extensions ? JSON.stringify(selected.extensions, null, 2) : ''}</textarea>
+        </div>
+
+        <!-- ===== TAB: Gradients ===== -->
+        <div class="editor-panel" id="panel-gradients" style="display:none">
+          <div class="card card-glass" style="padding:28px">
+            <h3 style="font-size:15px;font-weight:700;margin-bottom:16px">渐变色变量</h3>
+            <p style="font-size:12px;color:var(--color-text-muted);margin-bottom:20px;line-height:1.6">
+              以下是基于当前主题色自动生成的渐变变量。修改下方渐变方向或颜色组合，实时预览效果。
+            </p>
+            <div id="gradients-preview" style="display:grid;gap:16px">
+              <div class="gradient-item">
+                <label style="font-size:12px;font-weight:600;display:block;margin-bottom:6px">--color-gradient-primary</label>
+                <div id="grad-preview-primary" style="height:48px;border-radius:12px;margin-bottom:8px"></div>
+                <input type="text" id="grad-input-primary" class="dashboard-input" style="width:100%;font-size:11px;font-family:var(--font-mono)" />
+              </div>
+              <div class="gradient-item">
+                <label style="font-size:12px;font-weight:600;display:block;margin-bottom:6px">--color-gradient-accent</label>
+                <div id="grad-preview-accent" style="height:48px;border-radius:12px;margin-bottom:8px"></div>
+                <input type="text" id="grad-input-accent" class="dashboard-input" style="width:100%;font-size:11px;font-family:var(--font-mono)" />
+              </div>
+              <div class="gradient-item">
+                <label style="font-size:12px;font-weight:600;display:block;margin-bottom:6px">--color-gradient-bg</label>
+                <div id="grad-preview-bg" style="height:48px;border-radius:12px;margin-bottom:8px"></div>
+                <input type="text" id="grad-input-bg" class="dashboard-input" style="width:100%;font-size:11px;font-family:var(--font-mono)" />
+              </div>
+              <div class="gradient-item">
+                <label style="font-size:12px;font-weight:600;display:block;margin-bottom:6px">--color-gradient-ambient</label>
+                <div id="grad-preview-ambient" style="height:48px;border-radius:12px;margin-bottom:8px"></div>
+                <input type="text" id="grad-input-ambient" class="dashboard-input" style="width:100%;font-size:11px;font-family:var(--font-mono)" />
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- ===== TAB: Image to Theme ===== -->
@@ -314,6 +347,10 @@ const initialAssetsJSON = JSON.stringify(availableAssets);
           <button id="btn-copy-ai" class="btn btn-outline" style="height:38px;padding:0 18px;font-size:12px">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4h8v8H4zM2 6v6h2V6H2zM12 6v6h2V6h-2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             复制给 AI
+          </button>
+          <button id="btn-fork" class="btn btn-outline" style="height:38px;padding:0 18px;font-size:12px" title="Fork 此主题并提交到社区">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><path d="M12 15V9M6 9v0a6 6 0 0 0 6 6M18 9v0a6 6 0 0 1-6 6"/></svg>
+            Fork
           </button>
           <button id="btn-format" class="btn btn-ghost" style="height:38px;padding:0 14px;font-size:12px" title="格式化 JSON (Ctrl+Shift+F)">格式化</button>
           <span style="font-size:11px;color:var(--color-text-muted);margin-left:8px" id="diy-hint"></span>
@@ -1785,4 +1822,59 @@ Theme color summary: primary=${currentVars['--color-primary']}, bg=${currentVars
   if (typeof initialAssetsJSON !== 'undefined') {
     renderAssets(JSON.parse(initialAssetsJSON));
   }
+
+  // ── Gradients Preview ──
+  function updateGradientsPreview() {
+    const gradConfigs = [
+      { key: 'primary', css: currentVars['--color-gradient-primary'] || `linear-gradient(135deg, ${currentVars['--color-primary'] || '#6366f1'}, ${currentVars['--color-secondary'] || '#8b5cf6'})` },
+      { key: 'accent', css: currentVars['--color-gradient-accent'] || `linear-gradient(135deg, ${currentVars['--color-accent'] || '#06b6d4'}, ${currentVars['--color-primary'] || '#6366f1'})` },
+      { key: 'bg', css: currentVars['--color-gradient-bg'] || `linear-gradient(180deg, ${currentVars['--color-bg'] || '#0f172a'}, ${currentVars['--color-surface'] || '#1e293b'})` },
+      { key: 'ambient', css: currentVars['--color-gradient-ambient'] || 'radial-gradient(ellipse at 30% 50%, rgba(99,102,241,0.15), transparent 70%)' },
+    ];
+    gradConfigs.forEach(g => {
+      const preview = document.getElementById(`grad-preview-${g.key}`);
+      const input = document.getElementById(`grad-input-${g.key}`);
+      if (preview) preview.style.background = g.css;
+      if (input) input.value = g.css;
+    });
+  }
+  // Initialize and listen for changes
+  setTimeout(updateGradientsPreview, 100);
+  document.querySelectorAll('[id^="grad-input-"]').forEach(input => {
+    input.addEventListener('input', () => {
+      const key = input.id.replace('grad-input-', '');
+      const preview = document.getElementById(`grad-preview-${key}`);
+      if (preview) preview.style.background = input.value;
+      currentVars[`--color-gradient-${key}`] = input.value;
+      markEdited();
+    });
+  });
+
+  // ── Fork Theme ──
+  document.getElementById('btn-fork')?.addEventListener('click', async () => {
+    const name = await window.promptDialog('输入 Fork 主题名称:', 'My Fork');
+    if (!name) return;
+    const author = await window.promptDialog('输入作者名称:', 'Anonymous') || 'Anonymous';
+
+    try {
+      const res = await fetch('/api/v1/diy/fork.json', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceId: selectedPreset || 'daily-' + new Date().toISOString().slice(0, 10),
+          name,
+          author,
+          overrides: currentVars,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        window.__toast?.(`Fork 成功! ID: ${data.id} (待审核)`);
+      } else {
+        window.__toast?.(data.error || 'Fork 失败');
+      }
+    } catch {
+      window.__toast?.('Fork 请求失败');
+    }
+  });
 </script>

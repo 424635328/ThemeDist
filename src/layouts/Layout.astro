@@ -9,20 +9,55 @@ const override = await redisGet<{ status: string; activatedAt: string }>('td:sta
 let isOverrideActive = false;
 let overrideStatus = '';
 
-const communityDaily = await getDailyCommunityTheme();
-let theme = communityDaily || getDailyTheme();
-let { cssVars, presetName, customCss, extensions, logoText, logoColors, clickEffect } = theme;
+let cssVars: Record<string, string>;
+let presetName: string;
+let customCss: string | undefined;
+let extensions: any[] | undefined;
+let logoText: string | undefined;
+let logoColors: string[] | undefined;
+let clickEffect: any;
 
-if (override && STATUS_THEMES[override.status]) {
-  isOverrideActive = true;
-  overrideStatus = override.status;
-  cssVars = enrichCssVars({ ...STATUS_THEMES[override.status], ...STRUCTURAL_CSS_VARS });
-  presetName = `紧急覆盖: ${override.status}`;
-  customCss = undefined;
-  extensions = undefined;
-  clickEffect = undefined;
-  logoText = 'ThemeDist';
-  logoColors = ['#71717a', '#a1a1aa'];
+// Edge-injected theme (from middleware) — skip Redis/cache lookup
+if (Astro.locals.todayTheme) {
+  const communityDaily = await getDailyCommunityTheme();
+  const theme = communityDaily || getDailyTheme();
+  cssVars = Astro.locals.todayTheme.cssVars;
+  presetName = theme.presetName;
+  customCss = theme.customCss;
+  extensions = theme.extensions;
+  logoText = theme.logoText;
+  logoColors = theme.logoColors;
+  clickEffect = theme.clickEffect;
+
+  // Apply override on top of edge theme if active
+  if (override && STATUS_THEMES[override.status]) {
+    isOverrideActive = true;
+    overrideStatus = override.status;
+    cssVars = enrichCssVars({ ...STATUS_THEMES[override.status], ...STRUCTURAL_CSS_VARS });
+    presetName = `紧急覆盖: ${override.status}`;
+    customCss = undefined;
+    extensions = undefined;
+    clickEffect = undefined;
+    logoText = 'ThemeDist';
+    logoColors = ['#71717a', '#a1a1aa'];
+  }
+} else {
+  // Fallback: full resolution when middleware didn't run (API routes, direct SSR)
+  const communityDaily = await getDailyCommunityTheme();
+  const theme = communityDaily || getDailyTheme();
+  ({ cssVars, presetName, customCss, extensions, logoText, logoColors, clickEffect } = theme);
+
+  if (override && STATUS_THEMES[override.status]) {
+    isOverrideActive = true;
+    overrideStatus = override.status;
+    cssVars = enrichCssVars({ ...STATUS_THEMES[override.status], ...STRUCTURAL_CSS_VARS });
+    presetName = `紧急覆盖: ${override.status}`;
+    customCss = undefined;
+    extensions = undefined;
+    clickEffect = undefined;
+    logoText = 'ThemeDist';
+    logoColors = ['#71717a', '#a1a1aa'];
+  }
 }
 
 const style = Object.entries(cssVars)
@@ -849,26 +884,195 @@ function navClass(path: string) {
       clip: rect(0,0,0,0); border: 0;
     }
 
-    /* toast */
-    .toast {
-      position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
-      z-index: 300;
-      padding: 12px 24px;
-      border-radius: 12px;
-      font-size: 13px; font-weight: 600;
-      background: var(--color-surface);
-      border: 1px solid var(--color-primary);
-      color: var(--color-text);
-      box-shadow: 0 12px 40px rgba(0,0,0,0.2);
-      opacity: 0;
+    /* toast system */
+    #td-toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
       pointer-events: none;
-      transition: opacity 0.3s ease, transform 0.3s ease;
-      transform: translateX(-50%) translateY(8px);
+      max-width: 420px;
+      width: calc(100% - 32px);
     }
-    .toast.show {
-      opacity: 1;
+    .td-toast {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+      border-radius: 14px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2), 0 2px 8px rgba(0,0,0,0.1);
       pointer-events: auto;
-      transform: translateX(-50%) translateY(0);
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.5;
+      backdrop-filter: blur(20px) saturate(1.5);
+      -webkit-backdrop-filter: blur(20px) saturate(1.5);
+      position: relative;
+      overflow: hidden;
+      word-break: break-word;
+    }
+    .td-toast.td-toast-enter {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    .td-toast.td-toast-leave {
+      animation: td-toast-fade-out 0.3s forwards;
+    }
+    .td-toast-icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+    }
+    .td-toast-icon svg {
+      width: 14px;
+      height: 14px;
+    }
+    .td-toast-msg {
+      flex: 1;
+      min-width: 0;
+    }
+    .td-toast-success .td-toast-icon { background: rgba(34,197,94,0.15); color: #22c55e; }
+    .td-toast-error .td-toast-icon   { background: rgba(239,68,68,0.15); color: #ef4444; }
+    .td-toast-warning .td-toast-icon { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .td-toast-info .td-toast-icon    { background: rgba(99,102,241,0.15); color: #6366f1; }
+    .td-toast-progress {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 2px;
+      border-radius: 0 0 14px 14px;
+    }
+    .td-toast-success .td-toast-progress { background: #22c55e; }
+    .td-toast-error .td-toast-progress   { background: #ef4444; }
+    .td-toast-warning .td-toast-progress { background: #f59e0b; }
+    .td-toast-info .td-toast-progress    { background: #6366f1; }
+    @keyframes td-toast-fade-out {
+      0%   { transform: translateY(0) scale(1); opacity: 1; }
+      100% { transform: translateY(-10px) scale(0.95); opacity: 0; }
+    }
+    @media (max-width: 640px) {
+      #td-toast-container {
+        bottom: auto;
+        top: 80px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        align-items: center;
+      }
+    }
+
+    /* ─── Custom Confirm Dialog ─── */
+    .td-confirm-overlay {
+      position: fixed; inset: 0; z-index: 99999;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display: flex; align-items: center; justify-content: center;
+      animation: td-confirm-fade-in 0.2s ease;
+    }
+    @keyframes td-confirm-fade-in { from { opacity: 0; } to { opacity: 1; } }
+    .td-confirm-card {
+      background: color-mix(in srgb, var(--color-surface) 96%, transparent);
+      border: 1px solid var(--color-border);
+      border-radius: 18px;
+      padding: 28px 32px 24px;
+      max-width: 440px;
+      width: calc(100% - 40px);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.4), 0 0 0 1px color-mix(in srgb, var(--color-primary) 15%, transparent);
+      animation: td-confirm-card-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes td-confirm-card-in {
+      from { opacity: 0; transform: scale(0.94) translateY(12px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .td-confirm-message {
+      font-size: 15px; font-weight: 600; line-height: 1.6;
+      color: var(--color-text);
+      margin-bottom: 24px;
+    }
+    .td-confirm-actions {
+      display: flex; gap: 10px; justify-content: flex-end;
+    }
+    .td-confirm-btn {
+      height: 40px; padding: 0 22px;
+      border-radius: 10px;
+      font-size: 13px; font-weight: 600;
+      cursor: pointer;
+      border: 1.5px solid var(--color-border);
+      background: transparent;
+      color: var(--color-text-muted);
+      font-family: inherit;
+      transition: all 0.2s ease;
+    }
+    .td-confirm-btn:hover {
+      background: color-mix(in srgb, var(--color-text-muted) 8%, transparent);
+      color: var(--color-text);
+    }
+    .td-confirm-btn-danger {
+      background: rgba(239,68,68,0.12);
+      border-color: rgba(239,68,68,0.35);
+      color: #ef4444;
+    }
+    .td-confirm-btn-danger:hover {
+      background: rgba(239,68,68,0.22);
+      border-color: #ef4444;
+      box-shadow: 0 0 18px rgba(239,68,68,0.18);
+    }
+
+    /* ─── Custom Prompt Dialog ─── */
+    .td-prompt-overlay {
+      position: fixed; inset: 0; z-index: 99999;
+      background: rgba(0,0,0,0.55);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display: flex; align-items: center; justify-content: center;
+      animation: td-confirm-fade-in 0.2s ease;
+    }
+    .td-prompt-card {
+      background: color-mix(in srgb, var(--color-surface) 96%, transparent);
+      border: 1px solid var(--color-border);
+      border-radius: 18px;
+      padding: 28px 32px 24px;
+      max-width: 440px;
+      width: calc(100% - 40px);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.4), 0 0 0 1px color-mix(in srgb, var(--color-primary) 15%, transparent);
+      animation: td-confirm-card-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .td-prompt-label {
+      font-size: 13px; font-weight: 600; color: var(--color-text-muted);
+      margin-bottom: 8px;
+    }
+    .td-prompt-input {
+      width: 100%; height: 44px; padding: 0 14px;
+      border-radius: 10px;
+      border: 1.5px solid var(--color-border);
+      background: color-mix(in srgb, var(--color-bg) 60%, transparent);
+      color: var(--color-text);
+      font-size: 14px; font-weight: 500;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s ease;
+      margin-bottom: 24px;
+    }
+    .td-prompt-input:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+    }
+    .td-prompt-actions {
+      display: flex; gap: 10px; justify-content: flex-end;
     }
   </style>
 </head>
@@ -992,7 +1196,7 @@ function navClass(path: string) {
   </div>
 
   <button class="btop" id="btop" aria-label="返回顶部" title="返回顶部">↑</button>
-  <div class="toast" id="toast"></div>
+  <div id="td-toast-container" aria-live="polite" role="status"></div>
 
   <script is:inline>
     // ── Safe extension renderer (no innerHTML) ──
@@ -1357,16 +1561,109 @@ function navClass(path: string) {
       lastScrollY = window.scrollY;
     }, { passive: true });
 
-    // Toast
-    let toastTimer;
-    function toast(msg) {
-      const el = document.getElementById('toast');
-      el.textContent = msg;
-      el.classList.add('show');
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => el.classList.remove('show'), 2000);
-    }
-    window.__toast = toast;
+    // Toast system (supports types: success, error, warning, info)
+    window.Toast = (function() {
+      const container = document.getElementById('td-toast-container');
+      const icons = {
+        success: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
+        error:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+        warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+        info:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+      };
+      function show(message, type, duration) {
+        if (typeof type === 'number') { duration = type; type = ''; }
+        type = type || 'info';
+        if (!icons[type]) type = 'info';
+        duration = duration || (type === 'error' ? 4000 : 2500);
+        if (!container) return;
+        const el = document.createElement('div');
+        el.className = 'td-toast td-toast-' + type;
+        el.innerHTML =
+          '<div class="td-toast-icon">' + (icons[type] || icons.info) + '</div>' +
+          '<div class="td-toast-msg"></div>' +
+          '<span class="td-toast-progress" style="width:100%;animation:td-toast-shrink ' + duration + 'ms linear forwards"></span>';
+        el.querySelector('.td-toast-msg').textContent = message;
+        container.appendChild(el);
+        // Force reflow then animate in
+        void el.offsetWidth;
+        el.classList.add('td-toast-enter');
+        setTimeout(function() {
+          el.classList.remove('td-toast-enter');
+          el.classList.add('td-toast-leave');
+          el.addEventListener('animationend', function() { el.remove(); });
+        }, duration);
+      }
+      return { show: show };
+    })();
+
+    // Backward compat: window.__toast(msg, type, duration)
+    window.__toast = function(msg, type, duration) { window.Toast.show(msg, type, duration); };
+
+    // Global toast helper for inline onclick handlers
+    window.showToast = function(msg, type) { window.__toast(msg, type); };
+
+    // Custom confirm dialog (replaces browser confirm)
+    window.confirmDialog = function(message, danger) {
+      return new Promise(function(resolve) {
+        var overlay = document.createElement('div');
+        overlay.className = 'td-confirm-overlay';
+        overlay.innerHTML =
+          '<div class="td-confirm-card">' +
+          '<div class="td-confirm-message">' + message + '</div>' +
+          '<div class="td-confirm-actions">' +
+          '<button class="td-confirm-btn" id="td-confirm-cancel">取消</button>' +
+          '<button class="td-confirm-btn' + (danger ? ' td-confirm-btn-danger' : '') + '" id="td-confirm-ok">' + (danger ? '确认执行' : '确认') + '</button>' +
+          '</div></div>';
+        document.body.appendChild(overlay);
+
+        function cleanup() { overlay.remove(); }
+        overlay.querySelector('#td-confirm-cancel').addEventListener('click', function() { cleanup(); resolve(false); });
+        overlay.querySelector('#td-confirm-ok').addEventListener('click', function() { cleanup(); resolve(true); });
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) { cleanup(); resolve(false); } });
+        document.addEventListener('keydown', function onKey(e) {
+          if (e.key === 'Escape') { document.removeEventListener('keydown', onKey); cleanup(); resolve(false); }
+        });
+      });
+    };
+
+    // Custom prompt dialog (replaces browser prompt)
+    window.promptDialog = function(label, placeholder) {
+      placeholder = placeholder || '';
+      return new Promise(function(resolve) {
+        var overlay = document.createElement('div');
+        overlay.className = 'td-prompt-overlay';
+        overlay.innerHTML =
+          '<div class="td-prompt-card">' +
+          '<div class="td-prompt-label">' + label + '</div>' +
+          '<input class="td-prompt-input" id="td-prompt-input" value="' + placeholder.replace(/"/g, '&quot;') + '" autofocus>' +
+          '<div class="td-prompt-actions">' +
+          '<button class="td-confirm-btn" id="td-prompt-cancel">取消</button>' +
+          '<button class="td-confirm-btn" id="td-prompt-ok" style="background:color-mix(in srgb, var(--color-primary) 15%, transparent);border-color:var(--color-primary);color:var(--color-primary)">确定</button>' +
+          '</div></div>';
+        document.body.appendChild(overlay);
+
+        var input = overlay.querySelector('#td-prompt-input');
+        input.focus();
+        input.select();
+
+        function cleanup() { overlay.remove(); }
+        function submit(val) { cleanup(); resolve(val); }
+        overlay.querySelector('#td-prompt-ok').addEventListener('click', function() { submit(input.value.trim()); });
+        overlay.querySelector('#td-prompt-cancel').addEventListener('click', function() { submit(null); });
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) { submit(null); } });
+        input.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') { submit(input.value.trim()); }
+          if (e.key === 'Escape') { submit(null); }
+        });
+      });
+    };
+
+    // @keyframes for progress bar shrink (injected once)
+    (function() {
+      var s = document.createElement('style');
+      s.textContent = '@keyframes td-toast-shrink{from{width:100%}to{width:0}}';
+      document.head.appendChild(s);
+    })();
 
     // Copy button for all pre blocks
     document.querySelectorAll('pre').forEach(pre => {
@@ -1390,7 +1687,7 @@ function navClass(path: string) {
           btn.classList.add('copied');
           setTimeout(() => { btn.textContent = '复制'; btn.classList.remove('copied'); }, 1800);
         } catch {
-          toast('复制失败，请手动选择');
+          window.__toast('复制失败，请手动选择', 'error');
         }
       });
       wrapper.appendChild(btn);
@@ -1411,7 +1708,7 @@ function navClass(path: string) {
         const url = new URL(location.href);
         url.hash = h.id;
         navigator.clipboard.writeText(url.toString()).then(() => {
-          toast('链接已复制');
+          window.__toast('链接已复制');
         }).catch(() => {});
       });
     });

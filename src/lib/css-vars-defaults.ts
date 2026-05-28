@@ -40,6 +40,12 @@ export const STRUCTURAL_CSS_VARS: Record<string, string> = {
   // Noise
   '--noise-opacity': '0',
 
+  // Gradients (derived from color vars using CSS references)
+  '--color-gradient-primary': 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
+  '--color-gradient-accent': 'linear-gradient(135deg, var(--color-accent), var(--color-primary))',
+  '--color-gradient-bg': 'linear-gradient(180deg, var(--color-bg), var(--color-surface))',
+  '--color-gradient-ambient': 'radial-gradient(ellipse at 30% 50%, var(--ambient-1), transparent 70%)',
+
   // Z-Index layer contract
   '--td-z-base': '-10',
   '--td-z-float': '10',

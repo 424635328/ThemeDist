@@ -51,4 +51,11 @@ export function verifyCsrf(cookies: { get: (name: string) => { value: string } |
 export function clearAdminCookie(cookies: { delete: (name: string, opts?: Record<string, unknown>) => void }): void {
   cookies.delete('admin_session', { path: '/' });
   cookies.delete('csrf_token', { path: '/' });
+  cookies.delete('admin_account', { path: '/' });
+}
+
+/** Read the admin account name from cookie (set during login). */
+export function getAdminAccount(cookies: { get: (name: string) => { value: string } | undefined }): string {
+  const c = cookies.get('admin_account');
+  return c?.value || '未知管理员';
 }

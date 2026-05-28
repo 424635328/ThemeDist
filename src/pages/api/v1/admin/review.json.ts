@@ -1,7 +1,7 @@
 export const prerender = false;
 
-import { isAdmin, verifyCsrf } from '../../../../lib/auth';
-import { batchApproveThemes, batchRejectThemes, getPendingThemes, getPendingCount } from '../../../../lib/themes-db';
+import { isAdmin, verifyCsrf, getAdminAccount } from '../../../../lib/auth';
+import { batchApproveThemes, batchRejectThemes, getPendingThemes, getPendingCount, rollbackTheme, getRecentlyApproved } from '../../../../lib/themes-db';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -29,8 +29,8 @@ export async function GET({ cookies }: { cookies: any }) {
     });
   }
 
-  const [themes, count] = await Promise.all([getPendingThemes(), getPendingCount()]);
-  return new Response(JSON.stringify({ themes, pending: count, apiVersion: 'v1' }), {
+  const [themes, count, recentlyApproved] = await Promise.all([getPendingThemes(), getPendingCount(), getRecentlyApproved()]);
+  return new Response(JSON.stringify({ themes, pending: count, recentlyApproved, apiVersion: 'v1' }), {
     status: 200,
     headers: { 'Content-Type': 'application/json', ...CORS, ...NO_CACHE },
   });
@@ -53,7 +53,22 @@ export async function POST({ request, cookies }: { request: Request; cookies: an
 
   try {
     const body = await request.json();
-    const { action, ids } = body as { action: string; ids: string[] };
+    const { action, ids, id } = body as { action: string; ids?: string[]; id?: string };
+
+    // Rollback: single theme back to pending
+    if (action === 'rollback') {
+      if (!id) {
+        return new Response(JSON.stringify({ error: '缺少主题 ID' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', ...CORS, ...NO_CACHE },
+        });
+      }
+      const result = await rollbackTheme(id);
+      return new Response(JSON.stringify({ ...result, apiVersion: 'v1' }), {
+        status: result.success ? 200 : 400,
+        headers: { 'Content-Type': 'application/json', ...CORS, ...NO_CACHE },
+      });
+    }
 
     if (!Array.isArray(ids) || ids.length === 0) {
       return new Response(JSON.stringify({ error: '请选择至少一个主题' }), {
@@ -63,7 +78,8 @@ export async function POST({ request, cookies }: { request: Request; cookies: an
     }
 
     if (action === 'approve') {
-      const result = await batchApproveThemes(ids);
+      const reviewedBy = getAdminAccount(cookies);
+      const result = await batchApproveThemes(ids, reviewedBy);
       return new Response(JSON.stringify({ success: true, ...result, apiVersion: 'v1' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json', ...CORS, ...NO_CACHE },

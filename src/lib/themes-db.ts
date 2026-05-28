@@ -12,6 +12,10 @@ export interface CommunityTheme {
   name: string;
   author: string;
   createdAt: number;
+  /** Timestamp when the theme was approved (ms). Used for 24h rollback window. */
+  approvedAt?: number;
+  /** Admin account name who approved this theme. */
+  reviewedBy?: string;
   likes: number;
   cssVars: Record<string, string>;
   customCss: string | null;
@@ -20,16 +24,18 @@ export interface CommunityTheme {
   status: ThemeStatus;
   tags?: ThemeTag[];
   clickEffect?: ClickEffectConfig | null;
+  forkedFrom?: string;
 }
 
 interface SubmitInput {
   name: string;
   author: string;
   cssVars: Record<string, string>;
-  customCss?: string;
+  customCss?: string | null;
   extensions?: any[];
   tags?: string[];
   clickEffect?: any;
+  forkedFrom?: string;
 }
 
 function makeId(): string {
@@ -63,6 +69,7 @@ export async function submitTheme(input: SubmitInput): Promise<CommunityTheme | 
     status: 'pending',
     tags: Array.isArray(input.tags) ? input.tags.filter(Boolean).slice(0, 5) : undefined,
     clickEffect: input.clickEffect || null,
+    forkedFrom: input.forkedFrom || undefined,
   };
 
   const ok = await set(themeKey(id), theme, { ex: 86400 });
@@ -74,7 +81,7 @@ export async function submitTheme(input: SubmitInput): Promise<CommunityTheme | 
   return theme;
 }
 
-export async function approveTheme(id: string): Promise<boolean> {
+export async function approveTheme(id: string, reviewedBy?: string): Promise<boolean> {
   if (!isReady()) return false;
 
   const theme = await get<CommunityTheme>(themeKey(id));
@@ -89,6 +96,8 @@ export async function approveTheme(id: string): Promise<boolean> {
     if (theme.status !== 'pending') return false;
 
     theme.status = 'approved';
+    theme.approvedAt = Date.now();
+    if (reviewedBy) theme.reviewedBy = reviewedBy;
     await set(themeKey(id), theme);
     await zrem(PENDING_KEY, id);
     await zadd(NEWEST_KEY, theme.createdAt, id);
@@ -121,10 +130,10 @@ export async function rejectTheme(id: string): Promise<boolean> {
   }
 }
 
-export async function batchApproveThemes(ids: string[]): Promise<{ done: number; failed: number }> {
+export async function batchApproveThemes(ids: string[], reviewedBy?: string): Promise<{ done: number; failed: number }> {
   let done = 0, failed = 0;
   for (const id of ids) {
-    if (await approveTheme(id)) done++; else failed++;
+    if (await approveTheme(id, reviewedBy)) done++; else failed++;
   }
   return { done, failed };
 }
@@ -236,4 +245,68 @@ export async function getThemeWithLikes(id: string): Promise<CommunityTheme | nu
   const likes = await zscore(LIKES_KEY, id);
   if (likes !== null) theme.likes = likes;
   return theme;
+}
+
+/** 24-hour rollback window (ms). Approved themes can be reverted to pending within this period. */
+const REVERT_WINDOW = 24 * 60 * 60 * 1000;
+
+/**
+ * Rollback an approved theme back to the pending review queue.
+ * Only works within 24 hours of approval. Preserves the original createdAt
+ * timestamp so the theme's queue priority (TTL) continues uninterrupted.
+ */
+export async function rollbackTheme(id: string): Promise<{ success: boolean; error?: string }> {
+  if (!isReady()) return { success: false, error: 'Redis 不可用' };
+
+  const theme = await get<CommunityTheme>(themeKey(id));
+  if (!theme) return { success: false, error: '主题不存在' };
+  theme.status = normaliseStatus(theme.status);
+
+  if (theme.status !== 'approved') {
+    return { success: false, error: '只能撤回已通过的主题' };
+  }
+
+  const approvedAt = theme.approvedAt || 0;
+  if (Date.now() - approvedAt > REVERT_WINDOW) {
+    return { success: false, error: '已超过 24 小时撤回窗口，不再支持回退' };
+  }
+
+  try {
+    theme.status = 'pending';
+    theme.approvedAt = undefined;
+    await set(themeKey(id), theme);
+    // Remove from public indexes
+    await zrem(NEWEST_KEY, id);
+    await zrem(LIKES_KEY, id);
+    // Add back to pending queue with ORIGINAL createdAt (preserves TTL)
+    await zadd(PENDING_KEY, theme.createdAt, id);
+    return { success: true };
+  } catch {
+    return { success: false, error: '撤回操作失败' };
+  }
+}
+
+/**
+ * Get recently approved themes (within 24h window) that are eligible for rollback.
+ */
+export async function getRecentlyApproved(): Promise<CommunityTheme[]> {
+  if (!isReady()) return [];
+
+  const ids = await zrevrange(NEWEST_KEY, 0, -1) as string[];
+  if (!ids || ids.length === 0) return [];
+
+  const cutoff = Date.now() - REVERT_WINDOW;
+  const themes: CommunityTheme[] = [];
+  for (const id of ids) {
+    const t = await get<CommunityTheme>(themeKey(id));
+    if (!t) {
+      await zrem(NEWEST_KEY, id);
+      continue;
+    }
+    t.status = normaliseStatus(t.status);
+    if (t.status === 'approved' && t.approvedAt && t.approvedAt > cutoff) {
+      themes.push(t);
+    }
+  }
+  return themes;
 }
