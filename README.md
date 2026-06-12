@@ -28,6 +28,76 @@ ThemeDist 是基于 Astro SSR 的主题分发平台，通过 **OmniConfig 主题
 
 ---
 
+## 未来计划
+
+| 功能 | 说明 | 状态 |
+|------|------|------|
+| **社区主题纳入每日轮换池** | 社区主题有机会被 `/api/v1/today.json` 选中（约 30% 天数） | ✅ 已完成 |
+| **社区主题投稿与审核** | 投稿后进入待审队列，管理员审核通过后发布 | ✅ 已完成 |
+| **XSS 安全防护** | CSS/HTML 注入过滤（@import/url()/expression/事件处理器），声明式扩展渲染 | ✅ 已完成 |
+| **CSRF 保护** | 管理员写操作需 Double Submit Cookie 校验 | ✅ 已完成 |
+| **主题分类与标签** | 支持为主题添加标签（暗色/亮色/节日/极简等），按分类浏览 | ✅ 已完成 |
+| **AI 辅助主题生成** | 根据文字描述，通过 DeepSeek（客户端直调）或规则引擎生成主题 | ✅ 已完成 |
+| **客户端缓存优化** | sessionStorage（5min TTL）+ localStorage（10min TTL）减少重复请求 | ✅ 已完成 |
+| **LIVE SENSING 沙箱** | 提交页 16:9 比例全屏沙箱实时预览 | ✅ 已完成 |
+| **双平台同步部署** | 一套代码自动部署 Vercel + Netlify 双平台 | ✅ 已完成 |
+| **农历节日支持** | 35+ 农历节日，OmniConfig 运行时通过 Lunar.fromDate() 计算 | ✅ 已完成 |
+| **系统监控台** | themedist-monitor 独立监控站点，11 个 API 端点覆盖状态/安全/告警/拨测/徽章 | ✅ 已完成 |
+| **Shadcn UI 适配器** | HSL 变量转换 + 前景色自动推断 | ✅ 已完成 |
+| **WCAG 无障碍诊断** | 对比度评估 + AA/AAA 合规检查 | ✅ 已完成 |
+| **色阶生成** | 黑白插值法 Tailwind 风格 50~950 色阶 | ✅ 已完成 |
+| **天气自适应主题** | Open-Meteo 免费 API + IP 地理位置 | ✅ 已完成 |
+| **系统状态覆盖** | maintenance / mourning / incident 主题覆盖 | ✅ 已完成 |
+| **图片取色 API** | K-means 聚类提取 + UI 语义映射，纯 JS 零原生依赖 | ✅ 已完成 |
+| **Shiki 代码高亮主题** | TextMate Token 颜色映射，VS Code / Shiki 兼容 | ✅ 已完成 |
+| **动态 SVG 纹理** | 主题色生成几何图案 CSS background-image | ✅ 已完成 |
+| **全场景 API 展厅** | /lab 页面，5 模块联动演示 | ✅ 已完成 |
+| **WCAG 自动修复** | HSL 亮度调整自动修复对比度问题，亮度调整上限 ±25% | ✅ 已完成 |
+| **APCA 对比度评估** | APCA 0.98G-4g（WCAG 3.0 候选标准）Lc 值计算 | ✅ 已完成 |
+| **暗色/亮色双主题** | `?dual=true` 单次调用返回 light + dark 变体，支持 class/data 模式 | ✅ 已完成 |
+| **智能轮询** | `/api/v1/events` 替代 WebSocket/SSE，动态调整轮询间隔 | ✅ 已完成 |
+| **访客主题锁定/切换** | `setPin()` / `setMode()` SDK 方法，用户可锁定或手动切换主题 | ✅ 已完成 |
+| **i18n 节日池** | `?locale=` 参数支持 hi-IN / ja-JP / en-US / pt-BR 地区专属节日 | ✅ 已完成 |
+| **主题复刻** | 用户可 fork 现有主题并提交修改 | ✅ 已完成 |
+| **内容审核** | 基于规则的自动内容审核（`/api/v1/admin/moderate.json`） | ✅ 已完成 |
+| **分层限流 / API 密钥** | `/api/v1/admin/api-keys.json` 密钥管理，分层速率限制 | ✅ 已完成 |
+| **渐变变量** | `--color-gradient-primary/accent/bg/ambient` 四个渐变 CSS 变量 | ✅ 已完成 |
+| **声音微交互** | Web Audio API 声明式声音效果（`type: 'sound'` 扩展） | ✅ 已完成 |
+| **Edge 中间件 FOUC 消除** | Astro 中间件注入 `<link>` 预加载 CSS 变量，消除无样式闪烁 | ✅ 已完成 |
+| **React / Vue / Svelte SDKs** | `@themedist/react`、`@themedist/vue`、`@themedist/svelte` 官方框架绑定 | ✅ 已完成 |
+| **CLI 工具** | `npx themedist init` 自动检测项目类型并生成集成配置 | ✅ 已完成 |
+| **Figma 插件** | Figma Plugin API 设计工具集成 | ✅ 已完成 |
+| **Atmosphere 取色模式** | `?mode=atmosphere` 增强取色，含基于情绪的动画生成 | ✅ 已完成 |
+| **RSS / Webhook 通知** | 每日主题更新后推送通知 | 待规划 |
+| **多管理员支持** | 审核权限分离，支持多个管理员账号协同操作 | 待规划 |
+| **主题使用统计** | 各主题被 API 请求的次数、点赞趋势等可视化数据 | 待规划 |
+| **设计令牌导出** | W3C DTCG 规范 JSON 导出 | ✅ 已完成 |
+| **动态 Favicon** | 主色 SVG 图标 | ✅ 已完成 |
+| **颜色相似度搜索** | RGB 欧几里得距离排序 | ✅ 已完成 |
+| **智能推荐引擎** | Jaccard + 颜色距离加权 | ✅ 已完成 |
+| **匿名遥测** | HyperLogLog + Sorted Set | ✅ 已完成 |
+| **趋势排行榜** | 热度聚合 Top 20 | ✅ 已完成 |
+| **自定义轮换池** | 创建/轮换双端点 | ✅ 已完成 |
+| **自动字体注入** | Google Fonts @import | ✅ 已完成 |
+| **GitHub 动态徽章** | shields.io 风格 | ✅ 已完成 |
+| **AI 逆向描述** | CSS→中文风格分析 | ✅ 已完成 |
+| **API 速率限制** | 投稿/点赞接口滑动窗口限流（投稿 3次/分钟，点赞 10次/分钟），超限 429 | ✅ 已完成 |
+| **Extensions 类型支持** | 支持 `floating`（浮动字符）和 `decorative`（装饰 HTML），`javascript` 类型拒绝并返回 warnings | ✅ 已完成 |
+| **智能格式化** | theme-builder 各编辑器独立格式化按钮，智能检测当前 tab 格式化对应内容 | ✅ 已完成 |
+| **Extensions 实时校验** | submit + theme-builder 两端实时检测不支持类型并提示，提交后 warnings 展示 | ✅ 已完成 |
+| **存储格式归一化** | `extensions` 字段统一为 `null` 或数组（不再出现 `undefined`），JSON 始终完整 | ✅ 已完成 |
+| **渲染一致性** | share 页 iframe、首页 Apply、theme-builder 预览、submit 预览四路径 extensions 渲染逻辑统一 | ✅ 已完成 |
+| **SDK / Web Component** | 官方轻量化 `<themedist-runner>` 自定义元素，Shadow DOM 隔离装饰，一行标签接入 | ✅ 已完成 |
+| **Tailwind CSS 原生适配** | RGB 通道变量 + `/api/v1/tailwind-config.json` 一键生成 Tailwind 配置 | ✅ 已完成 |
+| **暗色/亮色协同适配** | `/api/v1/today.css` 自动输出 `@media (prefers-color-scheme)` 适配块 | ✅ 已完成 |
+| **时区感知** | 支持 `?tz=America/New_York` 查询参数，按目标时区计算今日主题 | ✅ 已完成 |
+| **主题参数覆盖** | 支持 `?overrides=--radii:0px` 查询参数，微调 CSS 变量 | ✅ 已完成 |
+| **调色盘 SVG 徽章** | `/api/v1/today/palette.svg` 返回可嵌入 README 的动态配色徽章 | ✅ 已完成 |
+| **OG 社交分享卡片** | `/api/v1/theme/[id]/og.svg` 返回 1200×630 主题展示卡片 | ✅ 已完成 |
+| **随机主题接口** | `/api/v1/theme/random.json` 从全池随机返回主题 | ✅ 已完成 |
+
+---
+
 ## 这个项目有什么用？？？
 
 **ThemeDist** 简单来说，是一个**网页“每日穿搭”分发服务**。它主要是为了帮网页开发者解决 **“如何让自己的网站根据节日、日期自动切换视觉风格”** 这一需求。
@@ -1549,75 +1619,6 @@ Netlify Dashboard → Site settings → Environment variables → 添加：
 
 ---
 
-## 未来计划
-
-| 功能 | 说明 | 状态 |
-|------|------|------|
-| **社区主题纳入每日轮换池** | 社区主题有机会被 `/api/v1/today.json` 选中（约 30% 天数） | ✅ 已完成 |
-| **社区主题投稿与审核** | 投稿后进入待审队列，管理员审核通过后发布 | ✅ 已完成 |
-| **XSS 安全防护** | CSS/HTML 注入过滤（@import/url()/expression/事件处理器），声明式扩展渲染 | ✅ 已完成 |
-| **CSRF 保护** | 管理员写操作需 Double Submit Cookie 校验 | ✅ 已完成 |
-| **主题分类与标签** | 支持为主题添加标签（暗色/亮色/节日/极简等），按分类浏览 | ✅ 已完成 |
-| **AI 辅助主题生成** | 根据文字描述，通过 DeepSeek（客户端直调）或规则引擎生成主题 | ✅ 已完成 |
-| **客户端缓存优化** | sessionStorage（5min TTL）+ localStorage（10min TTL）减少重复请求 | ✅ 已完成 |
-| **LIVE SENSING 沙箱** | 提交页 16:9 比例全屏沙箱实时预览 | ✅ 已完成 |
-| **双平台同步部署** | 一套代码自动部署 Vercel + Netlify 双平台 | ✅ 已完成 |
-| **农历节日支持** | 35+ 农历节日，OmniConfig 运行时通过 Lunar.fromDate() 计算 | ✅ 已完成 |
-| **系统监控台** | themedist-monitor 独立监控站点，11 个 API 端点覆盖状态/安全/告警/拨测/徽章 | ✅ 已完成 |
-| **Shadcn UI 适配器** | HSL 变量转换 + 前景色自动推断 | ✅ 已完成 |
-| **WCAG 无障碍诊断** | 对比度评估 + AA/AAA 合规检查 | ✅ 已完成 |
-| **色阶生成** | 黑白插值法 Tailwind 风格 50~950 色阶 | ✅ 已完成 |
-| **天气自适应主题** | Open-Meteo 免费 API + IP 地理位置 | ✅ 已完成 |
-| **系统状态覆盖** | maintenance / mourning / incident 主题覆盖 | ✅ 已完成 |
-| **图片取色 API** | K-means 聚类提取 + UI 语义映射，纯 JS 零原生依赖 | ✅ 已完成 |
-| **Shiki 代码高亮主题** | TextMate Token 颜色映射，VS Code / Shiki 兼容 | ✅ 已完成 |
-| **动态 SVG 纹理** | 主题色生成几何图案 CSS background-image | ✅ 已完成 |
-| **全场景 API 展厅** | /lab 页面，5 模块联动演示 | ✅ 已完成 |
-| **WCAG 自动修复** | HSL 亮度调整自动修复对比度问题，亮度调整上限 ±25% | ✅ 已完成 |
-| **APCA 对比度评估** | APCA 0.98G-4g（WCAG 3.0 候选标准）Lc 值计算 | ✅ 已完成 |
-| **暗色/亮色双主题** | `?dual=true` 单次调用返回 light + dark 变体，支持 class/data 模式 | ✅ 已完成 |
-| **智能轮询** | `/api/v1/events` 替代 WebSocket/SSE，动态调整轮询间隔 | ✅ 已完成 |
-| **访客主题锁定/切换** | `setPin()` / `setMode()` SDK 方法，用户可锁定或手动切换主题 | ✅ 已完成 |
-| **i18n 节日池** | `?locale=` 参数支持 hi-IN / ja-JP / en-US / pt-BR 地区专属节日 | ✅ 已完成 |
-| **主题复刻** | 用户可 fork 现有主题并提交修改 | ✅ 已完成 |
-| **内容审核** | 基于规则的自动内容审核（`/api/v1/admin/moderate.json`） | ✅ 已完成 |
-| **分层限流 / API 密钥** | `/api/v1/admin/api-keys.json` 密钥管理，分层速率限制 | ✅ 已完成 |
-| **渐变变量** | `--color-gradient-primary/accent/bg/ambient` 四个渐变 CSS 变量 | ✅ 已完成 |
-| **声音微交互** | Web Audio API 声明式声音效果（`type: 'sound'` 扩展） | ✅ 已完成 |
-| **Edge 中间件 FOUC 消除** | Astro 中间件注入 `<link>` 预加载 CSS 变量，消除无样式闪烁 | ✅ 已完成 |
-| **React / Vue / Svelte SDKs** | `@themedist/react`、`@themedist/vue`、`@themedist/svelte` 官方框架绑定 | ✅ 已完成 |
-| **CLI 工具** | `npx themedist init` 自动检测项目类型并生成集成配置 | ✅ 已完成 |
-| **Figma 插件** | Figma Plugin API 设计工具集成 | ✅ 已完成 |
-| **Atmosphere 取色模式** | `?mode=atmosphere` 增强取色，含基于情绪的动画生成 | ✅ 已完成 |
-| **RSS / Webhook 通知** | 每日主题更新后推送通知 | 待规划 |
-| **多管理员支持** | 审核权限分离，支持多个管理员账号协同操作 | 待规划 |
-| **主题使用统计** | 各主题被 API 请求的次数、点赞趋势等可视化数据 | 待规划 |
-| **设计令牌导出** | W3C DTCG 规范 JSON 导出 | ✅ 已完成 |
-| **动态 Favicon** | 主色 SVG 图标 | ✅ 已完成 |
-| **颜色相似度搜索** | RGB 欧几里得距离排序 | ✅ 已完成 |
-| **智能推荐引擎** | Jaccard + 颜色距离加权 | ✅ 已完成 |
-| **匿名遥测** | HyperLogLog + Sorted Set | ✅ 已完成 |
-| **趋势排行榜** | 热度聚合 Top 20 | ✅ 已完成 |
-| **自定义轮换池** | 创建/轮换双端点 | ✅ 已完成 |
-| **自动字体注入** | Google Fonts @import | ✅ 已完成 |
-| **GitHub 动态徽章** | shields.io 风格 | ✅ 已完成 |
-| **AI 逆向描述** | CSS→中文风格分析 | ✅ 已完成 |
-| **API 速率限制** | 投稿/点赞接口滑动窗口限流（投稿 3次/分钟，点赞 10次/分钟），超限 429 | ✅ 已完成 |
-| **Extensions 类型支持** | 支持 `floating`（浮动字符）和 `decorative`（装饰 HTML），`javascript` 类型拒绝并返回 warnings | ✅ 已完成 |
-| **智能格式化** | theme-builder 各编辑器独立格式化按钮，智能检测当前 tab 格式化对应内容 | ✅ 已完成 |
-| **Extensions 实时校验** | submit + theme-builder 两端实时检测不支持类型并提示，提交后 warnings 展示 | ✅ 已完成 |
-| **存储格式归一化** | `extensions` 字段统一为 `null` 或数组（不再出现 `undefined`），JSON 始终完整 | ✅ 已完成 |
-| **渲染一致性** | share 页 iframe、首页 Apply、theme-builder 预览、submit 预览四路径 extensions 渲染逻辑统一 | ✅ 已完成 |
-| **SDK / Web Component** | 官方轻量化 `<themedist-runner>` 自定义元素，Shadow DOM 隔离装饰，一行标签接入 | ✅ 已完成 |
-| **Tailwind CSS 原生适配** | RGB 通道变量 + `/api/v1/tailwind-config.json` 一键生成 Tailwind 配置 | ✅ 已完成 |
-| **暗色/亮色协同适配** | `/api/v1/today.css` 自动输出 `@media (prefers-color-scheme)` 适配块 | ✅ 已完成 |
-| **时区感知** | 支持 `?tz=America/New_York` 查询参数，按目标时区计算今日主题 | ✅ 已完成 |
-| **主题参数覆盖** | 支持 `?overrides=--radii:0px` 查询参数，微调 CSS 变量 | ✅ 已完成 |
-| **调色盘 SVG 徽章** | `/api/v1/today/palette.svg` 返回可嵌入 README 的动态配色徽章 | ✅ 已完成 |
-| **OG 社交分享卡片** | `/api/v1/theme/[id]/og.svg` 返回 1200×630 主题展示卡片 | ✅ 已完成 |
-| **随机主题接口** | `/api/v1/theme/random.json` 从全池随机返回主题 | ✅ 已完成 |
-
----
 
 ## 许可证
 
